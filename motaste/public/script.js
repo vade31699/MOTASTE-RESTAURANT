@@ -17,6 +17,8 @@ const dashboardUserEmail = document.getElementById('dashboardUserEmail');
 const staffForm = document.getElementById('staffLoginForm');
 const staffLoginPage = document.querySelector('.staff-login-page');
 const allowedRoles = ['Admin', 'Cashier', 'Inventory Manager'];
+const staffSessionStorageKey = 'motasteStaffSession';
+const staffActiveSectionStorageKey = 'motasteStaffActiveSection';
 
 function getSavedLoginCredentials() {
     try {
@@ -56,6 +58,110 @@ function loadSavedCredentialsForRole(role) {
     if (emailInput) emailInput.value = saved.email || '';
     if (passwordInput) passwordInput.value = saved.password || '';
     if (rememberCheckbox) rememberCheckbox.checked = true;
+}
+
+function getPersistedStaffSession() {
+    try {
+        const raw = localStorage.getItem(staffSessionStorageKey);
+        return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function saveStaffSession(role, email, password, remember) {
+    if (!role || !email || !password) return;
+    const payload = { role, email, password, remember: Boolean(remember) };
+    localStorage.setItem(staffSessionStorageKey, JSON.stringify(payload));
+}
+
+function clearStaffSession() {
+    localStorage.removeItem(staffSessionStorageKey);
+    localStorage.removeItem(staffActiveSectionStorageKey);
+}
+
+function saveActiveSection(sectionId) {
+    if (!sectionId) return;
+    localStorage.setItem(staffActiveSectionStorageKey, sectionId);
+}
+
+function getPersistedActiveSection() {
+    try {
+        return localStorage.getItem(staffActiveSectionStorageKey) || 'overview';
+    } catch (error) {
+        return 'overview';
+    }
+}
+
+function restoreStaffSession() {
+    const persistedSession = getPersistedStaffSession();
+    if (!persistedSession) return false;
+
+    const { role, email, password } = persistedSession;
+    if (!role || !email || !password || !allowedRoles.includes(role) || !isValidStaffLogin(role, email, password)) {
+        clearStaffSession();
+        return false;
+    }
+
+    if (selectedRoleInput) {
+        selectedRoleInput.value = role;
+    }
+    if (emailInput) {
+        emailInput.value = email;
+    }
+    if (passwordInput) {
+        passwordInput.value = password;
+    }
+    if (rememberCheckbox) {
+        rememberCheckbox.checked = Boolean(persistedSession.remember);
+    }
+
+    if (modalTitle) {
+        modalTitle.textContent = `Logged in as ${role}`;
+    }
+
+    updateDashboardProfile();
+
+    if (loginFields) {
+        loginFields.hidden = true;
+    }
+
+    const staffBox = document.querySelector('.staff-box');
+    if (staffBox) {
+        staffBox.style.display = 'none';
+    }
+    if (staffLoginPage) {
+        staffLoginPage.hidden = true;
+    }
+
+    document.body.classList.add('auth');
+    updateAccountManagementAccess();
+    renderInventoryManagement();
+    setAuthButtonsVisible(true);
+
+    const targetSectionId = getPersistedActiveSection();
+    const targetSection = document.getElementById(targetSectionId);
+    if (targetSection) {
+        showDashboardSection(targetSection);
+        if (targetSectionId === 'overview') {
+            renderOverviewAnalytics();
+            renderOrderNotifications();
+            renderOverviewInventory();
+        } else if (targetSectionId === 'pending-orders') {
+            void loadPendingOrdersFromServer();
+            renderPendingOrders();
+        } else if (targetSectionId === 'sales') {
+            updateAnalyticsView();
+        } else if (targetSectionId === 'inventory') {
+            renderOverviewInventory();
+        }
+    } else {
+        showDashboardSection(overviewSection);
+        renderOverviewAnalytics();
+    }
+
+    setDashboardPanelState(false);
+    return true;
 }
 
 function isValidStaffLogin(role, email, password) {
@@ -222,6 +328,8 @@ function attachStaffLoginHandler() {
             clearSavedCredentialsForRole(role);
         }
 
+        saveStaffSession(role, email, password, remember);
+
         if (modalTitle) {
             modalTitle.textContent = `Logged in as ${role}`;
         }
@@ -300,6 +408,7 @@ if (logoutBtn) {
         setAuthButtonsVisible(false);
         renderInventoryManagement();
         document.body.classList.remove('auth');
+        clearStaffSession();
         setDashboardPanelState(false);
         document.body.classList.remove('dashboard-panel-open');
     });
@@ -1478,8 +1587,12 @@ function decrementInventory(items) {
         const inventoryItem = getInventoryItem(item.name);
         if (!inventoryItem) return;
         inventoryItem.stock = Math.max(0, inventoryItem.stock - item.quantity);
-        if (inventoryItem.stock <= 5) {
+        if (inventoryItem.stock <= 0) {
+            inventoryItem.status = 'Out of stock';
+        } else if (inventoryItem.stock <= 5) {
             inventoryItem.status = 'Low stock';
+        } else {
+            inventoryItem.status = 'In stock';
         }
     });
     saveInventoryData();
@@ -1929,6 +2042,15 @@ function showDashboardSection(section) {
         if (!el) return;
         el.hidden = el !== section;
     });
+
+    if (section && section.id) {
+        saveActiveSection(section.id);
+    }
+}
+
+function isItemOutOfStock(itemName) {
+    const inventoryItem = getInventoryItem(itemName);
+    return Boolean(inventoryItem && inventoryItem.stock <= 0);
 }
 
 function renderSpecialFoods() {
@@ -1936,15 +2058,17 @@ function renderSpecialFoods() {
 
     specialFoodsList.innerHTML = specialFoods.map((item) => {
         const imageSrc = item.image || 'img1.jpg';
+        const isOutOfStock = isItemOutOfStock(item.name);
         return `
-        <article class="special-food-card">
+        <article class="special-food-card${isOutOfStock ? ' is-out-of-stock' : ''}">
             <img src="${imageSrc}" alt="${item.name}">
+            ${isOutOfStock ? `<div class="stock-status-overlay"><img src="outofstock1.png" alt="Out of stock"><span>Out of stock</span></div>` : ''}
             <div class="special-food-details">
                 <h4>${item.name}</h4>
                 <strong>${formatCurrency(item.price)}</strong>
             </div>
             <div class="special-food-cart-action">
-                <button type="button" class="special-food-add" data-name="${item.name}" data-price="${item.price}" aria-label="Add ${item.name} to cart">
+                <button type="button" class="special-food-add" data-name="${item.name}" data-price="${item.price}" aria-label="Add ${item.name} to cart"${isOutOfStock ? ' disabled' : ''}>
                     <i class="fa-solid fa-cart-plus" aria-hidden="true"></i>
                 </button>
                 <span class="special-food-added-message" aria-live="polite"></span>
@@ -1956,6 +2080,12 @@ function renderSpecialFoods() {
 
 function addToCart(item) {
     if (!item) return;
+    if (isItemOutOfStock(item.name)) {
+        if (menuOrderMessage) {
+            menuOrderMessage.textContent = `${item.name} is out of stock.`;
+        }
+        return;
+    }
     const existing = cartItems.find((cartItem) => cartItem.name === item.name);
     if (existing) {
         existing.quantity += 1;
@@ -2185,23 +2315,27 @@ function showMenuCategory(categoryId) {
 
     currentMenuCategoryId = categoryId;
     menuCategoryTitle.textContent = category.title;
-    menuItemsList.innerHTML = category.items.map((item) => `
-        <article class="menu-item-card">
+    menuItemsList.innerHTML = category.items.map((item) => {
+        const isOutOfStock = isItemOutOfStock(item.name);
+        return `
+        <article class="menu-item-card${isOutOfStock ? ' is-out-of-stock' : ''}">
             <div class="menu-item-main">
                 <h4>${item.name}</h4>
                 <p>${item.description}</p>
                 <p class="menu-item-price">${item.price}</p>
             </div>
+            ${isOutOfStock ? `<div class="stock-status-overlay"><img src="outofstock1.png" alt="Out of stock"><span>Out of stock</span></div>` : ''}
             <div class="menu-item-controls">
                 <div class="menu-item-qty-controls">
                     <button type="button" class="menu-item-qty-btn" data-action="decrease" data-name="${item.name}" data-price="${parsePrice(item.price)}" aria-label="Decrease ${item.name} quantity">−</button>
                     <span class="menu-item-qty">0</span>
-                    <button type="button" class="menu-item-qty-btn" data-action="increase" data-name="${item.name}" data-price="${parsePrice(item.price)}" aria-label="Increase ${item.name} quantity">+</button>
+                    <button type="button" class="menu-item-qty-btn" data-action="increase" data-name="${item.name}" data-price="${parsePrice(item.price)}" aria-label="Increase ${item.name} quantity"${isOutOfStock ? ' disabled' : ''}>+</button>
                 </div>
                 <span class="menu-item-confirmation" aria-live="polite"></span>
             </div>
         </article>
-    `).join('');
+    `;
+    }).join('');
 
     menuCategories.hidden = true;
     menuCategoryScreen.classList.remove('hidden');
@@ -2659,3 +2793,4 @@ function initOrders() {
 }
 
 initOrders();
+restoreStaffSession();

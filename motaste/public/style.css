@@ -1944,6 +1944,47 @@ body.dashboard-panel-open .menu-btn {
     gap: 8px;
     flex: 0 0 auto;
 }
+.stock-status-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px;
+    border-radius: inherit;
+    background: rgba(0, 0, 0, 0.68);
+    color: #fff;
+    text-align: center;
+    z-index: 2;
+}
+.stock-status-overlay img {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.25));
+}
+.stock-status-overlay span {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.special-food-card.is-out-of-stock,
+.menu-item-card.is-out-of-stock {
+    opacity: 0.86;
+    filter: grayscale(0.2);
+}
+.special-food-card.is-out-of-stock .special-food-add:disabled,
+.menu-item-qty-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+.menu-item-card.is-out-of-stock .menu-item-price {
+    color: #777;
+}
 .menu-item-qty-controls {
     display: inline-flex;
     align-items: center;
