@@ -90,7 +90,7 @@ body {
         #e8e8d7,
         #1c1a0d
     );
-
+    background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 
@@ -651,7 +651,7 @@ body.dashboard-panel-open .menu-btn {
     padding: 24px;
     border-radius: 12px;
     box-shadow: 0 5px 18px rgb(255, 255, 254);
-    font-color: #8a3d00;
+    color: #8a3d00;
 }
 
 /* MENU SECTION */

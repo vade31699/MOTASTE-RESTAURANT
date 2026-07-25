@@ -20,6 +20,9 @@ const allowedRoles = ['Admin', 'Cashier', 'Inventory Manager'];
 const staffSessionStorageKey = 'motasteStaffSession';
 const staffActiveSectionStorageKey = 'motasteStaffActiveSection';
 let inventoryRefreshTimer = null;
+let inventoryRefreshVersion = 0;
+let inventorySyncInFlight = false;
+let lastInventoryUpdateAt = 0;
 
 function getApiUrl(path) {
     try {
@@ -1416,7 +1419,10 @@ function buildDefaultInventoryFromMenu() {
     return items;
 }
 
-async function initializeInventoryData() {
+async function initializeInventoryData(forceRefresh = false) {
+    if (inventorySyncInFlight && !forceRefresh) return;
+
+    inventorySyncInFlight = true;
     const defaults = buildDefaultInventoryFromMenu();
     try {
         const response = await fetch(getApiUrl('api/get_inventory.php'), { cache: 'no-store' });
@@ -1433,20 +1439,30 @@ async function initializeInventoryData() {
             status: item.status || (Number(item.stock) > 0 ? 'In stock' : 'Out of stock'),
             category: item.category || resolveInventoryCategory(item.name)
         }));
-        const existingNames = new Set(merged.map((item) => item.name));
 
+        const mergedNames = new Set(merged.map((item) => normalizeInventoryName(item.name)));
         defaults.forEach((item) => {
-            if (!existingNames.has(item.name)) {
+            if (!mergedNames.has(normalizeInventoryName(item.name))) {
                 merged.push(item);
-                existingNames.add(item.name);
+                mergedNames.add(normalizeInventoryName(item.name));
             }
         });
 
-        inventoryData = merged;
-        saveInventoryData();
+        const latestInventory = merged.map((item) => ({ ...item }));
+        const hasLocalChanges = inventoryData.some((item) => {
+            const serverItem = latestInventory.find((candidate) => normalizeInventoryName(candidate.name) === normalizeInventoryName(item.name));
+            return serverItem && (serverItem.stock !== item.stock || serverItem.status !== item.status || serverItem.price !== item.price);
+        });
+
+        if (!hasLocalChanges || forceRefresh) {
+            inventoryData = latestInventory;
+            saveInventoryData();
+        }
     } catch (error) {
-        inventoryData = defaults;
+        inventoryData = inventoryData.length ? inventoryData : defaults;
         saveInventoryData();
+    } finally {
+        inventorySyncInFlight = false;
     }
 
     syncMenuPricesWithInventory();
@@ -1459,7 +1475,13 @@ async function initializeInventoryData() {
 }
 
 function saveInventoryData() {
-    localStorage.setItem('motasteInventoryData', JSON.stringify(inventoryData));
+    try {
+        lastInventoryUpdateAt = Date.now();
+        localStorage.setItem('motasteInventoryData', JSON.stringify(inventoryData));
+        localStorage.setItem('motasteInventoryDataUpdatedAt', String(lastInventoryUpdateAt));
+    } catch (error) {
+        console.error('Unable to persist inventory data to localStorage', error);
+    }
 }
 
 function startInventoryAutoRefresh() {
@@ -1551,9 +1573,16 @@ window.addEventListener('storage', (event) => {
         }
     }
 
-    if (event.key === 'motasteInventoryData') {
+    if (event.key === 'motasteInventoryData' || event.key === 'motasteInventoryDataUpdatedAt') {
         try {
-            inventoryData = event.newValue ? JSON.parse(event.newValue) : [];
+            const remoteUpdatedAt = Number(localStorage.getItem('motasteInventoryDataUpdatedAt') || '0');
+            if (remoteUpdatedAt && remoteUpdatedAt <= (lastInventoryUpdateAt || 0)) {
+                // Ignore older updates
+                return;
+            }
+
+            const raw = localStorage.getItem('motasteInventoryData');
+            inventoryData = raw ? JSON.parse(raw) : [];
         } catch (error) {
             inventoryData = [];
         }
@@ -2012,7 +2041,7 @@ async function saveInventoryItem(event) {
     }
 
     setInventoryModalVisible(false);
-    void initializeInventoryData();
+    void initializeInventoryData(true);
 }
 
 function editInventoryItem(name) {
@@ -2052,6 +2081,7 @@ async function commitInlineInventoryEdit(card) {
 
     saveMenuCatalogItem(previousItem, itemName);
     saveInventoryData();
+    inventoryRefreshVersion += 1;
     try {
         await fetch(getApiUrl('api/update_inventory.php'), {
             method: 'POST',
