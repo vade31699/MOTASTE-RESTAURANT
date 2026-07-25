@@ -1,0 +1,8 @@
+{
+    "name": "motaste/admin",
+    "description": "Motaste Website",
+    "type": "project",
+    "license": "MIT",
+    "minimum-stability": "stable",
+    "require": {}
+}

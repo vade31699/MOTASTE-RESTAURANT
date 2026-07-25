@@ -6,9 +6,6 @@
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Allura&display=swap" rel="stylesheet">
     <title>MOTASTE</title>
 </head>
 <body>
@@ -21,6 +18,7 @@
         </button>
         <div class="live-clock" id="liveClock" aria-live="polite"></div>
         <nav class="top-nav" id="topNav" aria-label="Primary">
+            <a href="#home">MWAMWA</a>
             <a href="#home">MWA CLAIRE</a>
             <a href="#menu">Menu</a>
             <a href="#about">About Us</a>
@@ -28,19 +26,20 @@
         </nav>
     </div>
 
-    <!-- Front Banner -->
-<section class="front-section">
-    
-    <img src="frontnii.jpg" alt="Welcome Banner">
-     <a href="#about" class="about-btn">About Us</a>
-    
-</section>
-
-   
+    <div class="slideshow" id="home">
+        <div class="slides">
+            <img src="img1.jpg" alt="Slide 1" class="active">
+            <img src="img2.jpg" alt="Slide 2">
+            <img src="img3.jpg" alt="Slide 3">
+            <img src="img4.jpg" alt="Slide 4">
+            
+        </div>
+        <div class="slide-dots" id="slideDots" aria-hidden="false"></div>
+    </div>
 
     <section class="special-foods-section special-foods-visible" aria-labelledby="specialFoodsTitle">
         <div class="special-foods-heading">
-            <h1 id="specialFoodsTitle">Special Foods</h3>
+            <h3 id="specialFoodsTitle">Special Foods</h3>
             <span>Featured favorites</span>
         </div>
         <div class="special-foods-list" id="specialFoodsList"></div>
@@ -78,13 +77,9 @@
                     DRINKS
                 </button>
             </div>
-            
 
         </div>
-  <!-- RIGHT IMAGE -->
-        <div class="menu-image">
-            <img src="designmenu.jpg" alt="Menu Design" class="menu-design">
-        </div>
+
 
         <!-- RIGHT: CART -->
         <div class="menu-right">
@@ -204,22 +199,9 @@
     
 
     <section class="info-section" id="about">
-    <h2>About Us</h2>
-    <p>MOTASTE Restaurant brings warm hospitality and flavorful meals to every guest.</p>
-
-    
-</section>
- <div class="slideshow" id="home">
-        <div class="slides">
-            <img src="img1.jpg" alt="Slide 1" class="active">
-            <img src="img2.jpg" alt="Slide 2">
-            <img src="img3.jpg" alt="Slide 3">
-            <img src="img4.jpg" alt="Slide 4">
-            
-        </div>
-        <div class="slide-dots" id="slideDots" aria-hidden="false"></div>
-    </div>
-
+        <h2>About Us</h2>
+        <p>MOTASTE Restaurant brings warm hospitality and flavorful meals to every guest.</p>
+    </section>
 
     <section class="info-section" id="contact">
         <h2>Contact</h2>
