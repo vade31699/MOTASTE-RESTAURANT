@@ -1457,10 +1457,14 @@ async function initializeInventoryData(forceRefresh = false) {
         if (!hasLocalChanges || forceRefresh) {
             inventoryData = latestInventory;
             saveInventoryData();
+            debugInventory('Applied server inventory', 'server');
+        } else {
+            debugInventory('Skipped applying server inventory due to local changes', 'server');
         }
     } catch (error) {
         inventoryData = inventoryData.length ? inventoryData : defaults;
         saveInventoryData();
+        debugInventory('initializeInventoryData error — kept local or defaults', 'server-error');
     } finally {
         inventorySyncInFlight = false;
     }
@@ -1481,6 +1485,16 @@ function saveInventoryData() {
         localStorage.setItem('motasteInventoryDataUpdatedAt', String(lastInventoryUpdateAt));
     } catch (error) {
         console.error('Unable to persist inventory data to localStorage', error);
+    }
+}
+
+// Debug helper: log inventory summary
+function debugInventory(msg, source) {
+    try {
+        const summary = (inventoryData || []).map(i => ({ name: i.name, stock: i.stock }));
+        console.debug(`[INV] ${msg}`, { source: source || 'unknown', at: Date.now(), summary, lastInventoryUpdateAt });
+    } catch (e) {
+        console.debug('[INV] debugInventory error', e);
     }
 }
 
@@ -1578,6 +1592,7 @@ window.addEventListener('storage', (event) => {
             const remoteUpdatedAt = Number(localStorage.getItem('motasteInventoryDataUpdatedAt') || '0');
             if (remoteUpdatedAt && remoteUpdatedAt <= (lastInventoryUpdateAt || 0)) {
                 // Ignore older updates
+                debugInventory('Ignored storage event: older remoteUpdatedAt', 'storage');
                 return;
             }
 
@@ -1586,6 +1601,7 @@ window.addEventListener('storage', (event) => {
         } catch (error) {
             inventoryData = [];
         }
+        debugInventory('Applied storage event inventory', 'storage');
         syncMenuPricesWithInventory();
         if (currentMenuCategoryId) {
             showMenuCategory(currentMenuCategoryId);
@@ -2025,6 +2041,7 @@ async function saveInventoryItem(event) {
     } catch (error) {
         console.error('Unable to sync inventory with server', error);
     }
+    debugInventory('Saved inventory and sent update to server', 'local-save');
 
     syncMenuPricesWithInventory();
     renderInventoryManagement();
