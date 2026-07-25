@@ -19,6 +19,7 @@ const staffLoginPage = document.querySelector('.staff-login-page');
 const allowedRoles = ['Admin', 'Cashier', 'Inventory Manager'];
 const staffSessionStorageKey = 'motasteStaffSession';
 const staffActiveSectionStorageKey = 'motasteStaffActiveSection';
+let inventoryRefreshTimer = null;
 
 function getApiUrl(path) {
     try {
@@ -1461,6 +1462,21 @@ function saveInventoryData() {
     localStorage.setItem('motasteInventoryData', JSON.stringify(inventoryData));
 }
 
+function startInventoryAutoRefresh() {
+    if (inventoryRefreshTimer) return;
+
+    inventoryRefreshTimer = window.setInterval(() => {
+        void initializeInventoryData();
+    }, 5000);
+}
+
+function stopInventoryAutoRefresh() {
+    if (inventoryRefreshTimer) {
+        window.clearInterval(inventoryRefreshTimer);
+        inventoryRefreshTimer = null;
+    }
+}
+
 function saveCustomMenuData() {
     const snapshot = {
         menuData: Object.fromEntries(Object.entries(menuData).map(([categoryKey, category]) => [
@@ -2822,6 +2838,7 @@ function initOrders() {
     loadIgnoredPendingOrders();
     loadCompletedOrders();
     loadCustomMenuData();
+    startInventoryAutoRefresh();
     void initializeInventoryData();
     recalculateSalesAnalytics();
     renderSpecialFoods();
@@ -2836,6 +2853,16 @@ function initOrders() {
     setInterval(updateLiveClock, 1000);
     void loadPendingOrdersFromServer();
 }
+
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        void initializeInventoryData();
+    }
+});
+
+window.addEventListener('focus', () => {
+    void initializeInventoryData();
+});
 
 initOrders();
 restoreStaffSession();
