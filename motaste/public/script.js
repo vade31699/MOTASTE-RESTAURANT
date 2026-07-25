@@ -1754,9 +1754,11 @@ function renderInventoryManagement() {
                         <strong>${item.name}</strong>
                         <p><span class="inventory-item-category">${categoryLabel}</span></p>
                         <p>Price: ${formatCurrency(item.price)}</p>
-                        <p>Stock: ${item.stock}</p>
+                        <p class="inventory-stock-line">
+                            <span>Stock: ${item.stock}</span>
+                            ${item.stock <= 0 ? `<img src="../../outofstock1.png" alt="Out of stock" class="inventory-out-of-stock-image">` : ''}
+                        </p>
                         <p>Status: ${item.status}</p>
-                        ${item.stock <= 0 ? `<img src="../../outofstock1.png" alt="Out of stock" class="inventory-out-of-stock-image">` : ''}
                     </div>
                     <div class="inventory-item-actions">
                         <button type="button" class="inventory-edit-btn" data-item-name="${item.name}">Edit</button>

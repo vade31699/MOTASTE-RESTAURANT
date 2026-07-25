@@ -1985,6 +1985,19 @@ body.dashboard-panel-open .menu-btn {
 .menu-item-card.is-out-of-stock .menu-item-price {
     color: #777;
 }
+.inventory-stock-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.inventory-out-of-stock-image {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    display: inline-block;
+    flex-shrink: 0;
+}
 .menu-item-qty-controls {
     display: inline-flex;
     align-items: center;
