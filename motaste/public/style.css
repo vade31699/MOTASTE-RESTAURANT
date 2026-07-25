@@ -2293,11 +2293,18 @@ body.dashboard-panel-open .menu-btn {
 }
 .pending-order-card h4 {
     margin: 0;
+    color: #111;
+}
+.pending-order-card p,
+.pending-order-card li,
+.pending-order-card span,
+.pending-order-card strong {
+    color: #222;
 }
 .pending-order-card ul {
     margin: 0;
     padding-left: 18px;
-    color: #333;
+    color: #222;
 }
 .order-complete-btn {
     border: none;
