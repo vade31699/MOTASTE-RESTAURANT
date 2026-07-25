@@ -47,8 +47,9 @@ foreach ($items as $it) {
     $price = (float)$it['price'];
     $qty = (int)$it['quantity'];
     $lineTotal = $price * $qty;
-    $stmt = $mysqli->prepare('INSERT INTO order_items (order_id, menu_item_id, quantity, unit_price, line_total, notes, created_at, updated_at) VALUES (?, 0, ?, ?, ?, NULL, ?, ?)');
-    $stmt->bind_param('iiddss', $orderId, $qty, $price, $lineTotal, $now, $now);
+    $itemName = $it['name'] ?? 'Menu item';
+    $stmt = $mysqli->prepare('INSERT INTO order_items (order_id, menu_item_id, quantity, unit_price, line_total, notes, created_at, updated_at) VALUES (?, 0, ?, ?, ?, ?, ?, ?)');
+    $stmt->bind_param('iiddsss', $orderId, $qty, $price, $lineTotal, $itemName, $now, $now);
     if ($stmt->execute()) $inserted++;
     $stmt->close();
 }

@@ -19,6 +19,9 @@ if ($res) {
         $items = [];
         if ($itemsRes) {
             while ($it = $itemsRes->fetch_assoc()) {
+                $it['name'] = $it['notes'] ?: 'Menu item';
+                $it['price'] = (float)($it['unit_price'] ?? 0);
+                $it['quantity'] = (int)($it['quantity'] ?? 0);
                 $items[] = $it;
             }
             $itemsRes->free();

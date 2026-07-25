@@ -1091,6 +1091,8 @@ const orderPaymentMethod = document.getElementById('orderPaymentMethod');
 const orderPaymentMessage = document.getElementById('orderPaymentMessage');
 const paymentQrPlaceholder = document.getElementById('paymentQrPlaceholder');
 const orderPaymentCloseBtn = document.getElementById('orderPaymentCloseBtn');
+const paymentSuccessModal = document.getElementById('paymentSuccessModal');
+const paymentSuccessCloseBtn = document.getElementById('paymentSuccessCloseBtn');
 const liveClock = document.getElementById('liveClock');
 
 let cartItems = [];
@@ -1154,6 +1156,73 @@ function loadPendingOrders() {
 
 function savePendingOrders() {
     localStorage.setItem('motastePendingOrders', JSON.stringify(pendingOrders));
+}
+
+async function loadPendingOrdersFromServer() {
+    try {
+        const response = await fetch('/api/get_pending_orders.php', { cache: 'no-store' });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const serverOrders = Array.isArray(payload.orders) ? payload.orders : [];
+
+        pendingOrders = serverOrders.map((order) => {
+            const items = Array.isArray(order.items) ? order.items : [];
+            return {
+                id: Number(order.id),
+                orderNumber: order.order_number || order.orderNumber || String(order.id),
+                timestamp: new Date(order.order_date || Date.now()).getTime(),
+                total: Number(order.total_amount ?? order.total ?? 0),
+                paymentMethod: order.payment_method || order.paymentMethod || 'Cash',
+                orderType: order.order_type || order.orderType || 'Dine In',
+                items: items.map((item) => ({
+                    name: item.notes || item.name || 'Menu item',
+                    price: Number(item.unit_price ?? item.price ?? 0),
+                    quantity: Number(item.quantity ?? 0)
+                }))
+            };
+        });
+
+        pendingOrders.sort((a, b) => b.timestamp - a.timestamp);
+        savePendingOrders();
+        renderPendingOrders();
+        renderOrderNotifications();
+    } catch (error) {
+        console.error('Unable to load pending orders from the server', error);
+    }
+}
+
+async function submitOrderToServer(order) {
+    try {
+        const response = await fetch('/api/create_order.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                orderNumber: order.orderNumber,
+                items: order.items,
+                paymentMethod: order.paymentMethod,
+                orderType: order.orderType
+            })
+        });
+
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || 'Unable to save order');
+        }
+
+        return {
+            ...order,
+            id: Number(payload.orderId || Date.now()),
+            orderNumber: order.orderNumber || String(payload.orderId || Date.now())
+        };
+    } catch (error) {
+        console.error('Unable to save order to the server', error);
+        return order;
+    }
 }
 
 function loadCompletedOrders() {
@@ -2070,7 +2139,19 @@ function closePaymentScreen() {
     orderCheckoutScreen.setAttribute('aria-hidden', 'false');
 }
 
-function confirmOrder() {
+function showPaymentSuccessMessage() {
+    if (!paymentSuccessModal) return;
+    paymentSuccessModal.classList.remove('hidden');
+    paymentSuccessModal.setAttribute('aria-hidden', 'false');
+}
+
+function hidePaymentSuccessMessage() {
+    if (!paymentSuccessModal) return;
+    paymentSuccessModal.classList.add('hidden');
+    paymentSuccessModal.setAttribute('aria-hidden', 'true');
+}
+
+async function confirmOrder() {
     if (!cartItems.length) return;
     const order = {
         orderNumber: generateOrderNumber(),
@@ -2082,7 +2163,8 @@ function confirmOrder() {
         orderType: selectedOrderType
     };
 
-    pendingOrders.unshift(order);
+    const syncedOrder = await submitOrderToServer(order);
+    pendingOrders.unshift(syncedOrder);
     decrementInventory(order.items);
     savePendingOrders();
     renderPendingOrders();
@@ -2091,7 +2173,7 @@ function confirmOrder() {
     if (menuOrderMessage) {
         menuOrderMessage.textContent = 'Order received! Proceed with payment to complete transaction.';
     }
-    openPaymentScreen(order);
+    openPaymentScreen(syncedOrder);
 }
 
 function showMenuCategory(categoryId) {
@@ -2448,7 +2530,13 @@ if (orderPaymentCloseBtn) {
             orderCheckoutScreen.classList.add('hidden');
             orderCheckoutScreen.setAttribute('aria-hidden', 'true');
         }
+        clearCart();
+        showPaymentSuccessMessage();
     });
+}
+
+if (paymentSuccessCloseBtn) {
+    paymentSuccessCloseBtn.addEventListener('click', hidePaymentSuccessMessage);
 }
 
 if (paymentMethodOptions) {
@@ -2492,6 +2580,7 @@ if (dashboardPanel) {
             renderOverviewInventory();
         } else if (href === '#pending-orders') {
             showDashboardSection(pendingOrdersSection);
+            void loadPendingOrdersFromServer();
             renderPendingOrders();
         } else if (href === '#sales') {
             showDashboardSection(salesSection);
@@ -2566,6 +2655,7 @@ function initOrders() {
     renderOverviewAnalytics();
     updateLiveClock();
     setInterval(updateLiveClock, 1000);
+    void loadPendingOrdersFromServer();
 }
 
 initOrders();

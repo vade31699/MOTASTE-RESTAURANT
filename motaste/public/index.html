@@ -203,11 +203,55 @@
     </div>
     
 
-    <section class="info-section" id="about">
-    <h2>About Us</h2>
-    <p>MOTASTE Restaurant brings warm hospitality and flavorful meals to every guest.</p>
+    <section id="about" class="about-section">
+    <div class="about-container">
 
-    
+        <div class="about-image">
+            <img src="designmenu.jpg" alt="MoTaste Restaurant">
+        </div>
+
+        <div class="about-content">
+            <span class="about-tag">ABOUT US</span>
+
+            <h2>
+                Bringing Delicious Moments<br>
+                To Your Table
+            </h2>
+
+            <p>
+                Welcome to MoTaste Restaurant, where great food meets a warm and
+                unforgettable dining experience. We serve freshly prepared meals
+                made with quality ingredients and a passion for creating flavors
+                that everyone can enjoy.
+            </p>
+
+            <p>
+                From casual family meals to special celebrations, our goal is to
+                provide delicious dishes, friendly service, and a comfortable
+                atmosphere where every guest feels at home.
+            </p>
+
+            <div class="about-features">
+
+                <div class="feature-box">
+                    <h3>🍽 Fresh Food</h3>
+                    <p>Prepared with quality ingredients every day.</p>
+                </div>
+
+                <div class="feature-box">
+                    <h3>👨‍🍳 Quality Service</h3>
+                    <p>Making every visit a memorable experience.</p>
+                </div>
+
+            </div>
+
+            <a href="#menu" class="about-btn">
+                Explore Our Menu
+            </a>
+
+        </div>
+
+    </div>
 </section>
  <div class="slideshow" id="home">
         <div class="slides">
@@ -221,11 +265,131 @@
     </div>
 
 
-    <section class="info-section" id="contact">
-        <h2>Contact</h2>
-        <p style="margin-bottom: 8px;"><strong><a href="#" class="contact-link">Customer Service</a></strong></p>
-        <p><strong>Location:</strong> Poblacion Madridejos, Cebu. Near Plaza between Nicy Burger, Be Lemon, and Pizza Amelia.</p>
-    </section>
+   <section id="contact" class="contact-section">
+
+    <div class="contact-container">
+
+        <!-- Contact Information -->
+        <div class="contact-info">
+
+            <span class="contact-tag">CONTACT US</span>
+
+            <h2>
+                We'd Love To<br>
+                Hear From You
+            </h2>
+
+            <p>
+                Have questions, suggestions, or want to make a reservation?
+                Feel free to reach out. Our team is always ready to assist you.
+            </p>
+
+
+            <div class="contact-details">
+
+                <div class="contact-box">
+                    <div class="contact-icon">
+                        📍
+                    </div>
+
+                    <div>
+                        <h3>Location</h3>
+                        <p>
+                            MoTaste Restaurant<br>
+                            Your Address Here
+                        </p>
+                    </div>
+                </div>
+
+
+                <div class="contact-box">
+
+                    <div class="contact-icon">
+                        📞
+                    </div>
+
+                    <div>
+                        <h3>Phone</h3>
+                        <p>
+                            +63 9XX XXX XXXX
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <div class="contact-box">
+
+                    <div class="contact-icon">
+                        ✉️
+                    </div>
+
+                    <div>
+                        <h3>Email</h3>
+                        <p>
+                            motaste@gmail.com
+                        </p>
+                    </div>
+
+                </div>
+
+
+            </div>
+
+        </div>
+
+
+
+        <!-- Contact Form -->
+
+        <div class="contact-form">
+
+            <h3>
+                Send Us A Message
+            </h3>
+
+
+            <form>
+
+                <div class="input-group">
+                    <input type="text" placeholder="Your Name">
+                </div>
+
+
+                <div class="input-group">
+                    <input type="email" placeholder="Your Email">
+                </div>
+
+
+                <div class="input-group">
+                    <input type="text" placeholder="Subject">
+                </div>
+
+
+                <div class="input-group">
+
+                    <textarea 
+                    rows="5" 
+                    placeholder="Your Message"></textarea>
+
+                </div>
+
+
+                <button type="submit">
+                    Send Message
+                </button>
+
+
+            </form>
+
+
+        </div>
+
+
+    </div>
+
+
+</section>
 
     <section class="map-section">
         <h2>Our Location</h2>
@@ -239,6 +403,14 @@
             </iframe>
         </div>
     </section>
+
+    <div class="payment-success-modal hidden" id="paymentSuccessModal" role="dialog" aria-modal="true" aria-labelledby="paymentSuccessTitle" aria-hidden="true">
+        <div class="payment-success-card">
+            <h3 id="paymentSuccessTitle">Order Received</h3>
+            <p>Thank you! We will now prepare your order.</p>
+            <button type="button" id="paymentSuccessCloseBtn" class="menu-place-order-btn">Close</button>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>
