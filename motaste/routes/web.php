@@ -23,6 +23,20 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('/staff', function () {
+    $staffPath = public_path('staff.html');
+
+    if (!file_exists($staffPath)) {
+        abort(404);
+    }
+
+    return response()->file($staffPath);
+})->name('staff');
+
+Route::get('/staff.html', function () {
+    return redirect()->route('staff');
+});
+
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
