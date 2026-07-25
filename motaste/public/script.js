@@ -20,6 +20,18 @@ const allowedRoles = ['Admin', 'Cashier', 'Inventory Manager'];
 const staffSessionStorageKey = 'motasteStaffSession';
 const staffActiveSectionStorageKey = 'motasteStaffActiveSection';
 
+function getApiUrl(path) {
+    try {
+        return new URL(path, window.location.href).toString();
+    } catch (error) {
+        return path;
+    }
+}
+
+function normalizeInventoryName(name) {
+    return (name || '').trim().toLowerCase();
+}
+
 function getSavedLoginCredentials() {
     try {
         return JSON.parse(localStorage.getItem('motasteSavedCredentials') || '{}');
@@ -1269,7 +1281,7 @@ function savePendingOrders() {
 
 async function loadPendingOrdersFromServer() {
     try {
-        const response = await fetch('/api/get_pending_orders.php', { cache: 'no-store' });
+        const response = await fetch(getApiUrl('api/get_pending_orders.php'), { cache: 'no-store' });
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
@@ -1305,7 +1317,7 @@ async function loadPendingOrdersFromServer() {
 
 async function submitOrderToServer(order) {
     try {
-        const response = await fetch('/api/create_order.php', {
+        const response = await fetch(getApiUrl('api/create_order.php'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1406,7 +1418,7 @@ function buildDefaultInventoryFromMenu() {
 async function initializeInventoryData() {
     const defaults = buildDefaultInventoryFromMenu();
     try {
-        const response = await fetch('/api/get_inventory.php', { cache: 'no-store' });
+        const response = await fetch(getApiUrl('api/get_inventory.php'), { cache: 'no-store' });
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
@@ -1584,7 +1596,8 @@ function updateCartDisplay() {
 }
 
 function getInventoryItem(name) {
-    return inventoryData.find((item) => item.name === name);
+    const targetName = normalizeInventoryName(name);
+    return inventoryData.find((item) => normalizeInventoryName(item.name) === targetName);
 }
 
 function decrementInventory(items) {
@@ -1957,7 +1970,7 @@ async function saveInventoryItem(event) {
 
     saveInventoryData();
     try {
-        await fetch('/api/update_inventory.php', {
+        await fetch(getApiUrl('api/update_inventory.php'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -2024,7 +2037,7 @@ async function commitInlineInventoryEdit(card) {
     saveMenuCatalogItem(previousItem, itemName);
     saveInventoryData();
     try {
-        await fetch('/api/update_inventory.php', {
+        await fetch(getApiUrl('api/update_inventory.php'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
