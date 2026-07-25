@@ -1403,41 +1403,46 @@ function buildDefaultInventoryFromMenu() {
     return items;
 }
 
-function initializeInventoryData() {
+async function initializeInventoryData() {
     const defaults = buildDefaultInventoryFromMenu();
     try {
-        const raw = localStorage.getItem('motasteInventoryData');
-        if (raw) {
-            const parsed = JSON.parse(raw);
-            const existing = Array.isArray(parsed) ? parsed : [];
-            const merged = existing.map((item) => ({
-                ...item,
-                category: item.category || resolveInventoryCategory(item.name),
-                price: Number(item.price) || 0,
-                stock: Number(item.stock) || 0,
-                status: item.status || (Number(item.stock) > 0 ? 'In stock' : 'Out of stock')
-            }));
-            const existingNames = new Set(merged.map((item) => item.name));
-
-            defaults.forEach((item) => {
-                if (!existingNames.has(item.name)) {
-                    merged.push(item);
-                    existingNames.add(item.name);
-                }
-            });
-
-            inventoryData = merged;
-            saveInventoryData();
-        } else {
-            inventoryData = defaults;
-            saveInventoryData();
+        const response = await fetch('/api/get_inventory.php', { cache: 'no-store' });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
         }
+
+        const payload = await response.json();
+        const serverItems = Array.isArray(payload.items) ? payload.items : [];
+        const merged = serverItems.map((item) => ({
+            name: item.name,
+            price: Number(item.price) || 0,
+            stock: Number(item.stock) || 0,
+            status: item.status || (Number(item.stock) > 0 ? 'In stock' : 'Out of stock'),
+            category: item.category || resolveInventoryCategory(item.name)
+        }));
+        const existingNames = new Set(merged.map((item) => item.name));
+
+        defaults.forEach((item) => {
+            if (!existingNames.has(item.name)) {
+                merged.push(item);
+                existingNames.add(item.name);
+            }
+        });
+
+        inventoryData = merged;
+        saveInventoryData();
     } catch (error) {
         inventoryData = defaults;
         saveInventoryData();
     }
 
     syncMenuPricesWithInventory();
+    renderSpecialFoods();
+    renderInventoryManagement();
+    renderOverviewInventory();
+    if (currentMenuCategoryId) {
+        showMenuCategory(currentMenuCategoryId);
+    }
 }
 
 function saveInventoryData() {
@@ -1909,7 +1914,7 @@ function deleteInventoryItem(name) {
     }
 }
 
-function saveInventoryItem(event) {
+async function saveInventoryItem(event) {
     if (event && event.preventDefault) {
         event.preventDefault();
     }
@@ -1951,6 +1956,18 @@ function saveInventoryItem(event) {
     }
 
     saveInventoryData();
+    try {
+        await fetch('/api/update_inventory.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ name, price, stock, status, category })
+        });
+    } catch (error) {
+        console.error('Unable to sync inventory with server', error);
+    }
+
     syncMenuPricesWithInventory();
     renderInventoryManagement();
     renderOverviewInventory();
@@ -1966,6 +1983,7 @@ function saveInventoryItem(event) {
     }
 
     setInventoryModalVisible(false);
+    void initializeInventoryData();
 }
 
 function editInventoryItem(name) {
@@ -1976,7 +1994,7 @@ function editInventoryItem(name) {
     renderInventoryManagement();
 }
 
-function commitInlineInventoryEdit(card) {
+async function commitInlineInventoryEdit(card) {
     const itemName = card.dataset.itemName;
     const previousItem = inventoryData.find((item) => item.name === itemName);
     if (!previousItem) return;
@@ -2005,6 +2023,18 @@ function commitInlineInventoryEdit(card) {
 
     saveMenuCatalogItem(previousItem, itemName);
     saveInventoryData();
+    try {
+        await fetch('/api/update_inventory.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ name: nextName, price, stock, status, category })
+        });
+    } catch (error) {
+        console.error('Unable to sync inventory with server', error);
+    }
+
     syncMenuPricesWithInventory();
     inventoryEditItemName = null;
     renderInventoryManagement();
@@ -2779,7 +2809,7 @@ function initOrders() {
     loadIgnoredPendingOrders();
     loadCompletedOrders();
     loadCustomMenuData();
-    initializeInventoryData();
+    void initializeInventoryData();
     recalculateSalesAnalytics();
     renderSpecialFoods();
     updateCartDisplay();
