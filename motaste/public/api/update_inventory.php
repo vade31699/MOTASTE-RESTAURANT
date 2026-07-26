@@ -27,13 +27,16 @@ if ($canonicalName === '') {
 $normalizedStatus = $stock > 0 ? ($status === 'Out of stock' ? 'In stock' : $status) : 'Out of stock';
 
 try {
-    $existingId = DB::table('inventory_items')
-        ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($canonicalName)])
-        ->value('id');
+    $normalizedLookup = strtolower($canonicalName);
 
-    if ($existingId) {
+    $existingIds = DB::table('inventory_items')
+        ->whereRaw('LOWER(TRIM(name)) = ?', [$normalizedLookup])
+        ->pluck('id')
+        ->all();
+
+    if (!empty($existingIds)) {
         DB::table('inventory_items')
-            ->where('id', $existingId)
+            ->whereIn('id', $existingIds)
             ->update([
                 'name' => $canonicalName,
                 'price' => $price,
@@ -55,7 +58,9 @@ try {
     }
 
     $itemId = DB::table('inventory_items')
-        ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($canonicalName)])
+        ->whereRaw('LOWER(TRIM(name)) = ?', [$normalizedLookup])
+        ->orderByDesc('updated_at')
+        ->orderByDesc('id')
         ->value('id');
 
     echo json_encode([
