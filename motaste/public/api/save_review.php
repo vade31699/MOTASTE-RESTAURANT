@@ -17,9 +17,21 @@ function ensureReviewTables(): void
         id BIGSERIAL PRIMARY KEY,
         rating INTEGER NOT NULL,
         review_text TEXT NOT NULL,
+        reviewer_key VARCHAR(191) NULL,
+        reviewed_on DATE NULL,
+        publish_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        published_at TIMESTAMP NULL,
         created_at TIMESTAMP NULL,
         updated_at TIMESTAMP NULL
     )");
+
+    DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS reviewer_key VARCHAR(191) NULL");
+    DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS reviewed_on DATE NULL");
+    DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS publish_status VARCHAR(20) NOT NULL DEFAULT 'pending'");
+    DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS published_at TIMESTAMP NULL");
+
+    DB::statement("UPDATE customer_reviews SET publish_status = 'published' WHERE publish_status IS NULL");
+    DB::statement("UPDATE customer_reviews SET reviewed_on = COALESCE(reviewed_on, DATE(created_at), CURRENT_DATE) WHERE reviewed_on IS NULL");
 
     DB::statement("CREATE TABLE IF NOT EXISTS order_activity_logs (
         id BIGSERIAL PRIMARY KEY,
@@ -35,9 +47,25 @@ function ensureReviewTables(): void
     )");
 }
 
+function resolveClientIpAddress(): string
+{
+    $forwarded = trim((string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
+    if ($forwarded !== '') {
+        $parts = explode(',', $forwarded);
+        $candidate = trim((string)($parts[0] ?? ''));
+        if ($candidate !== '') {
+            return $candidate;
+        }
+    }
+
+    $remote = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+    return $remote !== '' ? $remote : 'unknown';
+}
+
 $input = json_decode(file_get_contents('php://input'), true);
 $rating = isset($input['rating']) ? (int)$input['rating'] : 0;
 $reviewText = trim((string)($input['reviewText'] ?? ''));
+$reviewerToken = trim((string)($input['reviewerToken'] ?? ''));
 
 if ($rating < 1 || $rating > 5 || $reviewText === '') {
     http_response_code(400);
@@ -48,9 +76,31 @@ if ($rating < 1 || $rating > 5 || $reviewText === '') {
 try {
     ensureReviewTables();
 
+    $reviewerKeySource = $reviewerToken !== '' ? 'token:' . $reviewerToken : 'ip:' . resolveClientIpAddress();
+    $reviewerKey = hash('sha256', $reviewerKeySource);
+    $today = now()->toDateString();
+
+    $existingReviewToday = DB::table('customer_reviews')
+        ->where('reviewer_key', $reviewerKey)
+        ->whereDate('reviewed_on', $today)
+        ->exists();
+
+    if ($existingReviewToday) {
+        http_response_code(409);
+        echo json_encode([
+            'success' => false,
+            'error' => 'You can only submit one review per day. Please try again tomorrow.'
+        ]);
+        exit;
+    }
+
     $reviewId = DB::table('customer_reviews')->insertGetId([
         'rating' => $rating,
         'review_text' => $reviewText,
+        'reviewer_key' => $reviewerKey,
+        'reviewed_on' => $today,
+        'publish_status' => 'pending',
+        'published_at' => null,
         'created_at' => now(),
         'updated_at' => now(),
     ]);
@@ -58,21 +108,27 @@ try {
     DB::table('order_activity_logs')->insert([
         'order_id' => null,
         'order_number' => null,
-        'action' => 'review_submitted',
+        'action' => 'review_submitted_pending',
         'actor_role' => 'Customer',
         'actor_email' => null,
-        'summary' => 'Customer review submitted',
+        'summary' => 'Customer review submitted (pending publish)',
         'details' => json_encode([
             'review_id' => $reviewId,
             'rating' => $rating,
             'review_text' => $reviewText,
+            'publish_status' => 'pending',
             'submitted_at' => now()->toDateTimeString(),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         'created_at' => now(),
         'updated_at' => now(),
     ]);
 
-    echo json_encode(['success' => true, 'reviewId' => $reviewId]);
+    echo json_encode([
+        'success' => true,
+        'reviewId' => $reviewId,
+        'publishStatus' => 'pending',
+        'message' => 'Review submitted. It will appear after staff approval.'
+    ]);
 } catch (Throwable $error) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Unable to save review', 'details' => $error->getMessage()]);

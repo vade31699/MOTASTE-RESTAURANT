@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link rel="stylesheet" href="/style.css?v=20260724">
+    <link rel="stylesheet" href="style.css?v=20260727">
     <title>Staff Login - MOTASTE</title>
     <style>
         html,
@@ -335,7 +335,7 @@
         <div id="logsList" class="order-logs-list"></div>
         <div class="review-management" id="reviewManagement">
             <h3>Reviews</h3>
-            <p>Customer reviews across devices. Staff can remove inappropriate reviews.</p>
+            <p>Customer reviews across devices. Publish approved reviews or delete inappropriate ones.</p>
             <div id="staffReviewList" class="staff-review-list"></div>
         </div>
     </section>
@@ -361,17 +361,12 @@
     </section>
 
     <div class="login-dark-overlay" aria-hidden="true"></div>
-    <img src="/frontimg/logo-removebg-preview.png" alt="MOTASTE logo" class="bg-logo">
+    <img src="frontimg/logo-removebg-preview.png" alt="MOTASTE logo" class="bg-logo">
     <div class="staff-login-page">
         <div class="modal-box staff-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-            <h2 id="modalTitle">Choose Your Role</h2>
-            <div class="role-tabs" role="tablist" aria-label="Login role selection">
-                <button type="button" class="role-tab" role="tab" data-role="Admin" onclick="selectRole('Admin')">Admin</button>
-                <button type="button" class="role-tab" role="tab" data-role="Cashier" onclick="selectRole('Cashier')">Cashier</button>
-                <button type="button" class="role-tab" role="tab" data-role="Inventory Manager" onclick="selectRole('Inventory Manager')">Inventory Manager</button>
-            </div>
+            <h2 id="modalTitle">Staff Login</h2>
             <form id="staffLoginForm" method="POST">
-                <div class="login-fields" id="loginFields" hidden>
+                <div class="login-fields" id="loginFields">
                     <input type="hidden" name="role" id="selectedRole" value="">
 
                     <label for="email"><i class="fa-solid fa-envelope"></i> Email</label>
@@ -382,7 +377,7 @@
 
                     <div class="remember-row">
                         <input type="checkbox" id="rememberCredentials" name="rememberCredentials">
-                        <label for="rememberCredentials">Save login credentials for this role</label>
+                        <label for="rememberCredentials">Save login credentials</label>
                     </div>
 
                     <button type="submit">Login</button>
@@ -391,37 +386,7 @@
         </div>
     </div>
 
-    <script src="/script.js?v=20260726"></script>
-    <script src="/staff-auth.js?v=20260726"></script>
-    <script>
-        window.selectRole = window.selectRole || function(role) {
-            if (!role) return;
-            const selectedRoleInput = document.getElementById('selectedRole');
-            const loginFields = document.getElementById('loginFields');
-            const modalTitle = document.getElementById('modalTitle');
-
-            if (selectedRoleInput) {
-                selectedRoleInput.value = role;
-            }
-            document.querySelectorAll('.role-tab').forEach((btn) => {
-                btn.classList.toggle('active', btn.dataset.role === role);
-            });
-            if (loginFields) {
-                loginFields.hidden = false;
-            }
-            if (typeof window.loadSavedCredentialsForRole === 'function') {
-                window.loadSavedCredentialsForRole(role);
-            }
-            if (modalTitle) {
-                modalTitle.textContent = `Login as ${role}`;
-            }
-        };
-
-        document.querySelectorAll('.role-tab').forEach((button) => {
-            button.addEventListener('click', () => {
-                window.selectRole(button.dataset.role);
-            });
-        });
-    </script>
+    <script src="script.js?v=20260727"></script>
+    <script src="staff-auth.js?v=20260727"></script>
 </body>
 </html>

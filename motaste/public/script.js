@@ -20,6 +20,7 @@ const allowedRoles = ['Admin', 'Cashier', 'Inventory Manager'];
 const staffSessionStorageKey = 'motasteStaffSession';
 const staffActiveSectionStorageKey = 'motasteStaffActiveSection';
 const staffAccountsStorageKey = 'motasteStaffAccounts';
+const lastLoginRoleStorageKey = 'motasteLastLoginRole';
 let inventoryRefreshTimer = null;
 let inventoryRefreshVersion = 0;
 let inventorySyncInFlight = false;
@@ -141,8 +142,8 @@ function forceLogoutCurrentStaffSession() {
     if (emailInput) emailInput.value = '';
     if (passwordInput) passwordInput.value = '';
     if (rememberCheckbox) rememberCheckbox.checked = false;
-    if (loginFields) loginFields.hidden = true;
-    if (modalTitle) modalTitle.textContent = 'Choose Your Role';
+    if (loginFields) loginFields.hidden = false;
+    if (modalTitle) modalTitle.textContent = 'Staff Login';
     document.body.classList.remove('auth');
     resetDashboardProfile();
     setAuthButtonsVisible(false);
@@ -238,9 +239,10 @@ function storeSavedLoginCredentials(credentials) {
 }
 
 function saveCredentialsForRole(role, email, password) {
-    if (!role) return;
+    const normalizedRole = role || localStorage.getItem(lastLoginRoleStorageKey) || 'default';
+    if (!normalizedRole) return;
     const saved = getSavedLoginCredentials();
-    saved[role] = { email, password };
+    saved[normalizedRole] = { email, password };
     storeSavedLoginCredentials(saved);
 }
 
@@ -263,6 +265,18 @@ function loadSavedCredentialsForRole(role) {
     if (emailInput) emailInput.value = saved.email || '';
     if (passwordInput) passwordInput.value = saved.password || '';
     if (rememberCheckbox) rememberCheckbox.checked = true;
+}
+
+function loadSavedCredentialsForLastLogin() {
+    const lastRole = localStorage.getItem(lastLoginRoleStorageKey);
+    if (!lastRole) {
+        if (emailInput) emailInput.value = '';
+        if (passwordInput) passwordInput.value = '';
+        if (rememberCheckbox) rememberCheckbox.checked = false;
+        return;
+    }
+
+    loadSavedCredentialsForRole(lastRole);
 }
 
 function getPersistedStaffSession() {
@@ -344,7 +358,7 @@ function restoreStaffSession() {
     renderInventoryManagement();
     setAuthButtonsVisible(true);
 
-    const targetSectionId = getPersistedActiveSection();
+    const targetSectionId = resolveAccessibleSection(getPersistedActiveSection());
     const targetSection = document.getElementById(targetSectionId);
     if (targetSection) {
         showDashboardSection(targetSection);
@@ -379,8 +393,14 @@ function isValidStaffLogin(role, email, password) {
     return staffAccounts.some((account) => {
         return account.email.toLowerCase() === normalizedEmail
             && account.password === password
-            && account.role === normalizedRole;
+            && (!normalizedRole || account.role === normalizedRole);
     });
+}
+
+function findStaffAccountByCredentials(email, password) {
+    const normalizedEmail = (email || '').trim().toLowerCase();
+    const staffAccounts = getCurrentStaffAccounts();
+    return staffAccounts.find((account) => account.email.toLowerCase() === normalizedEmail && account.password === password) || null;
 }
 
 function updateDashboardProfile() {
@@ -400,6 +420,38 @@ function getCurrentStaffActor() {
     const role = (selectedRoleInput && selectedRoleInput.value) ? selectedRoleInput.value.trim() : 'Staff';
     const email = (emailInput && emailInput.value) ? emailInput.value.trim().toLowerCase() : '';
     return { role: role || 'Staff', email };
+}
+
+function getCurrentStaffRole() {
+    return selectedRoleInput && selectedRoleInput.value ? selectedRoleInput.value.trim() : '';
+}
+
+function canAccessInventory() {
+    const role = getCurrentStaffRole();
+    return role === 'Admin' || role === 'Inventory Manager';
+}
+
+function canAccessLogs() {
+    const role = getCurrentStaffRole();
+    return role === 'Admin' || role === 'Inventory Manager';
+}
+
+function canManageOrders() {
+    const role = getCurrentStaffRole();
+    return role === 'Admin' || role === 'Cashier';
+}
+
+function canManageAccounts() {
+    return getCurrentStaffRole() === 'Admin';
+}
+
+function resolveAccessibleSection(sectionId) {
+    const requested = (sectionId || 'overview').trim();
+    if (requested === 'inventory' && !canAccessInventory()) return 'overview';
+    if (requested === 'logs' && !canAccessLogs()) return 'overview';
+    if (requested === 'pending-orders' && !canManageOrders()) return 'overview';
+    if (requested === 'account-management' && !canManageAccounts()) return 'overview';
+    return requested || 'overview';
 }
 
 async function logStaffActivity(action, summary, details = {}) {
@@ -472,14 +524,14 @@ function closeModal() {
     modal.classList.remove('active');
     modal.setAttribute('aria-hidden', 'true');
     if (loginFields) {
-        loginFields.hidden = true;
+        loginFields.hidden = false;
     }
     if (selectedRoleInput) {
         selectedRoleInput.value = '';
     }
     roleButtons.forEach((button) => button.classList.remove('active'));
     if (modalTitle) {
-        modalTitle.textContent = 'Choose Your Role';
+        modalTitle.textContent = 'Staff Login';
     }
 }
 
@@ -506,19 +558,8 @@ document.addEventListener('keydown', function (event) {
 });
 
 function selectRole(role) {
-    if (!role) return;
-
-    if (selectedRoleInput) {
-        selectedRoleInput.value = role;
-    }
-    roleButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.role === role));
-    if (loginFields) {
-        loginFields.hidden = false;
-    }
-    loadSavedCredentialsForRole(role);
-    if (modalTitle) {
-        modalTitle.textContent = `Login as ${role}`;
-    }
+    if (!loginFields) return;
+    loginFields.hidden = false;
 }
 
 window.selectRole = selectRole;
@@ -544,8 +585,10 @@ function attachStaffLoginHandler() {
         const email = emailInput ? emailInput.value.trim() : '';
         const password = passwordInput ? passwordInput.value : '';
         const remember = rememberCheckbox ? rememberCheckbox.checked : false;
+        const matchedAccount = findStaffAccountByCredentials(email, password);
+        const detectedRole = matchedAccount ? matchedAccount.role : role;
 
-        if (!allowedRoles.includes(role) || !isValidStaffLogin(role, email, password)) {
+        if (!matchedAccount || !allowedRoles.includes(detectedRole) || !isValidStaffLogin(detectedRole, email, password)) {
             setAuthButtonsVisible(false);
             if (modalTitle) {
                 modalTitle.textContent = 'Invalid credentials';
@@ -553,16 +596,22 @@ function attachStaffLoginHandler() {
             return;
         }
 
-        if (remember) {
-            saveCredentialsForRole(role, email, password);
-        } else {
-            clearSavedCredentialsForRole(role);
+        if (selectedRoleInput) {
+            selectedRoleInput.value = detectedRole;
         }
 
-        saveStaffSession(role, email, password, remember);
+        if (remember) {
+            saveCredentialsForRole(detectedRole, email, password);
+            localStorage.setItem(lastLoginRoleStorageKey, detectedRole);
+        } else {
+            clearSavedCredentialsForRole(detectedRole);
+            localStorage.removeItem(lastLoginRoleStorageKey);
+        }
+
+        saveStaffSession(detectedRole, email, password, remember);
 
         if (modalTitle) {
-            modalTitle.textContent = `Logged in as ${role}`;
+            modalTitle.textContent = `Logged in as ${detectedRole}`;
         }
 
         updateDashboardProfile();
@@ -596,6 +645,13 @@ function attachStaffLoginHandler() {
 
 document.addEventListener('DOMContentLoaded', attachStaffLoginHandler);
 
+document.addEventListener('DOMContentLoaded', () => {
+    if (loginFields) {
+        loginFields.hidden = false;
+    }
+    loadSavedCredentialsForLastLogin();
+});
+
 if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
         if (selectedRoleInput) {
@@ -604,10 +660,10 @@ if (logoutBtn) {
         roleButtons.forEach((btn) => btn.classList.remove('active'));
         resetDashboardProfile();
         if (loginFields) {
-            loginFields.hidden = true;
+            loginFields.hidden = false;
         }
         if (modalTitle) {
-            modalTitle.textContent = 'Choose Your Role';
+            modalTitle.textContent = 'Staff Login';
         }
 
         const staffBox = document.querySelector('.staff-box');
@@ -663,6 +719,7 @@ if (closePanelBtn) {
 }
 
 const accountManagementLink = document.getElementById('accountManagementLink');
+const logsLink = document.getElementById('logsLink');
 const accountManagementSection = document.getElementById('account-management');
 const accountForm = document.getElementById('accountForm');
 const accountList = document.getElementById('accountList');
@@ -700,8 +757,7 @@ function resetAccountForm() {
 if (accountManagementLink && accountManagementSection) {
     accountManagementLink.addEventListener('click', (event) => {
         event.preventDefault();
-        const isAdmin = document.body.classList.contains('auth') && (selectedRoleInput && selectedRoleInput.value === 'Admin');
-        if (!isAdmin) {
+        if (!canManageAccounts()) {
             return;
         }
         const showAccountManagement = accountManagementSection.hidden;
@@ -714,13 +770,28 @@ if (accountManagementLink && accountManagementSection) {
 }
 
 function updateAccountManagementAccess() {
-    const isAdmin = selectedRoleInput && selectedRoleInput.value === 'Admin';
-    if (accountManagementLink) {
-        if (isAdmin) {
-            accountManagementLink.classList.remove('disabled');
-        } else {
-            accountManagementLink.classList.add('disabled');
-        }
+    const setLinkState = (link, isAllowed) => {
+        if (!link) return;
+        link.classList.toggle('disabled', !isAllowed);
+        link.setAttribute('aria-disabled', String(!isAllowed));
+    };
+
+    setLinkState(ordersLink, canManageOrders());
+    setLinkState(inventoryLink, canAccessInventory());
+    setLinkState(logsLink, canAccessLogs());
+    setLinkState(accountManagementLink, canManageAccounts());
+
+    if (!document.body.classList.contains('auth')) {
+        return;
+    }
+
+    const activeSection = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection]
+        .find((section) => section && section.hidden === false);
+    if (!activeSection) return;
+
+    const allowedSectionId = resolveAccessibleSection(activeSection.id);
+    if (allowedSectionId !== activeSection.id) {
+        showDashboardSection(document.getElementById(allowedSectionId) || overviewSection);
     }
 }
 
@@ -1010,6 +1081,7 @@ function updateAnalyticsView() {
         const month = analyticsMonthSelect.value;
         const monthData = monthlySalesByMonth[month] || monthlySalesByMonth.jan;
         renderDetailChart(analyticsChart, monthData, `Daily Sales — ${analyticsMonthSelect.options[analyticsMonthSelect.selectedIndex].text}`);
+        autoScrollChartToCurrentDay(analyticsChart, month, monthData.length);
         updateDailySalesList();
     } else if (view === 'weekly') {
         const month = analyticsMonthSelect.value;
@@ -1020,6 +1092,28 @@ function updateAnalyticsView() {
         renderAnalytics('monthly');
         updateMonthlySalesList();
     }
+}
+
+function autoScrollChartToCurrentDay(chartContainer, monthKey, pointCount) {
+    if (!chartContainer || !monthKey || monthKey !== getCurrentMonthKey()) return;
+    const wrapper = chartContainer.closest('.sales-analytics-chart-wrapper');
+    if (!wrapper) return;
+
+    const totalPoints = Math.max(1, Number(pointCount) || 30);
+    const currentDayIndex = Math.max(0, Math.min(totalPoints - 1, new Date().getDate() - 1));
+
+    const applyScroll = () => {
+        const maxScroll = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
+        if (maxScroll <= 0) return;
+
+        const ratio = totalPoints > 1 ? currentDayIndex / (totalPoints - 1) : 0;
+        const target = Math.max(0, Math.min(maxScroll, Math.round(maxScroll * ratio)));
+        wrapper.scrollLeft = target;
+    };
+
+    applyScroll();
+    requestAnimationFrame(applyScroll);
+    setTimeout(applyScroll, 0);
 }
 
 if (analyticsSelect) {
@@ -1110,6 +1204,8 @@ const logsFilterLabelMap = {
 
 let selectedSpecialFoodImageData = '';
 let cachedReviews = [];
+let cachedStaffReviews = [];
+const reviewerTokenStorageKey = 'motasteReviewerToken';
 
 function setInventoryModalVisible(isVisible) {
     if (!inventoryModal) return;
@@ -1439,8 +1535,8 @@ if (accountList) {
                     if (selectedRoleInput) selectedRoleInput.value = '';
                     if (emailInput) emailInput.value = '';
                     if (passwordInput) passwordInput.value = '';
-                    if (loginFields) loginFields.hidden = true;
-                    if (modalTitle) modalTitle.textContent = 'Choose Your Role';
+                    if (loginFields) loginFields.hidden = false;
+                    if (modalTitle) modalTitle.textContent = 'Staff Login';
                     document.body.classList.remove('auth');
                     updateDashboardProfile();
                     setAuthButtonsVisible(false);
@@ -2213,6 +2309,7 @@ async function updatePendingOrderItemQuantity(orderId, itemId, quantity) {
 }
 
 async function changePendingOrderItemQuantity(orderIndex, itemId, direction) {
+    if (!canManageOrders()) return;
     if (orderIndex < 0 || orderIndex >= pendingOrders.length) return;
     const order = pendingOrders[orderIndex];
     const items = Array.isArray(order.items) ? order.items : [];
@@ -2245,6 +2342,7 @@ async function changePendingOrderItemQuantity(orderIndex, itemId, direction) {
 }
 
 async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
+    if (!canManageOrders()) return;
     if (orderIndex < 0 || orderIndex >= pendingOrders.length) return;
 
     const targetOrder = pendingOrders[orderIndex];
@@ -2287,6 +2385,8 @@ function formatOrderLogAction(action) {
         account_updated: 'Account updated',
         account_deleted: 'Account deleted',
         review_submitted: 'Review submitted',
+        review_submitted_pending: 'Review submitted (pending)',
+        review_published: 'Review published',
         review_deleted: 'Review deleted'
     };
 
@@ -2432,6 +2532,18 @@ function renderOrderLogs() {
             summaryText = `${itemName}: ${details.previous_quantity ?? 0} -> ${details.new_quantity ?? 0}`;
         }
 
+        const isReviewAction = String(log.action || '').startsWith('review_');
+        let reviewCommentText = '';
+        if (isReviewAction && details) {
+            const extractedComment = (details.review_text || details.comment || '').toString().trim();
+            if (extractedComment) {
+                reviewCommentText = extractedComment;
+                if (log.action === 'review_submitted' || log.action === 'review_submitted_pending') {
+                    summaryText = extractedComment;
+                }
+            }
+        }
+
         return `
             <article class="order-log-card">
                 <div class="order-log-top-row">
@@ -2441,6 +2553,7 @@ function renderOrderLogs() {
                 ${showOrderLabel && orderLabel ? `<p><strong>${orderLabel}</strong></p>` : ''}
                 <p><strong>By:</strong> ${actorText || 'Staff'}</p>
                 ${qtyText}
+                ${reviewCommentText ? `<p><strong>Comment:</strong> ${reviewCommentText}</p>` : ''}
                 <p><strong>Summary:</strong> ${summaryText}</p>
             </article>
         `;
@@ -2482,6 +2595,29 @@ function renderStarRating(value) {
     return `${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}`;
 }
 
+function getOrCreateReviewerToken() {
+    try {
+        const existing = localStorage.getItem(reviewerTokenStorageKey);
+        if (existing) return existing;
+
+        const token = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+        localStorage.setItem(reviewerTokenStorageKey, token);
+        return token;
+    } catch (error) {
+        return `fallback-${Date.now()}`;
+    }
+}
+
+function getReviewPublishStatusLabel(status) {
+    if ((status || '').toLowerCase() === 'published') {
+        return 'Published';
+    }
+    return 'Pending Approval';
+}
+
 function renderCustomerReviews() {
     if (!customerReviewsList) return;
 
@@ -2493,8 +2629,8 @@ function renderCustomerReviews() {
     customerReviewsList.innerHTML = cachedReviews.map((review) => {
         return `
             <article class="customer-review-card">
-                <p><strong>${renderStarRating(review.rating)}</strong></p>
-                <p>${review.review_text}</p>
+                <p><strong class="review-stars">${renderStarRating(review.rating)}</strong></p>
+                <p class="review-comment">${review.review_text}</p>
                 <p><span>${formatRealtimeDate(review.created_at_iso || review.created_at)}</span></p>
             </article>
         `;
@@ -2504,17 +2640,21 @@ function renderCustomerReviews() {
 function renderStaffReviews() {
     if (!staffReviewList) return;
 
-    if (!cachedReviews.length) {
+    if (!cachedStaffReviews.length) {
         staffReviewList.innerHTML = '<p class="menu-cart-empty">No reviews yet.</p>';
         return;
     }
 
-    staffReviewList.innerHTML = cachedReviews.map((review) => {
+    staffReviewList.innerHTML = cachedStaffReviews.map((review) => {
+        const status = (review.publish_status || 'pending').toLowerCase();
+        const showPublishButton = status !== 'published';
         return `
             <article class="staff-review-card">
-                <p><strong>${renderStarRating(review.rating)}</strong></p>
-                <p>${review.review_text}</p>
+                <p><span class="review-status-badge ${status === 'published' ? 'is-published' : 'is-pending'}">${getReviewPublishStatusLabel(status)}</span></p>
+                <p><strong class="review-stars">${renderStarRating(review.rating)}</strong></p>
+                <p class="review-comment">${review.review_text}</p>
                 <p><span>${formatRealtimeDate(review.created_at_iso || review.created_at)}</span></p>
+                ${showPublishButton ? `<button type="button" class="staff-review-publish-btn" data-review-id="${review.id}">Publish Review</button>` : ''}
                 <button type="button" class="staff-review-delete-btn" data-review-id="${review.id}">Delete Review</button>
             </article>
         `;
@@ -2522,19 +2662,28 @@ function renderStaffReviews() {
 }
 
 async function loadReviewsFromServer(forceRefresh = false) {
-    if (reviewRefreshTimer && !forceRefresh && cachedReviews.length) {
+    if (reviewRefreshTimer && !forceRefresh && (cachedReviews.length || cachedStaffReviews.length)) {
         renderCustomerReviews();
         renderStaffReviews();
         return true;
     }
 
     try {
-        const response = await fetch(getApiUrl(`api/get_reviews.php?_=${Date.now()}`), { cache: 'no-store' });
+        const scope = staffReviewList ? 'staff' : 'public';
+        const response = await fetch(getApiUrl(`api/get_reviews.php?scope=${scope}&_=${Date.now()}`), { cache: 'no-store' });
         if (!response.ok) return false;
         const payload = await response.json();
         if (!payload || payload.success !== true) return false;
 
-        cachedReviews = Array.isArray(payload.reviews) ? payload.reviews : [];
+        const incomingReviews = Array.isArray(payload.reviews) ? payload.reviews : [];
+        if (scope === 'staff') {
+            cachedStaffReviews = incomingReviews;
+            cachedReviews = incomingReviews.filter((review) => (review.publish_status || '').toLowerCase() === 'published');
+        } else {
+            cachedReviews = incomingReviews;
+            cachedStaffReviews = [];
+        }
+
         renderCustomerReviews();
         renderStaffReviews();
         return true;
@@ -2563,12 +2712,13 @@ if (customerReviewForm) {
         }
 
         try {
+            const reviewerToken = getOrCreateReviewerToken();
             const response = await fetch(getApiUrl('api/save_review.php'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ rating, reviewText }),
+                body: JSON.stringify({ rating, reviewText, reviewerToken }),
                 cache: 'no-store'
             });
 
@@ -2578,7 +2728,9 @@ if (customerReviewForm) {
             }
 
             if (customerReviewForm) customerReviewForm.reset();
-            if (reviewSubmitMessage) reviewSubmitMessage.textContent = 'Thank you for your review!';
+            if (reviewSubmitMessage) {
+                reviewSubmitMessage.textContent = payload.message || 'Review submitted. It will appear after staff approval.';
+            }
             void loadReviewsFromServer(true);
             void loadOrderLogsFromServer(true);
         } catch (error) {
@@ -2589,15 +2741,18 @@ if (customerReviewForm) {
 
 if (staffReviewList) {
     staffReviewList.addEventListener('click', async (event) => {
-        const button = event.target.closest('.staff-review-delete-btn');
-        if (!button) return;
+        const publishButton = event.target.closest('.staff-review-publish-btn');
+        const deleteButton = event.target.closest('.staff-review-delete-btn');
+        const actionButton = publishButton || deleteButton;
+        if (!actionButton) return;
 
-        const reviewId = Number(button.dataset.reviewId || 0);
+        const reviewId = Number(actionButton.dataset.reviewId || 0);
         if (!reviewId) return;
 
         const actor = getCurrentStaffActor();
         try {
-            const response = await fetch(getApiUrl('api/delete_review.php'), {
+            const endpoint = publishButton ? 'api/publish_review.php' : 'api/delete_review.php';
+            const response = await fetch(getApiUrl(endpoint), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -2619,7 +2774,7 @@ if (staffReviewList) {
             void loadOrderLogsFromServer(true);
         } catch (error) {
             if (typeof window !== 'undefined' && window.alert) {
-                window.alert(error.message || 'Unable to delete review');
+                window.alert(error.message || 'Unable to update review status');
             }
         }
     });
@@ -3120,6 +3275,8 @@ function renderOrderNotifications() {
         return;
     }
 
+    const canCompleteOrders = canManageOrders();
+
     overviewOrderNotificationList.innerHTML = allOrders.map((order) => {
         const isCompleted = completedOrders.some((completed) => completed.id === order.id);
         const items = Array.isArray(order.items) ? order.items : [];
@@ -3137,7 +3294,7 @@ function renderOrderNotifications() {
                 <ul>${orderItems}</ul>
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
                     <strong>Total: ${formatCurrency(order.total)}</strong>
-                    ${isCompleted ? '' : `<button type="button" class="order-complete-btn" data-order-id="${order.id}">Mark Complete</button>`}
+                    ${isCompleted || !canCompleteOrders ? '' : `<button type="button" class="order-complete-btn" data-order-id="${order.id}">Mark Complete</button>`}
                 </div>
             </article>
         `;
@@ -3681,6 +3838,7 @@ function renderOverviewAnalytics() {
         const month = overviewMonthSelect.value;
         const monthData = monthlySalesByMonth[month] || monthlySalesByMonth.jan;
         renderDetailChart(overviewAnalyticsChart, monthData, `Daily Sales — ${overviewMonthSelect.options[overviewMonthSelect.selectedIndex]?.text || ''}`);
+        autoScrollChartToCurrentDay(overviewAnalyticsChart, month, monthData.length);
     } else if (view === 'weekly') {
         const month = overviewMonthSelect.value;
         const monthData = weeklySalesByMonth[month] || weeklySalesByMonth.jan;
@@ -3804,12 +3962,14 @@ function renderPendingOrders() {
         return;
     }
 
+    const canCompleteOrders = canManageOrders();
+
     pendingOrdersList.innerHTML = pendingOrders.map((order, index) => {
         const items = Array.isArray(order.items) ? order.items : [];
         const itemsHtml = items.map((item) => {
             const maxAllowed = getMaxEditablePendingQuantity(order.id, item);
-            const canIncrease = (Number(item.quantity) || 0) < maxAllowed;
-            const canDecrease = (Number(item.quantity) || 0) > 0;
+            const canIncrease = canCompleteOrders && (Number(item.quantity) || 0) < maxAllowed;
+            const canDecrease = canCompleteOrders && (Number(item.quantity) || 0) > 0;
 
             return `
                 <li>
@@ -3832,7 +3992,7 @@ function renderPendingOrders() {
                 <ul>${itemsHtml}</ul>
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
                     <strong>Total: ${formatCurrency(order.total)}</strong>
-                    <button type="button" class="order-complete-btn" data-order-index="${index}">Mark Complete</button>
+                    ${canCompleteOrders ? `<button type="button" class="order-complete-btn" data-order-index="${index}">Mark Complete</button>` : ''}
                 </div>
             </article>
         `;
@@ -4397,9 +4557,11 @@ if (dashboardPanel) {
             renderOverviewAnalytics();
             renderOverviewInventory();
         } else if (href === '#inventory') {
+            if (!canAccessInventory()) return;
             showDashboardSection(inventorySection);
             renderOverviewInventory();
         } else if (href === '#pending-orders') {
+            if (!canManageOrders()) return;
             showDashboardSection(pendingOrdersSection);
             void loadPendingOrdersFromServer();
             renderPendingOrders();
@@ -4407,11 +4569,11 @@ if (dashboardPanel) {
             showDashboardSection(salesSection);
             updateAnalyticsView();
         } else if (href === '#logs') {
+            if (!canAccessLogs()) return;
             showDashboardSection(logsSection);
             void loadOrderLogsFromServer(true);
         } else if (href === '#account-management') {
-            const isAdmin = document.body.classList.contains('auth') && (selectedRoleInput && selectedRoleInput.value === 'Admin');
-            if (!isAdmin) {
+            if (!canManageAccounts()) {
                 return;
             }
             showDashboardSection(accountManagementSection);
@@ -4423,6 +4585,7 @@ if (dashboardPanel) {
 
 if (overviewOrderNotificationList) {
     overviewOrderNotificationList.addEventListener('click', async (event) => {
+        if (!canManageOrders()) return;
         const button = event.target.closest('.order-complete-btn');
         if (!button) return;
         const orderId = button.dataset.orderId;
@@ -4433,6 +4596,7 @@ if (overviewOrderNotificationList) {
 
 if (pendingOrdersList) {
     pendingOrdersList.addEventListener('click', async (event) => {
+        if (!canManageOrders()) return;
         const qtyButton = event.target.closest('.pending-item-qty-btn');
         if (qtyButton) {
             const action = qtyButton.dataset.action;
@@ -4509,3 +4673,4 @@ window.addEventListener('focus', () => {
 
 initOrders();
 restoreStaffSession();
+updateAccountManagementAccess();

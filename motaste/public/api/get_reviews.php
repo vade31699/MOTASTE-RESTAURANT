@@ -17,19 +17,42 @@ try {
         id BIGSERIAL PRIMARY KEY,
         rating INTEGER NOT NULL,
         review_text TEXT NOT NULL,
+        reviewer_key VARCHAR(191) NULL,
+        reviewed_on DATE NULL,
+        publish_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        published_at TIMESTAMP NULL,
         created_at TIMESTAMP NULL,
         updated_at TIMESTAMP NULL
     )");
 
-    $reviews = DB::table('customer_reviews')
+    DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS reviewer_key VARCHAR(191) NULL");
+    DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS reviewed_on DATE NULL");
+    DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS publish_status VARCHAR(20) NOT NULL DEFAULT 'pending'");
+    DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS published_at TIMESTAMP NULL");
+
+    DB::statement("UPDATE customer_reviews SET publish_status = 'published' WHERE publish_status IS NULL");
+    DB::statement("UPDATE customer_reviews SET reviewed_on = COALESCE(reviewed_on, DATE(created_at), CURRENT_DATE) WHERE reviewed_on IS NULL");
+
+    $scope = strtolower(trim((string)($_GET['scope'] ?? 'public')));
+
+    $query = DB::table('customer_reviews');
+    if ($scope !== 'staff') {
+        $query->where('publish_status', 'published');
+    }
+
+    $reviews = $query
         ->orderByDesc('created_at')
-        ->limit(200)
+        ->limit(300)
         ->get()
         ->map(function ($row) {
             return [
                 'id' => (int)($row->id ?? 0),
                 'rating' => (int)($row->rating ?? 0),
                 'review_text' => (string)($row->review_text ?? ''),
+                'publish_status' => (string)($row->publish_status ?? 'pending'),
+                'reviewed_on' => $row->reviewed_on,
+                'published_at' => $row->published_at,
+                'published_at_iso' => $row->published_at ? Carbon::parse($row->published_at)->toIso8601String() : null,
                 'created_at' => $row->created_at,
                 'created_at_iso' => $row->created_at ? Carbon::parse($row->created_at)->toIso8601String() : null,
             ];

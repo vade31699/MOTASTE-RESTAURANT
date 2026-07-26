@@ -261,6 +261,7 @@ body.dashboard-panel-open .menu-btn {
     color: #666;
     cursor: not-allowed;
     opacity: 0.65;
+    pointer-events: none;
 }
 
 .dashboard-panel .panel-close {
@@ -3346,6 +3347,12 @@ body.dashboard-panel-open .menu-btn {
     color: #333;
 }
 
+.review-submit-note {
+    margin: 10px 0 0;
+    font-size: 0.8rem;
+    color: #555;
+}
+
 .customer-reviews-panel {
     margin-top: 20px;
     background: #fff;
@@ -3378,6 +3385,20 @@ body.dashboard-panel-open .menu-btn {
     color: #222;
 }
 
+.review-stars {
+    color: #f6c700 !important;
+    font-size: 1.08rem;
+    letter-spacing: 0.04em;
+    line-height: 1.25;
+}
+
+.review-comment {
+    color: #1f1f1f;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
 .review-management {
     margin-top: 20px;
     padding-top: 14px;
@@ -3389,14 +3410,44 @@ body.dashboard-panel-open .menu-btn {
     color: #fff;
 }
 
+.review-status-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.review-status-badge.is-pending {
+    background: rgba(255, 193, 7, 0.22);
+    color: #fdd835;
+}
+
+.review-status-badge.is-published {
+    background: rgba(56, 142, 60, 0.22);
+    color: #7ee787;
+}
+
+.staff-review-publish-btn,
 .staff-review-delete-btn {
     margin-top: 8px;
     border: none;
     border-radius: 8px;
     padding: 8px 12px;
-    background: #d32f2f;
     color: #fff;
     cursor: pointer;
+}
+
+.staff-review-publish-btn {
+    background: #2e7d32;
+    margin-right: 8px;
+}
+
+.staff-review-delete-btn {
+    background: #d32f2f;
 }
 
 .sales-analytics-chart-wrapper::-webkit-scrollbar {

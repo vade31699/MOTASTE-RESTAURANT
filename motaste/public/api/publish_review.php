@@ -30,6 +30,9 @@ function ensureReviewTables(): void
     DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS publish_status VARCHAR(20) NOT NULL DEFAULT 'pending'");
     DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS published_at TIMESTAMP NULL");
 
+    DB::statement("UPDATE customer_reviews SET publish_status = 'published' WHERE publish_status IS NULL");
+    DB::statement("UPDATE customer_reviews SET reviewed_on = COALESCE(reviewed_on, DATE(created_at), CURRENT_DATE) WHERE reviewed_on IS NULL");
+
     DB::statement("CREATE TABLE IF NOT EXISTS order_activity_logs (
         id BIGSERIAL PRIMARY KEY,
         order_id BIGINT NULL,
@@ -65,27 +68,33 @@ try {
         exit;
     }
 
-    DB::table('customer_reviews')->where('id', $reviewId)->delete();
+    DB::table('customer_reviews')
+        ->where('id', $reviewId)
+        ->update([
+            'publish_status' => 'published',
+            'published_at' => now(),
+            'updated_at' => now(),
+        ]);
 
     DB::table('order_activity_logs')->insert([
         'order_id' => null,
         'order_number' => null,
-        'action' => 'review_deleted',
+        'action' => 'review_published',
         'actor_role' => $actorRole !== '' ? $actorRole : 'Staff',
         'actor_email' => $actorEmail !== '' ? $actorEmail : null,
-        'summary' => 'Review deleted',
+        'summary' => 'Review published',
         'details' => json_encode([
             'review_id' => $reviewId,
             'rating' => (int)($review->rating ?? 0),
             'review_text' => (string)($review->review_text ?? ''),
-            'deleted_at' => now()->toDateTimeString(),
+            'published_at' => now()->toDateTimeString(),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         'created_at' => now(),
         'updated_at' => now(),
     ]);
 
-    echo json_encode(['success' => true]);
+    echo json_encode(['success' => true, 'reviewId' => $reviewId, 'publish_status' => 'published']);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to delete review', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Unable to publish review', 'details' => $error->getMessage()]);
 }
