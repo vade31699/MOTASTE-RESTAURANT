@@ -2393,6 +2393,10 @@ body.dashboard-panel-open .menu-btn {
     border-color: rgba(33, 150, 243, 0.75);
     color: #bbdefb;
 }
+.logs-filter-btn[data-log-filter="reviews"] {
+    border-color: rgba(255, 87, 34, 0.75);
+    color: #ffccbc;
+}
 .logs-filter-btn:hover {
     border-color: rgba(255, 152, 0, 0.75);
 }
@@ -2424,6 +2428,10 @@ body.dashboard-panel-open .menu-btn {
 .logs-filter-btn.active[data-log-filter="accounts"] {
     background: #64b5f6;
     border-color: #64b5f6;
+}
+.logs-filter-btn.active[data-log-filter="reviews"] {
+    background: #ff8a65;
+    border-color: #ff8a65;
 }
 .order-log-card {
     background: rgba(255, 255, 255, 0.04);
@@ -3308,6 +3316,87 @@ body.dashboard-panel-open .menu-btn {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
     scrollbar-color: rgba(255,255,255,0.45) rgba(255,255,255,0.12);
+}
+
+.special-food-image-preview-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.special-food-image-preview-wrap img {
+    width: 120px;
+    height: 120px;
+    border-radius: 12px;
+    object-fit: cover;
+    border: 1px solid rgba(0, 0, 0, 0.14);
+    background: #f7f7f7;
+}
+
+.review-rating-group select {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.14);
+    padding: 10px 12px;
+}
+
+.review-submit-message {
+    margin: 8px 0 0;
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.customer-reviews-panel {
+    margin-top: 20px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.customer-reviews-list,
+.staff-review-list {
+    display: grid;
+    gap: 10px;
+}
+
+.customer-review-card,
+.staff-review-card {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    padding: 12px;
+    background: #fff;
+}
+
+.customer-review-card p,
+.staff-review-card p,
+.customer-review-card strong,
+.staff-review-card strong,
+.customer-review-card span,
+.staff-review-card span {
+    margin: 0;
+    color: #222;
+}
+
+.review-management {
+    margin-top: 20px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.review-management h3,
+.review-management p {
+    color: #fff;
+}
+
+.staff-review-delete-btn {
+    margin-top: 8px;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: #d32f2f;
+    color: #fff;
+    cursor: pointer;
 }
 
 .sales-analytics-chart-wrapper::-webkit-scrollbar {

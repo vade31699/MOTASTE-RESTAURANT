@@ -279,6 +279,14 @@
                                     <option value="Out of stock">Out of stock</option>
                                 </select>
                             </label>
+                            <label id="specialFoodImageField" hidden>
+                                Special Food Image
+                                <input id="specialFoodImageInput" type="file" accept="image/*">
+                                <small>Used only when category is Specials. Image will be cropped to square for consistent display.</small>
+                            </label>
+                            <div id="specialFoodImagePreviewWrap" class="special-food-image-preview-wrap" hidden>
+                                <img id="specialFoodImagePreview" alt="Special food preview">
+                            </div>
                         </div>
                         <button type="submit" id="inventorySaveBtn" class="menu-place-order-btn">Save Inventory Item</button>
                     </form>
@@ -322,8 +330,14 @@
             <button type="button" class="logs-filter-btn" data-log-filter="stock">Stock Only</button>
             <button type="button" class="logs-filter-btn" data-log-filter="inventory">Inventory</button>
             <button type="button" class="logs-filter-btn" data-log-filter="accounts">Accounts</button>
+            <button type="button" class="logs-filter-btn" data-log-filter="reviews">Reviews</button>
         </div>
         <div id="logsList" class="order-logs-list"></div>
+        <div class="review-management" id="reviewManagement">
+            <h3>Reviews</h3>
+            <p>Customer reviews across devices. Staff can remove inappropriate reviews.</p>
+            <div id="staffReviewList" class="staff-review-list"></div>
+        </div>
     </section>
 
     <section id="account-management" class="account-management" hidden>

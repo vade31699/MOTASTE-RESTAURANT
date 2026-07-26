@@ -28,8 +28,10 @@ let staffAccountsSyncInFlight = false;
 let staffAccountsRefreshTimer = null;
 let orderLogsRefreshTimer = null;
 let orderLogsSyncInFlight = false;
+let reviewRefreshTimer = null;
 let orderActivityLogs = [];
 let activeOrderLogFilter = 'all';
+let pendingOrdersRefreshTimer = null;
 const blockedProductNames = new Set(['softdrinks']);
 const isStaffPage = Boolean(document.getElementById('accountList') || document.getElementById('staffLoginForm'));
 
@@ -57,7 +59,7 @@ function normalizeStaffAccount(account) {
 }
 
 function getCurrentStaffAccounts() {
-    return Array.isArray(accounts) && accounts.length ? accounts : [...defaultStaffAccounts];
+    return Array.isArray(accounts) ? accounts : [];
 }
 
 function saveStaffAccountsToStorage() {
@@ -92,7 +94,6 @@ function applyStaffAccountsSnapshot(snapshot) {
     if (!Array.isArray(snapshot)) return false;
 
     const normalized = snapshot.map(normalizeStaffAccount).filter(Boolean);
-    if (!normalized.length) return false;
 
     const currentSignature = JSON.stringify(accounts);
     const nextSignature = JSON.stringify(normalized);
@@ -115,20 +116,69 @@ async function loadStaffAccountsFromServer(forceRefresh = false) {
         const payload = await response.json();
         if (!payload || payload.success !== true) return false;
 
-        if (Array.isArray(payload.accounts) && payload.accounts.length) {
+        if (Array.isArray(payload.accounts)) {
             const changed = applyStaffAccountsSnapshot(payload.accounts);
             if (changed) {
                 renderAccounts();
             }
+            enforceActiveSessionValidity();
             return changed;
         }
 
+        enforceActiveSessionValidity();
         return false;
     } catch (error) {
         console.error('Unable to load staff accounts from server', error);
         return false;
     } finally {
         staffAccountsSyncInFlight = false;
+    }
+}
+
+function forceLogoutCurrentStaffSession() {
+    clearStaffSession();
+    if (selectedRoleInput) selectedRoleInput.value = '';
+    if (emailInput) emailInput.value = '';
+    if (passwordInput) passwordInput.value = '';
+    if (rememberCheckbox) rememberCheckbox.checked = false;
+    if (loginFields) loginFields.hidden = true;
+    if (modalTitle) modalTitle.textContent = 'Choose Your Role';
+    document.body.classList.remove('auth');
+    resetDashboardProfile();
+    setAuthButtonsVisible(false);
+    updateAccountManagementAccess();
+    setDashboardPanelState(false);
+
+    const staffBox = document.querySelector('.staff-box');
+    if (staffBox) {
+        staffBox.style.display = '';
+        staffBox.hidden = false;
+    }
+    if (staffLoginPage) {
+        staffLoginPage.hidden = false;
+    }
+
+    if (overviewSection) overviewSection.hidden = true;
+    if (salesSection) salesSection.hidden = true;
+    if (inventorySection) inventorySection.hidden = true;
+    if (pendingOrdersSection) pendingOrdersSection.hidden = true;
+    if (logsSection) logsSection.hidden = true;
+    if (accountManagementSection) accountManagementSection.hidden = true;
+}
+
+function enforceActiveSessionValidity() {
+    if (!document.body.classList.contains('auth')) return;
+
+    const role = selectedRoleInput ? selectedRoleInput.value.trim() : '';
+    const email = emailInput ? emailInput.value.trim().toLowerCase() : '';
+    const password = passwordInput ? passwordInput.value : '';
+    if (!role || !email || !password) return;
+
+    if (!isValidStaffLogin(role, email, password)) {
+        forceLogoutCurrentStaffSession();
+        if (typeof window !== 'undefined' && window.alert) {
+            window.alert('Your account credentials changed or your account was removed. Please log in again.');
+        }
     }
 }
 
@@ -805,14 +855,15 @@ function recalculateSalesAnalytics() {
         const dayIndex = Math.min(29, Math.max(0, orderDate.getDate() - 1));
         const weekIndex = Math.min(4, Math.floor(dayIndex / 7));
         const orderTotal = Number(order.total || 0);
+        const completedProducts = (Array.isArray(order.items) ? order.items : []).reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
 
         if (monthKey && monthlySalesByMonth[monthKey]) {
             monthlySalesByMonth[monthKey][dayIndex].value += orderTotal;
-            monthlySalesByMonth[monthKey][dayIndex].orders += 1;
+            monthlySalesByMonth[monthKey][dayIndex].orders += completedProducts;
             weeklySalesByMonth[monthKey][weekIndex].value += orderTotal;
-            weeklySalesByMonth[monthKey][weekIndex].orders += 1;
+            weeklySalesByMonth[monthKey][weekIndex].orders += completedProducts;
             analyticsData.monthly.items[monthIndex].value += orderTotal;
-            analyticsData.monthly.items[monthIndex].orders += 1;
+            analyticsData.monthly.items[monthIndex].orders += completedProducts;
         }
     });
 
@@ -908,13 +959,15 @@ function renderSalesList(container, items, firstCol = 'Period', secondCol = 'Sal
                 <tr>
                     <th>${firstCol}</th>
                     <th>${secondCol}</th>
+                    <th>Order completes</th>
                 </tr>
             </thead>
             <tbody>
                 ${items.map((item) => `
                     <tr>
                         <td>${item.label}</td>
-                        <td>${formatCurrency(item.value || 0)} | ${Number(item.orders || 0)} completed</td>
+                        <td>${formatCurrency(item.value || 0)}</td>
+                        <td>${Number(item.orders || 0)}</td>
                     </tr>
                 `).join('')}
             </tbody>
@@ -994,6 +1047,10 @@ const inventoryCategoryInput = document.getElementById('inventoryCategoryInput')
 const inventoryPriceInput = document.getElementById('inventoryPriceInput');
 const inventoryStockInput = document.getElementById('inventoryStockInput');
 const inventoryStatusInput = document.getElementById('inventoryStatusInput');
+const specialFoodImageField = document.getElementById('specialFoodImageField');
+const specialFoodImageInput = document.getElementById('specialFoodImageInput');
+const specialFoodImagePreviewWrap = document.getElementById('specialFoodImagePreviewWrap');
+const specialFoodImagePreview = document.getElementById('specialFoodImagePreview');
 const inventorySaveBtn = document.getElementById('inventorySaveBtn');
 const inventoryItemsWrapper = document.getElementById('inventoryItemsWrapper');
 const inventorySearchInput = document.getElementById('inventorySearchInput');
@@ -1033,6 +1090,12 @@ const pendingOrdersSection = document.getElementById('pending-orders');
 const logsSection = document.getElementById('logs');
 const logsFilterBar = document.getElementById('logsFilterBar');
 const logsList = document.getElementById('logsList');
+const staffReviewList = document.getElementById('staffReviewList');
+const customerReviewForm = document.getElementById('customerReviewForm');
+const reviewRatingInput = document.getElementById('reviewRating');
+const reviewMessageInput = document.getElementById('reviewMessage');
+const reviewSubmitMessage = document.getElementById('reviewSubmitMessage');
+const customerReviewsList = document.getElementById('customerReviewsList');
 
 const logsFilterLabelMap = {
     all: 'All',
@@ -1041,8 +1104,12 @@ const logsFilterLabelMap = {
     completed: 'Completed',
     stock: 'Stock Only',
     inventory: 'Inventory',
-    accounts: 'Accounts'
+    accounts: 'Accounts',
+    reviews: 'Reviews'
 };
+
+let selectedSpecialFoodImageData = '';
+let cachedReviews = [];
 
 function setInventoryModalVisible(isVisible) {
     if (!inventoryModal) return;
@@ -1056,10 +1123,40 @@ function setInventoryModalVisible(isVisible) {
         if (inventoryCategoryInput) {
             inventoryCategoryInput.value = 'batchoy';
         }
+        selectedSpecialFoodImageData = '';
+        updateSpecialFoodImageFieldVisibility();
     }
 }
 
 setInventoryModalVisible(false);
+
+if (inventoryCategoryInput) {
+    inventoryCategoryInput.addEventListener('change', updateSpecialFoodImageFieldVisibility);
+}
+
+if (specialFoodImageInput) {
+    specialFoodImageInput.addEventListener('change', async (event) => {
+        const target = event.target;
+        const file = target && target.files && target.files[0] ? target.files[0] : null;
+        if (!file) {
+            selectedSpecialFoodImageData = '';
+            setSpecialFoodImagePreview('');
+            return;
+        }
+
+        try {
+            const dataUrl = await resizeImageToSquareDataUrl(file);
+            selectedSpecialFoodImageData = dataUrl;
+            setSpecialFoodImagePreview(dataUrl);
+        } catch (error) {
+            selectedSpecialFoodImageData = '';
+            setSpecialFoodImagePreview('');
+            if (typeof window !== 'undefined' && window.alert) {
+                window.alert('Unable to process the selected image. Please choose another image.');
+            }
+        }
+    });
+}
 
 function openInventoryModal() {
     if (!inventoryModal) return;
@@ -1073,6 +1170,67 @@ function openInventoryModal() {
             inventoryCategoryInput.value = 'batchoy';
         }
     }
+    selectedSpecialFoodImageData = '';
+    updateSpecialFoodImageFieldVisibility();
+}
+
+function setSpecialFoodImagePreview(dataUrl) {
+    if (!specialFoodImagePreviewWrap || !specialFoodImagePreview) return;
+
+    if (!dataUrl) {
+        specialFoodImagePreviewWrap.hidden = true;
+        specialFoodImagePreview.removeAttribute('src');
+        return;
+    }
+
+    specialFoodImagePreview.src = dataUrl;
+    specialFoodImagePreviewWrap.hidden = false;
+}
+
+function updateSpecialFoodImageFieldVisibility() {
+    if (!specialFoodImageField || !inventoryCategoryInput) return;
+
+    const isSpecials = inventoryCategoryInput.value === 'specials';
+    specialFoodImageField.hidden = !isSpecials;
+    if (!isSpecials) {
+        selectedSpecialFoodImageData = '';
+        if (specialFoodImageInput) {
+            specialFoodImageInput.value = '';
+        }
+        setSpecialFoodImagePreview('');
+    }
+}
+
+function resizeImageToSquareDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const img = new Image();
+            img.onload = () => {
+                const size = 720;
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    reject(new Error('Unable to process image'));
+                    return;
+                }
+
+                const sourceSize = Math.min(img.width, img.height);
+                const sx = Math.floor((img.width - sourceSize) / 2);
+                const sy = Math.floor((img.height - sourceSize) / 2);
+                ctx.drawImage(img, sx, sy, sourceSize, sourceSize, 0, 0, size, size);
+
+                resolve(canvas.toDataURL('image/jpeg', 0.85));
+            };
+            img.onerror = () => reject(new Error('Invalid image file'));
+            img.src = String(reader.result || '');
+        };
+        reader.onerror = () => reject(new Error('Unable to read image file'));
+        reader.readAsDataURL(file);
+    });
 }
 
 function closeInventoryModal(event) {
@@ -1314,6 +1472,7 @@ if (isStaffPage) {
     startStaffAccountsRefresh();
     void loadOrderLogsFromServer();
     startOrderLogsRefresh();
+    startPendingOrdersRefresh();
 }
 
 /* Slideshow functionality */
@@ -1929,6 +2088,14 @@ async function loadPendingOrdersFromServer() {
     }
 }
 
+function startPendingOrdersRefresh() {
+    if (!isStaffPage || pendingOrdersRefreshTimer) return;
+
+    pendingOrdersRefreshTimer = window.setInterval(() => {
+        void loadPendingOrdersFromServer();
+    }, 30000);
+}
+
 async function submitOrderToServer(order) {
     try {
         const response = await fetch(getApiUrl('api/create_order.php'), {
@@ -2114,10 +2281,13 @@ function formatOrderLogAction(action) {
         order_removed: 'Order removed',
         inventory_item_added: 'Inventory item added',
         inventory_item_updated: 'Inventory item updated',
+        inventory_item_removed: 'Inventory item removed',
         inventory_stock_changed: 'Inventory stock changed',
         account_created: 'Account created',
         account_updated: 'Account updated',
-        account_deleted: 'Account deleted'
+        account_deleted: 'Account deleted',
+        review_submitted: 'Review submitted',
+        review_deleted: 'Review deleted'
     };
 
     return map[action] || 'Activity updated';
@@ -2138,7 +2308,7 @@ function isLogFromToday(log) {
 }
 
 function isQtyChangeAction(action) {
-    return ['inventory_stock_changed'].includes(action);
+    return ['quantity_increased', 'quantity_decreased', 'quantity_updated', 'item_removed', 'order_removed'].includes(action);
 }
 
 function getFilteredOrderLogs() {
@@ -2166,6 +2336,10 @@ function getFilteredOrderLogs() {
         return orderActivityLogs.filter((log) => String(log.action || '').startsWith('account_'));
     }
 
+    if (activeOrderLogFilter === 'reviews') {
+        return orderActivityLogs.filter((log) => String(log.action || '').startsWith('review_'));
+    }
+
     return orderActivityLogs;
 }
 
@@ -2178,7 +2352,8 @@ function getLogFilterCounts() {
         completed: allLogs.filter((log) => log.action === 'order_completed').length,
         stock: allLogs.filter((log) => log.action === 'inventory_stock_changed').length,
         inventory: allLogs.filter((log) => String(log.action || '').startsWith('inventory_')).length,
-        accounts: allLogs.filter((log) => String(log.action || '').startsWith('account_')).length
+        accounts: allLogs.filter((log) => String(log.action || '').startsWith('account_')).length,
+        reviews: allLogs.filter((log) => String(log.action || '').startsWith('review_')).length
     };
 }
 
@@ -2209,9 +2384,10 @@ function renderOrderLogs() {
     }
 
     logsList.innerHTML = filteredLogs.map((log) => {
+        const showOrderLabel = String(log.action || '') === 'order_completed';
         const orderLabel = log.order_number
             ? `Order #${log.order_number}`
-            : `Order ID ${log.order_id || '-'}`;
+            : '';
         const actorParts = [log.actor_role || 'Staff', log.actor_email || ''];
         const actorText = actorParts.filter(Boolean).join(' · ');
         const details = log.details && typeof log.details === 'object' ? log.details : null;
@@ -2219,16 +2395,53 @@ function renderOrderLogs() {
             ? `<p><strong>Qty:</strong> ${details.previous_quantity} → ${details.new_quantity}</p>`
             : '';
 
+        let summaryText = log.summary || 'No summary.';
+        if (String(log.action || '').startsWith('account_') && details) {
+            const changes = [];
+            if (details.previous_email !== undefined && details.next_email !== undefined && details.previous_email !== details.next_email) changes.push(`email: ${details.previous_email || '-'} -> ${details.next_email || '-'}`);
+            if (details.previous_role !== undefined && details.next_role !== undefined && details.previous_role !== details.next_role) changes.push(`role: ${details.previous_role || '-'} -> ${details.next_role || '-'}`);
+            if (details.password_changed === true) changes.push('password: changed');
+            if (changes.length) {
+                summaryText = changes.join('; ');
+            } else if (log.action === 'account_created') {
+                summaryText = `${details.role || '-'} account added (${details.email || '-'})`;
+            } else if (log.action === 'account_deleted') {
+                summaryText = `${details.role || '-'} account deleted (${details.email || '-'})`;
+            }
+        }
+        if (String(log.action || '').startsWith('inventory_') && details) {
+            const stockValue = details.stock !== undefined ? details.stock : details.new_stock;
+            const previousStock = details.previous_stock;
+            const name = details.name || details.item || summaryText;
+            if (log.action === 'inventory_stock_changed') {
+                if (previousStock !== undefined && previousStock !== null) {
+                    summaryText = `${name} stock: ${previousStock} -> ${stockValue}`;
+                } else {
+                    summaryText = `${name} stock updated to ${stockValue}`;
+                }
+            } else if (log.action === 'inventory_item_added') {
+                summaryText = `${name} added`;
+            } else if (log.action === 'inventory_item_removed') {
+                summaryText = `${name} removed`;
+            } else {
+                summaryText = `${name}`;
+            }
+        }
+        if (isQtyChangeAction(log.action) && details) {
+            const itemName = details.item || summaryText;
+            summaryText = `${itemName}: ${details.previous_quantity ?? 0} -> ${details.new_quantity ?? 0}`;
+        }
+
         return `
             <article class="order-log-card">
                 <div class="order-log-top-row">
                     <strong>${formatOrderLogAction(log.action)}</strong>
                     <span>${formatOrderLogTimestamp(log.created_at_iso || log.created_at)}</span>
                 </div>
-                <p><strong>${orderLabel}</strong></p>
+                ${showOrderLabel && orderLabel ? `<p><strong>${orderLabel}</strong></p>` : ''}
                 <p><strong>By:</strong> ${actorText || 'Staff'}</p>
                 ${qtyText}
-                <p><strong>Summary:</strong> ${log.summary || 'No items remaining.'}</p>
+                <p><strong>Summary:</strong> ${summaryText}</p>
             </article>
         `;
     }).join('');
@@ -2262,6 +2475,154 @@ function startOrderLogsRefresh() {
     orderLogsRefreshTimer = window.setInterval(() => {
         void loadOrderLogsFromServer(true);
     }, 5000);
+}
+
+function renderStarRating(value) {
+    const rating = Math.max(1, Math.min(5, Number(value) || 0));
+    return `${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}`;
+}
+
+function renderCustomerReviews() {
+    if (!customerReviewsList) return;
+
+    if (!cachedReviews.length) {
+        customerReviewsList.innerHTML = '<p class="menu-cart-empty">No reviews yet. Be the first to leave one.</p>';
+        return;
+    }
+
+    customerReviewsList.innerHTML = cachedReviews.map((review) => {
+        return `
+            <article class="customer-review-card">
+                <p><strong>${renderStarRating(review.rating)}</strong></p>
+                <p>${review.review_text}</p>
+                <p><span>${formatRealtimeDate(review.created_at_iso || review.created_at)}</span></p>
+            </article>
+        `;
+    }).join('');
+}
+
+function renderStaffReviews() {
+    if (!staffReviewList) return;
+
+    if (!cachedReviews.length) {
+        staffReviewList.innerHTML = '<p class="menu-cart-empty">No reviews yet.</p>';
+        return;
+    }
+
+    staffReviewList.innerHTML = cachedReviews.map((review) => {
+        return `
+            <article class="staff-review-card">
+                <p><strong>${renderStarRating(review.rating)}</strong></p>
+                <p>${review.review_text}</p>
+                <p><span>${formatRealtimeDate(review.created_at_iso || review.created_at)}</span></p>
+                <button type="button" class="staff-review-delete-btn" data-review-id="${review.id}">Delete Review</button>
+            </article>
+        `;
+    }).join('');
+}
+
+async function loadReviewsFromServer(forceRefresh = false) {
+    if (reviewRefreshTimer && !forceRefresh && cachedReviews.length) {
+        renderCustomerReviews();
+        renderStaffReviews();
+        return true;
+    }
+
+    try {
+        const response = await fetch(getApiUrl(`api/get_reviews.php?_=${Date.now()}`), { cache: 'no-store' });
+        if (!response.ok) return false;
+        const payload = await response.json();
+        if (!payload || payload.success !== true) return false;
+
+        cachedReviews = Array.isArray(payload.reviews) ? payload.reviews : [];
+        renderCustomerReviews();
+        renderStaffReviews();
+        return true;
+    } catch (error) {
+        console.error('Unable to load reviews', error);
+        return false;
+    }
+}
+
+function startReviewRefresh() {
+    if (reviewRefreshTimer) return;
+    reviewRefreshTimer = window.setInterval(() => {
+        void loadReviewsFromServer(true);
+    }, 10000);
+}
+
+if (customerReviewForm) {
+    customerReviewForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const rating = Number(reviewRatingInput ? reviewRatingInput.value : 0);
+        const reviewText = reviewMessageInput ? reviewMessageInput.value.trim() : '';
+        if (rating < 1 || rating > 5 || !reviewText) {
+            if (reviewSubmitMessage) reviewSubmitMessage.textContent = 'Please provide a star rating and your review.';
+            return;
+        }
+
+        try {
+            const response = await fetch(getApiUrl('api/save_review.php'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ rating, reviewText }),
+                cache: 'no-store'
+            });
+
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || `HTTP ${response.status}`);
+            }
+
+            if (customerReviewForm) customerReviewForm.reset();
+            if (reviewSubmitMessage) reviewSubmitMessage.textContent = 'Thank you for your review!';
+            void loadReviewsFromServer(true);
+            void loadOrderLogsFromServer(true);
+        } catch (error) {
+            if (reviewSubmitMessage) reviewSubmitMessage.textContent = error.message || 'Unable to submit review right now.';
+        }
+    });
+}
+
+if (staffReviewList) {
+    staffReviewList.addEventListener('click', async (event) => {
+        const button = event.target.closest('.staff-review-delete-btn');
+        if (!button) return;
+
+        const reviewId = Number(button.dataset.reviewId || 0);
+        if (!reviewId) return;
+
+        const actor = getCurrentStaffActor();
+        try {
+            const response = await fetch(getApiUrl('api/delete_review.php'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    reviewId,
+                    actorRole: actor.role,
+                    actorEmail: actor.email
+                }),
+                cache: 'no-store'
+            });
+
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || `HTTP ${response.status}`);
+            }
+
+            void loadReviewsFromServer(true);
+            void loadOrderLogsFromServer(true);
+        } catch (error) {
+            if (typeof window !== 'undefined' && window.alert) {
+                window.alert(error.message || 'Unable to delete review');
+            }
+        }
+    });
 }
 
 if (logsFilterBar) {
@@ -2966,18 +3327,19 @@ function saveMenuCatalogItem(item, previousName = null) {
 
     if (category === 'specials') {
         const existingSpecialIndex = specialFoods.findIndex((food) => (food.name || '').trim().toLowerCase() === normalizedPreviousName || (food.name || '').trim().toLowerCase() === (item.name || '').trim().toLowerCase());
+        const preferredImage = item.image || selectedSpecialFoodImageData || '';
         if (existingSpecialIndex >= 0) {
             specialFoods[existingSpecialIndex] = {
                 ...specialFoods[existingSpecialIndex],
                 name: item.name,
                 price: priceNumber,
-                image: specialFoods[existingSpecialIndex].image || 'img1.jpg'
+                image: preferredImage || specialFoods[existingSpecialIndex].image || 'img1.jpg'
             };
         } else {
             specialFoods.push({
                 name: item.name,
                 price: priceNumber,
-                image: 'img1.jpg'
+                image: preferredImage || 'img1.jpg'
             });
         }
     } else if (menuData[category]) {
@@ -3039,9 +3401,35 @@ function removeMenuItemByName(itemName) {
     return removed;
 }
 
-function deleteInventoryItem(name) {
+async function deleteInventoryItem(name) {
     const index = inventoryData.findIndex((item) => item.name === name);
     if (index < 0) return;
+
+    const actor = getCurrentStaffActor();
+    try {
+        const response = await fetch(getApiUrl('api/delete_inventory_item.php'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name,
+                actorRole: actor.role,
+                actorEmail: actor.email
+            }),
+            cache: 'no-store'
+        });
+
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || `HTTP ${response.status}`);
+        }
+    } catch (error) {
+        if (typeof window !== 'undefined' && window.alert) {
+            window.alert(error.message || 'Unable to delete inventory item');
+        }
+        return;
+    }
 
     inventoryData.splice(index, 1);
     saveInventoryData();
@@ -3054,6 +3442,8 @@ function deleteInventoryItem(name) {
     if (currentMenuCategoryId) {
         showMenuCategory(currentMenuCategoryId);
     }
+    void initializeInventoryData(true);
+    void loadOrderLogsFromServer(true);
 }
 
 async function saveInventoryItem(event) {
@@ -3068,6 +3458,7 @@ async function saveInventoryItem(event) {
     const stock = Number(inventoryStockInput.value);
     const category = inventoryCategoryInput.value || 'specials';
     const status = stock <= 0 ? 'Out of stock' : inventoryStatusInput.value;
+    const specialImage = category === 'specials' ? selectedSpecialFoodImageData : '';
 
     if (!name || Number.isNaN(price) || Number.isNaN(stock)) {
         return;
@@ -3080,7 +3471,7 @@ async function saveInventoryItem(event) {
         existingItem.stock = stock;
         existingItem.status = status;
         existingItem.category = category;
-        saveMenuCatalogItem(existingItem);
+        saveMenuCatalogItem({ ...existingItem, image: specialImage || existingItem.image || '' });
     } else {
         inventoryData.push({
             name,
@@ -3089,7 +3480,7 @@ async function saveInventoryItem(event) {
             status,
             category
         });
-        saveMenuCatalogItem({ name, price, stock, status, category });
+        saveMenuCatalogItem({ name, price, stock, status, category, image: specialImage || '' });
     }
 
     inventoryEditItemName = null;
@@ -3160,6 +3551,7 @@ async function saveInventoryItem(event) {
     startInventoryAutoRefresh();
     void initializeInventoryData(true);
     void loadOrderLogsFromServer(true);
+    selectedSpecialFoodImageData = '';
 }
 
 function editInventoryItem(name) {
@@ -4078,6 +4470,8 @@ function initOrders() {
     updateLiveClock();
     setInterval(updateLiveClock, 1000);
     void loadPendingOrdersFromServer();
+    void loadReviewsFromServer();
+    startReviewRefresh();
 
     if (isCustomerPage) {
         initializeOrderNotificationAudio();

@@ -38,6 +38,14 @@ try {
         updated_at TIMESTAMP NULL
     )");
 
+    DB::table('orders')
+        ->where('status', 'pending')
+        ->whereRaw("COALESCE(updated_at, order_date) <= NOW() - INTERVAL '10 minutes'")
+        ->update([
+            'status' => 'expired',
+            'updated_at' => now(),
+        ]);
+
     $orders = DB::table('orders')
         ->where('status', 'pending')
         ->orderByDesc('order_date')

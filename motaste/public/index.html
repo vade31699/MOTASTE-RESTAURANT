@@ -346,39 +346,36 @@
         <div class="contact-form">
 
             <h3>
-                Send Us A Message
+                Leave Us A Review
             </h3>
 
-
-            <form>
-
-                <div class="input-group">
-                    <input type="text" placeholder="Your Name">
+            <form id="customerReviewForm">
+                <div class="input-group review-rating-group">
+                    <label for="reviewRating">Rating</label>
+                    <select id="reviewRating" required>
+                        <option value="">Select rating</option>
+                        <option value="5">5 Stars</option>
+                        <option value="4">4 Stars</option>
+                        <option value="3">3 Stars</option>
+                        <option value="2">2 Stars</option>
+                        <option value="1">1 Star</option>
+                    </select>
                 </div>
-
-
-                <div class="input-group">
-                    <input type="email" placeholder="Your Email">
-                </div>
-
-
-                <div class="input-group">
-                    <input type="text" placeholder="Subject">
-                </div>
-
-
                 <div class="input-group">
 
                     <textarea 
+                    id="reviewMessage"
                     rows="5" 
-                    placeholder="Your Message"></textarea>
+                    placeholder="Share your dining experience" required></textarea>
 
                 </div>
 
 
                 <button type="submit">
-                    Send Message
+                    Submit Review
                 </button>
+
+                <p id="reviewSubmitMessage" class="review-submit-message" aria-live="polite"></p>
 
 
             </form>
@@ -402,6 +399,10 @@
                 referrerpolicy="no-referrer-when-downgrade"
                 title="MOTASTE Location Map">
             </iframe>
+        </div>
+        <div class="customer-reviews-panel">
+            <h3>Customer Reviews</h3>
+            <div id="customerReviewsList" class="customer-reviews-list"></div>
         </div>
     </section>
 

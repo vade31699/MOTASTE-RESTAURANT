@@ -11,6 +11,22 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
 
+function ensureOrderLogsTable(): void
+{
+    DB::statement("CREATE TABLE IF NOT EXISTS order_activity_logs (
+        id BIGSERIAL PRIMARY KEY,
+        order_id BIGINT NULL,
+        order_number VARCHAR(191) NULL,
+        action VARCHAR(100) NOT NULL,
+        actor_role VARCHAR(100) NULL,
+        actor_email VARCHAR(191) NULL,
+        summary TEXT NULL,
+        details TEXT NULL,
+        created_at TIMESTAMP NULL,
+        updated_at TIMESTAMP NULL
+    )");
+}
+
 function normalizeItemName(?string $value): string
 {
     $value = trim((string) $value);
@@ -22,6 +38,8 @@ $input = json_decode(file_get_contents('php://input'), true);
 $orderId = isset($input['orderId']) ? (int) $input['orderId'] : 0;
 $itemId = isset($input['itemId']) ? (int) $input['itemId'] : 0;
 $quantity = isset($input['quantity']) ? (int) $input['quantity'] : 0;
+$actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
+$actorEmail = trim((string)($input['actorEmail'] ?? ''));
 if ($orderId <= 0 || $itemId <= 0 || $quantity < 0) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'orderId, itemId, and quantity are required']);
@@ -29,6 +47,8 @@ if ($orderId <= 0 || $itemId <= 0 || $quantity < 0) {
 }
 
 try {
+    ensureOrderLogsTable();
+
     $result = DB::transaction(function () use ($orderId, $itemId, $quantity) {
         $order = DB::table('orders')->where('id', $orderId)->lockForUpdate()->first();
         if (!$order) {
@@ -162,6 +182,24 @@ try {
         echo json_encode($result);
         exit;
     }
+
+    DB::table('order_activity_logs')->insert([
+        'order_id' => $orderId,
+        'order_number' => $result['orderNumber'] ?? null,
+        'action' => $result['action'] ?? 'quantity_updated',
+        'actor_role' => $actorRole !== '' ? $actorRole : 'Staff',
+        'actor_email' => $actorEmail !== '' ? $actorEmail : null,
+        'summary' => ($result['itemName'] ?? 'Item') . ': ' . (int)($result['previousQuantity'] ?? 0) . ' -> ' . (int)($result['quantity'] ?? 0),
+        'details' => json_encode([
+            'item' => $result['itemName'] ?? null,
+            'previous_quantity' => $result['previousQuantity'] ?? null,
+            'new_quantity' => $result['quantity'] ?? null,
+            'subtotal' => $result['subtotal'] ?? null,
+            'event_time' => now()->toDateTimeString(),
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
 
     echo json_encode($result);
 } catch (Throwable $error) {
