@@ -11,6 +11,14 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
 
+function normalizeOrderItemName(?string $value): string
+{
+    $value = trim((string) $value);
+    $value = preg_replace('/\s+/', ' ', $value) ?? $value;
+
+    return mb_strtolower($value);
+}
+
 $input = json_decode(file_get_contents('php://input'), true);
 $orderId = isset($input['orderId']) ? (int)$input['orderId'] : 0;
 
@@ -21,26 +29,77 @@ if ($orderId <= 0) {
 }
 
 try {
-    $updated = DB::table('orders')
-        ->where('id', $orderId)
-        ->update([
-            'status' => 'completed',
-            'updated_at' => now(),
-        ]);
+    $result = DB::transaction(function () use ($orderId) {
+        $order = DB::table('orders')->where('id', $orderId)->lockForUpdate()->first();
 
-    if (!$updated) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'error' => 'Order not found']);
+        if (!$order) {
+            return ['success' => false, 'status' => 404, 'error' => 'Order not found'];
+        }
+
+        if (strtolower((string) $order->status) === 'completed') {
+            return [
+                'success' => true,
+                'alreadyCompleted' => true,
+                'orderNumber' => $order->order_number,
+                'status' => 'completed',
+            ];
+        }
+
+        $orderItems = DB::table('order_items')
+            ->where('order_id', $orderId)
+            ->get(['notes', 'quantity']);
+
+        $inventoryRows = DB::table('inventory_items')->get(['id', 'name', 'stock', 'status']);
+        $inventoryMap = [];
+        foreach ($inventoryRows as $inventoryRow) {
+            $inventoryMap[normalizeOrderItemName($inventoryRow->name)] = $inventoryRow;
+        }
+
+        foreach ($orderItems as $orderItem) {
+            $itemName = normalizeOrderItemName($orderItem->notes);
+            if ($itemName === '' || !isset($inventoryMap[$itemName])) {
+                continue;
+            }
+
+            $inventoryRow = $inventoryMap[$itemName];
+            $nextStock = max(0, (int) $inventoryRow->stock - (int) $orderItem->quantity);
+            $nextStatus = $nextStock <= 0 ? 'Out of stock' : ($nextStock <= 5 ? 'Low stock' : 'In stock');
+
+            DB::table('inventory_items')
+                ->where('id', $inventoryRow->id)
+                ->update([
+                    'stock' => $nextStock,
+                    'status' => $nextStatus,
+                    'updated_at' => now(),
+                ]);
+        }
+
+        DB::table('orders')
+            ->where('id', $orderId)
+            ->update([
+                'status' => 'completed',
+                'updated_at' => now(),
+            ]);
+
+        return [
+            'success' => true,
+            'orderNumber' => $order->order_number,
+            'status' => 'completed',
+        ];
+    });
+
+    if (!$result['success']) {
+        http_response_code($result['status'] ?? 500);
+        echo json_encode(['success' => false, 'error' => $result['error'] ?? 'Unable to mark order complete']);
         exit;
     }
-
-    $orderNumber = DB::table('orders')->where('id', $orderId)->value('order_number');
 
     echo json_encode([
         'success' => true,
         'orderId' => $orderId,
-        'orderNumber' => $orderNumber,
+        'orderNumber' => $result['orderNumber'] ?? null,
         'status' => 'completed',
+        'alreadyCompleted' => (bool) ($result['alreadyCompleted'] ?? false),
     ]);
 } catch (Throwable $error) {
     http_response_code(500);

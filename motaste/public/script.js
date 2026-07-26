@@ -1238,6 +1238,7 @@ let customerOrderStatusPoller = null;
 let orderCompleteScrollLockState = null;
 let orderNotificationAudioElement = null;
 let orderNotificationAudioListenersBound = false;
+let customerInventoryRefreshTimer = null;
 const isCustomerPage = (() => {
     const pathname = window.location.pathname.toLowerCase();
     return pathname.endsWith('/index.html') || pathname === '/' || (!pathname.includes('staff'));
@@ -1701,6 +1702,7 @@ async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
     renderOrderNotifications();
     updateAnalyticsView();
     renderOverviewAnalytics();
+    void initializeInventoryData(true);
 }
 
 function loadCompletedOrders() {
@@ -1831,6 +1833,7 @@ async function initializeInventoryData(forceRefresh = false) {
     if (currentMenuCategoryId) {
         showMenuCategory(currentMenuCategoryId);
     }
+    updateCartDisplay();
 }
 
 function saveInventoryData() {
@@ -1866,6 +1869,21 @@ function stopInventoryAutoRefresh() {
     if (inventoryRefreshTimer) {
         window.clearInterval(inventoryRefreshTimer);
         inventoryRefreshTimer = null;
+    }
+}
+
+function startCustomerInventoryRefresh() {
+    if (!isCustomerPage || customerInventoryRefreshTimer) return;
+
+    customerInventoryRefreshTimer = window.setInterval(() => {
+        void initializeInventoryData(true);
+    }, 10000);
+}
+
+function stopCustomerInventoryRefresh() {
+    if (customerInventoryRefreshTimer) {
+        window.clearInterval(customerInventoryRefreshTimer);
+        customerInventoryRefreshTimer = null;
     }
 }
 
@@ -1967,11 +1985,13 @@ window.addEventListener('storage', (event) => {
 });
 
 function updateCartDisplay() {
+    clampCartToInventory();
     const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
     if (menuTopCartCount) {
         menuTopCartCount.textContent = totalItems;
         menuTopCartCount.parentElement.classList.toggle('has-items', totalItems > 0);
     }
+    syncVisibleMenuItemQuantities();
     if (!menuCartList || !menuCartCount || !menuCartTotal || !menuPlaceOrderBtn) return;
 
     if (!cartItems.length) {
@@ -2016,6 +2036,83 @@ function updateCartDisplay() {
 function getInventoryItem(name) {
     const targetName = normalizeInventoryName(name);
     return inventoryData.find((item) => normalizeInventoryName(item.name) === targetName);
+}
+
+function getCartQuantityForItem(name) {
+    return cartItems.reduce((total, item) => total + (normalizeInventoryName(item.name) === normalizeInventoryName(name) ? Number(item.quantity) || 0 : 0), 0);
+}
+
+function getAvailableStockForItem(name) {
+    const inventoryItem = getInventoryItem(name);
+    if (!inventoryItem) return Infinity;
+
+    const stock = Math.max(0, Number(inventoryItem.stock) || 0);
+    return Math.max(0, stock - getCartQuantityForItem(name));
+}
+
+function clampCartToInventory() {
+    let changed = false;
+
+    cartItems = cartItems.reduce((items, item) => {
+        const inventoryItem = getInventoryItem(item.name);
+        if (!inventoryItem) {
+            items.push(item);
+            return items;
+        }
+
+        const stock = Math.max(0, Number(inventoryItem.stock) || 0);
+        const nextQuantity = Math.min(Math.max(0, Number(item.quantity) || 0), stock);
+        if (nextQuantity <= 0) {
+            changed = true;
+            return items;
+        }
+
+        if (nextQuantity !== item.quantity) {
+            changed = true;
+        }
+
+        items.push({ ...item, quantity: nextQuantity });
+        return items;
+    }, []);
+
+    if (changed) {
+        saveCart();
+    }
+
+    return changed;
+}
+
+function syncVisibleMenuItemQuantities() {
+    if (menuCategoryScreen) {
+        menuCategoryScreen.querySelectorAll('.menu-item-card').forEach((card) => {
+            const name = card.querySelector('.menu-item-qty-btn[data-action="increase"]')?.dataset.name;
+            if (!name) return;
+
+            const quantityElement = card.querySelector('.menu-item-qty');
+            const increaseButton = card.querySelector('.menu-item-qty-btn[data-action="increase"]');
+            const decreaseButton = card.querySelector('.menu-item-qty-btn[data-action="decrease"]');
+            const currentQty = getCartQuantityForItem(name);
+            const availableStock = getAvailableStockForItem(name);
+
+            if (quantityElement) {
+                quantityElement.textContent = String(currentQty);
+            }
+            if (increaseButton) {
+                increaseButton.disabled = availableStock <= 0;
+            }
+            if (decreaseButton) {
+                decreaseButton.disabled = currentQty <= 0;
+            }
+        });
+    }
+
+    if (specialFoodsList) {
+        specialFoodsList.querySelectorAll('.special-food-add').forEach((button) => {
+            const name = button.dataset.name;
+            if (!name) return;
+            button.disabled = getAvailableStockForItem(name) <= 0;
+        });
+    }
 }
 
 function decrementInventory(items) {
@@ -2591,6 +2688,7 @@ function renderSpecialFoods() {
     specialFoodsList.innerHTML = specialFoods.map((item) => {
         const imageSrc = item.image || 'img1.jpg';
         const isOutOfStock = isItemOutOfStock(item.name);
+        const canAddMore = getAvailableStockForItem(item.name) > 0;
         return `
         <article class="special-food-card${isOutOfStock ? ' is-out-of-stock' : ''}">
             <img src="${imageSrc}" alt="${item.name}">
@@ -2600,7 +2698,7 @@ function renderSpecialFoods() {
                 <strong>${formatCurrency(item.price)}</strong>
             </div>
             <div class="special-food-cart-action">
-                <button type="button" class="special-food-add" data-name="${item.name}" data-price="${item.price}" aria-label="Add ${item.name} to cart"${isOutOfStock ? ' disabled' : ''}>
+                <button type="button" class="special-food-add" data-name="${item.name}" data-price="${item.price}" aria-label="Add ${item.name} to cart"${canAddMore ? '' : ' disabled'}>
                     <i class="fa-solid fa-cart-plus" aria-hidden="true"></i>
                 </button>
                 <span class="special-food-added-message" aria-live="polite"></span>
@@ -2608,13 +2706,16 @@ function renderSpecialFoods() {
         </article>
     `;
     }).join('');
+
+    syncVisibleMenuItemQuantities();
 }
 
 function addToCart(item) {
     if (!item) return;
-    if (isItemOutOfStock(item.name)) {
+    const availableStock = getAvailableStockForItem(item.name);
+    if (availableStock <= 0) {
         if (menuOrderMessage) {
-            menuOrderMessage.textContent = `${item.name} is out of stock.`;
+            menuOrderMessage.textContent = `${item.name} has reached the available stock limit.`;
         }
         return;
     }
@@ -2835,7 +2936,6 @@ async function confirmOrder() {
 
     pendingOrders.unshift(syncedOrder);
     registerCustomerOrder(syncedOrder.orderNumber);
-    decrementInventory(order.items);
     savePendingOrders();
     renderPendingOrders();
     renderOrderNotifications();
@@ -2857,6 +2957,8 @@ function showMenuCategory(categoryId) {
     menuCategoryTitle.textContent = category.title;
     menuItemsList.innerHTML = category.items.map((item) => {
         const isOutOfStock = isItemOutOfStock(item.name);
+        const currentQty = getCartQuantityForItem(item.name);
+        const availableStock = getAvailableStockForItem(item.name);
         return `
         <article class="menu-item-card${isOutOfStock ? ' is-out-of-stock' : ''}">
             <div class="menu-item-main">
@@ -2867,9 +2969,9 @@ function showMenuCategory(categoryId) {
             ${isOutOfStock ? `<div class="stock-status-overlay"><img src="outofstock1.png" alt="Out of stock"><span>Out of stock</span></div>` : ''}
             <div class="menu-item-controls">
                 <div class="menu-item-qty-controls">
-                    <button type="button" class="menu-item-qty-btn" data-action="decrease" data-name="${item.name}" data-price="${parsePrice(item.price)}" aria-label="Decrease ${item.name} quantity">−</button>
-                    <span class="menu-item-qty">0</span>
-                    <button type="button" class="menu-item-qty-btn" data-action="increase" data-name="${item.name}" data-price="${parsePrice(item.price)}" aria-label="Increase ${item.name} quantity"${isOutOfStock ? ' disabled' : ''}>+</button>
+                    <button type="button" class="menu-item-qty-btn" data-action="decrease" data-name="${item.name}" data-price="${parsePrice(item.price)}" aria-label="Decrease ${item.name} quantity"${currentQty <= 0 ? ' disabled' : ''}>−</button>
+                    <span class="menu-item-qty">${currentQty}</span>
+                    <button type="button" class="menu-item-qty-btn" data-action="increase" data-name="${item.name}" data-price="${parsePrice(item.price)}" aria-label="Increase ${item.name} quantity"${availableStock <= 0 ? ' disabled' : ''}>+</button>
                 </div>
                 <span class="menu-item-confirmation" aria-live="polite"></span>
             </div>
@@ -3123,7 +3225,6 @@ if (menuCategoryScreen) {
         const price = Number(qtyButton.dataset.price);
         const currentQty = Number(qtyElement?.textContent || 0);
         const change = qtyButton.dataset.action === 'increase' ? 1 : -1;
-        const nextQty = Math.max(0, currentQty + change);
 
         if (change > 0) {
             addToCart({ name, price });
@@ -3140,12 +3241,11 @@ if (menuCategoryScreen) {
             }
         }
 
-        if (qtyElement) {
-            qtyElement.textContent = String(nextQty);
-        }
         if (confirmation) {
-            confirmation.textContent = nextQty > 0 ? `${nextQty} ${nextQty === 1 ? 'order' : 'orders'} added` : '';
+            const updatedQty = getCartQuantityForItem(name);
+            confirmation.textContent = updatedQty > 0 ? `${updatedQty} ${updatedQty === 1 ? 'order' : 'orders'} added` : '';
         }
+        syncVisibleMenuItemQuantities();
     });
 }
 
@@ -3316,12 +3416,18 @@ function initOrders() {
     if (isCustomerPage) {
         initializeOrderNotificationAudio();
         loadCustomerOrderTracking();
+        startCustomerInventoryRefresh();
+        void initializeInventoryData(true);
         startCustomerOrderStatusPolling();
         void pollCustomerOrderStatus();
     }
 }
 
 document.addEventListener('visibilitychange', () => {
+    if (isCustomerPage && !document.hidden) {
+        void initializeInventoryData(true);
+    }
+
     if (!enableInventoryAutoRefresh) return;
     if (!document.hidden && !inventoryEditLock) {
         void initializeInventoryData();
@@ -3329,6 +3435,10 @@ document.addEventListener('visibilitychange', () => {
 });
 
 window.addEventListener('focus', () => {
+    if (isCustomerPage) {
+        void initializeInventoryData(true);
+    }
+
     if (!enableInventoryAutoRefresh) return;
     if (!inventoryEditLock) {
         void initializeInventoryData();
