@@ -19,10 +19,144 @@ const staffLoginPage = document.querySelector('.staff-login-page');
 const allowedRoles = ['Admin', 'Cashier', 'Inventory Manager'];
 const staffSessionStorageKey = 'motasteStaffSession';
 const staffActiveSectionStorageKey = 'motasteStaffActiveSection';
+const staffAccountsStorageKey = 'motasteStaffAccounts';
 let inventoryRefreshTimer = null;
 let inventoryRefreshVersion = 0;
 let inventorySyncInFlight = false;
 let lastInventoryUpdateAt = 0;
+let staffAccountsSyncInFlight = false;
+let staffAccountsRefreshTimer = null;
+const isStaffPage = Boolean(document.getElementById('accountList') || document.getElementById('staffLoginForm'));
+
+const defaultStaffAccounts = [
+    { name: 'Administrator', role: 'Admin', email: 'admin@motaste.com', password: 'admin123' },
+    { name: 'Cashier One', role: 'Cashier', email: 'cashier@motaste.com', password: 'cashier123' },
+    { name: 'Inventory One', role: 'Inventory Manager', email: 'inventory@motaste.com', password: 'inventory123' }
+];
+
+let accounts = [...defaultStaffAccounts];
+window.motasteStaffAccounts = accounts;
+
+function normalizeStaffAccount(account) {
+    if (!account || typeof account !== 'object') return null;
+
+    const name = (account.name || '').trim();
+    const role = (account.role || '').trim();
+    const email = (account.email || '').trim().toLowerCase();
+    const password = (account.password || '').toString();
+
+    if (!name || !role || !email || !password) return null;
+    if (!allowedRoles.includes(role)) return null;
+
+    return { name, role, email, password };
+}
+
+function getCurrentStaffAccounts() {
+    return Array.isArray(accounts) && accounts.length ? accounts : [...defaultStaffAccounts];
+}
+
+function saveStaffAccountsToStorage() {
+    try {
+        localStorage.setItem(staffAccountsStorageKey, JSON.stringify(accounts));
+    } catch (error) {
+        console.error('Unable to persist staff accounts to localStorage', error);
+    }
+}
+
+function loadStaffAccountsFromStorage() {
+    try {
+        const raw = localStorage.getItem(staffAccountsStorageKey);
+        if (!raw) return false;
+
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return false;
+
+        const normalized = parsed.map(normalizeStaffAccount).filter(Boolean);
+        if (!normalized.length) return false;
+
+        accounts = normalized;
+        window.motasteStaffAccounts = accounts;
+        return true;
+    } catch (error) {
+        console.error('Unable to load staff accounts from localStorage', error);
+        return false;
+    }
+}
+
+function applyStaffAccountsSnapshot(snapshot) {
+    if (!Array.isArray(snapshot)) return false;
+
+    const normalized = snapshot.map(normalizeStaffAccount).filter(Boolean);
+    if (!normalized.length) return false;
+
+    const currentSignature = JSON.stringify(accounts);
+    const nextSignature = JSON.stringify(normalized);
+    if (currentSignature === nextSignature) return false;
+
+    accounts = normalized;
+    window.motasteStaffAccounts = accounts;
+    saveStaffAccountsToStorage();
+    return true;
+}
+
+async function loadStaffAccountsFromServer(forceRefresh = false) {
+    if (staffAccountsSyncInFlight && !forceRefresh) return false;
+
+    staffAccountsSyncInFlight = true;
+    try {
+        const response = await fetch(getApiUrl(`api/get_staff_accounts.php?_=${Date.now()}`), { cache: 'no-store' });
+        if (!response.ok) return false;
+
+        const payload = await response.json();
+        if (!payload || payload.success !== true) return false;
+
+        if (Array.isArray(payload.accounts) && payload.accounts.length) {
+            const changed = applyStaffAccountsSnapshot(payload.accounts);
+            if (changed) {
+                renderAccounts();
+            }
+            return changed;
+        }
+
+        return false;
+    } catch (error) {
+        console.error('Unable to load staff accounts from server', error);
+        return false;
+    } finally {
+        staffAccountsSyncInFlight = false;
+    }
+}
+
+function saveStaffAccountsToServer() {
+    saveStaffAccountsToStorage();
+    window.motasteStaffAccounts = accounts;
+
+    void fetch(getApiUrl('api/save_staff_accounts.php'), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(accounts),
+        cache: 'no-store'
+    }).catch((error) => {
+        console.error('Unable to sync staff accounts to server', error);
+    });
+}
+
+function startStaffAccountsRefresh() {
+    if (!isStaffPage || staffAccountsRefreshTimer) return;
+
+    staffAccountsRefreshTimer = window.setInterval(() => {
+        void loadStaffAccountsFromServer(true);
+    }, 10000);
+}
+
+function stopStaffAccountsRefresh() {
+    if (staffAccountsRefreshTimer) {
+        window.clearInterval(staffAccountsRefreshTimer);
+        staffAccountsRefreshTimer = null;
+    }
+}
 
 function getApiUrl(path) {
     try {
@@ -181,14 +315,9 @@ function restoreStaffSession() {
 }
 
 function isValidStaffLogin(role, email, password) {
-    const staffAccounts = [
-        { email: 'admin@motaste.com', password: 'admin123', role: 'Admin' },
-        { email: 'cashier@motaste.com', password: 'cashier123', role: 'Cashier' },
-        { email: 'inventory@motaste.com', password: 'inventory123', role: 'Inventory Manager' }
-    ];
-
     const normalizedRole = (role || '').trim();
     const normalizedEmail = (email || '').trim().toLowerCase();
+    const staffAccounts = getCurrentStaffAccounts();
 
     return staffAccounts.some((account) => {
         return account.email.toLowerCase() === normalizedEmail
@@ -453,10 +582,6 @@ const accountRoleInput = document.getElementById('accountRole');
 const accountEmailInput = document.getElementById('accountEmail');
 const accountPasswordInput = document.getElementById('accountPassword');
 let accountEditIndex = null;
-let accounts = [
-    { name: 'Cashier One', role: 'Cashier', email: 'cashier@motaste.com', password: 'cashier123' },
-    { name: 'Inventory One', role: 'Inventory Manager', email: 'inventory@motaste.com', password: 'inventory123' }
-];
 
 function renderAccounts() {
     if (!accountList) return;
@@ -1009,10 +1134,29 @@ if (accountForm) {
             return;
         }
 
+        const previousAccount = accountEditIndex !== null ? accounts[accountEditIndex] : null;
+
         if (accountEditIndex !== null) {
             accounts[accountEditIndex] = account;
         } else {
             accounts.push(account);
+        }
+
+        window.motasteStaffAccounts = accounts;
+        saveStaffAccountsToServer();
+
+        const currentRole = selectedRoleInput ? selectedRoleInput.value : '';
+        const currentEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
+        if (previousAccount && currentRole === previousAccount.role && currentEmail === (previousAccount.email || '').trim().toLowerCase()) {
+            clearSavedCredentialsForRole(previousAccount.role);
+            if (selectedRoleInput) selectedRoleInput.value = account.role;
+            if (emailInput) emailInput.value = account.email;
+            if (passwordInput) passwordInput.value = account.password;
+            saveStaffSession(account.role, account.email, account.password, rememberCheckbox ? rememberCheckbox.checked : false);
+            if (rememberCheckbox && rememberCheckbox.checked) {
+                saveCredentialsForRole(account.role, account.email, account.password);
+            }
+            updateDashboardProfile();
         }
 
         renderAccounts();
@@ -1027,7 +1171,29 @@ if (accountList) {
 
         const index = Number(button.dataset.index);
         if (button.classList.contains('delete-btn')) {
+            const removedAccount = accounts[index];
             accounts.splice(index, 1);
+            window.motasteStaffAccounts = accounts;
+            saveStaffAccountsToServer();
+            if (removedAccount) {
+                clearSavedCredentialsForRole(removedAccount.role);
+                const currentRole = selectedRoleInput ? selectedRoleInput.value : '';
+                const currentEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
+                const removedEmail = (removedAccount.email || '').trim().toLowerCase();
+                if (currentRole === removedAccount.role && currentEmail === removedEmail) {
+                    clearStaffSession();
+                    if (selectedRoleInput) selectedRoleInput.value = '';
+                    if (emailInput) emailInput.value = '';
+                    if (passwordInput) passwordInput.value = '';
+                    if (loginFields) loginFields.hidden = true;
+                    if (modalTitle) modalTitle.textContent = 'Choose Your Role';
+                    document.body.classList.remove('auth');
+                    updateDashboardProfile();
+                    setAuthButtonsVisible(false);
+                    updateAccountManagementAccess();
+                    setDashboardPanelState(false);
+                }
+            }
             renderAccounts();
             return;
         }
@@ -1045,7 +1211,12 @@ if (accountList) {
     });
 }
 
+loadStaffAccountsFromStorage();
 renderAccounts();
+if (isStaffPage) {
+    void loadStaffAccountsFromServer();
+    startStaffAccountsRefresh();
+}
 
 /* Slideshow functionality */
 const slideshow = document.querySelector('.slideshow');
@@ -1679,6 +1850,90 @@ async function markOrderCompleteOnServer(orderId) {
     return payload;
 }
 
+function getReservedPendingQuantityForItem(itemName, excludingOrderId = null, excludingItemId = null) {
+    const targetName = normalizeInventoryName(itemName);
+
+    return pendingOrders.reduce((sum, order) => {
+        if (excludingOrderId !== null && Number(order.id) === Number(excludingOrderId)) {
+            const orderItems = Array.isArray(order.items) ? order.items : [];
+            const partial = orderItems.reduce((sub, item) => {
+                if (excludingItemId !== null && Number(item.id) === Number(excludingItemId)) {
+                    return sub;
+                }
+                return normalizeInventoryName(item.name) === targetName ? sub + (Number(item.quantity) || 0) : sub;
+            }, 0);
+            return sum + partial;
+        }
+
+        const orderItems = Array.isArray(order.items) ? order.items : [];
+        return sum + orderItems.reduce((sub, item) => {
+            return normalizeInventoryName(item.name) === targetName ? sub + (Number(item.quantity) || 0) : sub;
+        }, 0);
+    }, 0);
+}
+
+function getMaxEditablePendingQuantity(orderId, item) {
+    const inventoryItem = getInventoryItem(item.name);
+    if (!inventoryItem) return Number.MAX_SAFE_INTEGER;
+
+    const stock = Math.max(0, Number(inventoryItem.stock) || 0);
+    const reservedByOthers = getReservedPendingQuantityForItem(item.name, orderId, item.id);
+    return Math.max(0, stock - reservedByOthers);
+}
+
+async function updatePendingOrderItemQuantity(orderId, itemId, quantity) {
+    const response = await fetch(getApiUrl('api/update_pending_order_item.php'), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ orderId, itemId, quantity }),
+        cache: 'no-store'
+    });
+
+    const payload = await response.json();
+    if (!response.ok || !payload.success) {
+        const maxAllowed = payload && Number.isFinite(Number(payload.maxAllowed)) ? Number(payload.maxAllowed) : null;
+        const message = maxAllowed !== null
+            ? `${payload.error || 'Unable to update order item'} (Max allowed: ${maxAllowed})`
+            : (payload.error || `HTTP ${response.status}`);
+        throw new Error(message);
+    }
+
+    return payload;
+}
+
+async function changePendingOrderItemQuantity(orderIndex, itemId, direction) {
+    if (orderIndex < 0 || orderIndex >= pendingOrders.length) return;
+    const order = pendingOrders[orderIndex];
+    const items = Array.isArray(order.items) ? order.items : [];
+    const item = items.find((entry) => Number(entry.id) === Number(itemId));
+    if (!item) return;
+
+    const currentQuantity = Number(item.quantity) || 0;
+    const delta = direction === 'increase' ? 1 : -1;
+    const nextQuantity = currentQuantity + delta;
+    if (nextQuantity < 1) return;
+
+    const maxAllowed = getMaxEditablePendingQuantity(order.id, item);
+    if (direction === 'increase' && nextQuantity > maxAllowed) {
+        return;
+    }
+
+    try {
+        await updatePendingOrderItemQuantity(order.id, item.id, nextQuantity);
+    } catch (error) {
+        console.error('Unable to edit pending order quantity', error);
+        if (typeof window !== 'undefined' && window.alert) {
+            window.alert(error.message || 'Unable to edit order quantity');
+        }
+        return;
+    }
+
+    void loadPendingOrdersFromServer();
+    void initializeInventoryData(true);
+}
+
 async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
     if (orderIndex < 0 || orderIndex >= pendingOrders.length) return;
 
@@ -1876,6 +2131,7 @@ function startCustomerInventoryRefresh() {
     if (!isCustomerPage || customerInventoryRefreshTimer) return;
 
     customerInventoryRefreshTimer = window.setInterval(() => {
+        void loadCustomMenuData();
         void initializeInventoryData(true);
     }, 10000);
 }
@@ -1907,50 +2163,89 @@ function saveCustomMenuData() {
         }))
     };
     localStorage.setItem('motasteCustomMenuData', JSON.stringify(snapshot));
+
+    void fetch(getApiUrl('api/save_custom_menu.php'), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(snapshot),
+        cache: 'no-store'
+    }).catch((error) => {
+        console.error('Unable to sync custom menu snapshot to server', error);
+    });
 }
 
-function loadCustomMenuData() {
+function applyCustomMenuSnapshot(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object') return false;
+
+    let changed = false;
+
+    const menuDataSnapshot = snapshot.menuData || {};
+    Object.entries(menuDataSnapshot).forEach(([categoryKey, category]) => {
+        if (!menuData[categoryKey]) {
+            menuData[categoryKey] = { title: category.title || categoryKey.toUpperCase(), items: [] };
+        }
+        const seenNames = new Set((menuData[categoryKey].items || []).map((item) => (item.name || '').trim().toLowerCase()));
+        (category.items || []).forEach((item) => {
+            const normalizedName = (item.name || '').trim().toLowerCase();
+            if (!normalizedName || seenNames.has(normalizedName)) return;
+            menuData[categoryKey].items.push({
+                name: item.name,
+                price: item.price,
+                description: item.description || `${item.name} has been added by staff.`
+            });
+            seenNames.add(normalizedName);
+            changed = true;
+        });
+    });
+
+    if (Array.isArray(snapshot.specialFoods)) {
+        const seenSpecialFoods = new Set(specialFoods.map((food) => (food.name || '').trim().toLowerCase()));
+        snapshot.specialFoods.forEach((food) => {
+            const normalizedName = (food.name || '').trim().toLowerCase();
+            if (!normalizedName || seenSpecialFoods.has(normalizedName)) return;
+            specialFoods.push({
+                name: food.name,
+                price: Number(food.price) || 0,
+                image: food.image || 'img1.jpg'
+            });
+            seenSpecialFoods.add(normalizedName);
+            changed = true;
+        });
+    }
+
+    return changed;
+}
+
+async function loadCustomMenuData() {
     try {
         const raw = localStorage.getItem('motasteCustomMenuData');
         if (!raw) return;
 
         const parsed = JSON.parse(raw);
-        const menuDataSnapshot = parsed.menuData || {};
-        Object.entries(menuDataSnapshot).forEach(([categoryKey, category]) => {
-            if (!menuData[categoryKey]) {
-                menuData[categoryKey] = { title: category.title || categoryKey.toUpperCase(), items: [] };
-            }
-            const seenNames = new Set((menuData[categoryKey].items || []).map((item) => (item.name || '').trim().toLowerCase()));
-            (category.items || []).forEach((item) => {
-                const normalizedName = (item.name || '').trim().toLowerCase();
-                if (!normalizedName || seenNames.has(normalizedName)) return;
-                menuData[categoryKey].items.push({
-                    name: item.name,
-                    price: item.price,
-                    description: item.description || `${item.name} has been added by staff.`
-                });
-                seenNames.add(normalizedName);
-            });
-        });
+        applyCustomMenuSnapshot(parsed);
 
-        if (Array.isArray(parsed.specialFoods)) {
-            const seenSpecialFoods = new Set(specialFoods.map((food) => (food.name || '').trim().toLowerCase()));
-            parsed.specialFoods.forEach((food) => {
-                const normalizedName = (food.name || '').trim().toLowerCase();
-                if (!normalizedName || seenSpecialFoods.has(normalizedName)) return;
-                specialFoods.push({
-                    name: food.name,
-                    price: Number(food.price) || 0,
-                    image: food.image || 'img1.jpg'
-                });
-                seenSpecialFoods.add(normalizedName);
-            });
+        const response = await fetch(getApiUrl(`api/get_custom_menu.php?_=${Date.now()}`), { cache: 'no-store' });
+        if (!response.ok) return;
+
+        const payload = await response.json();
+        if (payload && payload.success && payload.snapshot) {
+            const changed = applyCustomMenuSnapshot(payload.snapshot);
+            if (changed) {
+                saveCustomMenuData();
+                syncMenuPricesWithInventory();
+                renderSpecialFoods();
+                renderInventoryManagement();
+                if (currentMenuCategoryId) {
+                    showMenuCategory(currentMenuCategoryId);
+                }
+            }
         }
     } catch (error) {
         console.error('Unable to load custom menu snapshot', error);
     }
 }
-
 window.addEventListener('storage', (event) => {
     if (!event.key) return;
     if (inventoryEditLock) return;
@@ -2295,6 +2590,7 @@ function renderInventoryManagement() {
                     </div>
                     <div class="inventory-item-actions">
                         <button type="button" class="inventory-edit-btn" data-item-name="${item.name}">Edit</button>
+                        <button type="button" class="inventory-inline-delete inventory-card-delete-btn" data-item-name="${item.name}">Delete</button>
                     </div>
                 </article>
             `;
@@ -2338,9 +2634,6 @@ function renderInventoryManagement() {
                 <div class="inventory-item-actions inline-actions">
                     <button type="button" class="inventory-inline-save" data-item-name="${item.name}">Save</button>
                     <button type="button" class="inventory-inline-cancel" data-item-name="${item.name}">Cancel</button>
-                    <div class="inventory-inline-delete-row">
-                        <button type="button" class="inventory-inline-delete" data-item-name="${item.name}">Delete</button>
-                    </div>
                 </div>
             </article>
         `;
@@ -2780,7 +3073,24 @@ function renderPendingOrders() {
 
     pendingOrdersList.innerHTML = pendingOrders.map((order, index) => {
         const items = Array.isArray(order.items) ? order.items : [];
-        const itemsHtml = items.map((item) => `<li>${item.name} x${item.quantity} — ${formatCurrency(item.price * item.quantity)}</li>`).join('');
+        const itemsHtml = items.map((item) => {
+            const maxAllowed = getMaxEditablePendingQuantity(order.id, item);
+            const canIncrease = (Number(item.quantity) || 0) < maxAllowed;
+            const canDecrease = (Number(item.quantity) || 0) > 1;
+
+            return `
+                <li>
+                    <div class="pending-item-row">
+                        <span>${item.name} — ${formatCurrency(item.price * item.quantity)}</span>
+                        <div class="pending-item-qty-controls">
+                            <button type="button" class="pending-item-qty-btn" data-action="decrease" data-order-index="${index}" data-item-id="${item.id}"${canDecrease ? '' : ' disabled'}>−</button>
+                            <span>${item.quantity}</span>
+                            <button type="button" class="pending-item-qty-btn" data-action="increase" data-order-index="${index}" data-item-id="${item.id}"${canIncrease ? '' : ' disabled'}>+</button>
+                        </div>
+                    </div>
+                </li>
+            `;
+        }).join('');
         return `
             <article class="pending-order-card">
                 <h4>Order #${order.orderNumber}</h4>
@@ -3387,6 +3697,15 @@ if (overviewOrderNotificationList) {
 
 if (pendingOrdersList) {
     pendingOrdersList.addEventListener('click', async (event) => {
+        const qtyButton = event.target.closest('.pending-item-qty-btn');
+        if (qtyButton) {
+            const action = qtyButton.dataset.action;
+            const orderIndex = Number(qtyButton.dataset.orderIndex);
+            const itemId = Number(qtyButton.dataset.itemId);
+            await changePendingOrderItemQuantity(orderIndex, itemId, action);
+            return;
+        }
+
         const button = event.target.closest('.order-complete-btn');
         if (!button) return;
         const index = Number(button.dataset.orderIndex);
@@ -3427,6 +3746,7 @@ function initOrders() {
 
 document.addEventListener('visibilitychange', () => {
     if (isCustomerPage && !document.hidden) {
+        void loadCustomMenuData();
         void initializeInventoryData(true);
     }
 
@@ -3438,6 +3758,7 @@ document.addEventListener('visibilitychange', () => {
 
 window.addEventListener('focus', () => {
     if (isCustomerPage) {
+        void loadCustomMenuData();
         void initializeInventoryData(true);
     }
 
