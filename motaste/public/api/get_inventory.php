@@ -12,6 +12,10 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 use Illuminate\Support\Facades\DB;
 
 try {
+    DB::table('inventory_items')
+        ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", ['softdrinks'])
+        ->delete();
+
     $rawItems = DB::table('inventory_items')
         ->select('name', 'price', 'stock', 'status', 'category')
         ->orderBy('updated_at', 'desc')
@@ -22,7 +26,7 @@ try {
     $itemsByName = [];
     foreach ($rawItems as $row) {
         $normalizedName = mb_strtolower(preg_replace('/\s+/', ' ', trim((string)$row->name)));
-        if ($normalizedName === '' || isset($itemsByName[$normalizedName])) {
+        if ($normalizedName === '' || $normalizedName === 'softdrinks' || isset($itemsByName[$normalizedName])) {
             continue;
         }
 

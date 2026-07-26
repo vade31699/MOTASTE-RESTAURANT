@@ -319,6 +319,9 @@
             <button type="button" class="logs-filter-btn" data-log-filter="today">Today</button>
             <button type="button" class="logs-filter-btn" data-log-filter="qty">Qty Changes</button>
             <button type="button" class="logs-filter-btn" data-log-filter="completed">Completed</button>
+            <button type="button" class="logs-filter-btn" data-log-filter="stock">Stock Only</button>
+            <button type="button" class="logs-filter-btn" data-log-filter="inventory">Inventory</button>
+            <button type="button" class="logs-filter-btn" data-log-filter="accounts">Accounts</button>
         </div>
         <div id="logsList" class="order-logs-list"></div>
     </section>
@@ -331,6 +334,7 @@
             <input type="text" id="accountName" placeholder="Full Name" required>
             <select id="accountRole" required>
                 <option value="">Select role</option>
+                <option value="Admin">Admin</option>
                 <option value="Cashier">Cashier</option>
                 <option value="Inventory Manager">Inventory Manager</option>
             </select>

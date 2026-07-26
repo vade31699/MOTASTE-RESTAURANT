@@ -177,6 +177,7 @@ body.dashboard-panel-open .menu-btn {
     top: 0;
     left: 0;
     width: 320px;
+    height: 100vh;
     max-height: 100vh;
     overflow-y: auto;
     opacity: 0;
@@ -233,7 +234,7 @@ body.dashboard-panel-open .menu-btn {
 }
 
 .dashboard-profile-meta span {
-    color: #555;
+    color: #fff;
     font-size: 12px;
     word-break: break-word;
 }
@@ -2365,6 +2366,33 @@ body.dashboard-panel-open .menu-btn {
     cursor: pointer;
     transition: background 0.2s ease, border-color 0.2s ease;
 }
+.logs-filter-btn[data-log-filter="all"] {
+    border-color: rgba(255, 255, 255, 0.4);
+}
+.logs-filter-btn[data-log-filter="today"] {
+    border-color: rgba(255, 193, 7, 0.7);
+    color: #ffe082;
+}
+.logs-filter-btn[data-log-filter="qty"] {
+    border-color: rgba(76, 175, 80, 0.72);
+    color: #c8e6c9;
+}
+.logs-filter-btn[data-log-filter="completed"] {
+    border-color: rgba(3, 218, 198, 0.72);
+    color: #b2dfdb;
+}
+.logs-filter-btn[data-log-filter="stock"] {
+    border-color: rgba(255, 152, 0, 0.78);
+    color: #ffd7a1;
+}
+.logs-filter-btn[data-log-filter="inventory"] {
+    border-color: rgba(156, 39, 176, 0.72);
+    color: #e1bee7;
+}
+.logs-filter-btn[data-log-filter="accounts"] {
+    border-color: rgba(33, 150, 243, 0.75);
+    color: #bbdefb;
+}
 .logs-filter-btn:hover {
     border-color: rgba(255, 152, 0, 0.75);
 }
@@ -2372,6 +2400,30 @@ body.dashboard-panel-open .menu-btn {
     background: #ff9800;
     border-color: #ff9800;
     color: #111;
+}
+.logs-filter-btn.active[data-log-filter="today"] {
+    background: #ffd54f;
+    border-color: #ffd54f;
+}
+.logs-filter-btn.active[data-log-filter="qty"] {
+    background: #66bb6a;
+    border-color: #66bb6a;
+}
+.logs-filter-btn.active[data-log-filter="completed"] {
+    background: #26c6da;
+    border-color: #26c6da;
+}
+.logs-filter-btn.active[data-log-filter="stock"] {
+    background: #ffa726;
+    border-color: #ffa726;
+}
+.logs-filter-btn.active[data-log-filter="inventory"] {
+    background: #ba68c8;
+    border-color: #ba68c8;
+}
+.logs-filter-btn.active[data-log-filter="accounts"] {
+    background: #64b5f6;
+    border-color: #64b5f6;
 }
 .order-log-card {
     background: rgba(255, 255, 255, 0.04);
@@ -2766,8 +2818,8 @@ body.dashboard-panel-open .menu-btn {
 .sales-analytics-chart svg {
     display: block;
     border-radius: 16px;
-    overflow: visible;
-    width: auto;
+    overflow: hidden;
+    max-width: 100%;
 }
 
 .overview-section,
@@ -2806,6 +2858,7 @@ body.dashboard-panel-open .menu-btn {
     border-radius: 16px;
     padding: 20px;
     color: #fff;
+    overflow: hidden;
 }
 
 /* Ensure the real-time inventory list in the Overview uses white text for readability */

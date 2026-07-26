@@ -30,6 +30,7 @@ let orderLogsRefreshTimer = null;
 let orderLogsSyncInFlight = false;
 let orderActivityLogs = [];
 let activeOrderLogFilter = 'all';
+const blockedProductNames = new Set(['softdrinks']);
 const isStaffPage = Boolean(document.getElementById('accountList') || document.getElementById('staffLoginForm'));
 
 const defaultStaffAccounts = [
@@ -349,6 +350,29 @@ function getCurrentStaffActor() {
     const role = (selectedRoleInput && selectedRoleInput.value) ? selectedRoleInput.value.trim() : 'Staff';
     const email = (emailInput && emailInput.value) ? emailInput.value.trim().toLowerCase() : '';
     return { role: role || 'Staff', email };
+}
+
+async function logStaffActivity(action, summary, details = {}) {
+    const actor = getCurrentStaffActor();
+
+    try {
+        await fetch(getApiUrl('api/add_activity_log.php'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action,
+                actorRole: actor.role,
+                actorEmail: actor.email,
+                summary,
+                details
+            }),
+            cache: 'no-store'
+        });
+    } catch (error) {
+        console.error('Unable to log staff activity', error);
+    }
 }
 
 function resetDashboardProfile() {
@@ -705,6 +729,20 @@ function createMonthlyDailyData(base, drift) {
 const monthKeys = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+function getCurrentMonthKey() {
+    return monthKeys[new Date().getMonth()] || 'jan';
+}
+
+function syncAnalyticsMonthSelectorsToCurrentMonth() {
+    const monthKey = getCurrentMonthKey();
+    if (analyticsMonthSelect) {
+        analyticsMonthSelect.value = monthKey;
+    }
+    if (overviewMonthSelect) {
+        overviewMonthSelect.value = monthKey;
+    }
+}
+
 const monthlySalesByMonth = {
     jan: [],
     feb: [],
@@ -739,11 +777,13 @@ function initializeAnalyticsBuckets() {
     monthKeys.forEach((monthKey) => {
         monthlySalesByMonth[monthKey] = Array.from({ length: 30 }, (_, index) => ({
             label: `${index + 1}`,
-            value: 0
+            value: 0,
+            orders: 0
         }));
         weeklySalesByMonth[monthKey] = Array.from({ length: 5 }, (_, index) => ({
             label: `W${index + 1}`,
-            value: 0
+            value: 0,
+            orders: 0
         }));
     });
 }
@@ -754,6 +794,7 @@ function recalculateSalesAnalytics() {
     analyticsData.monthly.items = monthKeys.map((monthKey, index) => ({
         label: monthLabels[index],
         value: 0,
+        orders: 0,
         display: `₱0`
     }));
 
@@ -767,8 +808,11 @@ function recalculateSalesAnalytics() {
 
         if (monthKey && monthlySalesByMonth[monthKey]) {
             monthlySalesByMonth[monthKey][dayIndex].value += orderTotal;
+            monthlySalesByMonth[monthKey][dayIndex].orders += 1;
             weeklySalesByMonth[monthKey][weekIndex].value += orderTotal;
+            weeklySalesByMonth[monthKey][weekIndex].orders += 1;
             analyticsData.monthly.items[monthIndex].value += orderTotal;
+            analyticsData.monthly.items[monthIndex].orders += 1;
         }
     });
 
@@ -785,8 +829,8 @@ function renderDetailChart(container, chartData, title) {
         return;
     }
 
-    const maxValue = Math.max(...chartData.map((item) => item.value));
-    const paddedMax = Math.ceil(maxValue / 1000) * 1000;
+    const maxValue = Math.max(...chartData.map((item) => Number(item.value) || 0));
+    const paddedMax = Math.max(1000, Math.ceil(maxValue / 1000) * 1000);
     const ticks = 5;
     const pointCount = chartData.length;
     const svgWidth = Math.max(720, pointCount * 40 + 140);
@@ -806,8 +850,9 @@ function renderDetailChart(container, chartData, title) {
 
     const points = chartData.map((item, index) => {
         const x = margin.left + index * xStep;
-        const y = margin.top + chartHeight - (item.value / paddedMax) * chartHeight;
-        return { x, y, label: item.label, value: item.value, display: item.display || formatChartValue(item.value) };
+        const normalizedValue = Number(item.value) || 0;
+        const y = margin.top + chartHeight - (normalizedValue / paddedMax) * chartHeight;
+        return { x, y, label: item.label, value: normalizedValue, display: item.display || formatChartValue(normalizedValue) };
     });
 
     const yTicks = Array.from({ length: ticks + 1 }, (_, i) => {
@@ -869,7 +914,7 @@ function renderSalesList(container, items, firstCol = 'Period', secondCol = 'Sal
                 ${items.map((item) => `
                     <tr>
                         <td>${item.label}</td>
-                        <td>${formatCurrency(item.value || 0)}</td>
+                        <td>${formatCurrency(item.value || 0)} | ${Number(item.orders || 0)} completed</td>
                     </tr>
                 `).join('')}
             </tbody>
@@ -989,6 +1034,16 @@ const logsSection = document.getElementById('logs');
 const logsFilterBar = document.getElementById('logsFilterBar');
 const logsList = document.getElementById('logsList');
 
+const logsFilterLabelMap = {
+    all: 'All',
+    today: 'Today',
+    qty: 'Qty Changes',
+    completed: 'Completed',
+    stock: 'Stock Only',
+    inventory: 'Inventory',
+    accounts: 'Accounts'
+};
+
 function setInventoryModalVisible(isVisible) {
     if (!inventoryModal) return;
     inventoryModal.hidden = !isVisible;
@@ -1037,6 +1092,7 @@ if (overviewMonthSelect) {
     overviewMonthSelect.addEventListener('change', renderOverviewAnalytics);
 }
 
+syncAnalyticsMonthSelectorsToCurrentMonth();
 updateAnalyticsView();
 
 function renderAnalytics(type) {
@@ -1047,9 +1103,9 @@ function renderAnalytics(type) {
     }
 
     const data = analyticsData[type];
-    const values = data.items.map((item) => item.value);
+    const values = data.items.map((item) => Number(item.value) || 0);
     const maxValue = Math.max(...values);
-    const paddedMax = Math.ceil(maxValue / 5000) * 5000;
+    const paddedMax = Math.max(5000, Math.ceil(maxValue / 5000) * 5000);
     const ticks = 5;
     const svgWidth = 720;
     const svgHeight = 320;
@@ -1061,8 +1117,9 @@ function renderAnalytics(type) {
 
     const points = data.items.map((item, index) => {
         const x = margin.left + index * xStep;
-        const y = margin.top + chartHeight - (item.value / paddedMax) * chartHeight;
-        return { x, y, label: item.label, display: item.display, value: item.value };
+        const normalizedValue = Number(item.value) || 0;
+        const y = margin.top + chartHeight - (normalizedValue / paddedMax) * chartHeight;
+        return { x, y, label: item.label, display: item.display, value: normalizedValue };
     });
 
     const yTicks = Array.from({ length: ticks + 1 }, (_, i) => {
@@ -1144,7 +1201,7 @@ if (accountForm) {
         const account = {
             name: accountNameInput ? accountNameInput.value.trim() : '',
             role: accountRoleInput ? accountRoleInput.value : '',
-            email: accountEmailInput ? accountEmailInput.value.trim() : '',
+            email: accountEmailInput ? accountEmailInput.value.trim().toLowerCase() : '',
             password: accountPasswordInput ? accountPasswordInput.value : ''
         };
 
@@ -1156,9 +1213,23 @@ if (accountForm) {
 
         if (accountEditIndex !== null) {
             accounts[accountEditIndex] = account;
+            void logStaffActivity('account_updated', `${account.name} (${account.role})`, {
+                previous_name: previousAccount ? previousAccount.name : null,
+                previous_role: previousAccount ? previousAccount.role : null,
+                previous_email: previousAccount ? previousAccount.email : null,
+                password_changed: previousAccount ? previousAccount.password !== account.password : false,
+                next_name: account.name,
+                next_role: account.role,
+                next_email: account.email
+            });
         } else {
             accounts.push(account);
+            void logStaffActivity('account_created', `${account.name} (${account.role})`, {
+                email: account.email,
+                role: account.role
+            });
         }
+        void loadOrderLogsFromServer(true);
 
         window.motasteStaffAccounts = accounts;
         saveStaffAccountsToServer();
@@ -1193,6 +1264,13 @@ if (accountList) {
             accounts.splice(index, 1);
             window.motasteStaffAccounts = accounts;
             saveStaffAccountsToServer();
+            if (removedAccount) {
+                void logStaffActivity('account_deleted', `${removedAccount.name} (${removedAccount.role})`, {
+                    email: removedAccount.email,
+                    role: removedAccount.role
+                });
+            }
+            void loadOrderLogsFromServer(true);
             if (removedAccount) {
                 clearSavedCredentialsForRole(removedAccount.role);
                 const currentRole = selectedRoleInput ? selectedRoleInput.value : '';
@@ -1349,8 +1427,7 @@ const menuData = {
         items: [
             { name: 'Iced Tea', price: '₱55', description: 'Chilled iced tea with refreshing flavor.' },
             { name: 'Lemonade', price: '₱55', description: 'Freshly squeezed lemonade.' },
-            { name: 'Bottled Water', price: '₱30', description: 'Pure bottled water.' },
-            { name: 'Softdrinks', price: '₱20', description: 'Cold soda to pair with your meal.' }
+            { name: 'Bottled Water', price: '₱30', description: 'Pure bottled water.' }
         ]
     }
 };
@@ -1457,6 +1534,35 @@ function ignorePendingOrder(orderNumber) {
 
 function formatCurrency(value) {
     return `₱${value.toLocaleString()}`;
+}
+
+function parseServerDateToMs(value) {
+    if (value === null || value === undefined || value === '') return Date.now();
+    if (typeof value === 'number') return value;
+
+    const raw = String(value).trim();
+    if (!raw) return Date.now();
+
+    const matched = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+    if (matched) {
+        const year = Number(matched[1]);
+        const month = Number(matched[2]) - 1;
+        const day = Number(matched[3]);
+        const hour = Number(matched[4] || 0);
+        const minute = Number(matched[5] || 0);
+        const second = Number(matched[6] || 0);
+        return new Date(year, month, day, hour, minute, second).getTime();
+    }
+
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) return parsed.getTime();
+
+    return Date.now();
+}
+
+function formatRealtimeDate(value) {
+    const timestamp = parseServerDateToMs(value);
+    return new Date(timestamp).toLocaleString();
 }
 
 function parsePrice(priceText) {
@@ -1800,7 +1906,7 @@ async function loadPendingOrdersFromServer() {
             return {
                 id: Number(order.id),
                 orderNumber: order.order_number || order.orderNumber || String(order.id),
-                timestamp: new Date(order.order_date || Date.now()).getTime(),
+                timestamp: parseServerDateToMs(order.order_date_iso || order.order_date || Date.now()),
                 total: Number(order.total_amount ?? order.total ?? 0),
                 paymentMethod: order.payment_method || order.paymentMethod || 'Cash',
                 orderType: order.order_type || order.orderType || 'Dine In',
@@ -2005,21 +2111,24 @@ function formatOrderLogAction(action) {
         quantity_decreased: 'Quantity decreased',
         quantity_updated: 'Quantity updated',
         item_removed: 'Item removed',
-        order_removed: 'Order removed'
+        order_removed: 'Order removed',
+        inventory_item_added: 'Inventory item added',
+        inventory_item_updated: 'Inventory item updated',
+        inventory_stock_changed: 'Inventory stock changed',
+        account_created: 'Account created',
+        account_updated: 'Account updated',
+        account_deleted: 'Account deleted'
     };
 
     return map[action] || 'Activity updated';
 }
 
 function formatOrderLogTimestamp(value) {
-    if (!value) return 'Unknown time';
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return 'Unknown time';
-    return parsed.toLocaleString();
+    return formatRealtimeDate(value);
 }
 
 function isLogFromToday(log) {
-    const parsed = new Date(log.created_at);
+    const parsed = new Date(parseServerDateToMs(log.created_at_iso || log.created_at));
     if (Number.isNaN(parsed.getTime())) return false;
 
     const now = new Date();
@@ -2029,7 +2138,7 @@ function isLogFromToday(log) {
 }
 
 function isQtyChangeAction(action) {
-    return ['quantity_increased', 'quantity_decreased', 'quantity_updated', 'item_removed', 'order_removed'].includes(action);
+    return ['inventory_stock_changed'].includes(action);
 }
 
 function getFilteredOrderLogs() {
@@ -2045,15 +2154,46 @@ function getFilteredOrderLogs() {
         return orderActivityLogs.filter((log) => log.action === 'order_completed');
     }
 
+    if (activeOrderLogFilter === 'stock') {
+        return orderActivityLogs.filter((log) => log.action === 'inventory_stock_changed');
+    }
+
+    if (activeOrderLogFilter === 'inventory') {
+        return orderActivityLogs.filter((log) => String(log.action || '').startsWith('inventory_'));
+    }
+
+    if (activeOrderLogFilter === 'accounts') {
+        return orderActivityLogs.filter((log) => String(log.action || '').startsWith('account_'));
+    }
+
     return orderActivityLogs;
+}
+
+function getLogFilterCounts() {
+    const allLogs = Array.isArray(orderActivityLogs) ? orderActivityLogs : [];
+    return {
+        all: allLogs.length,
+        today: allLogs.filter((log) => isLogFromToday(log)).length,
+        qty: allLogs.filter((log) => isQtyChangeAction(log.action)).length,
+        completed: allLogs.filter((log) => log.action === 'order_completed').length,
+        stock: allLogs.filter((log) => log.action === 'inventory_stock_changed').length,
+        inventory: allLogs.filter((log) => String(log.action || '').startsWith('inventory_')).length,
+        accounts: allLogs.filter((log) => String(log.action || '').startsWith('account_')).length
+    };
 }
 
 function updateLogsFilterState() {
     if (!logsFilterBar) return;
 
+    const counts = getLogFilterCounts();
     const buttons = Array.from(logsFilterBar.querySelectorAll('.logs-filter-btn'));
     buttons.forEach((button) => {
-        button.classList.toggle('active', button.dataset.logFilter === activeOrderLogFilter);
+        const filterKey = (button.dataset.logFilter || 'all').trim();
+        const baseLabel = logsFilterLabelMap[filterKey] || (button.textContent || '').replace(/\s*\(\d+\)\s*$/, '').trim();
+        const countValue = Number(counts[filterKey] || 0);
+
+        button.classList.toggle('active', filterKey === activeOrderLogFilter);
+        button.textContent = `${baseLabel} (${countValue})`;
     });
 }
 
@@ -2083,7 +2223,7 @@ function renderOrderLogs() {
             <article class="order-log-card">
                 <div class="order-log-top-row">
                     <strong>${formatOrderLogAction(log.action)}</strong>
-                    <span>${formatOrderLogTimestamp(log.created_at)}</span>
+                    <span>${formatOrderLogTimestamp(log.created_at_iso || log.created_at)}</span>
                 </div>
                 <p><strong>${orderLabel}</strong></p>
                 <p><strong>By:</strong> ${actorText || 'Staff'}</p>
@@ -2179,6 +2319,7 @@ function buildDefaultInventoryFromMenu() {
 
     Object.entries(menuData).forEach(([categoryKey, category]) => {
         category.items.forEach((item) => {
+            if (blockedProductNames.has(normalizeInventoryName(item.name))) return;
             if (seen.has(item.name)) return;
             seen.add(item.name);
             items.push({
@@ -2192,6 +2333,7 @@ function buildDefaultInventoryFromMenu() {
     });
 
     specialFoods.forEach((food) => {
+        if (blockedProductNames.has(normalizeInventoryName(food.name))) return;
         if (seen.has(food.name)) return;
         seen.add(food.name);
         items.push({
@@ -2227,7 +2369,7 @@ async function initializeInventoryData(forceRefresh = false) {
             stock: Number(item.stock) || 0,
             status: item.status || (Number(item.stock) > 0 ? 'In stock' : 'Out of stock'),
             category: item.category || resolveInventoryCategory(item.name)
-        }));
+        })).filter((item) => !blockedProductNames.has(normalizeInventoryName(item.name)));
 
         const mergedNames = new Set(merged.map((item) => normalizeInventoryName(item.name)));
         defaults.forEach((item) => {
@@ -2629,7 +2771,7 @@ function renderOrderNotifications() {
                     <h4>Order #${order.orderNumber}</h4>
                     <span>${isCompleted ? 'Completed' : 'New'}</span>
                 </div>
-                <p><strong>Submitted:</strong> ${new Date(order.timestamp).toLocaleString()}</p>
+                <p><strong>Submitted:</strong> ${formatRealtimeDate(order.timestamp)}</p>
                 <p><strong>Payment:</strong> ${order.paymentMethod}</p>
                 <ul>${orderItems}</ul>
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -2958,12 +3100,22 @@ async function saveInventoryItem(event) {
     saveInventoryData();
     let syncSucceeded = false;
     try {
+        const actor = getCurrentStaffActor();
         const response = await fetch(getApiUrl('api/update_inventory.php'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ name, price, stock, status, category })
+            body: JSON.stringify({
+                name,
+                previousName: existingItem ? existingItem.name : null,
+                price,
+                stock,
+                status,
+                category,
+                actorRole: actor.role,
+                actorEmail: actor.email
+            })
         });
 
         if (!response.ok) {
@@ -3007,6 +3159,7 @@ async function saveInventoryItem(event) {
     inventoryEditLock = false;
     startInventoryAutoRefresh();
     void initializeInventoryData(true);
+    void loadOrderLogsFromServer(true);
 }
 
 function editInventoryItem(name) {
@@ -3059,12 +3212,22 @@ async function commitInlineInventoryEdit(card) {
     inventoryRefreshVersion += 1;
     let syncSucceeded = false;
     try {
+        const actor = getCurrentStaffActor();
         const response = await fetch(getApiUrl('api/update_inventory.php'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ name: nextName, price, stock, status, category })
+            body: JSON.stringify({
+                name: nextName,
+                previousName: itemName,
+                price,
+                stock,
+                status,
+                category,
+                actorRole: actor.role,
+                actorEmail: actor.email
+            })
         });
 
         if (!response.ok) {
@@ -3113,6 +3276,7 @@ async function commitInlineInventoryEdit(card) {
 
     startInventoryAutoRefresh();
     void initializeInventoryData(true);
+    void loadOrderLogsFromServer(true);
 }
 
 function renderOverviewAnalytics() {
@@ -3271,7 +3435,7 @@ function renderPendingOrders() {
         return `
             <article class="pending-order-card">
                 <h4>Order #${order.orderNumber}</h4>
-                <p><strong>Submitted:</strong> ${new Date(order.timestamp).toLocaleString()}</p>
+                <p><strong>Submitted:</strong> ${formatRealtimeDate(order.timestamp)}</p>
                 <p><strong>Payment:</strong> ${order.paymentMethod}</p>
                 <ul>${itemsHtml}</ul>
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
@@ -3360,7 +3524,7 @@ function openPaymentScreen(order) {
         orderPaymentNumber.textContent = order.orderNumber;
     }
     if (orderPaymentDatetime) {
-        orderPaymentDatetime.textContent = new Date(order.timestamp).toLocaleString();
+        orderPaymentDatetime.textContent = formatRealtimeDate(order.timestamp);
     }
     if (orderPaymentMethod) {
         orderPaymentMethod.textContent = order.paymentMethod;
@@ -3898,6 +4062,7 @@ function initOrders() {
     loadPendingOrders();
     loadIgnoredPendingOrders();
     loadCompletedOrders();
+    syncAnalyticsMonthSelectorsToCurrentMonth();
     loadCustomMenuData();
     startInventoryAutoRefresh();
     void initializeInventoryData();

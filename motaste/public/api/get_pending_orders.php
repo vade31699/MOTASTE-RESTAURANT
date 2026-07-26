@@ -10,6 +10,7 @@ $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 try {
     DB::statement("CREATE TABLE IF NOT EXISTS orders (
@@ -65,6 +66,7 @@ try {
             'id' => (int)$order->id,
             'order_number' => $order->order_number,
             'order_date' => $order->order_date,
+            'order_date_iso' => $order->order_date ? Carbon::parse($order->order_date)->toIso8601String() : null,
             'status' => $order->status,
             'payment_status' => $order->payment_status,
             'payment_method' => $order->payment_method,

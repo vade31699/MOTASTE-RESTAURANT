@@ -10,6 +10,7 @@ $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 try {
     DB::statement("CREATE TABLE IF NOT EXISTS order_activity_logs (
@@ -40,6 +41,7 @@ try {
                 'summary' => $row->summary,
                 'details' => $row->details ? json_decode((string)$row->details, true) : null,
                 'created_at' => $row->created_at,
+                'created_at_iso' => $row->created_at ? Carbon::parse($row->created_at)->toIso8601String() : null,
             ];
         })
         ->values()

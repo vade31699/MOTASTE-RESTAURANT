@@ -8,12 +8,31 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
 
+function ensureOrderLogsTable(): void
+{
+    DB::statement("CREATE TABLE IF NOT EXISTS order_activity_logs (
+        id BIGSERIAL PRIMARY KEY,
+        order_id BIGINT NULL,
+        order_number VARCHAR(191) NULL,
+        action VARCHAR(100) NOT NULL,
+        actor_role VARCHAR(100) NULL,
+        actor_email VARCHAR(191) NULL,
+        summary TEXT NULL,
+        details TEXT NULL,
+        created_at TIMESTAMP NULL,
+        updated_at TIMESTAMP NULL
+    )");
+}
+
 $input = json_decode(file_get_contents('php://input'), true);
 $name = isset($input['name']) ? trim($input['name']) : '';
+$previousName = isset($input['previousName']) ? trim((string)$input['previousName']) : '';
 $price = isset($input['price']) ? (float)$input['price'] : 0;
 $stock = isset($input['stock']) ? (int)$input['stock'] : 0;
 $category = isset($input['category']) ? trim($input['category']) : 'specials';
 $status = isset($input['status']) ? trim($input['status']) : ($stock > 0 ? 'In stock' : 'Out of stock');
+$actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
+$actorEmail = trim((string)($input['actorEmail'] ?? ''));
 
 $canonicalName = preg_replace('/\s+/', ' ', $name);
 $canonicalName = trim((string)$canonicalName);
@@ -24,15 +43,43 @@ if ($canonicalName === '') {
     exit;
 }
 
+$blockedNames = ['softdrinks'];
+if (in_array(strtolower($canonicalName), $blockedNames, true)) {
+    http_response_code(409);
+    echo json_encode(['success' => false, 'error' => 'Softdrinks is no longer allowed in inventory']);
+    exit;
+}
+
 $normalizedStatus = $stock > 0 ? ($status === 'Out of stock' ? 'In stock' : $status) : 'Out of stock';
 
 try {
-    $normalizedLookup = strtolower($canonicalName);
+    ensureOrderLogsTable();
 
-    DB::transaction(function () use ($normalizedLookup, $canonicalName, $price, $stock, $normalizedStatus, $category) {
-        DB::table('inventory_items')
+    $normalizedLookup = strtolower($canonicalName);
+    $normalizedPrevious = strtolower(trim((string)preg_replace('/\s+/', ' ', $previousName)));
+
+    $existingBefore = null;
+    if ($normalizedPrevious !== '') {
+        $existingBefore = DB::table('inventory_items')
+            ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedPrevious])
+            ->first();
+    }
+
+    if (!$existingBefore) {
+        $existingBefore = DB::table('inventory_items')
             ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedLookup])
-            ->delete();
+            ->first();
+    }
+
+    DB::transaction(function () use ($normalizedLookup, $normalizedPrevious, $canonicalName, $price, $stock, $normalizedStatus, $category) {
+        $deleteQuery = DB::table('inventory_items')
+            ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedLookup]);
+
+        if ($normalizedPrevious !== '' && $normalizedPrevious !== $normalizedLookup) {
+            $deleteQuery->orWhereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedPrevious]);
+        }
+
+        $deleteQuery->delete();
 
         DB::table('inventory_items')->insert([
             'name' => $canonicalName,
@@ -44,6 +91,33 @@ try {
             'updated_at' => now(),
         ]);
     });
+
+    $action = 'inventory_item_added';
+    if ($existingBefore) {
+        $previousStock = (int)($existingBefore->stock ?? 0);
+        $action = $previousStock !== $stock ? 'inventory_stock_changed' : 'inventory_item_updated';
+    }
+
+    DB::table('order_activity_logs')->insert([
+        'order_id' => null,
+        'order_number' => null,
+        'action' => $action,
+        'actor_role' => $actorRole !== '' ? $actorRole : 'Staff',
+        'actor_email' => $actorEmail !== '' ? $actorEmail : null,
+        'summary' => $canonicalName . ' x' . $stock,
+        'details' => json_encode([
+            'name' => $canonicalName,
+            'stock' => $stock,
+            'price' => $price,
+            'category' => $category,
+            'status' => $normalizedStatus,
+            'previous_name' => $existingBefore ? $existingBefore->name : null,
+            'previous_stock' => $existingBefore ? (int)($existingBefore->stock ?? 0) : null,
+            'updated_at' => now()->toDateTimeString(),
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
 
     $itemId = DB::table('inventory_items')
         ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedLookup])
