@@ -1237,8 +1237,7 @@ let seenCompletedOrders = new Set();
 let customerOrderStatusPoller = null;
 let orderCompletePopupTimeout = null;
 let orderCompleteScrollLockState = null;
-let orderNotificationAudioContext = null;
-let orderNotificationAudioUnlocked = false;
+let orderNotificationAudioElement = null;
 let orderNotificationAudioListenersBound = false;
 
 function loadIgnoredPendingOrders() {
@@ -1348,14 +1347,13 @@ function unlockPageScrollForOrderPopup() {
 }
 
 function initializeOrderNotificationAudio() {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return;
-
-    if (!orderNotificationAudioContext) {
+    if (!orderNotificationAudioElement) {
         try {
-            orderNotificationAudioContext = new AudioContextClass();
+            orderNotificationAudioElement = new Audio(getApiUrl('order_aud_notif.aac'));
+            orderNotificationAudioElement.preload = 'auto';
+            orderNotificationAudioElement.volume = 1;
         } catch (error) {
-            orderNotificationAudioContext = null;
+            orderNotificationAudioElement = null;
             return;
         }
     }
@@ -1363,17 +1361,13 @@ function initializeOrderNotificationAudio() {
     if (orderNotificationAudioListenersBound) return;
 
     const unlockAudio = () => {
-        if (!orderNotificationAudioContext) return;
-        void orderNotificationAudioContext.resume()
-            .then(() => {
-                orderNotificationAudioUnlocked = orderNotificationAudioContext.state === 'running';
-                if (!orderNotificationAudioUnlocked) return;
-                document.removeEventListener('pointerdown', unlockAudio);
-                document.removeEventListener('keydown', unlockAudio);
-                document.removeEventListener('touchstart', unlockAudio);
-                orderNotificationAudioListenersBound = false;
-            })
-            .catch(() => {});
+        if (!orderNotificationAudioElement) return;
+
+        orderNotificationAudioElement.load();
+        document.removeEventListener('pointerdown', unlockAudio);
+        document.removeEventListener('keydown', unlockAudio);
+        document.removeEventListener('touchstart', unlockAudio);
+        orderNotificationAudioListenersBound = false;
     };
 
     document.addEventListener('pointerdown', unlockAudio, { passive: true });
@@ -1385,38 +1379,16 @@ function initializeOrderNotificationAudio() {
 function playOrderCompletedNotificationSound() {
     try {
         initializeOrderNotificationAudio();
-        if (!orderNotificationAudioContext) return;
 
-        if (!orderNotificationAudioUnlocked) {
-            void orderNotificationAudioContext.resume().then(() => {
-                orderNotificationAudioUnlocked = orderNotificationAudioContext.state === 'running';
-            }).catch(() => {});
+        if (!orderNotificationAudioElement) return;
+
+        orderNotificationAudioElement.currentTime = 0;
+        const playback = orderNotificationAudioElement.play();
+        if (playback && typeof playback.catch === 'function') {
+            playback.catch((error) => {
+                console.debug('Notification sound unavailable', error);
+            });
         }
-
-        const context = orderNotificationAudioContext;
-        if (context.state !== 'running') return;
-
-        const now = context.currentTime;
-        const gain = context.createGain();
-        gain.connect(context.destination);
-
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.62);
-
-        const firstTone = context.createOscillator();
-        firstTone.type = 'sine';
-        firstTone.frequency.setValueAtTime(880, now);
-        firstTone.connect(gain);
-        firstTone.start(now);
-        firstTone.stop(now + 0.2);
-
-        const secondTone = context.createOscillator();
-        secondTone.type = 'sine';
-        secondTone.frequency.setValueAtTime(1175, now + 0.22);
-        secondTone.connect(gain);
-        secondTone.start(now + 0.22);
-        secondTone.stop(now + 0.48);
     } catch (error) {
         console.debug('Notification sound unavailable', error);
     }
