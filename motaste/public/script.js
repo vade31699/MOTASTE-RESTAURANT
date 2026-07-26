@@ -1785,7 +1785,9 @@ async function loadPendingOrdersFromServer() {
                 paymentMethod: order.payment_method || order.paymentMethod || 'Cash',
                 orderType: order.order_type || order.orderType || 'Dine In',
                 items: items.map((item) => ({
+                    id: Number(item.id ?? 0),
                     name: item.notes || item.name || 'Menu item',
+                    notes: item.notes || item.name || 'Menu item',
                     price: Number(item.unit_price ?? item.price ?? 0),
                     quantity: Number(item.quantity ?? 0)
                 }))
