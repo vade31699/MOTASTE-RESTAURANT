@@ -1349,7 +1349,7 @@ async function submitOrderToServer(order) {
         };
     } catch (error) {
         console.error('Unable to save order to the server', error);
-        return order;
+        return null;
     }
 }
 
@@ -2476,6 +2476,13 @@ async function confirmOrder() {
     };
 
     const syncedOrder = await submitOrderToServer(order);
+    if (!syncedOrder) {
+        if (menuOrderMessage) {
+            menuOrderMessage.textContent = 'Unable to submit order to server. Please try again.';
+        }
+        return;
+    }
+
     pendingOrders.unshift(syncedOrder);
     decrementInventory(order.items);
     savePendingOrders();

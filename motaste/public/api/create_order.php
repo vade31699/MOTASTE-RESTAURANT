@@ -1,58 +1,104 @@
 <?php
 header('Content-Type: application/json');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+
+require __DIR__ . '/../../vendor/autoload.php';
+
+$app = require_once __DIR__ . '/../../bootstrap/app.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
+use Illuminate\Support\Facades\DB;
+
 $input = json_decode(file_get_contents('php://input'), true);
 if (!$input) {
     http_response_code(400);
-    echo json_encode(['error' => 'Invalid JSON']);
+    echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
     exit;
 }
-$host = '127.0.0.1';
-$db = 'motaste_db';
-$user = 'root';
-$pass = '';
-$mysqli = new mysqli($host, $user, $pass, $db);
-if ($mysqli->connect_error) {
-    http_response_code(500);
-    echo json_encode(['error' => 'DB connect failed']);
-    exit;
+
+$orderNumber = trim((string)($input['orderNumber'] ?? ''));
+if ($orderNumber === '') {
+    $orderNumber = (string)time();
 }
-// expected input: { orderNumber, items: [{name, price, quantity}], paymentMethod, orderType }
-$orderNumber = $input['orderNumber'] ?? (string)time();
-$items = $input['items'] ?? [];
-$paymentMethod = $input['paymentMethod'] ?? 'Cash';
-$orderType = $input['orderType'] ?? 'Dine In';
+
+$items = is_array($input['items'] ?? null) ? $input['items'] : [];
+$paymentMethod = trim((string)($input['paymentMethod'] ?? 'Cash'));
+$orderType = trim((string)($input['orderType'] ?? 'Dine In'));
+
 $subtotal = 0;
 foreach ($items as $it) {
-    $subtotal += (float)$it['price'] * (int)$it['quantity'];
+    $subtotal += (float)($it['price'] ?? 0) * (int)($it['quantity'] ?? 0);
 }
-$total = $subtotal; // no tax/discount for now
-$now = date('Y-m-d H:i:s');
-$stmt = $mysqli->prepare('INSERT INTO orders (order_number, customer_id, table_id, staff_id, order_date, status, payment_status, subtotal, tax_amount, discount_amount, total_amount, notes, created_at, updated_at) VALUES (?, NULL, NULL, NULL, ?, ?, ?, ?, 0, 0, ?, NULL, ?, ?)');
-$status = 'pending';
-$payment_status = 'unpaid';
-$stmt->bind_param('ssssddss', $orderNumber, $now, $status, $payment_status, $subtotal, $total, $now, $now);
-$ok = $stmt->execute();
-if (!$ok) {
+$total = $subtotal;
+
+try {
+    DB::statement("CREATE TABLE IF NOT EXISTS orders (
+        id BIGSERIAL PRIMARY KEY,
+        order_number VARCHAR(191) NOT NULL,
+        order_date TIMESTAMP NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'pending',
+        payment_status VARCHAR(50) NOT NULL DEFAULT 'unpaid',
+        payment_method VARCHAR(50) NULL,
+        order_type VARCHAR(50) NULL,
+        subtotal NUMERIC(12,2) NOT NULL DEFAULT 0,
+        total_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+        created_at TIMESTAMP NULL,
+        updated_at TIMESTAMP NULL
+    )");
+
+    DB::statement("CREATE TABLE IF NOT EXISTS order_items (
+        id BIGSERIAL PRIMARY KEY,
+        order_id BIGINT NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 0,
+        unit_price NUMERIC(12,2) NOT NULL DEFAULT 0,
+        line_total NUMERIC(12,2) NOT NULL DEFAULT 0,
+        notes TEXT NULL,
+        created_at TIMESTAMP NULL,
+        updated_at TIMESTAMP NULL
+    )");
+
+    $orderId = null;
+    $insertedItems = 0;
+
+    DB::transaction(function () use (&$orderId, &$insertedItems, $orderNumber, $paymentMethod, $orderType, $subtotal, $total, $items) {
+        $now = now();
+        $orderId = DB::table('orders')->insertGetId([
+            'order_number' => $orderNumber,
+            'order_date' => $now,
+            'status' => 'pending',
+            'payment_status' => 'unpaid',
+            'payment_method' => $paymentMethod,
+            'order_type' => $orderType,
+            'subtotal' => $subtotal,
+            'total_amount' => $total,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        foreach ($items as $it) {
+            $itemName = trim((string)($it['name'] ?? 'Menu item'));
+            $price = (float)($it['price'] ?? 0);
+            $qty = (int)($it['quantity'] ?? 0);
+            $lineTotal = $price * $qty;
+
+            DB::table('order_items')->insert([
+                'order_id' => $orderId,
+                'quantity' => $qty,
+                'unit_price' => $price,
+                'line_total' => $lineTotal,
+                'notes' => $itemName,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            $insertedItems++;
+        }
+    });
+
+    echo json_encode(['success' => true, 'orderId' => $orderId, 'insertedItems' => $insertedItems]);
+} catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['error' => 'Insert order failed', 'msg' => $stmt->error]);
-    exit;
+    echo json_encode(['success' => false, 'error' => 'Insert order failed', 'details' => $error->getMessage()]);
 }
-$orderId = $mysqli->insert_id;
-$stmt->close();
-$inserted = 0;
-// temporarily disable FK checks for flexible test inserts
-$mysqli->query('SET FOREIGN_KEY_CHECKS=0');
-foreach ($items as $it) {
-    $name = $it['name'];
-    $price = (float)$it['price'];
-    $qty = (int)$it['quantity'];
-    $lineTotal = $price * $qty;
-    $itemName = $it['name'] ?? 'Menu item';
-    $stmt = $mysqli->prepare('INSERT INTO order_items (order_id, menu_item_id, quantity, unit_price, line_total, notes, created_at, updated_at) VALUES (?, 0, ?, ?, ?, ?, ?, ?)');
-    $stmt->bind_param('iiddsss', $orderId, $qty, $price, $lineTotal, $itemName, $now, $now);
-    if ($stmt->execute()) $inserted++;
-    $stmt->close();
-}
-$mysqli->query('SET FOREIGN_KEY_CHECKS=1');
-$mysqli->close();
-echo json_encode(['success' => true, 'orderId' => $orderId, 'insertedItems' => $inserted]);
