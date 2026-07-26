@@ -2030,6 +2030,7 @@ async function saveInventoryItem(event) {
     }
 
     saveInventoryData();
+    let syncSucceeded = false;
     try {
         const response = await fetch(getApiUrl('api/update_inventory.php'), {
             method: 'POST',
@@ -2047,8 +2048,15 @@ async function saveInventoryItem(event) {
         if (!payload || payload.success !== true) {
             throw new Error(`Inventory sync failed: ${payload?.error || 'Unknown server response'}`);
         }
+        syncSucceeded = true;
     } catch (error) {
         console.error('Unable to sync inventory with server', error);
+        window.alert('Inventory update failed on server. Please try again.');
+    }
+
+    if (!syncSucceeded) {
+        void initializeInventoryData(true);
+        return;
     }
     debugInventory('Saved inventory and sent update to server', 'local-save');
 
@@ -2074,6 +2082,7 @@ function editInventoryItem(name) {
     const item = inventoryData.find((inventoryItem) => inventoryItem.name === name);
     if (!item) return;
 
+    stopInventoryAutoRefresh();
     inventoryEditItemName = item.name;
     renderInventoryManagement();
 }
@@ -2099,6 +2108,14 @@ async function commitInlineInventoryEdit(card) {
 
     if (!nextName || Number.isNaN(price) || Number.isNaN(stock)) return;
 
+    const previousSnapshot = {
+        name: previousItem.name,
+        price: previousItem.price,
+        stock: previousItem.stock,
+        status: previousItem.status,
+        category: previousItem.category,
+    };
+
     previousItem.name = nextName;
     previousItem.price = price;
     previousItem.stock = stock;
@@ -2108,6 +2125,7 @@ async function commitInlineInventoryEdit(card) {
     saveMenuCatalogItem(previousItem, itemName);
     saveInventoryData();
     inventoryRefreshVersion += 1;
+    let syncSucceeded = false;
     try {
         const response = await fetch(getApiUrl('api/update_inventory.php'), {
             method: 'POST',
@@ -2125,8 +2143,27 @@ async function commitInlineInventoryEdit(card) {
         if (!payload || payload.success !== true) {
             throw new Error(`Inventory sync failed: ${payload?.error || 'Unknown server response'}`);
         }
+        syncSucceeded = true;
     } catch (error) {
         console.error('Unable to sync inventory with server', error);
+        previousItem.name = previousSnapshot.name;
+        previousItem.price = previousSnapshot.price;
+        previousItem.stock = previousSnapshot.stock;
+        previousItem.status = previousSnapshot.status;
+        previousItem.category = previousSnapshot.category;
+        saveInventoryData();
+        inventoryEditItemName = null;
+        renderInventoryManagement();
+        renderOverviewInventory();
+        renderSpecialFoods();
+        window.alert('Inventory update failed on server. Please try again.');
+        startInventoryAutoRefresh();
+        return;
+    }
+
+    if (!syncSucceeded) {
+        startInventoryAutoRefresh();
+        return;
     }
 
     syncMenuPricesWithInventory();
@@ -2138,6 +2175,9 @@ async function commitInlineInventoryEdit(card) {
     if (currentMenuCategoryId) {
         showMenuCategory(currentMenuCategoryId);
     }
+
+    startInventoryAutoRefresh();
+    void initializeInventoryData(true);
 }
 
 function renderOverviewAnalytics() {
@@ -2674,6 +2714,7 @@ if (inventoryItemsWrapper) {
         if (cancelButton) {
             inventoryEditItemName = null;
             renderInventoryManagement();
+            startInventoryAutoRefresh();
             return;
         }
 
