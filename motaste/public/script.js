@@ -1394,14 +1394,25 @@ function playOrderCompletedNotificationSound() {
     }
 }
 
-function showCustomerOrderCompletedPopup(orderNumber) {
-    const existingOverlay = document.getElementById('order-complete-overlay');
-    const existingPopup = document.getElementById('order-complete-popup');
+function dismissCustomerOrderCompletedPopup() {
     if (orderCompletePopupTimeout) {
         window.clearTimeout(orderCompletePopupTimeout);
         orderCompletePopupTimeout = null;
     }
+
+    const overlay = document.getElementById('order-complete-overlay');
+    const popup = document.getElementById('order-complete-popup');
+
+    if (overlay) overlay.remove();
+    if (popup) popup.remove();
+
     unlockPageScrollForOrderPopup();
+}
+
+function showCustomerOrderCompletedPopup(orderNumber) {
+    const existingOverlay = document.getElementById('order-complete-overlay');
+    const existingPopup = document.getElementById('order-complete-popup');
+    dismissCustomerOrderCompletedPopup();
     if (existingOverlay) existingOverlay.remove();
     if (existingPopup) existingPopup.remove();
 
@@ -1416,9 +1427,9 @@ function showCustomerOrderCompletedPopup(orderNumber) {
 
     const popup = document.createElement('div');
     popup.id = 'order-complete-popup';
-    popup.setAttribute('role', 'status');
+    popup.setAttribute('role', 'alertdialog');
     popup.setAttribute('aria-live', 'polite');
-    popup.textContent = `Order #${orderNumber} is complete and ready.`;
+    popup.setAttribute('aria-modal', 'true');
     popup.style.position = 'fixed';
     popup.style.left = '50%';
     popup.style.top = '50%';
@@ -1439,6 +1450,45 @@ function showCustomerOrderCompletedPopup(orderNumber) {
     popup.style.wordBreak = 'break-word';
     popup.style.border = '1px solid rgba(255, 255, 255, 0.2)';
     popup.style.backdropFilter = 'blur(4px)';
+    popup.style.display = 'flex';
+    popup.style.flexDirection = 'column';
+    popup.style.alignItems = 'center';
+    popup.style.justifyContent = 'center';
+    popup.style.gap = '12px';
+    popup.style.overflow = 'hidden';
+    popup.style.paddingTop = '20px';
+    popup.style.paddingBottom = '20px';
+
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.setAttribute('aria-label', 'Close order notification');
+    closeButton.textContent = '×';
+    closeButton.style.position = 'absolute';
+    closeButton.style.top = '10px';
+    closeButton.style.right = '12px';
+    closeButton.style.width = '36px';
+    closeButton.style.height = '36px';
+    closeButton.style.border = 'none';
+    closeButton.style.borderRadius = '999px';
+    closeButton.style.background = 'rgba(255, 255, 255, 0.16)';
+    closeButton.style.color = '#ffffff';
+    closeButton.style.fontSize = '24px';
+    closeButton.style.lineHeight = '1';
+    closeButton.style.cursor = 'pointer';
+    closeButton.style.display = 'flex';
+    closeButton.style.alignItems = 'center';
+    closeButton.style.justifyContent = 'center';
+    closeButton.style.padding = '0';
+
+    const message = document.createElement('div');
+    message.textContent = `Order #${orderNumber} is complete and ready.`;
+    message.style.padding = '0 44px 0 12px';
+    message.style.maxWidth = '100%';
+
+    popup.appendChild(closeButton);
+    popup.appendChild(message);
+
+    closeButton.addEventListener('click', dismissCustomerOrderCompletedPopup);
 
     document.body.appendChild(overlay);
     document.body.appendChild(popup);
@@ -1446,10 +1496,7 @@ function showCustomerOrderCompletedPopup(orderNumber) {
     playOrderCompletedNotificationSound();
 
     orderCompletePopupTimeout = window.setTimeout(() => {
-        overlay.remove();
-        popup.remove();
-        unlockPageScrollForOrderPopup();
-        orderCompletePopupTimeout = null;
+        dismissCustomerOrderCompletedPopup();
     }, 10000);
 }
 
