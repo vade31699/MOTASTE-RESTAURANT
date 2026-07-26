@@ -29,30 +29,31 @@ $normalizedStatus = $stock > 0 ? ($status === 'Out of stock' ? 'In stock' : $sta
 try {
     $normalizedLookup = strtolower($canonicalName);
 
-    $existingIds = DB::table('inventory_items')
+    $existingRows = DB::table('inventory_items')
+        ->select('id')
         ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedLookup])
-        ->pluck('id')
-        ->all();
+        ->orderByDesc('updated_at')
+        ->orderByDesc('id')
+        ->get();
 
-    if (!empty($existingIds)) {
-        $updatePayload = [
-            'price' => $price,
-            'stock' => $stock,
-            'status' => $normalizedStatus,
-            'category' => $category,
-            'updated_at' => now(),
-        ];
-
-        // Only normalize stored name when there is a single matching row.
-        // If duplicates already exist with case differences, forcing the same
-        // exact name for all can violate the unique(name) constraint.
-        if (count($existingIds) === 1) {
-            $updatePayload['name'] = $canonicalName;
-        }
+    if ($existingRows->isNotEmpty()) {
+        $keepId = (int)$existingRows->first()->id;
+        $duplicateIds = $existingRows->skip(1)->pluck('id')->map(fn ($id) => (int)$id)->all();
 
         DB::table('inventory_items')
-            ->whereIn('id', $existingIds)
-            ->update($updatePayload);
+            ->where('id', $keepId)
+            ->update([
+                'name' => $canonicalName,
+                'price' => $price,
+                'stock' => $stock,
+                'status' => $normalizedStatus,
+                'category' => $category,
+                'updated_at' => now(),
+            ]);
+
+        if (!empty($duplicateIds)) {
+            DB::table('inventory_items')->whereIn('id', $duplicateIds)->delete();
+        }
     } else {
         DB::table('inventory_items')->insert([
             'name' => $canonicalName,
