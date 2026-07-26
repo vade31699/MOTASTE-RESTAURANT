@@ -1429,7 +1429,8 @@ async function initializeInventoryData(forceRefresh = false) {
     inventorySyncInFlight = true;
     const defaults = buildDefaultInventoryFromMenu();
     try {
-        const response = await fetch(getApiUrl('api/get_inventory.php'), { cache: 'no-store' });
+        const inventoryUrl = getApiUrl(`api/get_inventory.php?_=${Date.now()}`);
+        const response = await fetch(inventoryUrl, { cache: 'no-store' });
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
