@@ -1230,6 +1230,11 @@ let inventoryEditLock = false;
 let ignoredPendingOrderNumbers = new Set();
 const syncInventoryAcrossTabs = false;
 const enableInventoryAutoRefresh = false;
+const customerOrderNumbersStorageKey = 'motasteCustomerOrderNumbers';
+const seenCompletedOrdersStorageKey = 'motasteSeenCompletedOrders';
+let customerOrderNumbers = new Set();
+let seenCompletedOrders = new Set();
+let customerOrderStatusPoller = null;
 
 function loadIgnoredPendingOrders() {
     try {
@@ -1284,6 +1289,104 @@ function loadPendingOrders() {
 
 function savePendingOrders() {
     localStorage.setItem('motastePendingOrders', JSON.stringify(pendingOrders));
+}
+
+function loadCustomerOrderTracking() {
+    try {
+        const rawOrderNumbers = localStorage.getItem(customerOrderNumbersStorageKey);
+        const parsedOrderNumbers = rawOrderNumbers ? JSON.parse(rawOrderNumbers) : [];
+        customerOrderNumbers = new Set(Array.isArray(parsedOrderNumbers) ? parsedOrderNumbers.map((value) => String(value)) : []);
+    } catch (error) {
+        customerOrderNumbers = new Set();
+    }
+
+    try {
+        const rawSeen = localStorage.getItem(seenCompletedOrdersStorageKey);
+        const parsedSeen = rawSeen ? JSON.parse(rawSeen) : [];
+        seenCompletedOrders = new Set(Array.isArray(parsedSeen) ? parsedSeen.map((value) => String(value)) : []);
+    } catch (error) {
+        seenCompletedOrders = new Set();
+    }
+}
+
+function saveCustomerOrderTracking() {
+    localStorage.setItem(customerOrderNumbersStorageKey, JSON.stringify([...customerOrderNumbers]));
+    localStorage.setItem(seenCompletedOrdersStorageKey, JSON.stringify([...seenCompletedOrders]));
+}
+
+function registerCustomerOrder(orderNumber) {
+    if (!orderNumber && orderNumber !== 0) return;
+    customerOrderNumbers.add(String(orderNumber));
+    saveCustomerOrderTracking();
+}
+
+function showCustomerOrderCompletedPopup(orderNumber) {
+    const popup = document.createElement('div');
+    popup.setAttribute('role', 'status');
+    popup.setAttribute('aria-live', 'polite');
+    popup.textContent = `Order #${orderNumber} is complete and ready.`;
+    popup.style.position = 'fixed';
+    popup.style.right = '16px';
+    popup.style.bottom = '16px';
+    popup.style.maxWidth = '320px';
+    popup.style.padding = '12px 14px';
+    popup.style.borderRadius = '12px';
+    popup.style.background = 'rgba(17, 24, 39, 0.95)';
+    popup.style.color = '#ffffff';
+    popup.style.boxShadow = '0 14px 28px rgba(0, 0, 0, 0.3)';
+    popup.style.zIndex = '9999';
+    popup.style.fontWeight = '600';
+    popup.style.fontSize = '14px';
+
+    document.body.appendChild(popup);
+
+    window.setTimeout(() => {
+        popup.remove();
+    }, 5000);
+}
+
+async function pollCustomerOrderStatus() {
+    if (!customerOrderNumbers.size) return;
+
+    try {
+        const response = await fetch(getApiUrl(`api/get_order_status.php?_=${Date.now()}`), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ orderNumbers: [...customerOrderNumbers] }),
+            cache: 'no-store'
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const orders = Array.isArray(payload.orders) ? payload.orders : [];
+
+        orders.forEach((order) => {
+            const orderNumber = String(order.order_number || order.orderNumber || '');
+            const status = String(order.status || '').toLowerCase();
+            if (!orderNumber) return;
+
+            if (status === 'completed' && !seenCompletedOrders.has(orderNumber)) {
+                seenCompletedOrders.add(orderNumber);
+                showCustomerOrderCompletedPopup(orderNumber);
+            }
+        });
+
+        saveCustomerOrderTracking();
+    } catch (error) {
+        console.error('Unable to poll customer order status', error);
+    }
+}
+
+function startCustomerOrderStatusPolling() {
+    if (customerOrderStatusPoller) return;
+    customerOrderStatusPoller = window.setInterval(() => {
+        void pollCustomerOrderStatus();
+    }, 5000);
 }
 
 async function loadPendingOrdersFromServer() {
@@ -1351,6 +1454,49 @@ async function submitOrderToServer(order) {
         console.error('Unable to save order to the server', error);
         return null;
     }
+}
+
+async function markOrderCompleteOnServer(orderId) {
+    const response = await fetch(getApiUrl('api/mark_order_complete.php'), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ orderId }),
+        cache: 'no-store'
+    });
+
+    const payload = await response.json();
+    if (!response.ok || !payload.success) {
+        throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    return payload;
+}
+
+async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
+    if (orderIndex < 0 || orderIndex >= pendingOrders.length) return;
+
+    const targetOrder = pendingOrders[orderIndex];
+    try {
+        await markOrderCompleteOnServer(targetOrder.id);
+    } catch (error) {
+        console.error('Unable to mark order complete on server', error);
+        return;
+    }
+
+    const completedOrder = pendingOrders.splice(orderIndex, 1)[0];
+    if (shouldIgnore) {
+        ignorePendingOrder(completedOrder.orderNumber || completedOrder.id);
+    }
+    completedOrders.unshift(completedOrder);
+    recalculateSalesAnalytics();
+    savePendingOrders();
+    saveCompletedOrders();
+    renderPendingOrders();
+    renderOrderNotifications();
+    updateAnalyticsView();
+    renderOverviewAnalytics();
 }
 
 function loadCompletedOrders() {
@@ -2484,6 +2630,7 @@ async function confirmOrder() {
     }
 
     pendingOrders.unshift(syncedOrder);
+    registerCustomerOrder(syncedOrder.orderNumber);
     decrementInventory(order.items);
     savePendingOrders();
     renderPendingOrders();
@@ -2923,42 +3070,21 @@ if (dashboardPanel) {
 }
 
 if (overviewOrderNotificationList) {
-    overviewOrderNotificationList.addEventListener('click', (event) => {
+    overviewOrderNotificationList.addEventListener('click', async (event) => {
         const button = event.target.closest('.order-complete-btn');
         if (!button) return;
         const orderId = button.dataset.orderId;
         const orderIndex = pendingOrders.findIndex((order) => order.id === Number(orderId));
-        if (orderIndex >= 0) {
-            const completedOrder = pendingOrders.splice(orderIndex, 1)[0];
-            completedOrders.unshift(completedOrder);
-            recalculateSalesAnalytics();
-            savePendingOrders();
-            saveCompletedOrders();
-            renderOrderNotifications();
-            renderPendingOrders();
-            updateAnalyticsView();
-            renderOverviewAnalytics();
-        }
+        await markPendingOrderAsComplete(orderIndex, false);
     });
 }
 
 if (pendingOrdersList) {
-    pendingOrdersList.addEventListener('click', (event) => {
+    pendingOrdersList.addEventListener('click', async (event) => {
         const button = event.target.closest('.order-complete-btn');
         if (!button) return;
         const index = Number(button.dataset.orderIndex);
-        if (index >= 0 && index < pendingOrders.length) {
-            const completeOrder = pendingOrders.splice(index, 1)[0];
-            ignorePendingOrder(completeOrder.orderNumber || completeOrder.id);
-            completedOrders.unshift(completeOrder);
-            recalculateSalesAnalytics();
-            savePendingOrders();
-            saveCompletedOrders();
-            renderPendingOrders();
-            renderOrderNotifications();
-            updateAnalyticsView();
-            renderOverviewAnalytics();
-        }
+        await markPendingOrderAsComplete(index, true);
     });
 }
 
@@ -2967,6 +3093,7 @@ function initOrders() {
     loadPendingOrders();
     loadIgnoredPendingOrders();
     loadCompletedOrders();
+    loadCustomerOrderTracking();
     loadCustomMenuData();
     startInventoryAutoRefresh();
     void initializeInventoryData();
@@ -2982,6 +3109,8 @@ function initOrders() {
     updateLiveClock();
     setInterval(updateLiveClock, 1000);
     void loadPendingOrdersFromServer();
+    startCustomerOrderStatusPolling();
+    void pollCustomerOrderStatus();
 }
 
 document.addEventListener('visibilitychange', () => {
