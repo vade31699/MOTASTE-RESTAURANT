@@ -1238,6 +1238,10 @@ let customerOrderStatusPoller = null;
 let orderCompleteScrollLockState = null;
 let orderNotificationAudioElement = null;
 let orderNotificationAudioListenersBound = false;
+const isCustomerPage = (() => {
+    const pathname = window.location.pathname.toLowerCase();
+    return pathname.endsWith('/index.html') || pathname === '/' || (!pathname.includes('staff'));
+})();
 
 function loadIgnoredPendingOrders() {
     try {
@@ -3246,12 +3250,10 @@ if (pendingOrdersList) {
 }
 
 function initOrders() {
-    initializeOrderNotificationAudio();
     loadCart();
     loadPendingOrders();
     loadIgnoredPendingOrders();
     loadCompletedOrders();
-    loadCustomerOrderTracking();
     loadCustomMenuData();
     startInventoryAutoRefresh();
     void initializeInventoryData();
@@ -3267,8 +3269,13 @@ function initOrders() {
     updateLiveClock();
     setInterval(updateLiveClock, 1000);
     void loadPendingOrdersFromServer();
-    startCustomerOrderStatusPolling();
-    void pollCustomerOrderStatus();
+
+    if (isCustomerPage) {
+        initializeOrderNotificationAudio();
+        loadCustomerOrderTracking();
+        startCustomerOrderStatusPolling();
+        void pollCustomerOrderStatus();
+    }
 }
 
 document.addEventListener('visibilitychange', () => {
