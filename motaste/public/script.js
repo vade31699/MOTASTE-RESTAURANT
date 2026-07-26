@@ -1327,6 +1327,26 @@ function registerCustomerOrder(orderNumber) {
     saveCustomerOrderTracking();
 }
 
+function getOrderSummaryByNumber(orderNumber) {
+    const targetOrderNumber = String(orderNumber || '').trim();
+    if (!targetOrderNumber) return null;
+
+    const allOrders = [...pendingOrders, ...completedOrders];
+    const matchedOrder = allOrders.find((order) => String(order.orderNumber || order.order_number || order.id || '').trim() === targetOrderNumber);
+    if (!matchedOrder) return null;
+
+    const items = Array.isArray(matchedOrder.items) ? matchedOrder.items : [];
+    const itemsSummary = items.map((item) => `${item.name} x${item.quantity}`).join(', ');
+
+    return {
+        orderNumber: targetOrderNumber,
+        itemsSummary: itemsSummary || 'No items found',
+        total: Number(matchedOrder.total) || 0,
+        paymentMethod: matchedOrder.paymentMethod || 'N/A',
+        orderType: matchedOrder.orderType || 'N/A'
+    };
+}
+
 function lockPageScrollForOrderPopup() {
     if (orderCompleteScrollLockState) return;
     orderCompleteScrollLockState = {
@@ -1466,6 +1486,8 @@ function showCustomerOrderCompletedPopup(orderNumber) {
     popup.style.paddingTop = '20px';
     popup.style.paddingBottom = '20px';
 
+    const orderSummary = getOrderSummaryByNumber(orderNumber);
+
     const closeButton = document.createElement('button');
     closeButton.type = 'button';
     closeButton.setAttribute('aria-label', 'Exit order notification');
@@ -1495,8 +1517,29 @@ function showCustomerOrderCompletedPopup(orderNumber) {
     message.style.padding = '0 44px 0 12px';
     message.style.maxWidth = '100%';
 
+    const summary = document.createElement('div');
+    summary.style.width = '100%';
+    summary.style.fontSize = 'clamp(13px, 2.4vw, 16px)';
+    summary.style.fontWeight = '600';
+    summary.style.lineHeight = '1.5';
+    summary.style.opacity = '0.95';
+    summary.style.textAlign = 'left';
+    summary.style.padding = '0 12px';
+
+    if (orderSummary) {
+        summary.innerHTML = `
+            <div><strong>Summary:</strong> ${orderSummary.itemsSummary}</div>
+            <div><strong>Total:</strong> ${formatCurrency(orderSummary.total)}</div>
+            <div><strong>Payment:</strong> ${orderSummary.paymentMethod}</div>
+            <div><strong>Order Type:</strong> ${orderSummary.orderType}</div>
+        `;
+    } else {
+        summary.textContent = 'Order summary is not available.';
+    }
+
     popup.appendChild(closeButton);
     popup.appendChild(message);
+    popup.appendChild(summary);
 
     closeButton.addEventListener('click', dismissCustomerOrderCompletedPopup);
 
