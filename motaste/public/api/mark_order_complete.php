@@ -11,6 +11,35 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
 
+function ensureOrderLogsTable(): void
+{
+    DB::statement("CREATE TABLE IF NOT EXISTS order_activity_logs (
+        id BIGSERIAL PRIMARY KEY,
+        order_id BIGINT NULL,
+        order_number VARCHAR(191) NULL,
+        action VARCHAR(100) NOT NULL,
+        actor_role VARCHAR(100) NULL,
+        actor_email VARCHAR(191) NULL,
+        summary TEXT NULL,
+        details TEXT NULL,
+        created_at TIMESTAMP NULL,
+        updated_at TIMESTAMP NULL
+    )");
+}
+
+function buildOrderSummary($orderItems): string
+{
+    $parts = [];
+    foreach ($orderItems as $item) {
+        $name = trim((string)($item->notes ?? 'Menu item'));
+        $qty = (int)($item->quantity ?? 0);
+        if ($qty <= 0) continue;
+        $parts[] = $name . ' x' . $qty;
+    }
+
+    return implode(', ', $parts);
+}
+
 function normalizeOrderItemName(?string $value): string
 {
     $value = trim((string) $value);
@@ -21,6 +50,8 @@ function normalizeOrderItemName(?string $value): string
 
 $input = json_decode(file_get_contents('php://input'), true);
 $orderId = isset($input['orderId']) ? (int)$input['orderId'] : 0;
+$actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
+$actorEmail = trim((string)($input['actorEmail'] ?? ''));
 
 if ($orderId <= 0) {
     http_response_code(400);
@@ -29,6 +60,8 @@ if ($orderId <= 0) {
 }
 
 try {
+    ensureOrderLogsTable();
+
     $result = DB::transaction(function () use ($orderId) {
         $order = DB::table('orders')->where('id', $orderId)->lockForUpdate()->first();
 
@@ -81,10 +114,13 @@ try {
                 'updated_at' => now(),
             ]);
 
+        $summary = buildOrderSummary($orderItems);
+
         return [
             'success' => true,
             'orderNumber' => $order->order_number,
             'status' => 'completed',
+            'summary' => $summary,
         ];
     });
 
@@ -92,6 +128,23 @@ try {
         http_response_code($result['status'] ?? 500);
         echo json_encode(['success' => false, 'error' => $result['error'] ?? 'Unable to mark order complete']);
         exit;
+    }
+
+    if (!($result['alreadyCompleted'] ?? false)) {
+        DB::table('order_activity_logs')->insert([
+            'order_id' => $orderId,
+            'order_number' => $result['orderNumber'] ?? null,
+            'action' => 'order_completed',
+            'actor_role' => $actorRole !== '' ? $actorRole : 'Staff',
+            'actor_email' => $actorEmail !== '' ? $actorEmail : null,
+            'summary' => $result['summary'] ?? null,
+            'details' => json_encode([
+                'event' => 'Order marked as complete',
+                'completed_at' => now()->toDateTimeString(),
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     echo json_encode([

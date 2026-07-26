@@ -2344,6 +2344,62 @@ body.dashboard-panel-open .menu-btn {
     gap: 16px;
     margin-top: 16px;
 }
+.order-logs-list {
+    display: grid;
+    gap: 12px;
+    margin-top: 16px;
+}
+.logs-filter-bar {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.logs-filter-btn {
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+.logs-filter-btn:hover {
+    border-color: rgba(255, 152, 0, 0.75);
+}
+.logs-filter-btn.active {
+    background: #ff9800;
+    border-color: #ff9800;
+    color: #111;
+}
+.order-log-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 14px;
+    display: grid;
+    gap: 6px;
+}
+.order-log-card p,
+.order-log-card strong,
+.order-log-card span {
+    color: #fff;
+    margin: 0;
+}
+.order-log-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+@media (max-width: 560px) {
+    .logs-filter-btn {
+        flex: 1 1 calc(50% - 8px);
+        text-align: center;
+    }
+}
 .pending-order-card {
     background: #f7f7f7;
     border-radius: 14px;

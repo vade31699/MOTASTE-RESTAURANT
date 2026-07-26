@@ -26,6 +26,10 @@ let inventorySyncInFlight = false;
 let lastInventoryUpdateAt = 0;
 let staffAccountsSyncInFlight = false;
 let staffAccountsRefreshTimer = null;
+let orderLogsRefreshTimer = null;
+let orderLogsSyncInFlight = false;
+let orderActivityLogs = [];
+let activeOrderLogFilter = 'all';
 const isStaffPage = Boolean(document.getElementById('accountList') || document.getElementById('staffLoginForm'));
 
 const defaultStaffAccounts = [
@@ -304,6 +308,8 @@ function restoreStaffSession() {
             updateAnalyticsView();
         } else if (targetSectionId === 'inventory') {
             renderOverviewInventory();
+        } else if (targetSectionId === 'logs') {
+            void loadOrderLogsFromServer(true);
         }
     } else {
         showDashboardSection(overviewSection);
@@ -337,6 +343,12 @@ function updateDashboardProfile() {
     if (dashboardUserEmail) {
         dashboardUserEmail.textContent = email;
     }
+}
+
+function getCurrentStaffActor() {
+    const role = (selectedRoleInput && selectedRoleInput.value) ? selectedRoleInput.value.trim() : 'Staff';
+    const email = (emailInput && emailInput.value) ? emailInput.value.trim().toLowerCase() : '';
+    return { role: role || 'Staff', email };
 }
 
 function resetDashboardProfile() {
@@ -544,6 +556,9 @@ if (logoutBtn) {
         }
         if (pendingOrdersSection) {
             pendingOrdersSection.hidden = true;
+        }
+        if (logsSection) {
+            logsSection.hidden = true;
         }
         if (accountManagementSection) {
             accountManagementSection.hidden = true;
@@ -970,6 +985,9 @@ const inventoryAccessNote = document.getElementById('inventoryAccessNote');
 const ordersLink = document.getElementById('ordersLink');
 const pendingOrdersList = document.getElementById('pendingOrdersList');
 const pendingOrdersSection = document.getElementById('pending-orders');
+const logsSection = document.getElementById('logs');
+const logsFilterBar = document.getElementById('logsFilterBar');
+const logsList = document.getElementById('logsList');
 
 function setInventoryModalVisible(isVisible) {
     if (!inventoryModal) return;
@@ -1216,6 +1234,8 @@ renderAccounts();
 if (isStaffPage) {
     void loadStaffAccountsFromServer();
     startStaffAccountsRefresh();
+    void loadOrderLogsFromServer();
+    startOrderLogsRefresh();
 }
 
 /* Slideshow functionality */
@@ -1835,12 +1855,18 @@ async function submitOrderToServer(order) {
 }
 
 async function markOrderCompleteOnServer(orderId) {
+    const actor = getCurrentStaffActor();
+
     const response = await fetch(getApiUrl('api/mark_order_complete.php'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ orderId }),
+        body: JSON.stringify({
+            orderId,
+            actorRole: actor.role,
+            actorEmail: actor.email
+        }),
         cache: 'no-store'
     });
 
@@ -1884,12 +1910,20 @@ function getMaxEditablePendingQuantity(orderId, item) {
 }
 
 async function updatePendingOrderItemQuantity(orderId, itemId, quantity) {
+    const actor = getCurrentStaffActor();
+
     const response = await fetch(getApiUrl('api/update_pending_order_item.php'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ orderId, itemId, quantity }),
+        body: JSON.stringify({
+            orderId,
+            itemId,
+            quantity,
+            actorRole: actor.role,
+            actorEmail: actor.email
+        }),
         cache: 'no-store'
     });
 
@@ -1915,7 +1949,7 @@ async function changePendingOrderItemQuantity(orderIndex, itemId, direction) {
     const currentQuantity = Number(item.quantity) || 0;
     const delta = direction === 'increase' ? 1 : -1;
     const nextQuantity = currentQuantity + delta;
-    if (nextQuantity < 1) return;
+    if (nextQuantity < 0) return;
 
     const maxAllowed = getMaxEditablePendingQuantity(order.id, item);
     if (direction === 'increase' && nextQuantity > maxAllowed) {
@@ -1934,6 +1968,7 @@ async function changePendingOrderItemQuantity(orderIndex, itemId, direction) {
 
     void loadPendingOrdersFromServer();
     void initializeInventoryData(true);
+    void loadOrderLogsFromServer(true);
 }
 
 async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
@@ -1960,6 +1995,146 @@ async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
     updateAnalyticsView();
     renderOverviewAnalytics();
     void initializeInventoryData(true);
+    void loadOrderLogsFromServer(true);
+}
+
+function formatOrderLogAction(action) {
+    const map = {
+        order_completed: 'Marked complete',
+        quantity_increased: 'Quantity increased',
+        quantity_decreased: 'Quantity decreased',
+        quantity_updated: 'Quantity updated',
+        item_removed: 'Item removed',
+        order_removed: 'Order removed'
+    };
+
+    return map[action] || 'Activity updated';
+}
+
+function formatOrderLogTimestamp(value) {
+    if (!value) return 'Unknown time';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return 'Unknown time';
+    return parsed.toLocaleString();
+}
+
+function isLogFromToday(log) {
+    const parsed = new Date(log.created_at);
+    if (Number.isNaN(parsed.getTime())) return false;
+
+    const now = new Date();
+    return parsed.getFullYear() === now.getFullYear()
+        && parsed.getMonth() === now.getMonth()
+        && parsed.getDate() === now.getDate();
+}
+
+function isQtyChangeAction(action) {
+    return ['quantity_increased', 'quantity_decreased', 'quantity_updated', 'item_removed', 'order_removed'].includes(action);
+}
+
+function getFilteredOrderLogs() {
+    if (activeOrderLogFilter === 'today') {
+        return orderActivityLogs.filter((log) => isLogFromToday(log));
+    }
+
+    if (activeOrderLogFilter === 'qty') {
+        return orderActivityLogs.filter((log) => isQtyChangeAction(log.action));
+    }
+
+    if (activeOrderLogFilter === 'completed') {
+        return orderActivityLogs.filter((log) => log.action === 'order_completed');
+    }
+
+    return orderActivityLogs;
+}
+
+function updateLogsFilterState() {
+    if (!logsFilterBar) return;
+
+    const buttons = Array.from(logsFilterBar.querySelectorAll('.logs-filter-btn'));
+    buttons.forEach((button) => {
+        button.classList.toggle('active', button.dataset.logFilter === activeOrderLogFilter);
+    });
+}
+
+function renderOrderLogs() {
+    if (!logsList) return;
+
+    updateLogsFilterState();
+    const filteredLogs = getFilteredOrderLogs();
+
+    if (!filteredLogs.length) {
+        logsList.innerHTML = '<p class="menu-cart-empty">No recent activity yet.</p>';
+        return;
+    }
+
+    logsList.innerHTML = filteredLogs.map((log) => {
+        const orderLabel = log.order_number
+            ? `Order #${log.order_number}`
+            : `Order ID ${log.order_id || '-'}`;
+        const actorParts = [log.actor_role || 'Staff', log.actor_email || ''];
+        const actorText = actorParts.filter(Boolean).join(' · ');
+        const details = log.details && typeof log.details === 'object' ? log.details : null;
+        const qtyText = details && details.previous_quantity !== undefined && details.new_quantity !== undefined
+            ? `<p><strong>Qty:</strong> ${details.previous_quantity} → ${details.new_quantity}</p>`
+            : '';
+
+        return `
+            <article class="order-log-card">
+                <div class="order-log-top-row">
+                    <strong>${formatOrderLogAction(log.action)}</strong>
+                    <span>${formatOrderLogTimestamp(log.created_at)}</span>
+                </div>
+                <p><strong>${orderLabel}</strong></p>
+                <p><strong>By:</strong> ${actorText || 'Staff'}</p>
+                ${qtyText}
+                <p><strong>Summary:</strong> ${log.summary || 'No items remaining.'}</p>
+            </article>
+        `;
+    }).join('');
+}
+
+async function loadOrderLogsFromServer(forceRefresh = false) {
+    if (orderLogsSyncInFlight && !forceRefresh) return false;
+
+    orderLogsSyncInFlight = true;
+    try {
+        const response = await fetch(getApiUrl(`api/get_order_logs.php?_=${Date.now()}`), { cache: 'no-store' });
+        if (!response.ok) return false;
+
+        const payload = await response.json();
+        if (!payload || payload.success !== true) return false;
+
+        orderActivityLogs = Array.isArray(payload.logs) ? payload.logs : [];
+        renderOrderLogs();
+        return true;
+    } catch (error) {
+        console.error('Unable to load order activity logs', error);
+        return false;
+    } finally {
+        orderLogsSyncInFlight = false;
+    }
+}
+
+function startOrderLogsRefresh() {
+    if (!isStaffPage || orderLogsRefreshTimer) return;
+
+    orderLogsRefreshTimer = window.setInterval(() => {
+        void loadOrderLogsFromServer(true);
+    }, 5000);
+}
+
+if (logsFilterBar) {
+    logsFilterBar.addEventListener('click', (event) => {
+        const button = event.target.closest('.logs-filter-btn');
+        if (!button) return;
+
+        const filter = (button.dataset.logFilter || 'all').trim();
+        if (!filter || filter === activeOrderLogFilter) return;
+
+        activeOrderLogFilter = filter;
+        renderOrderLogs();
+    });
 }
 
 function loadCompletedOrders() {
@@ -2963,7 +3138,7 @@ function renderOverviewAnalytics() {
 function showDashboardSection(section) {
     setInventoryModalVisible(false);
 
-    const sections = [overviewSection, salesSection, pendingOrdersSection, inventorySection, accountManagementSection];
+    const sections = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection];
     sections.forEach((el) => {
         if (!el) return;
         el.hidden = el !== section;
@@ -3078,7 +3253,7 @@ function renderPendingOrders() {
         const itemsHtml = items.map((item) => {
             const maxAllowed = getMaxEditablePendingQuantity(order.id, item);
             const canIncrease = (Number(item.quantity) || 0) < maxAllowed;
-            const canDecrease = (Number(item.quantity) || 0) > 1;
+            const canDecrease = (Number(item.quantity) || 0) > 0;
 
             return `
                 <li>
@@ -3675,6 +3850,9 @@ if (dashboardPanel) {
         } else if (href === '#sales') {
             showDashboardSection(salesSection);
             updateAnalyticsView();
+        } else if (href === '#logs') {
+            showDashboardSection(logsSection);
+            void loadOrderLogsFromServer(true);
         } else if (href === '#account-management') {
             const isAdmin = document.body.classList.contains('auth') && (selectedRoleInput && selectedRoleInput.value === 'Admin');
             if (!isAdmin) {
