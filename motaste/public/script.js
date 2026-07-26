@@ -1235,7 +1235,6 @@ const seenCompletedOrdersStorageKey = 'motasteSeenCompletedOrders';
 let customerOrderNumbers = new Set();
 let seenCompletedOrders = new Set();
 let customerOrderStatusPoller = null;
-let orderCompletePopupTimeout = null;
 let orderCompleteScrollLockState = null;
 let orderNotificationAudioElement = null;
 let orderNotificationAudioListenersBound = false;
@@ -1352,6 +1351,7 @@ function initializeOrderNotificationAudio() {
             orderNotificationAudioElement = new Audio(getApiUrl('order_aud_notif.mp3'));
             orderNotificationAudioElement.preload = 'auto';
             orderNotificationAudioElement.volume = 1;
+            orderNotificationAudioElement.loop = true;
         } catch (error) {
             orderNotificationAudioElement = null;
             return;
@@ -1394,18 +1394,21 @@ function playOrderCompletedNotificationSound() {
     }
 }
 
-function dismissCustomerOrderCompletedPopup() {
-    if (orderCompletePopupTimeout) {
-        window.clearTimeout(orderCompletePopupTimeout);
-        orderCompletePopupTimeout = null;
-    }
+function stopOrderCompletedNotificationSound() {
+    if (!orderNotificationAudioElement) return;
 
+    orderNotificationAudioElement.pause();
+    orderNotificationAudioElement.currentTime = 0;
+}
+
+function dismissCustomerOrderCompletedPopup() {
     const overlay = document.getElementById('order-complete-overlay');
     const popup = document.getElementById('order-complete-popup');
 
     if (overlay) overlay.remove();
     if (popup) popup.remove();
 
+    stopOrderCompletedNotificationSound();
     unlockPageScrollForOrderPopup();
 }
 
@@ -1461,24 +1464,27 @@ function showCustomerOrderCompletedPopup(orderNumber) {
 
     const closeButton = document.createElement('button');
     closeButton.type = 'button';
-    closeButton.setAttribute('aria-label', 'Close order notification');
-    closeButton.textContent = '×';
+    closeButton.setAttribute('aria-label', 'Exit order notification');
+    closeButton.textContent = 'Exit';
     closeButton.style.position = 'absolute';
-    closeButton.style.top = '10px';
+    closeButton.style.top = '12px';
     closeButton.style.right = '12px';
-    closeButton.style.width = '36px';
+    closeButton.style.minWidth = '72px';
     closeButton.style.height = '36px';
     closeButton.style.border = 'none';
     closeButton.style.borderRadius = '999px';
     closeButton.style.background = 'rgba(255, 255, 255, 0.16)';
     closeButton.style.color = '#ffffff';
-    closeButton.style.fontSize = '24px';
+    closeButton.style.fontSize = '14px';
+    closeButton.style.fontWeight = '700';
+    closeButton.style.letterSpacing = '0.4px';
     closeButton.style.lineHeight = '1';
     closeButton.style.cursor = 'pointer';
     closeButton.style.display = 'flex';
     closeButton.style.alignItems = 'center';
     closeButton.style.justifyContent = 'center';
-    closeButton.style.padding = '0';
+    closeButton.style.padding = '0 16px';
+    closeButton.style.zIndex = '1';
 
     const message = document.createElement('div');
     message.textContent = `Order #${orderNumber} is complete and ready.`;
@@ -1494,10 +1500,6 @@ function showCustomerOrderCompletedPopup(orderNumber) {
     document.body.appendChild(popup);
     lockPageScrollForOrderPopup();
     playOrderCompletedNotificationSound();
-
-    orderCompletePopupTimeout = window.setTimeout(() => {
-        dismissCustomerOrderCompletedPopup();
-    }, 10000);
 }
 
 async function pollCustomerOrderStatus() {
