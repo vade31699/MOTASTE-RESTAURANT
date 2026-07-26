@@ -1235,6 +1235,8 @@ const seenCompletedOrdersStorageKey = 'motasteSeenCompletedOrders';
 let customerOrderNumbers = new Set();
 let seenCompletedOrders = new Set();
 let customerOrderStatusPoller = null;
+let orderCompletePopupTimeout = null;
+let orderCompleteScrollLockState = null;
 
 function loadIgnoredPendingOrders() {
     try {
@@ -1320,28 +1322,120 @@ function registerCustomerOrder(orderNumber) {
     saveCustomerOrderTracking();
 }
 
+function lockPageScrollForOrderPopup() {
+    if (orderCompleteScrollLockState) return;
+    orderCompleteScrollLockState = {
+        bodyOverflow: document.body.style.overflow,
+        htmlOverflow: document.documentElement.style.overflow,
+        bodyTouchAction: document.body.style.touchAction
+    };
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+}
+
+function unlockPageScrollForOrderPopup() {
+    if (!orderCompleteScrollLockState) return;
+
+    document.body.style.overflow = orderCompleteScrollLockState.bodyOverflow;
+    document.documentElement.style.overflow = orderCompleteScrollLockState.htmlOverflow;
+    document.body.style.touchAction = orderCompleteScrollLockState.bodyTouchAction;
+    orderCompleteScrollLockState = null;
+}
+
+function playOrderCompletedNotificationSound() {
+    try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+
+        const context = new AudioContextClass();
+        const now = context.currentTime;
+        const gain = context.createGain();
+        gain.connect(context.destination);
+
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.62);
+
+        const firstTone = context.createOscillator();
+        firstTone.type = 'sine';
+        firstTone.frequency.setValueAtTime(880, now);
+        firstTone.connect(gain);
+        firstTone.start(now);
+        firstTone.stop(now + 0.2);
+
+        const secondTone = context.createOscillator();
+        secondTone.type = 'sine';
+        secondTone.frequency.setValueAtTime(1175, now + 0.22);
+        secondTone.connect(gain);
+        secondTone.start(now + 0.22);
+        secondTone.stop(now + 0.48);
+
+        window.setTimeout(() => {
+            void context.close().catch(() => {});
+        }, 800);
+    } catch (error) {
+        console.debug('Notification sound unavailable', error);
+    }
+}
+
 function showCustomerOrderCompletedPopup(orderNumber) {
+    const existingOverlay = document.getElementById('order-complete-overlay');
+    const existingPopup = document.getElementById('order-complete-popup');
+    if (orderCompletePopupTimeout) {
+        window.clearTimeout(orderCompletePopupTimeout);
+        orderCompletePopupTimeout = null;
+    }
+    unlockPageScrollForOrderPopup();
+    if (existingOverlay) existingOverlay.remove();
+    if (existingPopup) existingPopup.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'order-complete-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.background = 'rgba(2, 6, 23, 0.42)';
+    overlay.style.backdropFilter = 'blur(2px)';
+    overlay.style.zIndex = '9998';
+    overlay.style.pointerEvents = 'none';
+
     const popup = document.createElement('div');
+    popup.id = 'order-complete-popup';
     popup.setAttribute('role', 'status');
     popup.setAttribute('aria-live', 'polite');
     popup.textContent = `Order #${orderNumber} is complete and ready.`;
     popup.style.position = 'fixed';
-    popup.style.right = '16px';
-    popup.style.bottom = '16px';
-    popup.style.maxWidth = '320px';
-    popup.style.padding = '12px 14px';
-    popup.style.borderRadius = '12px';
+    popup.style.left = '50%';
+    popup.style.top = '50%';
+    popup.style.transform = 'translate(-50%, -50%)';
+    popup.style.width = 'min(92vw, 520px)';
+    popup.style.maxWidth = '520px';
+    popup.style.padding = 'clamp(14px, 3vw, 24px)';
+    popup.style.borderRadius = '16px';
     popup.style.background = 'rgba(17, 24, 39, 0.95)';
     popup.style.color = '#ffffff';
-    popup.style.boxShadow = '0 14px 28px rgba(0, 0, 0, 0.3)';
+    popup.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.35)';
     popup.style.zIndex = '9999';
-    popup.style.fontWeight = '600';
-    popup.style.fontSize = '14px';
+    popup.style.textAlign = 'center';
+    popup.style.fontWeight = '700';
+    popup.style.fontSize = 'clamp(15px, 2.8vw, 22px)';
+    popup.style.lineHeight = '1.35';
+    popup.style.letterSpacing = '0.2px';
+    popup.style.wordBreak = 'break-word';
+    popup.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+    popup.style.backdropFilter = 'blur(4px)';
 
+    document.body.appendChild(overlay);
     document.body.appendChild(popup);
+    lockPageScrollForOrderPopup();
+    playOrderCompletedNotificationSound();
 
-    window.setTimeout(() => {
+    orderCompletePopupTimeout = window.setTimeout(() => {
+        overlay.remove();
         popup.remove();
+        unlockPageScrollForOrderPopup();
+        orderCompletePopupTimeout = null;
     }, 5000);
 }
 
