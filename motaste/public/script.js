@@ -1226,6 +1226,7 @@ let completedOrders = [];
 let inventoryData = [];
 let currentMenuCategoryId = null;
 let inventoryEditItemName = null;
+let inventoryEditLock = false;
 let ignoredPendingOrderNumbers = new Set();
 
 function loadIgnoredPendingOrders() {
@@ -1421,6 +1422,7 @@ function buildDefaultInventoryFromMenu() {
 
 async function initializeInventoryData(forceRefresh = false) {
     if (inventorySyncInFlight && !forceRefresh) return;
+    if (inventoryEditLock && !forceRefresh) return;
 
     inventorySyncInFlight = true;
     const defaults = buildDefaultInventoryFromMenu();
@@ -1579,6 +1581,7 @@ function loadCustomMenuData() {
 
 window.addEventListener('storage', (event) => {
     if (!event.key) return;
+    if (inventoryEditLock) return;
 
     if (event.key === 'motasteCustomMenuData') {
         loadCustomMenuData();
@@ -2046,15 +2049,18 @@ async function saveInventoryItem(event) {
 
         const payload = await response.json();
         if (!payload || payload.success !== true) {
-            throw new Error(`Inventory sync failed: ${payload?.error || 'Unknown server response'}`);
+            const details = payload?.details ? ` (${payload.details})` : '';
+            throw new Error(`Inventory sync failed: ${payload?.error || 'Unknown server response'}${details}`);
         }
         syncSucceeded = true;
     } catch (error) {
         console.error('Unable to sync inventory with server', error);
-        window.alert('Inventory update failed on server. Please try again.');
+        window.alert(`Inventory update failed on server. ${error?.message || ''}`);
     }
 
     if (!syncSucceeded) {
+        inventoryEditLock = false;
+        startInventoryAutoRefresh();
         void initializeInventoryData(true);
         return;
     }
@@ -2075,6 +2081,8 @@ async function saveInventoryItem(event) {
     }
 
     setInventoryModalVisible(false);
+    inventoryEditLock = false;
+    startInventoryAutoRefresh();
     void initializeInventoryData(true);
 }
 
@@ -2083,6 +2091,7 @@ function editInventoryItem(name) {
     if (!item) return;
 
     stopInventoryAutoRefresh();
+    inventoryEditLock = true;
     inventoryEditItemName = item.name;
     renderInventoryManagement();
 }
@@ -2141,7 +2150,8 @@ async function commitInlineInventoryEdit(card) {
 
         const payload = await response.json();
         if (!payload || payload.success !== true) {
-            throw new Error(`Inventory sync failed: ${payload?.error || 'Unknown server response'}`);
+            const details = payload?.details ? ` (${payload.details})` : '';
+            throw new Error(`Inventory sync failed: ${payload?.error || 'Unknown server response'}${details}`);
         }
         syncSucceeded = true;
     } catch (error) {
@@ -2153,10 +2163,11 @@ async function commitInlineInventoryEdit(card) {
         previousItem.category = previousSnapshot.category;
         saveInventoryData();
         inventoryEditItemName = null;
+        inventoryEditLock = false;
         renderInventoryManagement();
         renderOverviewInventory();
         renderSpecialFoods();
-        window.alert('Inventory update failed on server. Please try again.');
+        window.alert(`Inventory update failed on server. ${error?.message || ''}`);
         startInventoryAutoRefresh();
         return;
     }
@@ -2168,6 +2179,7 @@ async function commitInlineInventoryEdit(card) {
 
     syncMenuPricesWithInventory();
     inventoryEditItemName = null;
+    inventoryEditLock = false;
     renderInventoryManagement();
     renderOverviewInventory();
     renderSpecialFoods();
@@ -2713,6 +2725,7 @@ if (inventoryItemsWrapper) {
 
         if (cancelButton) {
             inventoryEditItemName = null;
+            inventoryEditLock = false;
             renderInventoryManagement();
             startInventoryAutoRefresh();
             return;
@@ -2961,13 +2974,15 @@ function initOrders() {
 }
 
 document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
+    if (!document.hidden && !inventoryEditLock) {
         void initializeInventoryData();
     }
 });
 
 window.addEventListener('focus', () => {
-    void initializeInventoryData();
+    if (!inventoryEditLock) {
+        void initializeInventoryData();
+    }
 });
 
 initOrders();
