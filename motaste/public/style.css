@@ -2448,6 +2448,11 @@ body.dashboard-panel-open .menu-btn {
     color: #fff;
     margin: 0;
 }
+
+.order-log-card .review-log-comment .review-log-comment-text {
+    color: #000 !important;
+}
+
 .order-log-top-row {
     display: flex;
     align-items: center;

@@ -2553,7 +2553,7 @@ function renderOrderLogs() {
                 ${showOrderLabel && orderLabel ? `<p><strong>${orderLabel}</strong></p>` : ''}
                 <p><strong>By:</strong> ${actorText || 'Staff'}</p>
                 ${qtyText}
-                ${reviewCommentText ? `<p><strong>Comment:</strong> ${reviewCommentText}</p>` : ''}
+                ${reviewCommentText ? `<p class="review-log-comment"><strong>Comment:</strong> <span class="review-log-comment-text">${reviewCommentText}</span></p>` : ''}
                 <p><strong>Summary:</strong> ${summaryText}</p>
             </article>
         `;

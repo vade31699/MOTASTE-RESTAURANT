@@ -80,16 +80,24 @@ try {
     $reviewerKey = hash('sha256', $reviewerKeySource);
     $today = now()->toDateString();
 
-    $existingReviewToday = DB::table('customer_reviews')
+    $submittedTodayCount = (int)DB::table('customer_reviews')
         ->where('reviewer_key', $reviewerKey)
         ->whereDate('reviewed_on', $today)
-        ->exists();
+        ->count();
 
-    if ($existingReviewToday) {
+    $publishedTodayCount = (int)DB::table('customer_reviews')
+        ->where('reviewer_key', $reviewerKey)
+        ->whereDate('reviewed_on', $today)
+        ->where('publish_status', 'published')
+        ->count();
+
+    // Base allowance is one review per day; each same-day published review unlocks one more.
+    $allowedSubmissionsToday = 1 + $publishedTodayCount;
+    if ($submittedTodayCount >= $allowedSubmissionsToday) {
         http_response_code(409);
         echo json_encode([
             'success' => false,
-            'error' => 'You can only submit one review per day. Please try again tomorrow.'
+            'error' => 'You have reached your review limit for today. Submit again after staff publishes your latest review, or try again tomorrow.'
         ]);
         exit;
     }
