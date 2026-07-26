@@ -2338,7 +2338,9 @@ function renderInventoryManagement() {
                 <div class="inventory-item-actions inline-actions">
                     <button type="button" class="inventory-inline-save" data-item-name="${item.name}">Save</button>
                     <button type="button" class="inventory-inline-cancel" data-item-name="${item.name}">Cancel</button>
-                    <button type="button" class="inventory-inline-delete" data-item-name="${item.name}">Delete</button>
+                    <div class="inventory-inline-delete-row">
+                        <button type="button" class="inventory-inline-delete" data-item-name="${item.name}">Delete</button>
+                    </div>
                 </div>
             </article>
         `;
