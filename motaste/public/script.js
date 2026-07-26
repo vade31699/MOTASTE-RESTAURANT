@@ -1237,6 +1237,9 @@ let seenCompletedOrders = new Set();
 let customerOrderStatusPoller = null;
 let orderCompletePopupTimeout = null;
 let orderCompleteScrollLockState = null;
+let orderNotificationAudioContext = null;
+let orderNotificationAudioUnlocked = false;
+let orderNotificationAudioListenersBound = false;
 
 function loadIgnoredPendingOrders() {
     try {
@@ -1344,12 +1347,55 @@ function unlockPageScrollForOrderPopup() {
     orderCompleteScrollLockState = null;
 }
 
+function initializeOrderNotificationAudio() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    if (!orderNotificationAudioContext) {
+        try {
+            orderNotificationAudioContext = new AudioContextClass();
+        } catch (error) {
+            orderNotificationAudioContext = null;
+            return;
+        }
+    }
+
+    if (orderNotificationAudioListenersBound) return;
+
+    const unlockAudio = () => {
+        if (!orderNotificationAudioContext) return;
+        void orderNotificationAudioContext.resume()
+            .then(() => {
+                orderNotificationAudioUnlocked = orderNotificationAudioContext.state === 'running';
+                if (!orderNotificationAudioUnlocked) return;
+                document.removeEventListener('pointerdown', unlockAudio);
+                document.removeEventListener('keydown', unlockAudio);
+                document.removeEventListener('touchstart', unlockAudio);
+                orderNotificationAudioListenersBound = false;
+            })
+            .catch(() => {});
+    };
+
+    document.addEventListener('pointerdown', unlockAudio, { passive: true });
+    document.addEventListener('keydown', unlockAudio, { passive: true });
+    document.addEventListener('touchstart', unlockAudio, { passive: true });
+    orderNotificationAudioListenersBound = true;
+}
+
 function playOrderCompletedNotificationSound() {
     try {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContextClass) return;
+        initializeOrderNotificationAudio();
+        if (!orderNotificationAudioContext) return;
 
-        const context = new AudioContextClass();
+        if (!orderNotificationAudioUnlocked) {
+            void orderNotificationAudioContext.resume().then(() => {
+                orderNotificationAudioUnlocked = orderNotificationAudioContext.state === 'running';
+            }).catch(() => {});
+        }
+
+        const context = orderNotificationAudioContext;
+        if (context.state !== 'running') return;
+
         const now = context.currentTime;
         const gain = context.createGain();
         gain.connect(context.destination);
@@ -1371,10 +1417,6 @@ function playOrderCompletedNotificationSound() {
         secondTone.connect(gain);
         secondTone.start(now + 0.22);
         secondTone.stop(now + 0.48);
-
-        window.setTimeout(() => {
-            void context.close().catch(() => {});
-        }, 800);
     } catch (error) {
         console.debug('Notification sound unavailable', error);
     }
@@ -1436,7 +1478,7 @@ function showCustomerOrderCompletedPopup(orderNumber) {
         popup.remove();
         unlockPageScrollForOrderPopup();
         orderCompletePopupTimeout = null;
-    }, 5000);
+    }, 10000);
 }
 
 async function pollCustomerOrderStatus() {
@@ -3183,6 +3225,7 @@ if (pendingOrdersList) {
 }
 
 function initOrders() {
+    initializeOrderNotificationAudio();
     loadCart();
     loadPendingOrders();
     loadIgnoredPendingOrders();
