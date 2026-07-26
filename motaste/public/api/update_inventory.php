@@ -35,16 +35,24 @@ try {
         ->all();
 
     if (!empty($existingIds)) {
+        $updatePayload = [
+            'price' => $price,
+            'stock' => $stock,
+            'status' => $normalizedStatus,
+            'category' => $category,
+            'updated_at' => now(),
+        ];
+
+        // Only normalize stored name when there is a single matching row.
+        // If duplicates already exist with case differences, forcing the same
+        // exact name for all can violate the unique(name) constraint.
+        if (count($existingIds) === 1) {
+            $updatePayload['name'] = $canonicalName;
+        }
+
         DB::table('inventory_items')
             ->whereIn('id', $existingIds)
-            ->update([
-                'name' => $canonicalName,
-                'price' => $price,
-                'stock' => $stock,
-                'status' => $normalizedStatus,
-                'category' => $category,
-                'updated_at' => now(),
-            ]);
+            ->update($updatePayload);
     } else {
         DB::table('inventory_items')->insert([
             'name' => $canonicalName,
