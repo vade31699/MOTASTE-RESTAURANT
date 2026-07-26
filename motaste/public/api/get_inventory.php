@@ -1,40 +1,33 @@
 <?php
 header('Content-Type: application/json');
 
-$host = '127.0.0.1';
-$user = 'root';
-$pass = '';
-$db = 'motaste_db';
+require __DIR__ . '/../../vendor/autoload.php';
 
-$mysqli = new mysqli($host, $user, $pass, $db);
-if ($mysqli->connect_error) {
+$app = require_once __DIR__ . '/../../bootstrap/app.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
+use Illuminate\Support\Facades\DB;
+
+try {
+    $items = DB::table('inventory_items')
+        ->select('name', 'price', 'stock', 'status', 'category')
+        ->orderBy('id', 'asc')
+        ->get()
+        ->map(function ($row) {
+            $stock = (int)($row->stock ?? 0);
+            return [
+                'name' => $row->name,
+                'price' => (float)($row->price ?? 0),
+                'stock' => $stock,
+                'status' => $row->status ?: ($stock > 0 ? 'In stock' : 'Out of stock'),
+                'category' => $row->category ?: 'specials',
+            ];
+        })
+        ->values()
+        ->all();
+
+    echo json_encode(['success' => true, 'items' => $items]);
+} catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Database connection failed']);
-    exit;
+    echo json_encode(['success' => false, 'error' => 'Database query failed']);
 }
-
-$mysqli->query("CREATE TABLE IF NOT EXISTS inventory_items (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(191) NOT NULL UNIQUE,
-    price DECIMAL(10,2) DEFAULT 0,
-    stock INT DEFAULT 0,
-    status VARCHAR(50) DEFAULT 'Out of stock',
-    category VARCHAR(100) DEFAULT 'specials',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-)");
-
-$result = $mysqli->query("SELECT name, price, stock, status, category FROM inventory_items ORDER BY id ASC");
-$items = [];
-while ($row = $result->fetch_assoc()) {
-    $items[] = [
-        'name' => $row['name'],
-        'price' => (float)($row['price'] ?? 0),
-        'stock' => (int)($row['stock'] ?? 0),
-        'status' => $row['status'] ?? ((int)($row['stock'] ?? 0) > 0 ? 'In stock' : 'Out of stock'),
-        'category' => $row['category'] ?? 'specials'
-    ];
-}
-
-$mysqli->close();
-echo json_encode(['success' => true, 'items' => $items]);

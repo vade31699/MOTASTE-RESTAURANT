@@ -1,28 +1,12 @@
 <?php
 header('Content-Type: application/json');
 
-$host = '127.0.0.1';
-$user = 'root';
-$pass = '';
-$db = 'motaste_db';
+require __DIR__ . '/../../vendor/autoload.php';
 
-$mysqli = new mysqli($host, $user, $pass, $db);
-if ($mysqli->connect_error) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Database connection failed']);
-    exit;
-}
+$app = require_once __DIR__ . '/../../bootstrap/app.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
-$mysqli->query("CREATE TABLE IF NOT EXISTS inventory_items (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(191) NOT NULL UNIQUE,
-    price DECIMAL(10,2) DEFAULT 0,
-    stock INT DEFAULT 0,
-    status VARCHAR(50) DEFAULT 'Out of stock',
-    category VARCHAR(100) DEFAULT 'specials',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-)");
+use Illuminate\Support\Facades\DB;
 
 $input = json_decode(file_get_contents('php://input'), true);
 $name = isset($input['name']) ? trim($input['name']) : '';
@@ -34,32 +18,45 @@ $status = isset($input['status']) ? trim($input['status']) : ($stock > 0 ? 'In s
 if ($name === '') {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Item name is required']);
-    $mysqli->close();
     exit;
 }
 
 $normalizedStatus = $stock > 0 ? ($status === 'Out of stock' ? 'In stock' : $status) : 'Out of stock';
 
-$stmt = $mysqli->prepare('SELECT id FROM inventory_items WHERE name = ? LIMIT 1');
-$stmt->bind_param('s', $name);
-$stmt->execute();
-$result = $stmt->get_result();
+try {
+    $existingId = DB::table('inventory_items')->where('name', $name)->value('id');
 
-if ($row = $result->fetch_assoc()) {
-    $updateStmt = $mysqli->prepare('UPDATE inventory_items SET price = ?, stock = ?, status = ?, category = ? WHERE name = ?');
-    $updateStmt->bind_param('disss', $price, $stock, $normalizedStatus, $category, $name);
-    $updateStmt->execute();
-    $itemId = $row['id'];
-    $updateStmt->close();
-} else {
-    $insertStmt = $mysqli->prepare('INSERT INTO inventory_items (name, price, stock, status, category, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())');
-    $insertStmt->bind_param('sdiss', $name, $price, $stock, $normalizedStatus, $category);
-    $insertStmt->execute();
-    $itemId = $mysqli->insert_id;
-    $insertStmt->close();
+    if ($existingId) {
+        DB::table('inventory_items')
+            ->where('id', $existingId)
+            ->update([
+                'price' => $price,
+                'stock' => $stock,
+                'status' => $normalizedStatus,
+                'category' => $category,
+                'updated_at' => now(),
+            ]);
+    } else {
+        DB::table('inventory_items')->insert([
+            'name' => $name,
+            'price' => $price,
+            'stock' => $stock,
+            'status' => $normalizedStatus,
+            'category' => $category,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    $itemId = DB::table('inventory_items')->where('name', $name)->value('id');
+
+    echo json_encode([
+        'success' => true,
+        'itemId' => $itemId,
+        'stock' => $stock,
+        'status' => $normalizedStatus,
+    ]);
+} catch (Throwable $error) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Database update failed']);
 }
-
-$stmt->close();
-$mysqli->close();
-
-echo json_encode(['success' => true, 'itemId' => $itemId, 'stock' => $stock, 'status' => $normalizedStatus]);

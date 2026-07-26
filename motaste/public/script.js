@@ -2031,13 +2031,22 @@ async function saveInventoryItem(event) {
 
     saveInventoryData();
     try {
-        await fetch(getApiUrl('api/update_inventory.php'), {
+        const response = await fetch(getApiUrl('api/update_inventory.php'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ name, price, stock, status, category })
         });
+
+        if (!response.ok) {
+            throw new Error(`Inventory sync failed: HTTP ${response.status}`);
+        }
+
+        const payload = await response.json();
+        if (!payload || payload.success !== true) {
+            throw new Error(`Inventory sync failed: ${payload?.error || 'Unknown server response'}`);
+        }
     } catch (error) {
         console.error('Unable to sync inventory with server', error);
     }
@@ -2100,13 +2109,22 @@ async function commitInlineInventoryEdit(card) {
     saveInventoryData();
     inventoryRefreshVersion += 1;
     try {
-        await fetch(getApiUrl('api/update_inventory.php'), {
+        const response = await fetch(getApiUrl('api/update_inventory.php'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ name: nextName, price, stock, status, category })
         });
+
+        if (!response.ok) {
+            throw new Error(`Inventory sync failed: HTTP ${response.status}`);
+        }
+
+        const payload = await response.json();
+        if (!payload || payload.success !== true) {
+            throw new Error(`Inventory sync failed: ${payload?.error || 'Unknown server response'}`);
+        }
     } catch (error) {
         console.error('Unable to sync inventory with server', error);
     }
