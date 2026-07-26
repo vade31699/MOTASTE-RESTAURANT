@@ -1349,7 +1349,7 @@ function unlockPageScrollForOrderPopup() {
 function initializeOrderNotificationAudio() {
     if (!orderNotificationAudioElement) {
         try {
-            orderNotificationAudioElement = new Audio(getApiUrl('order_aud_notif.aac'));
+            orderNotificationAudioElement = new Audio(getApiUrl('order_aud_notif.mp3'));
             orderNotificationAudioElement.preload = 'auto';
             orderNotificationAudioElement.volume = 1;
         } catch (error) {
