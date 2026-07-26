@@ -1228,6 +1228,8 @@ let currentMenuCategoryId = null;
 let inventoryEditItemName = null;
 let inventoryEditLock = false;
 let ignoredPendingOrderNumbers = new Set();
+const syncInventoryAcrossTabs = false;
+const enableInventoryAutoRefresh = false;
 
 function loadIgnoredPendingOrders() {
     try {
@@ -1501,6 +1503,7 @@ function debugInventory(msg, source) {
 }
 
 function startInventoryAutoRefresh() {
+    if (!enableInventoryAutoRefresh) return;
     if (inventoryRefreshTimer) return;
 
     inventoryRefreshTimer = window.setInterval(() => {
@@ -1590,7 +1593,7 @@ window.addEventListener('storage', (event) => {
         }
     }
 
-    if (event.key === 'motasteInventoryData' || event.key === 'motasteInventoryDataUpdatedAt') {
+    if (syncInventoryAcrossTabs && (event.key === 'motasteInventoryData' || event.key === 'motasteInventoryDataUpdatedAt')) {
         try {
             const remoteUpdatedAt = Number(localStorage.getItem('motasteInventoryDataUpdatedAt') || '0');
             if (remoteUpdatedAt && remoteUpdatedAt <= (lastInventoryUpdateAt || 0)) {
@@ -2974,12 +2977,14 @@ function initOrders() {
 }
 
 document.addEventListener('visibilitychange', () => {
+    if (!enableInventoryAutoRefresh) return;
     if (!document.hidden && !inventoryEditLock) {
         void initializeInventoryData();
     }
 });
 
 window.addEventListener('focus', () => {
+    if (!enableInventoryAutoRefresh) return;
     if (!inventoryEditLock) {
         void initializeInventoryData();
     }
