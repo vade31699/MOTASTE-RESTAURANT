@@ -29,32 +29,11 @@ $normalizedStatus = $stock > 0 ? ($status === 'Out of stock' ? 'In stock' : $sta
 try {
     $normalizedLookup = strtolower($canonicalName);
 
-    $existingRows = DB::table('inventory_items')
-        ->select('id')
-        ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedLookup])
-        ->orderByDesc('updated_at')
-        ->orderByDesc('id')
-        ->get();
-
-    if ($existingRows->isNotEmpty()) {
-        $keepId = (int)$existingRows->first()->id;
-        $duplicateIds = $existingRows->skip(1)->pluck('id')->map(fn ($id) => (int)$id)->all();
-
+    DB::transaction(function () use ($normalizedLookup, $canonicalName, $price, $stock, $normalizedStatus, $category) {
         DB::table('inventory_items')
-            ->where('id', $keepId)
-            ->update([
-                'name' => $canonicalName,
-                'price' => $price,
-                'stock' => $stock,
-                'status' => $normalizedStatus,
-                'category' => $category,
-                'updated_at' => now(),
-            ]);
+            ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedLookup])
+            ->delete();
 
-        if (!empty($duplicateIds)) {
-            DB::table('inventory_items')->whereIn('id', $duplicateIds)->delete();
-        }
-    } else {
         DB::table('inventory_items')->insert([
             'name' => $canonicalName,
             'price' => $price,
@@ -64,12 +43,10 @@ try {
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-    }
+    });
 
     $itemId = DB::table('inventory_items')
         ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedLookup])
-        ->orderByDesc('updated_at')
-        ->orderByDesc('id')
         ->value('id');
 
     echo json_encode([
@@ -80,5 +57,5 @@ try {
     ]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Database update failed']);
+    echo json_encode(['success' => false, 'error' => 'Database update failed', 'details' => $error->getMessage()]);
 }
