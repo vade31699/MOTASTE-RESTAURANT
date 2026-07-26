@@ -9,22 +9,31 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 use Illuminate\Support\Facades\DB;
 
 try {
-    $items = DB::table('inventory_items')
+    $rawItems = DB::table('inventory_items')
         ->select('name', 'price', 'stock', 'status', 'category')
-        ->orderBy('id', 'asc')
+        ->orderBy('updated_at', 'desc')
+        ->orderBy('id', 'desc')
         ->get()
-        ->map(function ($row) {
-            $stock = (int)($row->stock ?? 0);
-            return [
-                'name' => $row->name,
-                'price' => (float)($row->price ?? 0),
-                'stock' => $stock,
-                'status' => $row->status ?: ($stock > 0 ? 'In stock' : 'Out of stock'),
-                'category' => $row->category ?: 'specials',
-            ];
-        })
-        ->values()
         ->all();
+
+    $itemsByName = [];
+    foreach ($rawItems as $row) {
+        $normalizedName = mb_strtolower(trim((string)$row->name));
+        if ($normalizedName === '' || isset($itemsByName[$normalizedName])) {
+            continue;
+        }
+
+        $stock = (int)($row->stock ?? 0);
+        $itemsByName[$normalizedName] = [
+            'name' => trim((string)$row->name),
+            'price' => (float)($row->price ?? 0),
+            'stock' => $stock,
+            'status' => $row->status ?: ($stock > 0 ? 'In stock' : 'Out of stock'),
+            'category' => $row->category ?: 'specials',
+        ];
+    }
+
+    $items = array_values($itemsByName);
 
     echo json_encode(['success' => true, 'items' => $items]);
 } catch (Throwable $error) {

@@ -15,7 +15,10 @@ $stock = isset($input['stock']) ? (int)$input['stock'] : 0;
 $category = isset($input['category']) ? trim($input['category']) : 'specials';
 $status = isset($input['status']) ? trim($input['status']) : ($stock > 0 ? 'In stock' : 'Out of stock');
 
-if ($name === '') {
+$canonicalName = preg_replace('/\s+/', ' ', $name);
+$canonicalName = trim((string)$canonicalName);
+
+if ($canonicalName === '') {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Item name is required']);
     exit;
@@ -24,12 +27,15 @@ if ($name === '') {
 $normalizedStatus = $stock > 0 ? ($status === 'Out of stock' ? 'In stock' : $status) : 'Out of stock';
 
 try {
-    $existingId = DB::table('inventory_items')->where('name', $name)->value('id');
+    $existingId = DB::table('inventory_items')
+        ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($canonicalName)])
+        ->value('id');
 
     if ($existingId) {
         DB::table('inventory_items')
             ->where('id', $existingId)
             ->update([
+                'name' => $canonicalName,
                 'price' => $price,
                 'stock' => $stock,
                 'status' => $normalizedStatus,
@@ -38,7 +44,7 @@ try {
             ]);
     } else {
         DB::table('inventory_items')->insert([
-            'name' => $name,
+            'name' => $canonicalName,
             'price' => $price,
             'stock' => $stock,
             'status' => $normalizedStatus,
@@ -48,7 +54,9 @@ try {
         ]);
     }
 
-    $itemId = DB::table('inventory_items')->where('name', $name)->value('id');
+    $itemId = DB::table('inventory_items')
+        ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($canonicalName)])
+        ->value('id');
 
     echo json_encode([
         'success' => true,
