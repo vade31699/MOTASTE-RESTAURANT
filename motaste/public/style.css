@@ -3404,6 +3404,15 @@ body.dashboard-panel-open .menu-btn {
     word-break: break-word;
 }
 
+.review-management .review-comment {
+    color: #1f1f1f !important;
+}
+
+.review-history-title {
+    margin: 18px 0 10px;
+    color: #fff;
+}
+
 .review-management {
     margin-top: 20px;
     padding-top: 14px;

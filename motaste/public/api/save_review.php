@@ -45,6 +45,16 @@ function ensureReviewTables(): void
         created_at TIMESTAMP NULL,
         updated_at TIMESTAMP NULL
     )");
+
+    DB::statement("CREATE TABLE IF NOT EXISTS review_daily_blocks (
+        id BIGSERIAL PRIMARY KEY,
+        reviewer_key VARCHAR(191) NOT NULL,
+        blocked_on DATE NOT NULL,
+        reason VARCHAR(191) NULL,
+        created_at TIMESTAMP NULL,
+        updated_at TIMESTAMP NULL
+    )");
+    DB::statement("CREATE UNIQUE INDEX IF NOT EXISTS review_daily_blocks_reviewer_day_idx ON review_daily_blocks (reviewer_key, blocked_on)");
 }
 
 function resolveClientIpAddress(): string
@@ -79,6 +89,20 @@ try {
     $reviewerKeySource = $reviewerToken !== '' ? 'token:' . $reviewerToken : 'ip:' . resolveClientIpAddress();
     $reviewerKey = hash('sha256', $reviewerKeySource);
     $today = now()->toDateString();
+
+    $isBlockedToday = DB::table('review_daily_blocks')
+        ->where('reviewer_key', $reviewerKey)
+        ->whereDate('blocked_on', $today)
+        ->exists();
+
+    if ($isBlockedToday) {
+        http_response_code(409);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Your review was removed by staff today. You can submit a new review tomorrow.'
+        ]);
+        exit;
+    }
 
     $submittedTodayCount = (int)DB::table('customer_reviews')
         ->where('reviewer_key', $reviewerKey)

@@ -433,7 +433,7 @@ function canAccessInventory() {
 
 function canAccessLogs() {
     const role = getCurrentStaffRole();
-    return role === 'Admin' || role === 'Inventory Manager';
+    return role === 'Admin';
 }
 
 function canManageOrders() {

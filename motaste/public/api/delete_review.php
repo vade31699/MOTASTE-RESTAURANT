@@ -42,6 +42,16 @@ function ensureReviewTables(): void
         created_at TIMESTAMP NULL,
         updated_at TIMESTAMP NULL
     )");
+
+    DB::statement("CREATE TABLE IF NOT EXISTS review_daily_blocks (
+        id BIGSERIAL PRIMARY KEY,
+        reviewer_key VARCHAR(191) NOT NULL,
+        blocked_on DATE NOT NULL,
+        reason VARCHAR(191) NULL,
+        created_at TIMESTAMP NULL,
+        updated_at TIMESTAMP NULL
+    )");
+    DB::statement("CREATE UNIQUE INDEX IF NOT EXISTS review_daily_blocks_reviewer_day_idx ON review_daily_blocks (reviewer_key, blocked_on)");
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
@@ -65,6 +75,21 @@ try {
         exit;
     }
 
+    $reviewerKey = (string)($review->reviewer_key ?? '');
+    if ($reviewerKey !== '') {
+        DB::table('review_daily_blocks')->updateOrInsert(
+            [
+                'reviewer_key' => $reviewerKey,
+                'blocked_on' => now()->toDateString(),
+            ],
+            [
+                'reason' => 'deleted_by_admin',
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+    }
+
     DB::table('customer_reviews')->where('id', $reviewId)->delete();
 
     DB::table('order_activity_logs')->insert([
@@ -78,6 +103,7 @@ try {
             'review_id' => $reviewId,
             'rating' => (int)($review->rating ?? 0),
             'review_text' => (string)($review->review_text ?? ''),
+            'reviewer_key' => $reviewerKey,
             'deleted_at' => now()->toDateTimeString(),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         'created_at' => now(),
