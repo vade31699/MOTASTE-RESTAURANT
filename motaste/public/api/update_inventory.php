@@ -30,7 +30,7 @@ try {
     $normalizedLookup = strtolower($canonicalName);
 
     $existingIds = DB::table('inventory_items')
-        ->whereRaw('LOWER(TRIM(name)) = ?', [$normalizedLookup])
+        ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedLookup])
         ->pluck('id')
         ->all();
 
@@ -66,7 +66,7 @@ try {
     }
 
     $itemId = DB::table('inventory_items')
-        ->whereRaw('LOWER(TRIM(name)) = ?', [$normalizedLookup])
+        ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedLookup])
         ->orderByDesc('updated_at')
         ->orderByDesc('id')
         ->value('id');

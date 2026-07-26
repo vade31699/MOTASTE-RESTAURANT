@@ -33,7 +33,7 @@ function getApiUrl(path) {
 }
 
 function normalizeInventoryName(name) {
-    return (name || '').trim().toLowerCase();
+    return (name || '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
 function getSavedLoginCredentials() {

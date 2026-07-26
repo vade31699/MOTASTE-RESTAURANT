@@ -18,7 +18,7 @@ try {
 
     $itemsByName = [];
     foreach ($rawItems as $row) {
-        $normalizedName = mb_strtolower(trim((string)$row->name));
+        $normalizedName = mb_strtolower(preg_replace('/\s+/', ' ', trim((string)$row->name)));
         if ($normalizedName === '' || isset($itemsByName[$normalizedName])) {
             continue;
         }
