@@ -1259,14 +1259,22 @@ const productDetailsImage = document.getElementById('productDetailsImage');
 const productDetailsName = document.getElementById('productDetailsName');
 const productDetailsDescription = document.getElementById('productDetailsDescription');
 const productDetailsPrice = document.getElementById('productDetailsPrice');
+const productDetailsTotalPrice = document.getElementById('productDetailsTotalPrice');
+const productAddOnsList = document.getElementById('productAddOnsList');
 const addToCartBtn = document.getElementById('addToCartBtn');
 const purchaseNowBtn = document.getElementById('purchaseNowBtn');
+const singleProductModal = document.getElementById('singleProductModal');
+const singleProductList = document.getElementById('singleProductList');
+const singleProductBackBtn = document.getElementById('singleProductBackBtn');
+const addSingleProductBtn = document.getElementById('addSingleProductBtn');
 const liveClock = document.getElementById('liveClock');
 
 let cartItems = [];
 let pendingOrders = [];
 let completedOrders = [];
 let inventoryData = [];
+let selectedAddOns = {}; // Track selected add-ons: {addonName: quantity}
+let singleProductQuantities = {}; // Track quantities for single products
 let currentMenuCategoryId = null;
 let inventoryEditItemName = null;
 let ignoredPendingOrderNumbers = new Set();
@@ -1374,8 +1382,8 @@ function buildDefaultInventoryFromMenu() {
             items.push({
                 name: item.name,
                 price: parsePrice(item.price),
-                stock: 0,
-                status: 'Out of stock',
+                stock: 999, // Default to plenty of stock
+                status: 'In stock',
                 category: categoryKey
             });
         });
@@ -1387,8 +1395,8 @@ function buildDefaultInventoryFromMenu() {
         items.push({
             name: food.name,
             price: Number(food.price) || 0,
-            stock: 0,
-            status: 'Out of stock',
+            stock: 999, // Default to plenty of stock
+            status: 'In stock',
             category: 'specials'
         });
     });
@@ -1549,13 +1557,30 @@ function updateCartDisplay() {
 
     let total = 0;
     menuCartList.innerHTML = cartItems.map((item, index) => {
-        const itemTotal = item.quantity * item.price;
+        const components = item.components || [];
+        const itemTotal = item.totalPrice ? item.totalPrice * item.quantity : item.quantity * item.price;
         total += itemTotal;
+        
+        // Build components display
+        const componentsHtml = components.length > 0 
+            ? `<div class="menu-cart-components">
+                ${components.map((comp) => `
+                    <div class="menu-cart-component">
+                        <span>${comp.name}</span>
+                        <span class="component-qty">x${comp.quantity}</span>
+                        <span class="component-price">${formatCurrency(comp.price * comp.quantity)}</span>
+                        <button type="button" class="component-remove-btn" data-index="${index}" data-comp-name="${comp.name}" aria-label="Remove ${comp.name}">×</button>
+                    </div>
+                `).join('')}
+            </div>`
+            : '';
+        
         return `
             <div class="menu-cart-item">
                 <div class="menu-cart-item-details">
                     <div>
                         <strong>${item.name}</strong>
+                        ${componentsHtml}
                         <div class="menu-cart-item-qty-controls">
                             <button type="button" class="menu-cart-item-quantity-btn" data-action="decrease" data-index="${index}" aria-label="Decrease ${item.name} quantity"${item.quantity === 1 ? ' disabled' : ''}>
                                 <i class="fa-solid fa-minus" aria-hidden="true"></i>
@@ -1693,9 +1718,17 @@ function syncMenuPricesWithInventory() {
         });
     });
 
+    // Update specialFoods with prices and stock from inventory
     specialFoods.forEach((food) => {
         if (priceMap[food.name] !== undefined) {
             food.price = priceMap[food.name];
+        }
+        
+        // Update stock and status from inventory
+        const inventoryItem = inventoryData.find((inv) => (inv.name || '').trim().toLowerCase() === (food.name || '').trim().toLowerCase());
+        if (inventoryItem) {
+            food.stock = inventoryItem.stock || 0;
+            food.status = inventoryItem.status || (inventoryItem.stock > 0 ? 'In stock' : 'Out of stock');
         }
     });
 }
@@ -2048,12 +2081,16 @@ function renderSpecialFoods() {
 
     specialFoodsList.innerHTML = specialFoods.map((item) => {
         const imageSrc = item.image || 'img1.jpg';
+        const stock = Number(item.stock) || 0;
+        const isOutOfStock = stock <= 0;
+        
         return `
-        <article class="special-food-card" data-name="${item.name}" data-price="${item.price}" style="cursor: pointer;">
+        <article class="special-food-card" data-name="${item.name}" data-price="${item.price}" style="cursor: ${isOutOfStock ? 'not-allowed' : 'pointer'}; opacity: ${isOutOfStock ? '0.6' : '1'};">
             <img src="${imageSrc}" alt="${item.name}">
             <div class="special-food-details">
                 <h4>${item.name}</h4>
                 <strong>${formatCurrency(item.price)}</strong>
+                ${isOutOfStock ? '<p style="color: #d32f2f; font-size: 0.85rem; margin: 4px 0 0 0;">Out of Stock</p>' : `<p style="color: #666; font-size: 0.85rem; margin: 4px 0 0 0;">Stock: ${stock}</p>`}
             </div>
         </article>
     `;
@@ -2064,6 +2101,8 @@ function showProductDetails(product) {
     if (!product || !productDetailsScreen) return;
     
     currentProductDetails = product;
+    selectedAddOns = {}; // Reset add-ons selection
+    
     const imageSrc = product.image || 'img1.jpg';
     
     if (productDetailsImage) {
@@ -2080,9 +2119,62 @@ function showProductDetails(product) {
         productDetailsPrice.textContent = formatCurrency(product.price);
     }
     
+    // Render add-ons
+    renderProductAddOns();
+    
     menuCategoryScreen.classList.add('hidden');
     productDetailsScreen.classList.remove('hidden');
     productDetailsScreen.setAttribute('aria-hidden', 'false');
+}
+
+function renderProductAddOns() {
+    if (!productAddOnsList) return;
+    
+    // Get all add-ons from inventory
+    const addOns = (inventoryData || []).filter((item) => item.category === 'addons');
+    
+    if (!addOns.length) {
+        productAddOnsList.innerHTML = '<p style="font-size: 12px; color: #999;">No add-ons available</p>';
+        return;
+    }
+    
+    productAddOnsList.innerHTML = addOns.map((addon) => {
+        const quantity = selectedAddOns[addon.name] || 0;
+        const stock = Number(addon.stock) || 0;
+        const isOutOfStock = stock <= 0;
+        
+        return `
+            <div class="addon-item" data-addon-name="${addon.name}">
+                <div class="addon-info">
+                    <div class="addon-name">${addon.name}</div>
+                    <div class="addon-price">${formatCurrency(addon.price)}</div>
+                    <div class="addon-stock">Stock: ${stock}</div>
+                </div>
+                <div class="addon-controls">
+                    <button type="button" class="addon-decrease" data-addon-name="${addon.name}" ${quantity === 0 ? 'disabled' : ''}>−</button>
+                    <span class="addon-quantity">${quantity}</span>
+                    <button type="button" class="addon-increase" data-addon-name="${addon.name}" ${isOutOfStock || quantity >= stock ? 'disabled' : ''}>+</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    updateProductTotalPrice();
+}
+
+function updateProductTotalPrice() {
+    if (!productDetailsTotalPrice || !currentProductDetails) return;
+    
+    let total = currentProductDetails.price || 0;
+    
+    Object.entries(selectedAddOns).forEach(([addonName, quantity]) => {
+        const addon = (inventoryData || []).find((item) => item.name === addonName);
+        if (addon) {
+            total += (addon.price || 0) * quantity;
+        }
+    });
+    
+    productDetailsTotalPrice.textContent = formatCurrency(total);
 }
 
 function closeProductDetails() {
@@ -2095,12 +2187,42 @@ function closeProductDetails() {
 
 function addToCart(item) {
     if (!item) return;
-    const existing = cartItems.find((cartItem) => cartItem.name === item.name);
+    
+    // Build cart item with components (add-ons)
+    const components = Object.entries(selectedAddOns)
+        .filter(([_, qty]) => qty > 0)
+        .map(([addonName, qty]) => {
+            const addon = (inventoryData || []).find((inv) => inv.name === addonName);
+            return {
+                name: addonName,
+                quantity: qty,
+                price: addon ? addon.price : 0
+            };
+        });
+    
+    // Calculate component total
+    const componentTotal = components.reduce((sum, comp) => sum + (comp.price * comp.quantity), 0);
+    const totalPrice = (item.price || 0) + componentTotal;
+    
+    const cartItem = {
+        ...item,
+        quantity: 1,
+        components: components,
+        totalPrice: totalPrice
+    };
+    
+    // Check if same item with same components already exists
+    const existing = cartItems.find((cartItem) => 
+        cartItem.name === item.name && 
+        JSON.stringify(cartItem.components || []) === JSON.stringify(components)
+    );
+    
     if (existing) {
         existing.quantity += 1;
     } else {
-        cartItems.push({ ...item, quantity: 1 });
+        cartItems.push(cartItem);
     }
+    
     saveCart();
     updateCartDisplay();
     if (menuOrderMessage) {
@@ -2137,6 +2259,119 @@ function adjustCartItemQuantity(index, change) {
     item.quantity = nextQuantity;
     saveCart();
     updateCartDisplay();
+}
+
+function removeComponentFromCartItem(cartItemIndex, componentName) {
+    if (cartItemIndex < 0 || cartItemIndex >= cartItems.length) return;
+    
+    const item = cartItems[cartItemIndex];
+    if (!item.components || !Array.isArray(item.components)) return;
+    
+    // Find and remove the component
+    const componentIndex = item.components.findIndex((comp) => comp.name === componentName);
+    if (componentIndex === -1) return;
+    
+    const removedComponent = item.components[componentIndex];
+    item.components.splice(componentIndex, 1);
+    
+    // Recalculate totalPrice
+    if (item.totalPrice) {
+        item.totalPrice -= removedComponent.price * removedComponent.quantity;
+    }
+    
+    saveCart();
+    updateCartDisplay();
+}
+
+function openSingleProductModal() {
+    if (!singleProductModal || !menuCategoryScreen) return;
+    
+    singleProductQuantities = {};
+    renderSingleProductList();
+    
+    menuCategoryScreen.classList.add('hidden');
+    singleProductModal.classList.remove('hidden');
+    singleProductModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeSingleProductModal() {
+    if (!singleProductModal || !menuCategoryScreen) return;
+    
+    singleProductModal.classList.add('hidden');
+    singleProductModal.setAttribute('aria-hidden', 'true');
+    menuCategoryScreen.classList.remove('hidden');
+}
+
+function renderSingleProductList() {
+    if (!singleProductList) return;
+    
+    // Get all add-ons and products from inventory
+    const products = (inventoryData || []).filter((item) => item.category === 'addons');
+    
+    if (!products.length) {
+        singleProductList.innerHTML = '<p style="font-size: 12px; color: #999;">No products available</p>';
+        return;
+    }
+    
+    singleProductList.innerHTML = products.map((product) => {
+        const quantity = singleProductQuantities[product.name] || 0;
+        const stock = Number(product.stock) || 0;
+        const isOutOfStock = stock <= 0;
+        
+        return `
+            <div class="single-product-item ${isOutOfStock ? 'out-of-stock' : ''}" data-product-name="${product.name}">
+                <div class="single-product-info">
+                    <div class="single-product-name">${product.name}</div>
+                    <div class="single-product-price">${formatCurrency(product.price)}</div>
+                    <div class="single-product-stock">Stock: ${stock}</div>
+                </div>
+                <div class="single-product-actions">
+                    <div class="single-product-qty-control">
+                        <button type="button" class="single-product-decrease" data-product-name="${product.name}" ${quantity === 0 ? 'disabled' : ''}>−</button>
+                        <span class="single-product-qty">${quantity}</span>
+                        <button type="button" class="single-product-increase" data-product-name="${product.name}" ${isOutOfStock || quantity >= stock ? 'disabled' : ''}>+</button>
+                    </div>
+                    <button type="button" class="single-product-add-btn" data-product-name="${product.name}" ${quantity === 0 || isOutOfStock ? 'disabled' : ''}>Add</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function addSingleProductToCart(productName, quantity) {
+    if (!productName || quantity <= 0) return;
+    
+    const product = (inventoryData || []).find((item) => item.name === productName);
+    if (!product) return;
+    
+    // Create a single product item (no parent dish)
+    const cartItem = {
+        name: productName,
+        price: product.price,
+        quantity: quantity,
+        components: [], // No components for single products
+        totalPrice: product.price
+    };
+    
+    // Check if item already exists in cart
+    const existing = cartItems.find((item) => 
+        item.name === productName && 
+        (!item.components || item.components.length === 0)
+    );
+    
+    if (existing) {
+        existing.quantity += quantity;
+    } else {
+        cartItems.push(cartItem);
+    }
+    
+    saveCart();
+    updateCartDisplay();
+    closeSingleProductModal();
+    
+    if (menuOrderMessage) {
+        menuOrderMessage.textContent = `${quantity}x ${productName} added to cart.`;
+    }
 }
 
 function clearCart() {
@@ -2497,7 +2732,7 @@ if (specialFoodsList) {
         const price = Number(card.dataset.price);
         const product = specialFoods.find((f) => f.name === name);
         
-        if (product) {
+        if (product && Number(product.stock) > 0) {
             showProductDetails(product);
         }
     });
@@ -2599,6 +2834,15 @@ if (menuCartList) {
             adjustCartItemQuantity(index, change);
             return;
         }
+        
+        const componentRemoveBtn = event.target.closest('.component-remove-btn');
+        if (componentRemoveBtn) {
+            const index = Number(componentRemoveBtn.dataset.index);
+            const componentName = componentRemoveBtn.dataset.compName;
+            removeComponentFromCartItem(index, componentName);
+            return;
+        }
+        
         const button = event.target.closest('.menu-cart-item-remove');
         if (!button) return;
         const index = Number(button.dataset.index);
@@ -2611,6 +2855,54 @@ if (menuPlaceOrderBtn) {
         closeCartModal();
         openMenuOverlay();
         openCheckoutScreen();
+    });
+}
+
+if (addSingleProductBtn) {
+    addSingleProductBtn.addEventListener('click', openSingleProductModal);
+}
+
+if (singleProductBackBtn) {
+    singleProductBackBtn.addEventListener('click', closeSingleProductModal);
+}
+
+if (singleProductList) {
+    singleProductList.addEventListener('click', (event) => {
+        const increaseBtn = event.target.closest('.single-product-increase');
+        if (increaseBtn) {
+            const productName = increaseBtn.dataset.productName;
+            const product = (inventoryData || []).find((item) => item.name === productName);
+            if (!product) return;
+            
+            const currentQty = singleProductQuantities[productName] || 0;
+            const stock = Number(product.stock) || 0;
+            
+            if (currentQty < stock) {
+                singleProductQuantities[productName] = currentQty + 1;
+                renderSingleProductList();
+            }
+            return;
+        }
+        
+        const decreaseBtn = event.target.closest('.single-product-decrease');
+        if (decreaseBtn) {
+            const productName = decreaseBtn.dataset.productName;
+            const currentQty = singleProductQuantities[productName] || 0;
+            
+            if (currentQty > 0) {
+                singleProductQuantities[productName] = currentQty - 1;
+                renderSingleProductList();
+            }
+            return;
+        }
+        
+        const addBtn = event.target.closest('.single-product-add-btn');
+        if (addBtn) {
+            const productName = addBtn.dataset.productName;
+            const quantity = singleProductQuantities[productName] || 0;
+            addSingleProductToCart(productName, quantity);
+            return;
+        }
     });
 }
 
@@ -2671,6 +2963,38 @@ if (purchaseNowBtn) {
             addToCart(currentProductDetails);
             closeProductDetails();
             openCheckoutScreen();
+        }
+    });
+}
+
+if (productAddOnsList) {
+    productAddOnsList.addEventListener('click', (event) => {
+        const increaseBtn = event.target.closest('.addon-increase');
+        if (increaseBtn) {
+            const addonName = increaseBtn.dataset.addonName;
+            const addon = (inventoryData || []).find((item) => item.name === addonName);
+            if (!addon) return;
+            
+            const currentQty = selectedAddOns[addonName] || 0;
+            const stock = Number(addon.stock) || 0;
+            
+            if (currentQty < stock) {
+                selectedAddOns[addonName] = currentQty + 1;
+                renderProductAddOns();
+            }
+            return;
+        }
+        
+        const decreaseBtn = event.target.closest('.addon-decrease');
+        if (decreaseBtn) {
+            const addonName = decreaseBtn.dataset.addonName;
+            const currentQty = selectedAddOns[addonName] || 0;
+            
+            if (currentQty > 0) {
+                selectedAddOns[addonName] = currentQty - 1;
+                renderProductAddOns();
+            }
+            return;
         }
     });
 }

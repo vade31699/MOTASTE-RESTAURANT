@@ -114,6 +114,7 @@
                     <strong id="menuCartTotal">₱0</strong>
                 </div>
                 <button type="button" id="menuPlaceOrderBtn" class="menu-place-order-btn" disabled>Proceed to Payment</button>
+                <button type="button" id="addSingleProductBtn" class="menu-add-single-btn">+ Add Single Product</button>
             </div>
             <p class="menu-order-message" id="menuOrderMessage"></p>
         </aside>
@@ -200,12 +201,33 @@
                     <div class="product-details-info">
                         <h2 id="productDetailsName"></h2>
                         <p id="productDetailsDescription" class="product-description"></p>
-                        <p class="product-price"><strong>Price:</strong> <span id="productDetailsPrice">₱0</span></p>
+                        <p class="product-price"><strong>Base Price:</strong> <span id="productDetailsPrice">₱0</span></p>
+                        
+                        <!-- ADD ONS SECTION -->
+                        <div id="productAddOnsSection" class="product-addons-section">
+                            <h4>Add-Ons</h4>
+                            <div id="productAddOnsList" class="product-addons-list"></div>
+                        </div>
+                        
+                        <!-- TOTAL WITH ADD ONS -->
+                        <p class="product-total-price"><strong>Total:</strong> <span id="productDetailsTotalPrice">₱0</span></p>
+                        
                         <div class="product-details-actions">
                             <button type="button" id="addToCartBtn" class="menu-place-order-btn">Add to Cart</button>
                             <button type="button" id="purchaseNowBtn" class="menu-place-order-btn">Purchase Now</button>
                         </div>
                     </div>
+                </div>
+            </div>
+            
+            <!-- SINGLE PRODUCT SELECTION MODAL -->
+            <div class="single-product-modal hidden" id="singleProductModal" aria-hidden="true">
+                <div class="single-product-header">
+                    <button id="singleProductBackBtn" type="button" class="menu-back-btn">← Back</button>
+                    <h3>Add Single Product</h3>
+                </div>
+                <div class="single-product-body">
+                    <div class="single-product-list" id="singleProductList"></div>
                 </div>
             </div>
         </div>
