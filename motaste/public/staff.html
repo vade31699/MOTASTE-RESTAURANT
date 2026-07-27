@@ -99,6 +99,7 @@
         <a href="#sales" id="salesLink">Sales</a>
         <a href="#logs" id="logsLink">Logs</a>
         <a href="#account-management" id="accountManagementLink">Account Management</a>
+        <a href="#credentials" id="credentialsLink">Credentials</a>
         <button type="button" id="logoutBtn" class="logout-btn" hidden>Logout</button>
     </div>
 
@@ -343,22 +344,37 @@
 
     <section id="account-management" class="account-management" hidden>
         <h2>Account Management</h2>
-        <p>Manage cashier and inventory accounts below.</p>
+        <p>Manage cashier and inventory accounts below. Staff invites are Gmail-only and require email confirmation before first login.</p>
 
         <form id="accountForm" class="account-form">
             <input type="text" id="accountName" placeholder="Full Name" required>
             <select id="accountRole" required>
                 <option value="">Select role</option>
-                <option value="Admin">Admin</option>
                 <option value="Cashier">Cashier</option>
                 <option value="Inventory Manager">Inventory Manager</option>
             </select>
-            <input type="email" id="accountEmail" placeholder="Email" required>
-            <input type="password" id="accountPassword" placeholder="Password" required>
+            <input type="email" id="accountEmail" placeholder="Gmail only (example@gmail.com)" required>
+            <input type="password" id="accountPassword" placeholder="Password set by Admin" required>
             <button type="submit">Save Account</button>
         </form>
 
         <ul id="accountList" class="account-list"></ul>
+    </section>
+
+    <section id="credentials" class="account-management" hidden>
+        <h2>Credentials</h2>
+        <p>Admin-only settings for main Gmail and password. Changes require email verification code before applying.</p>
+
+        <form id="credentialsForm" class="account-form">
+            <input type="email" id="adminCurrentEmail" placeholder="Current admin Gmail" readonly>
+            <input type="password" id="adminCurrentPassword" placeholder="Current admin password" required>
+            <input type="email" id="adminNewEmail" placeholder="New admin Gmail" required>
+            <input type="password" id="adminNewPassword" placeholder="New admin password" required>
+            <button type="button" id="requestCredentialsChangeBtn">Send Verification Code</button>
+            <input type="text" id="adminChangeCode" placeholder="Enter verification code" maxlength="8">
+            <button type="submit" id="confirmCredentialsChangeBtn">Verify and Apply</button>
+        </form>
+        <p id="credentialsMessage" class="menu-order-message" aria-live="polite"></p>
     </section>
 
     <div class="login-dark-overlay" aria-hidden="true"></div>
@@ -382,6 +398,12 @@
                     </div>
 
                     <button type="submit">Login</button>
+
+                    <div class="social-login-group" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+                        <button type="button" class="social-login-btn" data-provider="google">Login with Google</button>
+                        <button type="button" class="social-login-btn" data-provider="facebook">Login with Facebook</button>
+                        <button type="button" class="social-login-btn" data-provider="tiktok">Login with TikTok</button>
+                    </div>
                 </div>
             </form>
         </div>

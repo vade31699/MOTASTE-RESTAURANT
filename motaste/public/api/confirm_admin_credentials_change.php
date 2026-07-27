@@ -1,0 +1,84 @@
+<?php
+header('Content-Type: application/json');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+
+require __DIR__ . '/../../vendor/autoload.php';
+
+$app = require_once __DIR__ . '/../../bootstrap/app.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
+use Illuminate\Support\Facades\DB;
+
+require_once __DIR__ . '/_email_auth_helpers.php';
+
+$input = json_decode(file_get_contents('php://input'), true);
+$currentEmail = strtolower(trim((string)($input['currentEmail'] ?? '')));
+$currentPassword = (string)($input['currentPassword'] ?? '');
+$code = trim((string)($input['code'] ?? ''));
+
+if ($currentEmail === '' || $currentPassword === '' || $code === '') {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Current credentials and verification code are required']);
+    exit;
+}
+
+try {
+    ensureAdminCredentialChangeTokensTable();
+
+    $accounts = loadStaffAccountsSnapshot();
+    $admin = getAdminAccount($accounts);
+    if (!$admin || strtolower((string)$admin['email']) !== $currentEmail || (string)$admin['password'] !== $currentPassword) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Current admin credentials are invalid']);
+        exit;
+    }
+
+    $token = DB::table('admin_credential_change_tokens')
+        ->where('current_email', $currentEmail)
+        ->orderBy('id', 'desc')
+        ->first();
+
+    if (!$token) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'error' => 'No pending credentials change found']);
+        exit;
+    }
+
+    if (now()->greaterThan($token->expires_at)) {
+        DB::table('admin_credential_change_tokens')->where('id', $token->id)->delete();
+        http_response_code(410);
+        echo json_encode(['success' => false, 'error' => 'Verification code expired']);
+        exit;
+    }
+
+    $hashedCode = hash('sha256', $code);
+    if (!hash_equals((string)$token->code_hash, $hashedCode)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Invalid verification code']);
+        exit;
+    }
+
+    foreach ($accounts as &$account) {
+        if (($account['role'] ?? '') === 'Admin') {
+            $account['email'] = strtolower(trim((string)$token->pending_email));
+            $account['password'] = (string)$token->pending_password;
+            $account['inviteConfirmed'] = true;
+            break;
+        }
+    }
+    unset($account);
+
+    saveStaffAccountsSnapshot($accounts);
+
+    DB::table('admin_credential_change_tokens')->where('id', $token->id)->delete();
+
+    echo json_encode([
+        'success' => true,
+        'accounts' => $accounts,
+    ]);
+} catch (Throwable $error) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Unable to confirm credentials change', 'details' => $error->getMessage()]);
+}

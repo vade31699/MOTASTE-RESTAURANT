@@ -37,9 +37,7 @@ const blockedProductNames = new Set(['softdrinks']);
 const isStaffPage = Boolean(document.getElementById('accountList') || document.getElementById('staffLoginForm'));
 
 const defaultStaffAccounts = [
-    { name: 'Administrator', role: 'Admin', email: 'admin@motaste.com', password: 'admin123' },
-    { name: 'Cashier One', role: 'Cashier', email: 'cashier@motaste.com', password: 'cashier123' },
-    { name: 'Inventory One', role: 'Inventory Manager', email: 'inventory@motaste.com', password: 'inventory123' }
+    { name: 'Administrator', role: 'Admin', email: 'vadevidad31699@gmail.com', password: 'admin123', inviteConfirmed: true }
 ];
 
 let accounts = [...defaultStaffAccounts];
@@ -52,19 +50,38 @@ function normalizeStaffAccount(account) {
     const role = (account.role || '').trim();
     const email = (account.email || '').trim().toLowerCase();
     const password = (account.password || '').toString();
+    const inviteConfirmed = account.role === 'Admin' ? true : Boolean(account.inviteConfirmed);
 
     if (!name || !role || !email || !password) return null;
     if (!allowedRoles.includes(role)) return null;
 
-    return { name, role, email, password };
+    return { name, role, email, password, inviteConfirmed };
 }
 
 function getCurrentStaffAccounts() {
     return Array.isArray(accounts) ? accounts : [];
 }
 
+function ensureAdminAccountInvariant() {
+    const adminIndex = accounts.findIndex((account) => account.role === 'Admin');
+    if (adminIndex >= 0) {
+        accounts[adminIndex].email = (accounts[adminIndex].email || 'vadevidad31699@gmail.com').trim().toLowerCase();
+        accounts[adminIndex].inviteConfirmed = true;
+        return;
+    }
+
+    accounts.unshift({
+        name: 'Administrator',
+        role: 'Admin',
+        email: 'vadevidad31699@gmail.com',
+        password: 'admin123',
+        inviteConfirmed: true
+    });
+}
+
 function saveStaffAccountsToStorage() {
     try {
+        ensureAdminAccountInvariant();
         localStorage.setItem(staffAccountsStorageKey, JSON.stringify(accounts));
     } catch (error) {
         console.error('Unable to persist staff accounts to localStorage', error);
@@ -83,6 +100,7 @@ function loadStaffAccountsFromStorage() {
         if (!normalized.length) return false;
 
         accounts = normalized;
+        ensureAdminAccountInvariant();
         window.motasteStaffAccounts = accounts;
         return true;
     } catch (error) {
@@ -101,6 +119,7 @@ function applyStaffAccountsSnapshot(snapshot) {
     if (currentSignature === nextSignature) return false;
 
     accounts = normalized;
+    ensureAdminAccountInvariant();
     window.motasteStaffAccounts = accounts;
     saveStaffAccountsToStorage();
     return true;
@@ -165,6 +184,7 @@ function forceLogoutCurrentStaffSession() {
     if (pendingOrdersSection) pendingOrdersSection.hidden = true;
     if (logsSection) logsSection.hidden = true;
     if (accountManagementSection) accountManagementSection.hidden = true;
+    if (credentialsSection) credentialsSection.hidden = true;
 }
 
 function enforceActiveSessionValidity() {
@@ -219,6 +239,75 @@ function getApiUrl(path) {
         return new URL(path, window.location.href).toString();
     } catch (error) {
         return path;
+    }
+}
+
+function isGmailAddress(email) {
+    const normalized = (email || '').trim().toLowerCase();
+    return /@gmail\.com$/.test(normalized);
+}
+
+async function notifyStaffSessionEvent(eventName, actorRole, actorEmail) {
+    if (!eventName || !actorRole || !actorEmail) return;
+    if (actorRole !== 'Cashier' && actorRole !== 'Inventory Manager') return;
+
+    try {
+        await fetch(getApiUrl('api/notify_staff_session.php'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                event: eventName,
+                role: actorRole,
+                email: actorEmail,
+                occurredAt: new Date().toISOString(),
+                userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : ''
+            }),
+            cache: 'no-store'
+        });
+    } catch (error) {
+        console.error('Unable to send staff session email notification', error);
+    }
+}
+
+async function sendStaffInviteEmail(account) {
+    const response = await fetch(getApiUrl('api/send_staff_invite.php'), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            name: account.name,
+            role: account.role,
+            email: account.email
+        }),
+        cache: 'no-store'
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.success) {
+        throw new Error(payload.error || `Unable to send invite email (HTTP ${response.status})`);
+    }
+}
+
+async function confirmStaffInviteCode(email, role, code) {
+    const response = await fetch(getApiUrl('api/confirm_staff_invite.php'), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, role, code }),
+        cache: 'no-store'
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.success) {
+        throw new Error(payload.error || `Invite confirmation failed (HTTP ${response.status})`);
+    }
+
+    if (Array.isArray(payload.accounts)) {
+        applyStaffAccountsSnapshot(payload.accounts);
     }
 }
 
@@ -391,9 +480,11 @@ function isValidStaffLogin(role, email, password) {
     const staffAccounts = getCurrentStaffAccounts();
 
     return staffAccounts.some((account) => {
+        const isConfirmed = account.role === 'Admin' ? true : Boolean(account.inviteConfirmed);
         return account.email.toLowerCase() === normalizedEmail
             && account.password === password
-            && (!normalizedRole || account.role === normalizedRole);
+            && (!normalizedRole || account.role === normalizedRole)
+            && isConfirmed;
     });
 }
 
@@ -445,12 +536,17 @@ function canManageAccounts() {
     return getCurrentStaffRole() === 'Admin';
 }
 
+function canAccessCredentials() {
+    return getCurrentStaffRole() === 'Admin';
+}
+
 function resolveAccessibleSection(sectionId) {
     const requested = (sectionId || 'overview').trim();
     if (requested === 'inventory' && !canAccessInventory()) return 'overview';
     if (requested === 'logs' && !canAccessLogs()) return 'overview';
     if (requested === 'pending-orders' && !canManageOrders()) return 'overview';
     if (requested === 'account-management' && !canManageAccounts()) return 'overview';
+    if (requested === 'credentials' && !canAccessCredentials()) return 'overview';
     return requested || 'overview';
 }
 
@@ -571,7 +667,7 @@ roleButtons.forEach((button) => {
 function attachStaffLoginHandler() {
     if (!staffForm) return;
 
-    staffForm.addEventListener('submit', function (event) {
+    staffForm.addEventListener('submit', async function (event) {
         if (!staffForm.checkValidity()) {
             staffForm.reportValidity();
             return;
@@ -588,7 +684,7 @@ function attachStaffLoginHandler() {
         const matchedAccount = findStaffAccountByCredentials(email, password);
         const detectedRole = matchedAccount ? matchedAccount.role : role;
 
-        if (!matchedAccount || !allowedRoles.includes(detectedRole) || !isValidStaffLogin(detectedRole, email, password)) {
+        if (!matchedAccount || !allowedRoles.includes(detectedRole)) {
             setAuthButtonsVisible(false);
             if (modalTitle) {
                 modalTitle.textContent = 'Invalid credentials';
@@ -598,6 +694,33 @@ function attachStaffLoginHandler() {
 
         if (selectedRoleInput) {
             selectedRoleInput.value = detectedRole;
+        }
+
+        if ((detectedRole === 'Cashier' || detectedRole === 'Inventory Manager') && matchedAccount && !matchedAccount.inviteConfirmed) {
+            const inviteCode = typeof window !== 'undefined' ? window.prompt('Enter the invite verification code sent to your Gmail:') : '';
+            if (!inviteCode) {
+                if (modalTitle) {
+                    modalTitle.textContent = 'Invite confirmation required';
+                }
+                return;
+            }
+
+            try {
+                await confirmStaffInviteCode(email, detectedRole, inviteCode);
+            } catch (error) {
+                if (modalTitle) {
+                    modalTitle.textContent = error.message || 'Invite verification failed';
+                }
+                return;
+            }
+        }
+
+        if (!isValidStaffLogin(detectedRole, email, password)) {
+            setAuthButtonsVisible(false);
+            if (modalTitle) {
+                modalTitle.textContent = 'Invalid credentials';
+            }
+            return;
         }
 
         if (remember) {
@@ -640,6 +763,8 @@ function attachStaffLoginHandler() {
         }
         // Ensure dashboard panel is closed (main content visible)
         setDashboardPanelState(false);
+
+        void notifyStaffSessionEvent('login', detectedRole, email.toLowerCase());
     });
 }
 
@@ -654,6 +779,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
+        const actorRole = selectedRoleInput ? selectedRoleInput.value.trim() : '';
+        const actorEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
+        void notifyStaffSessionEvent('logout', actorRole, actorEmail);
+
         if (selectedRoleInput) {
             selectedRoleInput.value = '';
         }
@@ -693,6 +822,9 @@ if (logoutBtn) {
         if (accountManagementSection) {
             accountManagementSection.hidden = true;
         }
+        if (credentialsSection) {
+            credentialsSection.hidden = true;
+        }
 
         updateAccountManagementAccess();
         setAuthButtonsVisible(false);
@@ -719,14 +851,24 @@ if (closePanelBtn) {
 }
 
 const accountManagementLink = document.getElementById('accountManagementLink');
+const credentialsLink = document.getElementById('credentialsLink');
 const logsLink = document.getElementById('logsLink');
 const accountManagementSection = document.getElementById('account-management');
+const credentialsSection = document.getElementById('credentials');
 const accountForm = document.getElementById('accountForm');
 const accountList = document.getElementById('accountList');
 const accountNameInput = document.getElementById('accountName');
 const accountRoleInput = document.getElementById('accountRole');
 const accountEmailInput = document.getElementById('accountEmail');
 const accountPasswordInput = document.getElementById('accountPassword');
+const credentialsForm = document.getElementById('credentialsForm');
+const adminCurrentEmailInput = document.getElementById('adminCurrentEmail');
+const adminCurrentPasswordInput = document.getElementById('adminCurrentPassword');
+const adminNewEmailInput = document.getElementById('adminNewEmail');
+const adminNewPasswordInput = document.getElementById('adminNewPassword');
+const adminChangeCodeInput = document.getElementById('adminChangeCode');
+const requestCredentialsChangeBtn = document.getElementById('requestCredentialsChangeBtn');
+const credentialsMessage = document.getElementById('credentialsMessage');
 let accountEditIndex = null;
 
 function renderAccounts() {
@@ -734,13 +876,18 @@ function renderAccounts() {
 
     accountList.innerHTML = '';
 
-    accounts.forEach((account, index) => {
+    const managedAccounts = accounts
+        .map((account, index) => ({ ...account, _index: index }))
+        .filter((account) => account.role !== 'Admin');
+
+    managedAccounts.forEach((account) => {
         const item = document.createElement('li');
+        const inviteLabel = account.inviteConfirmed ? 'Confirmed' : 'Pending Email Confirmation';
         item.innerHTML = `
-            <span>${account.name} — ${account.role} — ${account.email}</span>
+            <span>${account.name} — ${account.role} — ${account.email} — ${inviteLabel}</span>
             <div>
-                <button type="button" class="edit-btn" data-index="${index}">Edit</button>
-                <button type="button" class="delete-btn" data-index="${index}">Delete</button>
+                <button type="button" class="edit-btn" data-index="${account._index}">Edit</button>
+                <button type="button" class="delete-btn" data-index="${account._index}">Delete</button>
             </div>
         `;
         accountList.appendChild(item);
@@ -752,6 +899,128 @@ function resetAccountForm() {
         accountForm.reset();
     }
     accountEditIndex = null;
+}
+
+function setCredentialsMessage(message, isError = false) {
+    if (!credentialsMessage) return;
+    credentialsMessage.textContent = message || '';
+    credentialsMessage.style.color = isError ? '#b00020' : '#0b6b2f';
+}
+
+async function loadAdminCredentials() {
+    if (!adminCurrentEmailInput) return;
+    try {
+        const response = await fetch(getApiUrl(`api/get_admin_credentials.php?_=${Date.now()}`), { cache: 'no-store' });
+        if (!response.ok) return;
+        const payload = await response.json();
+        if (!payload || payload.success !== true || !payload.credentials) return;
+        adminCurrentEmailInput.value = payload.credentials.email || '';
+    } catch (error) {
+        console.error('Unable to load admin credentials', error);
+    }
+}
+
+async function requestAdminCredentialsChange() {
+    if (!adminCurrentEmailInput || !adminCurrentPasswordInput || !adminNewEmailInput || !adminNewPasswordInput) return;
+
+    const currentEmail = adminCurrentEmailInput.value.trim().toLowerCase();
+    const currentPassword = adminCurrentPasswordInput.value;
+    const nextEmail = adminNewEmailInput.value.trim().toLowerCase();
+    const nextPassword = adminNewPasswordInput.value;
+
+    if (!currentEmail || !currentPassword || !nextEmail || !nextPassword) {
+        setCredentialsMessage('Please complete all credentials fields.', true);
+        return;
+    }
+    if (!isGmailAddress(nextEmail)) {
+        setCredentialsMessage('Admin email must be a Gmail address.', true);
+        return;
+    }
+
+    try {
+        const response = await fetch(getApiUrl('api/request_admin_credentials_change.php'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                currentEmail,
+                currentPassword,
+                newEmail: nextEmail,
+                newPassword: nextPassword
+            }),
+            cache: 'no-store'
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || `Unable to request verification code (HTTP ${response.status})`);
+        }
+
+        setCredentialsMessage('Verification code sent to current admin email. Enter code to apply changes.');
+    } catch (error) {
+        setCredentialsMessage(error.message || 'Unable to send verification code.', true);
+    }
+}
+
+async function confirmAdminCredentialsChange(event) {
+    if (event && event.preventDefault) event.preventDefault();
+    if (!adminCurrentEmailInput || !adminCurrentPasswordInput || !adminChangeCodeInput) return;
+
+    const currentEmail = adminCurrentEmailInput.value.trim().toLowerCase();
+    const currentPassword = adminCurrentPasswordInput.value;
+    const code = adminChangeCodeInput.value.trim();
+    if (!currentEmail || !currentPassword || !code) {
+        setCredentialsMessage('Current email, current password, and verification code are required.', true);
+        return;
+    }
+
+    try {
+        const response = await fetch(getApiUrl('api/confirm_admin_credentials_change.php'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ currentEmail, currentPassword, code }),
+            cache: 'no-store'
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || `Unable to apply credentials change (HTTP ${response.status})`);
+        }
+
+        if (Array.isArray(payload.accounts)) {
+            applyStaffAccountsSnapshot(payload.accounts);
+            renderAccounts();
+        }
+
+        if (selectedRoleInput && selectedRoleInput.value === 'Admin') {
+            const nextAdmin = accounts.find((account) => account.role === 'Admin');
+            if (nextAdmin) {
+                if (emailInput) emailInput.value = nextAdmin.email;
+                if (passwordInput) passwordInput.value = nextAdmin.password;
+                saveStaffSession('Admin', nextAdmin.email, nextAdmin.password, rememberCheckbox ? rememberCheckbox.checked : false);
+                if (rememberCheckbox && rememberCheckbox.checked) {
+                    saveCredentialsForRole('Admin', nextAdmin.email, nextAdmin.password);
+                }
+                updateDashboardProfile();
+            }
+        }
+
+        await loadAdminCredentials();
+
+        if (credentialsForm) {
+            credentialsForm.reset();
+        }
+        if (adminCurrentEmailInput) {
+            const admin = accounts.find((account) => account.role === 'Admin');
+            adminCurrentEmailInput.value = admin ? admin.email : currentEmail;
+        }
+        setCredentialsMessage('Admin credentials updated successfully.');
+    } catch (error) {
+        setCredentialsMessage(error.message || 'Unable to verify code.', true);
+    }
 }
 
 if (accountManagementLink && accountManagementSection) {
@@ -769,6 +1038,17 @@ if (accountManagementLink && accountManagementSection) {
     });
 }
 
+if (credentialsLink && credentialsSection) {
+    credentialsLink.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (!canAccessCredentials()) {
+            return;
+        }
+        showDashboardSection(credentialsSection);
+        void loadAdminCredentials();
+    });
+}
+
 function updateAccountManagementAccess() {
     const setLinkState = (link, isAllowed) => {
         if (!link) return;
@@ -780,12 +1060,13 @@ function updateAccountManagementAccess() {
     setLinkState(inventoryLink, canAccessInventory());
     setLinkState(logsLink, canAccessLogs());
     setLinkState(accountManagementLink, canManageAccounts());
+    setLinkState(credentialsLink, canAccessCredentials());
 
     if (!document.body.classList.contains('auth')) {
         return;
     }
 
-    const activeSection = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection]
+    const activeSection = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, credentialsSection]
         .find((section) => section && section.hidden === false);
     if (!activeSection) return;
 
@@ -1444,7 +1725,7 @@ salesTabBtns.forEach((btn) => {
 });
 
 if (accountForm) {
-    accountForm.addEventListener('submit', (event) => {
+    accountForm.addEventListener('submit', async (event) => {
         event.preventDefault();
 
         if (!document.body.classList.contains('auth') || !(selectedRoleInput && selectedRoleInput.value === 'Admin')) {
@@ -1456,14 +1737,38 @@ if (accountForm) {
             name: accountNameInput ? accountNameInput.value.trim() : '',
             role: accountRoleInput ? accountRoleInput.value : '',
             email: accountEmailInput ? accountEmailInput.value.trim().toLowerCase() : '',
-            password: accountPasswordInput ? accountPasswordInput.value : ''
+            password: accountPasswordInput ? accountPasswordInput.value : '',
+            inviteConfirmed: false
         };
 
         if (!account.name || !account.role || !account.email || !account.password) {
             return;
         }
 
+        if (account.role !== 'Cashier' && account.role !== 'Inventory Manager') {
+            alert('Only Cashier and Inventory Manager accounts can be managed here.');
+            return;
+        }
+
+        if (!isGmailAddress(account.email)) {
+            alert('Only Gmail addresses are allowed for cashier/inventory accounts.');
+            return;
+        }
+
+        const duplicateIndex = accounts.findIndex((entry, idx) => idx !== accountEditIndex && (entry.email || '').toLowerCase() === account.email);
+        if (duplicateIndex >= 0) {
+            alert('This email is already registered.');
+            return;
+        }
+
         const previousAccount = accountEditIndex !== null ? accounts[accountEditIndex] : null;
+
+        try {
+            await sendStaffInviteEmail(account);
+        } catch (error) {
+            alert(error.message || 'Unable to send invite email.');
+            return;
+        }
 
         if (accountEditIndex !== null) {
             accounts[accountEditIndex] = account;
@@ -1472,6 +1777,7 @@ if (accountForm) {
                 previous_role: previousAccount ? previousAccount.role : null,
                 previous_email: previousAccount ? previousAccount.email : null,
                 password_changed: previousAccount ? previousAccount.password !== account.password : false,
+                invite_confirmation_reset: true,
                 next_name: account.name,
                 next_role: account.role,
                 next_email: account.email
@@ -1480,7 +1786,8 @@ if (accountForm) {
             accounts.push(account);
             void logStaffActivity('account_created', `${account.name} (${account.role})`, {
                 email: account.email,
-                role: account.role
+                role: account.role,
+                invite_confirmation_required: true
             });
         }
         void loadOrderLogsFromServer(true);
@@ -1504,6 +1811,7 @@ if (accountForm) {
 
         renderAccounts();
         resetAccountForm();
+        alert('Invite email sent. The staff account can login after confirming the email verification code.');
     });
 }
 
@@ -1515,6 +1823,10 @@ if (accountList) {
         const index = Number(button.dataset.index);
         if (button.classList.contains('delete-btn')) {
             const removedAccount = accounts[index];
+            if (removedAccount && removedAccount.role === 'Admin') {
+                alert('Admin account is managed through Credentials only.');
+                return;
+            }
             accounts.splice(index, 1);
             window.motasteStaffAccounts = accounts;
             saveStaffAccountsToServer();
@@ -1551,6 +1863,10 @@ if (accountList) {
         if (button.classList.contains('edit-btn')) {
             const selectedAccount = accounts[index];
             if (selectedAccount) {
+                if (selectedAccount.role === 'Admin') {
+                    alert('Admin account is managed through Credentials only.');
+                    return;
+                }
                 accountEditIndex = index;
                 if (accountNameInput) accountNameInput.value = selectedAccount.name;
                 if (accountRoleInput) accountRoleInput.value = selectedAccount.role;
@@ -1561,10 +1877,45 @@ if (accountList) {
     });
 }
 
+if (requestCredentialsChangeBtn) {
+    requestCredentialsChangeBtn.addEventListener('click', () => {
+        if (!canAccessCredentials()) {
+            setCredentialsMessage('Only admin can change credentials.', true);
+            return;
+        }
+        void requestAdminCredentialsChange();
+    });
+}
+
+if (credentialsForm) {
+    credentialsForm.addEventListener('submit', (event) => {
+        if (!canAccessCredentials()) {
+            event.preventDefault();
+            setCredentialsMessage('Only admin can change credentials.', true);
+            return;
+        }
+        void confirmAdminCredentialsChange(event);
+    });
+}
+
+const socialLoginButtons = document.querySelectorAll('.social-login-btn');
+if (socialLoginButtons && socialLoginButtons.length) {
+    socialLoginButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            const provider = (button.dataset.provider || '').trim();
+            const label = provider ? provider.charAt(0).toUpperCase() + provider.slice(1) : 'Social';
+            if (typeof window !== 'undefined' && window.alert) {
+                window.alert(`${label} login option is shown. Complete OAuth app keys/server callback setup before enabling live sign-in.`);
+            }
+        });
+    });
+}
+
 loadStaffAccountsFromStorage();
 renderAccounts();
 if (isStaffPage) {
     void loadStaffAccountsFromServer();
+    void loadAdminCredentials();
     startStaffAccountsRefresh();
     void loadOrderLogsFromServer();
     startOrderLogsRefresh();
@@ -3897,7 +4248,7 @@ function renderOverviewAnalytics() {
 function showDashboardSection(section) {
     setInventoryModalVisible(false);
 
-    const sections = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection];
+    const sections = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, credentialsSection];
     sections.forEach((el) => {
         if (!el) return;
         el.hidden = el !== section;
@@ -4622,6 +4973,12 @@ if (dashboardPanel) {
                 return;
             }
             showDashboardSection(accountManagementSection);
+        } else if (href === '#credentials') {
+            if (!canAccessCredentials()) {
+                return;
+            }
+            showDashboardSection(credentialsSection);
+            void loadAdminCredentials();
         }
 
         setDashboardPanelState(false);

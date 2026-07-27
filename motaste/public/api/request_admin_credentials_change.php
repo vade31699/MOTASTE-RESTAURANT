@@ -1,0 +1,80 @@
+<?php
+header('Content-Type: application/json');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+
+require __DIR__ . '/../../vendor/autoload.php';
+
+$app = require_once __DIR__ . '/../../bootstrap/app.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
+use Illuminate\Support\Facades\DB;
+
+require_once __DIR__ . '/_email_auth_helpers.php';
+
+$input = json_decode(file_get_contents('php://input'), true);
+$currentEmail = strtolower(trim((string)($input['currentEmail'] ?? '')));
+$currentPassword = (string)($input['currentPassword'] ?? '');
+$newEmail = strtolower(trim((string)($input['newEmail'] ?? '')));
+$newPassword = (string)($input['newPassword'] ?? '');
+
+if ($currentEmail === '' || $currentPassword === '' || $newEmail === '' || $newPassword === '') {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'All fields are required']);
+    exit;
+}
+
+if (!preg_match('/@gmail\.com$/', $newEmail)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Admin email must be a Gmail address']);
+    exit;
+}
+
+try {
+    $accounts = loadStaffAccountsSnapshot();
+    $admin = getAdminAccount($accounts);
+
+    if (!$admin || strtolower((string)$admin['email']) !== $currentEmail || (string)$admin['password'] !== $currentPassword) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Current admin credentials are invalid']);
+        exit;
+    }
+
+    ensureAdminCredentialChangeTokensTable();
+
+    $code = generateVerificationCode(6);
+    $codeHash = hash('sha256', $code);
+    $expiresAt = now()->addMinutes(10);
+
+    DB::table('admin_credential_change_tokens')
+        ->where('current_email', $currentEmail)
+        ->delete();
+
+    DB::table('admin_credential_change_tokens')->insert([
+        'current_email' => $currentEmail,
+        'code_hash' => $codeHash,
+        'pending_email' => $newEmail,
+        'pending_password' => $newPassword,
+        'expires_at' => $expiresAt,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $emailBody = "MOTASTE admin credentials change request\n\n" .
+        "Verification code: {$code}\n" .
+        "Expires: " . $expiresAt->toDateTimeString() . "\n\n" .
+        "If this was not requested by you, ignore this message immediately.";
+
+    $emailResult = sendSystemEmail($currentEmail, 'MOTASTE Admin Credentials Verification Code', $emailBody);
+    if (!$emailResult['success']) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Unable to send verification email', 'details' => $emailResult['error'] ?? 'Unknown mail error']);
+        exit;
+    }
+
+    echo json_encode(['success' => true]);
+} catch (Throwable $error) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Unable to request credentials change', 'details' => $error->getMessage()]);
+}

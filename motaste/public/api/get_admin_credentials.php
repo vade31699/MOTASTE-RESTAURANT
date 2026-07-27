@@ -9,19 +9,26 @@ require __DIR__ . '/../../vendor/autoload.php';
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
-use Illuminate\Support\Facades\DB;
-
 require_once __DIR__ . '/_email_auth_helpers.php';
 
 try {
     $accounts = loadStaffAccountsSnapshot();
     saveStaffAccountsSnapshot($accounts);
 
+    $admin = getAdminAccount($accounts);
+    if (!$admin) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Admin account is missing']);
+        exit;
+    }
+
     echo json_encode([
         'success' => true,
-        'accounts' => $accounts,
+        'credentials' => [
+            'email' => $admin['email'],
+        ],
     ]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to load staff accounts', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Unable to load admin credentials', 'details' => $error->getMessage()]);
 }

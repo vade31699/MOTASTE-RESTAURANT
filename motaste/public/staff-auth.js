@@ -1,12 +1,6 @@
 const staffCredentials = {
     Admin: [
-        { email: 'admin@motaste.com', password: 'admin123' }
-    ],
-    Cashier: [
-        { email: 'cashier@motaste.com', password: 'cashier123' }
-    ],
-    'Inventory Manager': [
-        { email: 'inventory@motaste.com', password: 'inventory123' }
+        { email: 'vadevidad31699@gmail.com', password: 'admin123' }
     ]
 };
 
