@@ -1532,6 +1532,7 @@ const inventoryCategoryInput = document.getElementById('inventoryCategoryInput')
 const inventoryPriceInput = document.getElementById('inventoryPriceInput');
 const inventoryStockInput = document.getElementById('inventoryStockInput');
 const inventoryStatusInput = document.getElementById('inventoryStatusInput');
+const inventoryDescriptionInput = document.getElementById('inventoryDescriptionInput');
 const specialFoodImageField = document.getElementById('specialFoodImageField');
 const specialFoodImageInput = document.getElementById('specialFoodImageInput');
 const specialFoodImagePreviewWrap = document.getElementById('specialFoodImagePreviewWrap');
@@ -4584,6 +4585,7 @@ async function saveInventoryItem(event) {
     const price = Number(inventoryPriceInput.value);
     const stock = Number(inventoryStockInput.value);
     const category = inventoryCategoryInput.value || 'specials';
+    const description = inventoryDescriptionInput ? inventoryDescriptionInput.value.trim() : '';
     const status = stock <= 0 ? 'Out of stock' : inventoryStatusInput.value;
     const specialImage = category === 'specials' ? selectedSpecialFoodImageData : '';
 
@@ -4598,6 +4600,7 @@ async function saveInventoryItem(event) {
         existingItem.stock = stock;
         existingItem.status = status;
         existingItem.category = category;
+        existingItem.description = description;
         saveMenuCatalogItem({ ...existingItem, image: specialImage || existingItem.image || '' });
     } else {
         inventoryData.push({
@@ -4605,9 +4608,10 @@ async function saveInventoryItem(event) {
             price,
             stock,
             status,
-            category
+            category,
+            description
         });
-        saveMenuCatalogItem({ name, price, stock, status, category, image: specialImage || '' });
+        saveMenuCatalogItem({ name, price, stock, status, category, description, image: specialImage || '' });
     }
 
     inventoryEditItemName = null;
@@ -4631,6 +4635,7 @@ async function saveInventoryItem(event) {
                 stock,
                 status,
                 category,
+                description,
                 actorRole: actor.role,
                 actorEmail: actor.email
             })
@@ -4718,6 +4723,7 @@ async function commitInlineInventoryEdit(card) {
         stock: previousItem.stock,
         status: previousItem.status,
         category: previousItem.category,
+        description: previousItem.description || ''
     };
 
     previousItem.name = nextName;
@@ -4744,6 +4750,7 @@ async function commitInlineInventoryEdit(card) {
                 stock,
                 status,
                 category,
+                description: previousItem.description || '',
                 actorRole: actor.role,
                 actorEmail: actor.email
             })

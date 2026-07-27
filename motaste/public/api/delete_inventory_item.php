@@ -27,6 +27,22 @@ function ensureOrderLogsTable(): void
     )");
 }
 
+function ensureInventoryTable(): void
+{
+    DB::statement("CREATE TABLE IF NOT EXISTS inventory_items (
+        id BIGSERIAL PRIMARY KEY,
+        name VARCHAR(191) NOT NULL UNIQUE,
+        price DECIMAL(10, 2) NOT NULL DEFAULT 0,
+        stock INT NOT NULL DEFAULT 0,
+        status VARCHAR(100) NOT NULL DEFAULT 'In stock',
+        category VARCHAR(100) NOT NULL DEFAULT 'specials',
+        description TEXT,
+        is_addon BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMP NULL,
+        updated_at TIMESTAMP NULL
+    )");
+}
+
 function normalizeItemName(string $name): string
 {
     return strtolower(trim((string)preg_replace('/\s+/', ' ', $name)));
@@ -118,6 +134,7 @@ if ($name === '') {
 
 try {
     ensureOrderLogsTable();
+    ensureInventoryTable();
 
     $normalizedName = normalizeItemName($name);
 
