@@ -30,8 +30,6 @@ $previousName = isset($input['previousName']) ? trim((string)$input['previousNam
 $price = isset($input['price']) ? (float)$input['price'] : 0;
 $stock = isset($input['stock']) ? (int)$input['stock'] : 0;
 $category = isset($input['category']) ? trim($input['category']) : 'specials';
-$description = isset($input['description']) ? trim((string)$input['description']) : '';
-$isAddon = isset($input['isAddon']) ? (bool)$input['isAddon'] : false;
 $status = isset($input['status']) ? trim($input['status']) : ($stock > 0 ? 'In stock' : 'Out of stock');
 $actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
 $actorEmail = trim((string)($input['actorEmail'] ?? ''));
@@ -73,7 +71,7 @@ try {
             ->first();
     }
 
-    DB::transaction(function () use ($normalizedLookup, $normalizedPrevious, $canonicalName, $price, $stock, $normalizedStatus, $category, $description, $isAddon) {
+    DB::transaction(function () use ($normalizedLookup, $normalizedPrevious, $canonicalName, $price, $stock, $normalizedStatus, $category) {
         $deleteQuery = DB::table('inventory_items')
             ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedLookup]);
 
@@ -89,8 +87,6 @@ try {
             'stock' => $stock,
             'status' => $normalizedStatus,
             'category' => $category,
-            'description' => $description,
-            'is_addon' => $isAddon,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -115,8 +111,6 @@ try {
             'price' => $price,
             'category' => $category,
             'status' => $normalizedStatus,
-            'description' => $description,
-            'is_addon' => $isAddon,
             'previous_name' => $existingBefore ? $existingBefore->name : null,
             'previous_stock' => $existingBefore ? (int)($existingBefore->stock ?? 0) : null,
             'updated_at' => now()->toDateTimeString(),

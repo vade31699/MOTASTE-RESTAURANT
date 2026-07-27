@@ -8,34 +8,13 @@ if (!$input) {
     exit;
 }
 
-// Load Laravel environment variables
-$envFile = __DIR__ . '/../../.env';
-if (!file_exists($envFile)) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Configuration not found']);
-    exit;
-}
+$host = '127.0.0.1';
+$db = 'motaste_db';
+$user = 'root';
+$pass = '';
 
-$env = [];
-foreach (file($envFile) as $line) {
-    $line = trim($line);
-    if (empty($line) || strpos($line, '#') === 0) continue;
-    [$key, $value] = array_pad(explode('=', $line, 2), 2, '');
-    $env[trim($key)] = trim($value);
-}
-
-// Map Laravel PostgreSQL config to connection
-$host = $env['DB_HOST'] ?? '127.0.0.1';
-$port = $env['DB_PORT'] ?? 5432;
-$db = $env['DB_DATABASE'] ?? 'motaste_db';
-$user = $env['DB_USERNAME'] ?? 'root';
-$pass = $env['DB_PASSWORD'] ?? '';
-
-try {
-    $dsn = "pgsql:host={$host};port={$port};dbname={$db}";
-    $pdo = new PDO($dsn, $user, $pass);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
+$mysqli = new mysqli($host, $user, $pass, $db);
+if ($mysqli->connect_error) {
     http_response_code(500);
     echo json_encode(['error' => 'DB connect failed']);
     exit;
@@ -56,20 +35,26 @@ if (!$name || !$role || !$email || !$password) {
 
 $hash = password_hash($password, PASSWORD_DEFAULT);
 
-try {
-    if ($id > 0) {
-        $stmt = $pdo->prepare('UPDATE staff SET full_name = ?, role = ?, email = ?, password_hash = ?, updated_at = NOW() WHERE id = ?');
-        $stmt->execute([$name, $role, $email, $hash, $id]);
-    } else {
-        $lookupEmail = $currentEmail ?: $email;
-        $stmt = $pdo->prepare('UPDATE staff SET full_name = ?, role = ?, email = ?, password_hash = ?, updated_at = NOW() WHERE email = ?');
-        $stmt->execute([$name, $role, $email, $hash, $lookupEmail]);
-    }
-    
-    $affected = $stmt->rowCount();
-    echo json_encode(['success' => true, 'updated' => $affected]);
-} catch (PDOException $e) {
+if ($id > 0) {
+    $stmt = $mysqli->prepare('UPDATE staff SET full_name = ?, role = ?, email = ?, password_hash = ?, updated_at = NOW() WHERE id = ?');
+    $stmt->bind_param('ssssi', $name, $role, $email, $hash, $id);
+} else {
+    $lookupEmail = $currentEmail ?: $email;
+    $stmt = $mysqli->prepare('UPDATE staff SET full_name = ?, role = ?, email = ?, password_hash = ?, updated_at = NOW() WHERE email = ?');
+    $stmt->bind_param('sssss', $name, $role, $email, $hash, $lookupEmail);
+}
+
+$ok = $stmt->execute();
+if (!$ok) {
     http_response_code(500);
-    echo json_encode(['error' => 'Update failed', 'msg' => $e->getMessage()]);
+    echo json_encode(['error' => 'Update failed', 'msg' => $stmt->error]);
+    $stmt->close();
+    $mysqli->close();
     exit;
 }
+
+$affected = $stmt->affected_rows;
+$stmt->close();
+$mysqli->close();
+
+echo json_encode(['success' => true, 'updated' => $affected]);
