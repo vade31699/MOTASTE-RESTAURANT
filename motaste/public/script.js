@@ -328,7 +328,8 @@ async function sendStaffInviteEmail(account) {
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || !payload.success) {
-        throw new Error(payload.error || `Unable to send invite email (HTTP ${response.status})`);
+        const detail = payload.details ? ` (${payload.details})` : '';
+        throw new Error((payload.error || `Unable to send invite email (HTTP ${response.status})`) + detail);
     }
 
     return payload;
@@ -1017,7 +1018,8 @@ async function requestAdminCredentialsChange() {
 
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload.success) {
-            throw new Error(payload.error || `Unable to request verification code (HTTP ${response.status})`);
+            const detail = payload.details ? ` (${payload.details})` : '';
+            throw new Error((payload.error || `Unable to request verification code (HTTP ${response.status})`) + detail);
         }
 
         if (payload.delivered === false) {
