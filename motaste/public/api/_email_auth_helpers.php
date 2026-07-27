@@ -162,12 +162,45 @@ function sendSystemEmail(string $to, string $subject, string $body): array
     $smtpPass = (string)config('mail.mailers.smtp.password', '');
     $smtpScheme = trim((string)config('mail.mailers.smtp.scheme', ''));
 
-    if ($smtpHost === '' || $smtpPort === '' || $smtpUser === '' || $smtpPass === '') {
+    // Cloud envs can lag behind config cache; pull direct env values when config is empty.
+    if ($smtpHost === '') {
+        $smtpHost = trim((string)(env('MAIL_HOST') ?: (getenv('MAIL_HOST') ?: '')));
+    }
+    if ($smtpPort === '') {
+        $smtpPort = (string)(env('MAIL_PORT') ?: (getenv('MAIL_PORT') ?: ''));
+    }
+    if ($smtpUser === '') {
+        $smtpUser = trim((string)(env('MAIL_USERNAME') ?: (getenv('MAIL_USERNAME') ?: '')));
+    }
+    if ($smtpPass === '') {
+        $smtpPass = (string)(env('MAIL_PASSWORD') ?: (getenv('MAIL_PASSWORD') ?: ''));
+    }
+    if ($smtpScheme === '') {
+        $smtpScheme = trim((string)(env('MAIL_SCHEME') ?: (getenv('MAIL_SCHEME') ?: '')));
+    }
+
+    config([
+        'mail.mailers.smtp.host' => $smtpHost,
+        'mail.mailers.smtp.port' => $smtpPort,
+        'mail.mailers.smtp.username' => $smtpUser,
+        'mail.mailers.smtp.password' => $smtpPass,
+    ]);
+    if ($smtpScheme !== '') {
+        config(['mail.mailers.smtp.scheme' => $smtpScheme]);
+    }
+
+    $missing = [];
+    if ($smtpHost === '') $missing[] = 'MAIL_HOST';
+    if ($smtpPort === '') $missing[] = 'MAIL_PORT';
+    if ($smtpUser === '') $missing[] = 'MAIL_USERNAME';
+    if ($smtpPass === '') $missing[] = 'MAIL_PASSWORD';
+
+    if ($missing) {
         return [
             'success' => false,
             'driver' => 'smtp',
             'delivered' => false,
-            'error' => 'SMTP configuration is incomplete in deployment environment.',
+            'error' => 'SMTP configuration is incomplete in deployment environment. Missing: ' . implode(', ', $missing),
         ];
     }
 
