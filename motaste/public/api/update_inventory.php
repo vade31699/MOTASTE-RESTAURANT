@@ -36,7 +36,6 @@ function ensureInventoryTable(): void
         status VARCHAR(100) NOT NULL DEFAULT 'In stock',
         category VARCHAR(100) NOT NULL DEFAULT 'specials',
         description TEXT,
-        image LONGTEXT,
         is_addon BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMP NULL,
         updated_at TIMESTAMP NULL
@@ -45,12 +44,6 @@ function ensureInventoryTable(): void
     // Add missing columns if they don't exist (PostgreSQL syntax)
     try {
         DB::statement("ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS description TEXT");
-    } catch (Throwable $e) {
-        // Column already exists, safe to ignore
-    }
-    
-    try {
-        DB::statement("ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS image LONGTEXT");
     } catch (Throwable $e) {
         // Column already exists, safe to ignore
     }
@@ -69,7 +62,6 @@ $price = isset($input['price']) ? (float)$input['price'] : 0;
 $stock = isset($input['stock']) ? (int)$input['stock'] : 0;
 $category = isset($input['category']) ? trim($input['category']) : 'specials';
 $description = isset($input['description']) ? trim((string)$input['description']) : '';
-$image = isset($input['image']) ? trim((string)$input['image']) : '';
 $isAddon = isset($input['isAddon']) ? (bool)$input['isAddon'] : false;
 $status = isset($input['status']) ? trim($input['status']) : ($stock > 0 ? 'In stock' : 'Out of stock');
 $actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
@@ -113,7 +105,7 @@ try {
             ->first();
     }
 
-    DB::transaction(function () use ($normalizedLookup, $normalizedPrevious, $canonicalName, $price, $stock, $normalizedStatus, $category, $description, $image, $isAddon, $existingBefore) {
+    DB::transaction(function () use ($normalizedLookup, $normalizedPrevious, $canonicalName, $price, $stock, $normalizedStatus, $category, $description, $isAddon, $existingBefore) {
         if ($existingBefore) {
             // Update existing item
             DB::table('inventory_items')
@@ -125,7 +117,6 @@ try {
                     'status' => $normalizedStatus,
                     'category' => $category,
                     'description' => $description,
-                    'image' => $image ?: $existingBefore->image,
                     'is_addon' => $isAddon,
                     'updated_at' => Carbon::now(),
                 ]);
@@ -149,7 +140,6 @@ try {
                 'status' => $normalizedStatus,
                 'category' => $category,
                 'description' => $description,
-                'image' => $image,
                 'is_addon' => $isAddon,
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
