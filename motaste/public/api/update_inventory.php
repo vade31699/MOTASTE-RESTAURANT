@@ -7,7 +7,6 @@ $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 function ensureOrderLogsTable(): void
 {
@@ -20,23 +19,6 @@ function ensureOrderLogsTable(): void
         actor_email VARCHAR(191) NULL,
         summary TEXT NULL,
         details TEXT NULL,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
-}
-
-function ensureInventoryTable(): void
-{
-    // Create inventory_items table if it doesn't exist
-    DB::statement("CREATE TABLE IF NOT EXISTS inventory_items (
-        id BIGSERIAL PRIMARY KEY,
-        name VARCHAR(191) NOT NULL UNIQUE,
-        price DECIMAL(10, 2) NOT NULL DEFAULT 0,
-        stock INT NOT NULL DEFAULT 0,
-        status VARCHAR(100) NOT NULL DEFAULT 'In stock',
-        category VARCHAR(100) NOT NULL DEFAULT 'specials',
-        description TEXT,
-        is_addon BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMP NULL,
         updated_at TIMESTAMP NULL
     )");
@@ -74,7 +56,6 @@ $normalizedStatus = $stock > 0 ? ($status === 'Out of stock' ? 'In stock' : $sta
 
 try {
     ensureOrderLogsTable();
-    ensureInventoryTable();
 
     $normalizedLookup = strtolower($canonicalName);
     $normalizedPrevious = strtolower(trim((string)preg_replace('/\s+/', ' ', $previousName)));
@@ -105,7 +86,7 @@ try {
                     'category' => $category,
                     'description' => $description,
                     'is_addon' => $isAddon,
-                    'updated_at' => Carbon::now(),
+                    'updated_at' => now(),
                 ]);
             
             // Delete any other items with the normalized name (in case of duplicates)
@@ -128,8 +109,8 @@ try {
                 'category' => $category,
                 'description' => $description,
                 'is_addon' => $isAddon,
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         }
     });
@@ -159,8 +140,8 @@ try {
             'previous_stock' => $existingBefore ? (int)($existingBefore->stock ?? 0) : null,
             'updated_at' => now()->toDateTimeString(),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-        'created_at' => Carbon::now(),
-        'updated_at' => Carbon::now(),
+        'created_at' => now(),
+        'updated_at' => now(),
     ]);
 
     $itemId = DB::table('inventory_items')

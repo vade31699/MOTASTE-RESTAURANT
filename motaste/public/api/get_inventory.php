@@ -11,24 +11,7 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
 
-function ensureInventoryTable(): void
-{
-    DB::statement("CREATE TABLE IF NOT EXISTS inventory_items (
-        id BIGSERIAL PRIMARY KEY,
-        name VARCHAR(191) NOT NULL UNIQUE,
-        price DECIMAL(10, 2) NOT NULL DEFAULT 0,
-        stock INT NOT NULL DEFAULT 0,
-        status VARCHAR(100) NOT NULL DEFAULT 'In stock',
-        category VARCHAR(100) NOT NULL DEFAULT 'specials',
-        description TEXT,
-        is_addon BOOLEAN NOT NULL DEFAULT FALSE,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
-}
-
 try {
-    ensureInventoryTable();
     DB::table('inventory_items')
         ->whereRaw('LOWER(name) = ?', ['softdrinks'])
         ->delete();
