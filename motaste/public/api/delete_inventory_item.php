@@ -29,6 +29,7 @@ function ensureOrderLogsTable(): void
 
 function ensureInventoryTable(): void
 {
+    // Create inventory_items table if it doesn't exist
     DB::statement("CREATE TABLE IF NOT EXISTS inventory_items (
         id BIGSERIAL PRIMARY KEY,
         name VARCHAR(191) NOT NULL UNIQUE,
@@ -41,6 +42,19 @@ function ensureInventoryTable(): void
         created_at TIMESTAMP NULL,
         updated_at TIMESTAMP NULL
     )");
+    
+    // Add missing columns if they don't exist (PostgreSQL syntax)
+    try {
+        DB::statement("ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS description TEXT");
+    } catch (Throwable $e) {
+        // Column already exists, safe to ignore
+    }
+    
+    try {
+        DB::statement("ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS is_addon BOOLEAN NOT NULL DEFAULT FALSE");
+    } catch (Throwable $e) {
+        // Column already exists, safe to ignore
+    }
 }
 
 function normalizeItemName(string $name): string

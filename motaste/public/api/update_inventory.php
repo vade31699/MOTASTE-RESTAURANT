@@ -40,6 +40,19 @@ function ensureInventoryTable(): void
         created_at TIMESTAMP NULL,
         updated_at TIMESTAMP NULL
     )");
+    
+    // Add missing columns if they don't exist (PostgreSQL syntax)
+    try {
+        DB::statement("ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS description TEXT");
+    } catch (Throwable $e) {
+        // Column already exists, safe to ignore
+    }
+    
+    try {
+        DB::statement("ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS is_addon BOOLEAN NOT NULL DEFAULT FALSE");
+    } catch (Throwable $e) {
+        // Column already exists, safe to ignore
+    }
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
@@ -157,7 +170,7 @@ try {
             'is_addon' => $isAddon,
             'previous_name' => $existingBefore ? $existingBefore->name : null,
             'previous_stock' => $existingBefore ? (int)($existingBefore->stock ?? 0) : null,
-            'updated_at' => now()->toDateTimeString(),
+            'updated_at' => Carbon::now()->toDateTimeString(),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         'created_at' => Carbon::now(),
         'updated_at' => Carbon::now(),
