@@ -1209,6 +1209,10 @@ const menuData = {
             { name: 'Bottled Water', price: '₱30', description: 'Pure bottled water.' },
             { name: 'Softdrinks', price: '₱20', description: 'Cold soda to pair with your meal.' }
         ]
+    },
+    specials: {
+        title: 'SPECIALS',
+        items: []
     }
 };
 
