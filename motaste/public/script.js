@@ -4636,6 +4636,7 @@ async function saveInventoryItem(event) {
                 status,
                 category,
                 description,
+                image: specialImage,
                 actorRole: actor.role,
                 actorEmail: actor.email
             })
@@ -4877,6 +4878,13 @@ function renderSpecialFoods() {
         </article>
     `;
     }).join('');
+
+    // Update special foods count
+    const specialFoodsCount = document.getElementById('specialFoodsCount');
+    if (specialFoodsCount) {
+        const count = specialItems.length;
+        specialFoodsCount.textContent = `${count} item${count !== 1 ? 's' : ''}`;
+    }
 
     syncVisibleMenuItemQuantities();
 }

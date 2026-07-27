@@ -38,6 +38,7 @@ function ensureInventoryTable(): void
         status VARCHAR(100) NOT NULL DEFAULT 'In stock',
         category VARCHAR(100) NOT NULL DEFAULT 'specials',
         description TEXT,
+        image LONGTEXT,
         is_addon BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMP NULL,
         updated_at TIMESTAMP NULL
@@ -46,6 +47,12 @@ function ensureInventoryTable(): void
     // Add missing columns if they don't exist (PostgreSQL syntax)
     try {
         DB::statement("ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS description TEXT");
+    } catch (Throwable $e) {
+        // Column already exists, safe to ignore
+    }
+    
+    try {
+        DB::statement("ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS image LONGTEXT");
     } catch (Throwable $e) {
         // Column already exists, safe to ignore
     }
