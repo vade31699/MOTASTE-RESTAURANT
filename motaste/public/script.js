@@ -2364,7 +2364,6 @@ const singleProductModal = document.getElementById('singleProductModal');
 const singleProductBackBtn = document.getElementById('singleProductBackBtn');
 const singleProductList = document.getElementById('singleProductList');
 const addSingleProductBtn = document.getElementById('addSingleProductBtn');
-const menuAddOnsBtn = document.getElementById('menuAddOnsBtn');
 
 let cartItems = [];
 let pendingOrders = [];
@@ -5773,10 +5772,6 @@ if (productAddOnsList) {
 
 if (addSingleProductBtn) {
     addSingleProductBtn.addEventListener('click', openSingleProductModal);
-}
-
-if (menuAddOnsBtn) {
-    menuAddOnsBtn.addEventListener('click', openSingleProductModal);
 }
 
 if (singleProductBackBtn) {

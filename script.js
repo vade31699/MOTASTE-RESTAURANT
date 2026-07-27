@@ -1201,7 +1201,20 @@ const menuData = {
     }
 };
 
-const specialFoods = [];
+const specialFoods = [
+    { name: 'Special Batchoy', price: 80, image: 'img1.jpg' },
+    { name: 'Tapsilog', price: 90, image: 'img2.jpg' },
+    { name: 'Combo Meal 2', price: 110, image: 'img3.jpg' },
+    { name: 'Overload Breakfast', price: 180, image: 'img4.jpg' },
+    { name: 'Ramen batchoy overload', price: 80, image: 'img1.jpg' },
+    { name: 'sizzling pork chop', price: 90, image: 'img2.jpg' },
+    { name: 'sizzling hungarian', price: 110, image: 'img3.jpg' },
+    { name: 'fried siomai', price: 180, image: 'img4.jpg' },
+    { name: 'pork chops, egg and rice', price: 80, image: 'img1.jpg' },
+    { name: 'tapa, egg and rice', price: 90, image: 'img2.jpg' },
+    { name: 'tocino egg and rice', price: 110, image: 'img3.jpg' },
+    { name: 'pork fried egg and rice', price: 180, image: 'img4.jpg' }
+];
 
 const mobileMenuToggle = document.getElementById('mobileMenuToggle');
 const topNav = document.getElementById('topNav');
@@ -1254,7 +1267,6 @@ const singleProductModal = document.getElementById('singleProductModal');
 const singleProductList = document.getElementById('singleProductList');
 const singleProductBackBtn = document.getElementById('singleProductBackBtn');
 const addSingleProductBtn = document.getElementById('addSingleProductBtn');
-const menuAddOnsBtn = document.getElementById('menuAddOnsBtn');
 const liveClock = document.getElementById('liveClock');
 
 let cartItems = [];
@@ -2848,10 +2860,6 @@ if (menuPlaceOrderBtn) {
 
 if (addSingleProductBtn) {
     addSingleProductBtn.addEventListener('click', openSingleProductModal);
-}
-
-if (menuAddOnsBtn) {
-    menuAddOnsBtn.addEventListener('click', openSingleProductModal);
 }
 
 if (singleProductBackBtn) {
