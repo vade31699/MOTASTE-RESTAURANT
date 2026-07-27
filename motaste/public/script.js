@@ -2330,10 +2330,6 @@ const menuData = {
     drinks: {
         title: 'DRINKS',
         items: []
-    },
-    specials: {
-        title: 'SPECIALS',
-        items: []
     }
 };
 
