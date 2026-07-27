@@ -1020,11 +1020,11 @@ async function requestAdminCredentialsChange() {
             throw new Error(payload.error || `Unable to request verification code (HTTP ${response.status})`);
         }
 
-        if (payload.warning) {
-            setCredentialsMessage(`${payload.warning} Configure SMTP in .env to deliver real Gmail messages.`, true);
-        } else {
-            setCredentialsMessage('Verification code sent to current admin email. Enter code to apply changes.');
+        if (payload.delivered === false) {
+            throw new Error(payload.error || 'Email was not delivered. Check Laravel SMTP settings and try again.');
         }
+
+        setCredentialsMessage('Verification code sent to current admin email. Enter code to apply changes.');
     } catch (error) {
         setCredentialsMessage(error.message || 'Unable to send verification code.', true);
     }
@@ -1893,8 +1893,8 @@ if (accountForm) {
 
         renderAccounts();
         resetAccountForm();
-        if (invitePayload && invitePayload.warning) {
-            alert(`${invitePayload.warning} Configure SMTP in .env to deliver real Gmail messages.`);
+        if (invitePayload && invitePayload.delivered === false) {
+            alert(invitePayload.error || 'Invite email was not delivered. Check Laravel SMTP settings and try again.');
         } else {
             alert('Invite email sent. The staff account can login after confirming the email verification code.');
         }

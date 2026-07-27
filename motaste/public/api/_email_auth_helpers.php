@@ -156,33 +156,18 @@ function sendSystemEmail(string $to, string $subject, string $body): array
     }
 
     try {
-        Mail::raw($body, function ($message) use ($to, $subject): void {
+        // Always send through SMTP to avoid log/array default transports.
+        Mail::mailer('smtp')->raw($body, function ($message) use ($to, $subject): void {
             $message->to($to)->subject($subject);
         });
 
-        $activeMailer = (string)config('mail.default', 'log');
-        if (in_array($activeMailer, ['log', 'array'], true)) {
-            return [
-                'success' => true,
-                'driver' => $activeMailer,
-                'delivered' => false,
-                'warning' => 'Mail driver is set to log/array. Message was recorded locally, not sent to Gmail inbox.'
-            ];
-        }
-
-        return ['success' => true, 'driver' => $activeMailer, 'delivered' => true];
+        return ['success' => true, 'driver' => 'smtp', 'delivered' => true];
     } catch (Throwable $mailError) {
-        $headers = [
-            'MIME-Version: 1.0',
-            'Content-type: text/plain; charset=UTF-8',
-            'From: no-reply@motaste.local',
+        return [
+            'success' => false,
+            'driver' => 'smtp',
+            'delivered' => false,
+            'error' => $mailError->getMessage(),
         ];
-
-        $nativeSent = @mail($to, $subject, $body, implode("\r\n", $headers));
-        if ($nativeSent) {
-            return ['success' => true, 'driver' => 'php-mail', 'delivered' => true];
-        }
-
-        return ['success' => false, 'error' => $mailError->getMessage()];
     }
 }
