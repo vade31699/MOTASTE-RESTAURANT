@@ -36,7 +36,7 @@ function ensureInventoryTable(): void
         status VARCHAR(100) NOT NULL DEFAULT 'In stock',
         category VARCHAR(100) NOT NULL DEFAULT 'specials',
         description TEXT,
-        image LONGTEXT,
+        image TEXT,
         is_addon BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMP NULL,
         updated_at TIMESTAMP NULL
@@ -50,7 +50,7 @@ function ensureInventoryTable(): void
     }
     
     try {
-        DB::statement("ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS image LONGTEXT");
+        DB::statement("ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS image TEXT");
     } catch (Throwable $e) {
         // Column already exists, safe to ignore
     }
