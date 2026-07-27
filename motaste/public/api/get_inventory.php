@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 try {
     DB::table('inventory_items')
-        ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", ['softdrinks'])
+        ->whereRaw('LOWER(name) = ?', ['softdrinks'])
         ->delete();
 
     $rawItems = DB::table('inventory_items')
