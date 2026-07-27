@@ -503,6 +503,8 @@ function restoreStaffSession() {
             renderOverviewInventory();
         } else if (targetSectionId === 'pending-orders') {
             void loadPendingOrdersFromServer();
+            setOrdersTab('walk-in');
+            renderWalkInOrderBuilder();
             renderPendingOrders();
         } else if (targetSectionId === 'sales') {
             updateAnalyticsView();
@@ -1545,6 +1547,18 @@ const inventoryAccessNote = document.getElementById('inventoryAccessNote');
 const ordersLink = document.getElementById('ordersLink');
 const pendingOrdersList = document.getElementById('pendingOrdersList');
 const pendingOrdersSection = document.getElementById('pending-orders');
+const walkInOrdersTabBtn = document.getElementById('walkInOrdersTabBtn');
+const pendingOrdersTabBtn = document.getElementById('pendingOrdersTabBtn');
+const walkInOrderPanel = document.getElementById('walkInOrderPanel');
+const pendingOrdersPanel = document.getElementById('pendingOrdersPanel');
+const walkInItemSelect = document.getElementById('walkInItemSelect');
+const walkInItemQtyInput = document.getElementById('walkInItemQtyInput');
+const walkInAddItemBtn = document.getElementById('walkInAddItemBtn');
+const walkInDraftList = document.getElementById('walkInDraftList');
+const walkInPaymentMethodSelect = document.getElementById('walkInPaymentMethodSelect');
+const walkInOrderTypeSelect = document.getElementById('walkInOrderTypeSelect');
+const walkInPlaceOrderBtn = document.getElementById('walkInPlaceOrderBtn');
+const walkInOrderMessage = document.getElementById('walkInOrderMessage');
 const logsSection = document.getElementById('logs');
 const logsFilterBar = document.getElementById('logsFilterBar');
 const logsList = document.getElementById('logsList');
@@ -2359,6 +2373,8 @@ let orderCompleteScrollLockState = null;
 let orderNotificationAudioElement = null;
 let orderNotificationAudioListenersBound = false;
 let customerInventoryRefreshTimer = null;
+let walkInDraftItems = [];
+let activeOrdersTab = 'walk-in';
 const isCustomerPage = (() => {
     const pathname = window.location.pathname.toLowerCase();
     return pathname.endsWith('/index.html') || pathname === '/' || (!pathname.includes('staff'));
@@ -2775,6 +2791,7 @@ async function loadPendingOrdersFromServer() {
         pendingOrders.sort((a, b) => b.timestamp - a.timestamp);
         savePendingOrders();
         renderPendingOrders();
+        renderWalkInOrderBuilder();
         renderOrderNotifications();
     } catch (error) {
         console.error('Unable to load pending orders from the server', error);
@@ -2959,6 +2976,7 @@ async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
     savePendingOrders();
     saveCompletedOrders();
     renderPendingOrders();
+    renderWalkInOrderBuilder();
     renderOrderNotifications();
     updateAnalyticsView();
     renderOverviewAnalytics();
@@ -3522,6 +3540,7 @@ async function initializeInventoryData(forceRefresh = false) {
     syncMenuPricesWithInventory();
     renderSpecialFoods();
     renderInventoryManagement();
+    renderWalkInOrderBuilder();
     renderOverviewInventory();
     if (currentMenuCategoryId) {
         showMenuCategory(currentMenuCategoryId);
@@ -4684,6 +4703,233 @@ function renderPendingOrders() {
     }).join('');
 }
 
+function setOrdersTab(tabName) {
+    activeOrdersTab = tabName === 'pending' ? 'pending' : 'walk-in';
+
+    if (walkInOrdersTabBtn) {
+        const isActive = activeOrdersTab === 'walk-in';
+        walkInOrdersTabBtn.classList.toggle('active', isActive);
+        walkInOrdersTabBtn.setAttribute('aria-selected', String(isActive));
+    }
+
+    if (pendingOrdersTabBtn) {
+        const isActive = activeOrdersTab === 'pending';
+        pendingOrdersTabBtn.classList.toggle('active', isActive);
+        pendingOrdersTabBtn.setAttribute('aria-selected', String(isActive));
+    }
+
+    if (walkInOrderPanel) {
+        walkInOrderPanel.hidden = activeOrdersTab !== 'walk-in';
+    }
+
+    if (pendingOrdersPanel) {
+        pendingOrdersPanel.hidden = activeOrdersTab !== 'pending';
+    }
+}
+
+function setWalkInOrderMessage(message, isError = false) {
+    if (!walkInOrderMessage) return;
+    walkInOrderMessage.textContent = message || '';
+    walkInOrderMessage.style.color = isError ? '#b00020' : '#0b6b2f';
+}
+
+function getAvailablePendingStockForItem(itemName) {
+    const inventoryItem = getInventoryItem(itemName);
+    if (!inventoryItem) return 0;
+
+    const stock = Math.max(0, Number(inventoryItem.stock) || 0);
+    const reserved = getReservedPendingQuantityForItem(itemName);
+    return Math.max(0, stock - reserved);
+}
+
+function getWalkInDraftTotal() {
+    return walkInDraftItems.reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.quantity) || 0)), 0);
+}
+
+function renderWalkInOrderBuilder() {
+    if (walkInItemSelect) {
+        const previousSelection = walkInItemSelect.value;
+        const availableItems = (inventoryData || [])
+            .filter((item) => getAvailablePendingStockForItem(item.name) > 0)
+            .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+
+        if (!availableItems.length) {
+            walkInItemSelect.innerHTML = '<option value="">No available items</option>';
+            walkInItemSelect.disabled = true;
+        } else {
+            walkInItemSelect.disabled = false;
+            walkInItemSelect.innerHTML = availableItems.map((item) => {
+                const available = getAvailablePendingStockForItem(item.name);
+                return `<option value="${item.name}">${item.name} (${formatCurrency(item.price)} · stock ${available})</option>`;
+            }).join('');
+
+            const stillExists = availableItems.some((item) => item.name === previousSelection);
+            walkInItemSelect.value = stillExists ? previousSelection : availableItems[0].name;
+        }
+    }
+
+    if (!walkInDraftList) return;
+
+    if (!walkInDraftItems.length) {
+        walkInDraftList.innerHTML = '<p class="menu-cart-empty">No walk-in items yet. Add products to build the order.</p>';
+        return;
+    }
+
+    walkInDraftList.innerHTML = `
+        <div class="walkin-draft-items">
+            ${walkInDraftItems.map((item, index) => {
+                const available = getAvailablePendingStockForItem(item.name);
+                const canIncrease = item.quantity < available;
+                const canDecrease = item.quantity > 1;
+
+                return `
+                    <article class="walkin-draft-item-card">
+                        <div>
+                            <strong>${item.name}</strong>
+                            <p>${formatCurrency(item.price)} each</p>
+                        </div>
+                        <div class="walkin-draft-actions">
+                            <button type="button" class="walkin-draft-qty-btn" data-action="decrease" data-index="${index}"${canDecrease ? '' : ' disabled'}>−</button>
+                            <span>${item.quantity}</span>
+                            <button type="button" class="walkin-draft-qty-btn" data-action="increase" data-index="${index}"${canIncrease ? '' : ' disabled'}>+</button>
+                            <button type="button" class="walkin-draft-remove-btn" data-index="${index}">Remove</button>
+                        </div>
+                    </article>
+                `;
+            }).join('')}
+        </div>
+        <p class="walkin-draft-total"><strong>Total:</strong> ${formatCurrency(getWalkInDraftTotal())}</p>
+    `;
+}
+
+function addWalkInDraftItem() {
+    if (!walkInItemSelect || walkInItemSelect.disabled) {
+        setWalkInOrderMessage('No available inventory item for walk-in order.', true);
+        return;
+    }
+
+    const itemName = (walkInItemSelect.value || '').trim();
+    const quantity = Math.max(1, Number(walkInItemQtyInput ? walkInItemQtyInput.value : 1) || 1);
+    const inventoryItem = getInventoryItem(itemName);
+
+    if (!inventoryItem) {
+        setWalkInOrderMessage('Selected inventory item was not found.', true);
+        return;
+    }
+
+    const availableBeforeDraft = getAvailablePendingStockForItem(itemName);
+    const existingIndex = walkInDraftItems.findIndex((item) => normalizeInventoryName(item.name) === normalizeInventoryName(itemName));
+    const currentDraftQty = existingIndex >= 0 ? Number(walkInDraftItems[existingIndex].quantity) || 0 : 0;
+    const maxAddable = Math.max(0, availableBeforeDraft - currentDraftQty);
+
+    if (maxAddable <= 0) {
+        setWalkInOrderMessage(`${itemName} has no remaining stock for new pending orders.`, true);
+        return;
+    }
+
+    const qtyToAdd = Math.min(quantity, maxAddable);
+    if (existingIndex >= 0) {
+        walkInDraftItems[existingIndex].quantity += qtyToAdd;
+    } else {
+        walkInDraftItems.push({
+            name: inventoryItem.name,
+            price: Number(inventoryItem.price) || 0,
+            quantity: qtyToAdd
+        });
+    }
+
+    if (walkInItemQtyInput) {
+        walkInItemQtyInput.value = '1';
+    }
+
+    if (quantity > qtyToAdd) {
+        setWalkInOrderMessage(`Only ${qtyToAdd} item(s) were added due to stock limits.`, true);
+    } else {
+        setWalkInOrderMessage(`${inventoryItem.name} added to walk-in order.`);
+    }
+
+    renderWalkInOrderBuilder();
+}
+
+function adjustWalkInDraftItem(index, direction) {
+    if (index < 0 || index >= walkInDraftItems.length) return;
+    const entry = walkInDraftItems[index];
+    const currentQty = Number(entry.quantity) || 0;
+
+    if (direction === 'decrease') {
+        entry.quantity = Math.max(1, currentQty - 1);
+    } else {
+        const available = getAvailablePendingStockForItem(entry.name);
+        if (currentQty >= available) {
+            setWalkInOrderMessage(`No more available stock for ${entry.name}.`, true);
+            renderWalkInOrderBuilder();
+            return;
+        }
+        entry.quantity = currentQty + 1;
+    }
+
+    renderWalkInOrderBuilder();
+}
+
+function removeWalkInDraftItem(index) {
+    if (index < 0 || index >= walkInDraftItems.length) return;
+    walkInDraftItems.splice(index, 1);
+    renderWalkInOrderBuilder();
+}
+
+async function placeWalkInOrder() {
+    if (!canManageOrders()) {
+        setWalkInOrderMessage('Only cashier/admin can place walk-in orders.', true);
+        return;
+    }
+
+    if (!walkInDraftItems.length) {
+        setWalkInOrderMessage('Add at least one item to create a walk-in order.', true);
+        return;
+    }
+
+    const hasInvalidQty = walkInDraftItems.some((item) => {
+        const available = getAvailablePendingStockForItem(item.name);
+        return (Number(item.quantity) || 0) > available;
+    });
+
+    if (hasInvalidQty) {
+        setWalkInOrderMessage('One or more items exceed available stock. Adjust quantities and try again.', true);
+        renderWalkInOrderBuilder();
+        return;
+    }
+
+    const order = {
+        orderNumber: generateOrderNumber(),
+        id: Date.now(),
+        timestamp: Date.now(),
+        items: walkInDraftItems.map((item) => ({
+            name: item.name,
+            price: Number(item.price) || 0,
+            quantity: Number(item.quantity) || 0
+        })),
+        total: getWalkInDraftTotal(),
+        paymentMethod: walkInPaymentMethodSelect ? walkInPaymentMethodSelect.value || 'Cash' : 'Cash',
+        orderType: walkInOrderTypeSelect ? walkInOrderTypeSelect.value || 'Walk-in Dine In' : 'Walk-in Dine In'
+    };
+
+    const syncedOrder = await submitOrderToServer(order);
+    if (!syncedOrder) {
+        setWalkInOrderMessage('Unable to submit walk-in order. Please try again.', true);
+        return;
+    }
+
+    pendingOrders.unshift(syncedOrder);
+    savePendingOrders();
+    renderPendingOrders();
+    renderOrderNotifications();
+    walkInDraftItems = [];
+    renderWalkInOrderBuilder();
+    setOrdersTab('pending');
+    setWalkInOrderMessage(`Walk-in order #${syncedOrder.orderNumber} created and moved to pending.`);
+    void loadPendingOrdersFromServer();
+}
+
 let selectedPaymentMethod = 'Cash';
 let selectedOrderType = 'Dine In';
 
@@ -5248,6 +5494,8 @@ if (dashboardPanel) {
         } else if (href === '#pending-orders') {
             if (!canManageOrders()) return;
             showDashboardSection(pendingOrdersSection);
+            setOrdersTab('walk-in');
+            renderWalkInOrderBuilder();
             void loadPendingOrdersFromServer();
             renderPendingOrders();
         } else if (href === '#sales') {
@@ -5310,6 +5558,47 @@ if (pendingOrdersList) {
     });
 }
 
+if (walkInOrdersTabBtn) {
+    walkInOrdersTabBtn.addEventListener('click', () => {
+        setOrdersTab('walk-in');
+        renderWalkInOrderBuilder();
+    });
+}
+
+if (pendingOrdersTabBtn) {
+    pendingOrdersTabBtn.addEventListener('click', () => {
+        setOrdersTab('pending');
+        renderPendingOrders();
+    });
+}
+
+if (walkInAddItemBtn) {
+    walkInAddItemBtn.addEventListener('click', addWalkInDraftItem);
+}
+
+if (walkInDraftList) {
+    walkInDraftList.addEventListener('click', (event) => {
+        const qtyButton = event.target.closest('.walkin-draft-qty-btn');
+        if (qtyButton) {
+            const index = Number(qtyButton.dataset.index);
+            const action = qtyButton.dataset.action;
+            adjustWalkInDraftItem(index, action);
+            return;
+        }
+
+        const removeButton = event.target.closest('.walkin-draft-remove-btn');
+        if (!removeButton) return;
+        const index = Number(removeButton.dataset.index);
+        removeWalkInDraftItem(index);
+    });
+}
+
+if (walkInPlaceOrderBtn) {
+    walkInPlaceOrderBtn.addEventListener('click', () => {
+        void placeWalkInOrder();
+    });
+}
+
 function initOrders() {
     void ensureCsrfToken();
     void loadHighlightsFromServer();
@@ -5324,6 +5613,8 @@ function initOrders() {
     recalculateSalesAnalytics();
     renderSpecialFoods();
     updateCartDisplay();
+    renderWalkInOrderBuilder();
+    setOrdersTab('walk-in');
     renderPendingOrders();
     renderOrderNotifications();
     renderOverviewInventory();

@@ -340,9 +340,53 @@
     </section>
 
     <section id="pending-orders" class="orders-section" hidden>
-        <h2>Pending Orders</h2>
-        <p>New customer orders appear here. Mark each order complete when it is ready.</p>
-        <div id="pendingOrdersList" class="pending-orders-list"></div>
+        <h2>Orders</h2>
+        <p>Create walk-in orders here. Every order goes to Pending first, then complete it after cooking to deduct stock.</p>
+
+        <div class="orders-tab-switch" role="tablist" aria-label="Orders tabs">
+            <button type="button" id="walkInOrdersTabBtn" class="orders-tab-btn active" data-orders-tab="walk-in" role="tab" aria-selected="true">Walk-in Order</button>
+            <button type="button" id="pendingOrdersTabBtn" class="orders-tab-btn" data-orders-tab="pending" role="tab" aria-selected="false">Pending Orders</button>
+        </div>
+
+        <div id="walkInOrderPanel" class="walkin-order-panel" role="tabpanel" aria-labelledby="walkInOrdersTabBtn">
+            <div class="walkin-order-builder">
+                <label>
+                    Product
+                    <select id="walkInItemSelect"></select>
+                </label>
+                <label>
+                    Quantity
+                    <input id="walkInItemQtyInput" type="number" min="1" step="1" value="1">
+                </label>
+                <button type="button" id="walkInAddItemBtn" class="menu-place-order-btn">Add Item</button>
+            </div>
+
+            <div id="walkInDraftList" class="walkin-draft-list"></div>
+
+            <div class="walkin-order-footer">
+                <label>
+                    Payment Method
+                    <select id="walkInPaymentMethodSelect">
+                        <option value="Cash">Cash</option>
+                        <option value="GCash">GCash</option>
+                    </select>
+                </label>
+                <label>
+                    Order Type
+                    <select id="walkInOrderTypeSelect">
+                        <option value="Walk-in Dine In">Walk-in Dine In</option>
+                        <option value="Walk-in Take Out">Walk-in Take Out</option>
+                    </select>
+                </label>
+                <button type="button" id="walkInPlaceOrderBtn" class="menu-place-order-btn">Place Walk-in Order</button>
+            </div>
+
+            <p id="walkInOrderMessage" class="menu-order-message" aria-live="polite"></p>
+        </div>
+
+        <div id="pendingOrdersPanel" role="tabpanel" aria-labelledby="pendingOrdersTabBtn" hidden>
+            <div id="pendingOrdersList" class="pending-orders-list"></div>
+        </div>
     </section>
 
     <section id="logs" class="orders-section" hidden>
