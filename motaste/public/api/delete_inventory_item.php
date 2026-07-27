@@ -27,6 +27,84 @@ function ensureOrderLogsTable(): void
     )");
 }
 
+function normalizeItemName(string $name): string
+{
+    return strtolower(trim((string)preg_replace('/\s+/', ' ', $name)));
+}
+
+function removeFromCustomMenuSnapshot(string $normalizedName): bool
+{
+    if ($normalizedName === '') {
+        return false;
+    }
+
+    DB::statement("CREATE TABLE IF NOT EXISTS custom_menu_snapshots (
+        id BIGSERIAL PRIMARY KEY,
+        snapshot_key VARCHAR(191) NOT NULL UNIQUE,
+        snapshot_payload TEXT NOT NULL,
+        created_at TIMESTAMP NULL,
+        updated_at TIMESTAMP NULL
+    )");
+
+    $snapshotRow = DB::table('custom_menu_snapshots')
+        ->where('snapshot_key', 'motaste-menu')
+        ->first();
+
+    if (!$snapshotRow || !isset($snapshotRow->snapshot_payload)) {
+        return false;
+    }
+
+    $payload = json_decode((string)$snapshotRow->snapshot_payload, true);
+    if (!is_array($payload)) {
+        return false;
+    }
+
+    $removed = false;
+
+    if (isset($payload['specialFoods']) && is_array($payload['specialFoods'])) {
+        $before = count($payload['specialFoods']);
+        $payload['specialFoods'] = array_values(array_filter($payload['specialFoods'], function ($food) use ($normalizedName) {
+            $candidate = normalizeItemName((string)($food['name'] ?? ''));
+            return $candidate !== $normalizedName;
+        }));
+
+        if (count($payload['specialFoods']) !== $before) {
+            $removed = true;
+        }
+    }
+
+    if (isset($payload['menuData']) && is_array($payload['menuData'])) {
+        foreach ($payload['menuData'] as $categoryKey => $category) {
+            if (!is_array($category) || !isset($category['items']) || !is_array($category['items'])) {
+                continue;
+            }
+
+            $before = count($category['items']);
+            $category['items'] = array_values(array_filter($category['items'], function ($item) use ($normalizedName) {
+                $candidate = normalizeItemName((string)($item['name'] ?? ''));
+                return $candidate !== $normalizedName;
+            }));
+
+            if (count($category['items']) !== $before) {
+                $removed = true;
+            }
+
+            $payload['menuData'][$categoryKey] = $category;
+        }
+    }
+
+    if ($removed) {
+        DB::table('custom_menu_snapshots')
+            ->where('snapshot_key', 'motaste-menu')
+            ->update([
+                'snapshot_payload' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'updated_at' => now(),
+            ]);
+    }
+
+    return $removed;
+}
+
 $input = json_decode(file_get_contents('php://input'), true);
 $name = trim((string)($input['name'] ?? ''));
 $actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
@@ -41,15 +119,21 @@ if ($name === '') {
 try {
     ensureOrderLogsTable();
 
-    $normalizedName = strtolower(trim((string)preg_replace('/\s+/', ' ', $name)));
+    $normalizedName = normalizeItemName($name);
 
     $existing = DB::table('inventory_items')
         ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedName])
         ->first();
 
+    $removedFromSnapshot = removeFromCustomMenuSnapshot($normalizedName);
+
     if (!$existing) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'error' => 'Inventory item not found']);
+        // Keep delete idempotent: special items may exist only in custom menu snapshot.
+        echo json_encode([
+            'success' => true,
+            'deletedFromInventory' => false,
+            'deletedFromSnapshot' => $removedFromSnapshot,
+        ]);
         exit;
     }
 
@@ -74,7 +158,11 @@ try {
         'updated_at' => now(),
     ]);
 
-    echo json_encode(['success' => true]);
+    echo json_encode([
+        'success' => true,
+        'deletedFromInventory' => true,
+        'deletedFromSnapshot' => $removedFromSnapshot,
+    ]);
 } catch (Throwable $error) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Unable to delete inventory item', 'details' => $error->getMessage()]);

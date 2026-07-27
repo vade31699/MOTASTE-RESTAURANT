@@ -3559,10 +3559,12 @@ function removeMenuItemByName(itemName) {
 }
 
 async function deleteInventoryItem(name) {
-    const index = inventoryData.findIndex((item) => item.name === name);
+    const normalizedTargetName = normalizeInventoryName(name);
+    const index = inventoryData.findIndex((item) => normalizeInventoryName(item.name) === normalizedTargetName);
     if (index < 0) return;
 
     const actor = getCurrentStaffActor();
+    let shouldContinueDelete = false;
     try {
         const response = await fetch(getApiUrl('api/delete_inventory_item.php'), {
             method: 'POST',
@@ -3577,14 +3579,22 @@ async function deleteInventoryItem(name) {
             cache: 'no-store'
         });
 
-        const payload = await response.json();
-        if (!response.ok || !payload.success) {
+        const payload = await response.json().catch(() => ({}));
+        const errorMessage = String(payload?.error || '').toLowerCase();
+
+        if ((!response.ok || !payload.success) && !errorMessage.includes('not found')) {
             throw new Error(payload.error || `HTTP ${response.status}`);
         }
+
+        shouldContinueDelete = true;
     } catch (error) {
         if (typeof window !== 'undefined' && window.alert) {
             window.alert(error.message || 'Unable to delete inventory item');
         }
+        return;
+    }
+
+    if (!shouldContinueDelete) {
         return;
     }
 
