@@ -893,13 +893,17 @@ if (logoutBtn) {
 }
 
 if (menuBtn) {
-    menuBtn.style.display = 'none';
-    // Dashboard is now always visible, menu button hidden
+    menuBtn.addEventListener('click', () => {
+        const isOpen = dashboardPanel && dashboardPanel.classList.contains('open');
+        setDashboardPanelState(!isOpen);
+    });
 }
 
-// Dashboard is now always visible, close panel button not needed
+// closePanelBtn removed from markup — dashboard is toggled via the menu button now
 if (closePanelBtn) {
-    closePanelBtn.style.display = 'none';
+    closePanelBtn.addEventListener('click', () => {
+        setDashboardPanelState(false);
+    });
 }
 
 const accountManagementLink = document.getElementById('accountManagementLink');
@@ -1130,21 +1134,18 @@ if (credentialsLink && credentialsSection) {
 }
 
 function updateAccountManagementAccess() {
-    const updateLinkVisibility = (link, isAllowed) => {
+    const setLinkState = (link, isAllowed) => {
         if (!link) return;
-        if (isAllowed) {
-            link.style.display = '';
-        } else {
-            link.style.display = 'none';
-        }
+        link.classList.toggle('disabled', !isAllowed);
+        link.setAttribute('aria-disabled', String(!isAllowed));
     };
 
-    updateLinkVisibility(ordersLink, canManageOrders());
-    updateLinkVisibility(inventoryLink, canAccessInventory());
-    updateLinkVisibility(logsLink, canAccessLogs());
-    updateLinkVisibility(accountManagementLink, canManageAccounts());
-    updateLinkVisibility(highlightsLink, canManageHighlights());
-    updateLinkVisibility(credentialsLink, canAccessCredentials());
+    setLinkState(ordersLink, canManageOrders());
+    setLinkState(inventoryLink, canAccessInventory());
+    setLinkState(logsLink, canAccessLogs());
+    setLinkState(accountManagementLink, canManageAccounts());
+    setLinkState(highlightsLink, canManageHighlights());
+    setLinkState(credentialsLink, canAccessCredentials());
 
     if (!document.body.classList.contains('auth')) {
         return;
@@ -1800,6 +1801,9 @@ if (salesLink && salesSection) {
         event.preventDefault();
         showDashboardSection(salesSection);
         updateAnalyticsView();
+        if (dashboardPanel) {
+            setDashboardPanelState(false);
+        }
     });
 }
 
@@ -2349,21 +2353,6 @@ const orderPaymentCloseBtn = document.getElementById('orderPaymentCloseBtn');
 const paymentSuccessModal = document.getElementById('paymentSuccessModal');
 const paymentSuccessCloseBtn = document.getElementById('paymentSuccessCloseBtn');
 const liveClock = document.getElementById('liveClock');
-const productDetailsScreen = document.getElementById('productDetailsScreen');
-const productDetailsBackBtn = document.getElementById('productDetailsBackBtn');
-const productDetailsImage = document.getElementById('productDetailsImage');
-const productDetailsName = document.getElementById('productDetailsName');
-const productDetailsDescription = document.getElementById('productDetailsDescription');
-const productDetailsPrice = document.getElementById('productDetailsPrice');
-const productDetailsTotalPrice = document.getElementById('productDetailsTotalPrice');
-const productAddOnsSection = document.getElementById('productAddOnsSection');
-const productAddOnsList = document.getElementById('productAddOnsList');
-const addToCartBtn = document.getElementById('addToCartBtn');
-const purchaseNowBtn = document.getElementById('purchaseNowBtn');
-const singleProductModal = document.getElementById('singleProductModal');
-const singleProductBackBtn = document.getElementById('singleProductBackBtn');
-const singleProductList = document.getElementById('singleProductList');
-const addSingleProductBtn = document.getElementById('addSingleProductBtn');
 
 let cartItems = [];
 let pendingOrders = [];
@@ -2373,9 +2362,6 @@ let currentMenuCategoryId = null;
 let inventoryEditItemName = null;
 let inventoryEditLock = false;
 let ignoredPendingOrderNumbers = new Set();
-let selectedAddOns = {}; // Track selected add-ons: {addonName: quantity}
-let singleProductQuantities = {}; // Track quantities for single products
-let currentProductDetails = null;
 const syncInventoryAcrossTabs = false;
 const enableInventoryAutoRefresh = false;
 const customerOrderNumbersStorageKey = 'motasteCustomerOrderNumbers';
@@ -3476,8 +3462,8 @@ function buildDefaultInventoryFromMenu() {
             items.push({
                 name: item.name,
                 price: parsePrice(item.price),
-                stock: 999, // Default to plenty of stock
-                status: 'In stock',
+                stock: 0,
+                status: 'Out of stock',
                 category: categoryKey
             });
         });
@@ -3490,8 +3476,8 @@ function buildDefaultInventoryFromMenu() {
         items.push({
             name: food.name,
             price: Number(food.price) || 0,
-            stock: 999, // Default to plenty of stock
-            status: 'In stock',
+            stock: 0,
+            status: 'Out of stock',
             category: 'specials'
         });
     });
@@ -3822,185 +3808,6 @@ window.addEventListener('storage', (event) => {
     }
 });
 
-function showProductDetails(product) {
-    if (!product || !productDetailsScreen) return;
-    
-    currentProductDetails = product;
-    selectedAddOns = {}; // Reset add-ons selection
-    
-    const imageSrc = product.image || 'img1.jpg';
-    
-    if (productDetailsImage) {
-        productDetailsImage.src = imageSrc;
-        productDetailsImage.alt = product.name;
-    }
-    if (productDetailsName) {
-        productDetailsName.textContent = product.name;
-    }
-    if (productDetailsDescription) {
-        productDetailsDescription.textContent = product.description || '';
-    }
-    if (productDetailsPrice) {
-        productDetailsPrice.textContent = formatCurrency(product.price);
-    }
-    
-    // Render add-ons
-    renderProductAddOns();
-    
-    if (menuCategoryScreen) menuCategoryScreen.classList.add('hidden');
-    productDetailsScreen.classList.remove('hidden');
-    productDetailsScreen.setAttribute('aria-hidden', 'false');
-}
-
-function renderProductAddOns() {
-    if (!productAddOnsList) return;
-    
-    // Get all add-ons from inventory
-    const addOns = (inventoryData || []).filter((item) => item.category === 'addons');
-    
-    if (!addOns.length) {
-        productAddOnsList.innerHTML = '<p style="font-size: 12px; color: #999;">No add-ons available</p>';
-        return;
-    }
-    
-    productAddOnsList.innerHTML = addOns.map((addon) => {
-        const quantity = selectedAddOns[addon.name] || 0;
-        const stock = Number(addon.stock) || 0;
-        const isOutOfStock = stock <= 0;
-        
-        return `
-            <div class="addon-item" data-addon-name="${addon.name}">
-                <div class="addon-info">
-                    <div class="addon-name">${addon.name}</div>
-                    <div class="addon-price">${formatCurrency(addon.price)}</div>
-                    <div class="addon-stock">Stock: ${stock}</div>
-                </div>
-                <div class="addon-controls">
-                    <button type="button" class="addon-decrease" data-addon-name="${addon.name}" ${quantity === 0 ? 'disabled' : ''}>−</button>
-                    <span class="addon-quantity">${quantity}</span>
-                    <button type="button" class="addon-increase" data-addon-name="${addon.name}" ${isOutOfStock || quantity >= stock ? 'disabled' : ''}>+</button>
-                </div>
-            </div>
-        `;
-    }).join('');
-    
-    updateProductTotalPrice();
-}
-
-function updateProductTotalPrice() {
-    if (!productDetailsTotalPrice || !currentProductDetails) return;
-    
-    let total = currentProductDetails.price || 0;
-    
-    Object.entries(selectedAddOns).forEach(([addonName, quantity]) => {
-        const addon = (inventoryData || []).find((item) => item.name === addonName);
-        if (addon) {
-            total += (addon.price || 0) * quantity;
-        }
-    });
-    
-    productDetailsTotalPrice.textContent = formatCurrency(total);
-}
-
-function closeProductDetails() {
-    if (!productDetailsScreen || !menuCategoryScreen) return;
-    productDetailsScreen.classList.add('hidden');
-    productDetailsScreen.setAttribute('aria-hidden', 'true');
-    menuCategoryScreen.classList.remove('hidden');
-    currentProductDetails = null;
-}
-
-function openSingleProductModal() {
-    if (!singleProductModal || !menuCategoryScreen) return;
-    
-    singleProductQuantities = {};
-    renderSingleProductList();
-    
-    menuCategoryScreen.classList.add('hidden');
-    singleProductModal.classList.remove('hidden');
-    singleProductModal.setAttribute('aria-hidden', 'false');
-}
-
-function closeSingleProductModal() {
-    if (!singleProductModal || !menuCategoryScreen) return;
-    
-    singleProductModal.classList.add('hidden');
-    singleProductModal.setAttribute('aria-hidden', 'true');
-    menuCategoryScreen.classList.remove('hidden');
-}
-
-function renderSingleProductList() {
-    if (!singleProductList) return;
-    
-    // Get all add-ons and products from inventory
-    const products = (inventoryData || []).filter((item) => item.category === 'addons');
-    
-    if (!products.length) {
-        singleProductList.innerHTML = '<p style="font-size: 12px; color: #999;">No products available</p>';
-        return;
-    }
-    
-    singleProductList.innerHTML = products.map((product) => {
-        const quantity = singleProductQuantities[product.name] || 0;
-        const stock = Number(product.stock) || 0;
-        const isOutOfStock = stock <= 0;
-        
-        return `
-            <div class="single-product-item ${isOutOfStock ? 'out-of-stock' : ''}" data-product-name="${product.name}">
-                <div class="single-product-info">
-                    <div class="single-product-name">${product.name}</div>
-                    <div class="single-product-price">${formatCurrency(product.price)}</div>
-                    <div class="single-product-stock">Stock: ${stock}</div>
-                </div>
-                <div class="single-product-actions">
-                    <div class="single-product-qty-control">
-                        <button type="button" class="single-product-decrease" data-product-name="${product.name}" ${quantity === 0 ? 'disabled' : ''}>−</button>
-                        <span class="single-product-qty">${quantity}</span>
-                        <button type="button" class="single-product-increase" data-product-name="${product.name}" ${isOutOfStock || quantity >= stock ? 'disabled' : ''}>+</button>
-                    </div>
-                    <button type="button" class="single-product-add-btn" data-product-name="${product.name}" ${quantity === 0 || isOutOfStock ? 'disabled' : ''}>Add</button>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-function addSingleProductToCart(productName, quantity) {
-    if (!productName || quantity <= 0) return;
-    
-    const product = (inventoryData || []).find((item) => item.name === productName);
-    if (!product) return;
-    
-    // Create a single product item (no parent dish)
-    const cartItem = {
-        name: productName,
-        price: product.price,
-        quantity: quantity,
-        components: [], // No components for single products
-        totalPrice: product.price
-    };
-    
-    // Check if item already exists in cart
-    const existing = cartItems.find((item) => 
-        item.name === productName && 
-        (!item.components || item.components.length === 0)
-    );
-    
-    if (existing) {
-        existing.quantity += quantity;
-    } else {
-        cartItems.push(cartItem);
-    }
-    
-    saveCart();
-    updateCartDisplay();
-    closeSingleProductModal();
-    
-    if (menuOrderMessage) {
-        menuOrderMessage.textContent = `${quantity}x ${productName} added to cart.`;
-    }
-}
-
 function updateCartDisplay() {
     clampCartToInventory();
     const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -4021,30 +3828,13 @@ function updateCartDisplay() {
 
     let total = 0;
     menuCartList.innerHTML = cartItems.map((item, index) => {
-        const components = item.components || [];
-        const itemTotal = item.totalPrice ? item.totalPrice * item.quantity : item.quantity * item.price;
+        const itemTotal = item.quantity * item.price;
         total += itemTotal;
-        
-        // Build components display
-        const componentsHtml = components.length > 0 
-            ? `<div class="menu-cart-components">
-                ${components.map((comp) => `
-                    <div class="menu-cart-component">
-                        <span>${comp.name}</span>
-                        <span class="component-qty">x${comp.quantity}</span>
-                        <span class="component-price">${formatCurrency(comp.price * comp.quantity)}</span>
-                        <button type="button" class="component-remove-btn" data-index="${index}" data-comp-name="${comp.name}" aria-label="Remove ${comp.name}">×</button>
-                    </div>
-                `).join('')}
-            </div>`
-            : '';
-        
         return `
             <div class="menu-cart-item">
                 <div class="menu-cart-item-details">
                     <div>
                         <strong>${item.name}</strong>
-                        ${componentsHtml}
                         <div class="menu-cart-item-qty-controls">
                             <button type="button" class="menu-cart-item-quantity-btn" data-action="decrease" data-index="${index}" aria-label="Decrease ${item.name} quantity"${item.quantity === 1 ? ' disabled' : ''}>
                                 <i class="fa-solid fa-minus" aria-hidden="true"></i>
@@ -4266,34 +4056,9 @@ function syncMenuPricesWithInventory() {
         });
     });
 
-    // Populate specialFoods from inventory if empty
-    if (specialFoods.length === 0) {
-        inventoryData.forEach((item) => {
-            // Add all inventory items to special foods for display
-            if (item.name && !specialFoods.find((sf) => (sf.name || '').trim().toLowerCase() === (item.name || '').trim().toLowerCase())) {
-                specialFoods.push({
-                    name: item.name,
-                    price: item.price || 0,
-                    stock: item.stock || 0,
-                    status: item.status || (item.stock > 0 ? 'In stock' : 'Out of stock'),
-                    description: item.description || '',
-                    image: 'img1.jpg'
-                });
-            }
-        });
-    }
-
-    // Update prices and stock for existing special foods
     specialFoods.forEach((food) => {
         if (priceMap[food.name] !== undefined) {
             food.price = priceMap[food.name];
-        }
-        
-        // Update stock and status from inventory
-        const inventoryItem = inventoryData.find((inv) => (inv.name || '').trim().toLowerCase() === (food.name || '').trim().toLowerCase());
-        if (inventoryItem) {
-            food.stock = inventoryItem.stock || 0;
-            food.status = inventoryItem.status || (inventoryItem.stock > 0 ? 'In stock' : 'Out of stock');
         }
     });
 }
@@ -4797,17 +4562,7 @@ function showDashboardSection(section) {
         el.hidden = el !== section;
     });
 
-    // Update active link highlighting
-    const dashboardLinks = document.querySelectorAll('.dashboard-link');
-    dashboardLinks.forEach((link) => {
-        link.classList.remove('active');
-    });
-    
     if (section && section.id) {
-        const activeLink = document.querySelector(`[href="#${section.id}"]`);
-        if (activeLink) {
-            activeLink.classList.add('active');
-        }
         saveActiveSection(section.id);
     }
 }
@@ -4822,16 +4577,21 @@ function renderSpecialFoods() {
 
     specialFoodsList.innerHTML = specialFoods.map((item) => {
         const imageSrc = item.image || 'img1.jpg';
-        const stock = Number(item.stock) || 0;
-        const isOutOfStock = stock <= 0;
-        
+        const isOutOfStock = isItemOutOfStock(item.name);
+        const canAddMore = getAvailableStockForItem(item.name) > 0;
         return `
-        <article class="special-food-card" data-name="${item.name}" data-price="${item.price}" style="cursor: ${isOutOfStock ? 'not-allowed' : 'pointer'}; opacity: ${isOutOfStock ? '0.6' : '1'};">
+        <article class="special-food-card${isOutOfStock ? ' is-out-of-stock' : ''}">
             <img src="${imageSrc}" alt="${item.name}">
+            ${isOutOfStock ? `<div class="stock-status-overlay"><img src="outofstock1.png" alt="Out of stock"><span>Out of stock</span></div>` : ''}
             <div class="special-food-details">
                 <h4>${item.name}</h4>
                 <strong>${formatCurrency(item.price)}</strong>
-                ${isOutOfStock ? '<p style="color: #d32f2f; font-size: 0.85rem; margin: 4px 0 0 0;">Out of Stock</p>' : `<p style="color: #666; font-size: 0.85rem; margin: 4px 0 0 0;">Stock: ${stock}</p>`}
+            </div>
+            <div class="special-food-cart-action">
+                <button type="button" class="special-food-add" data-name="${item.name}" data-price="${item.price}" aria-label="Add ${item.name} to cart"${canAddMore ? '' : ' disabled'}>
+                    <i class="fa-solid fa-cart-plus" aria-hidden="true"></i>
+                </button>
+                <span class="special-food-added-message" aria-live="polite"></span>
             </div>
         </article>
     `;
@@ -4842,42 +4602,19 @@ function renderSpecialFoods() {
 
 function addToCart(item) {
     if (!item) return;
-    
-    // Build cart item with components (add-ons)
-    const components = Object.entries(selectedAddOns)
-        .filter(([_, qty]) => qty > 0)
-        .map(([addonName, qty]) => {
-            const addon = (inventoryData || []).find((inv) => inv.name === addonName);
-            return {
-                name: addonName,
-                quantity: qty,
-                price: addon ? addon.price : 0
-            };
-        });
-    
-    // Calculate component total
-    const componentTotal = components.reduce((sum, comp) => sum + (comp.price * comp.quantity), 0);
-    const totalPrice = (item.price || 0) + componentTotal;
-    
-    const cartItem = {
-        ...item,
-        quantity: 1,
-        components: components,
-        totalPrice: totalPrice
-    };
-    
-    // Check if same item with same components already exists
-    const existing = cartItems.find((cartItem) => 
-        cartItem.name === item.name && 
-        JSON.stringify(cartItem.components || []) === JSON.stringify(components)
-    );
-    
+    const availableStock = getAvailableStockForItem(item.name);
+    if (availableStock <= 0) {
+        if (menuOrderMessage) {
+            menuOrderMessage.textContent = `${item.name} has reached the available stock limit.`;
+        }
+        return;
+    }
+    const existing = cartItems.find((cartItem) => cartItem.name === item.name);
     if (existing) {
         existing.quantity += 1;
     } else {
-        cartItems.push(cartItem);
+        cartItems.push({ ...item, quantity: 1 });
     }
-    
     saveCart();
     updateCartDisplay();
     if (menuOrderMessage) {
@@ -4912,28 +4649,6 @@ function adjustCartItemQuantity(index, change) {
     const nextQuantity = item.quantity + change;
     if (nextQuantity < 1) return;
     item.quantity = nextQuantity;
-    saveCart();
-    updateCartDisplay();
-}
-
-function removeComponentFromCartItem(cartItemIndex, componentName) {
-    if (cartItemIndex < 0 || cartItemIndex >= cartItems.length) return;
-    
-    const item = cartItems[cartItemIndex];
-    if (!item.components || !Array.isArray(item.components)) return;
-    
-    // Find and remove the component
-    const componentIndex = item.components.findIndex((comp) => comp.name === componentName);
-    if (componentIndex === -1) return;
-    
-    const removedComponent = item.components[componentIndex];
-    item.components.splice(componentIndex, 1);
-    
-    // Recalculate totalPrice
-    if (item.totalPrice) {
-        item.totalPrice -= removedComponent.price * removedComponent.quantity;
-    }
-    
     saveCart();
     updateCartDisplay();
 }
@@ -5400,21 +5115,7 @@ function showMenuCategory(categoryId) {
     `;
     }).join('');
 
-    // Highlight the selected category button in both locations
-    const categoryButtons = menuCategories.querySelectorAll('.menu-category-btn');
-    categoryButtons.forEach((btn) => {
-        btn.classList.toggle('active', btn.dataset.category === categoryId);
-    });
-    
-    // Also highlight in the overlay if it exists
-    const menuCategoriesOverlay = document.getElementById('menuCategoriesOverlay');
-    if (menuCategoriesOverlay) {
-        const overlayButtons = menuCategoriesOverlay.querySelectorAll('.menu-category-btn');
-        overlayButtons.forEach((btn) => {
-            btn.classList.toggle('active', btn.dataset.category === categoryId);
-        });
-    }
-
+    menuCategories.hidden = true;
     menuCategoryScreen.classList.remove('hidden');
     menuCategoryScreen.setAttribute('aria-hidden', 'false');
     updateCartDisplay();
@@ -5422,8 +5123,9 @@ function showMenuCategory(categoryId) {
 
 function showMenuCategories() {
     if (!menuCategories || !menuCategoryScreen) return;
-    menuCategories.style.display = '';
-    // Keep menu category screen visible - don't hide it
+    menuCategories.hidden = false;
+    menuCategoryScreen.classList.add('hidden');
+    menuCategoryScreen.setAttribute('aria-hidden', 'true');
 }
 
 function openMenuOverlay() {
@@ -5431,15 +5133,12 @@ function openMenuOverlay() {
     menuOverlay.classList.remove('hidden');
     menuOverlay.setAttribute('aria-hidden', 'false');
     showMenuCategories();
-    // Show the first category by default if none selected
-    if (!currentMenuCategoryId) {
-        showMenuCategory('batchoy');
-    }
     updateCartDisplay();
 }
 
 function closeMenuOverlay() {
     if (!menuOverlay) return;
+    showMenuCategories();
     menuOverlay.classList.add('hidden');
     menuOverlay.setAttribute('aria-hidden', 'true');
 }
@@ -5577,15 +5276,24 @@ if (mobileMenuToggle && topNav) {
 
 if (specialFoodsList) {
     specialFoodsList.addEventListener('click', (event) => {
-        const card = event.target.closest('.special-food-card');
-        if (!card) return;
+        const button = event.target.closest('.special-food-add');
+        if (!button) return;
 
-        const name = card.dataset.name;
-        const price = Number(card.dataset.price);
-        const product = specialFoods.find((f) => f.name === name);
-        
-        if (product && Number(product.stock) > 0) {
-            showProductDetails(product);
+        const card = button.closest('.special-food-card');
+        if (card) {
+            specialFoodsList.querySelectorAll('.special-food-card').forEach((foodCard) => {
+                foodCard.classList.remove('is-active');
+            });
+            card.classList.add('is-active');
+        }
+
+        addToCart({
+            name: button.dataset.name,
+            price: Number(button.dataset.price)
+        });
+        const message = button.parentElement.querySelector('.special-food-added-message');
+        if (message) {
+            message.textContent = 'Added to cart';
         }
     });
 }
@@ -5641,17 +5349,6 @@ if (menuCategories) {
     });
 }
 
-// Handle category button clicks inside the menu overlay
-const menuCategoriesOverlay = document.getElementById('menuCategoriesOverlay');
-if (menuCategoriesOverlay) {
-    menuCategoriesOverlay.addEventListener('click', (event) => {
-        const button = event.target.closest('.menu-category-btn');
-        if (!button) return;
-        const categoryId = button.dataset.category;
-        showMenuCategory(categoryId);
-    });
-}
-
 if (menuCategoryScreen) {
     menuCategoryScreen.addEventListener('click', (event) => {
         const qtyButton = event.target.closest('.menu-item-qty-btn');
@@ -5697,124 +5394,10 @@ if (menuCartList) {
             adjustCartItemQuantity(index, change);
             return;
         }
-        
-        const componentRemoveBtn = event.target.closest('.component-remove-btn');
-        if (componentRemoveBtn) {
-            const index = Number(componentRemoveBtn.dataset.index);
-            const componentName = componentRemoveBtn.dataset.compName;
-            removeComponentFromCartItem(index, componentName);
-            return;
-        }
-        
         const button = event.target.closest('.menu-cart-item-remove');
         if (!button) return;
         const index = Number(button.dataset.index);
         removeCartItem(index);
-    });
-}
-
-if (productDetailsBackBtn) {
-    productDetailsBackBtn.addEventListener('click', closeProductDetails);
-}
-
-if (addToCartBtn) {
-    addToCartBtn.addEventListener('click', () => {
-        if (currentProductDetails) {
-            addToCart(currentProductDetails);
-            if (menuOrderMessage) {
-                menuOrderMessage.textContent = `${currentProductDetails.name} added to cart.`;
-            }
-        }
-    });
-}
-
-if (purchaseNowBtn) {
-    purchaseNowBtn.addEventListener('click', () => {
-        if (currentProductDetails) {
-            addToCart(currentProductDetails);
-            closeProductDetails();
-            openCheckoutScreen();
-        }
-    });
-}
-
-if (productAddOnsList) {
-    productAddOnsList.addEventListener('click', (event) => {
-        const increaseBtn = event.target.closest('.addon-increase');
-        if (increaseBtn) {
-            const addonName = increaseBtn.dataset.addonName;
-            const addon = (inventoryData || []).find((item) => item.name === addonName);
-            if (!addon) return;
-            
-            const currentQty = selectedAddOns[addonName] || 0;
-            const stock = Number(addon.stock) || 0;
-            
-            if (currentQty < stock) {
-                selectedAddOns[addonName] = currentQty + 1;
-                renderProductAddOns();
-            }
-            return;
-        }
-        
-        const decreaseBtn = event.target.closest('.addon-decrease');
-        if (decreaseBtn) {
-            const addonName = decreaseBtn.dataset.addonName;
-            const currentQty = selectedAddOns[addonName] || 0;
-            
-            if (currentQty > 0) {
-                selectedAddOns[addonName] = currentQty - 1;
-                renderProductAddOns();
-            }
-            return;
-        }
-    });
-}
-
-if (addSingleProductBtn) {
-    addSingleProductBtn.addEventListener('click', openSingleProductModal);
-}
-
-if (singleProductBackBtn) {
-    singleProductBackBtn.addEventListener('click', closeSingleProductModal);
-}
-
-if (singleProductList) {
-    singleProductList.addEventListener('click', (event) => {
-        const increaseBtn = event.target.closest('.single-product-increase');
-        if (increaseBtn) {
-            const productName = increaseBtn.dataset.productName;
-            const product = (inventoryData || []).find((item) => item.name === productName);
-            if (!product) return;
-            
-            const currentQty = singleProductQuantities[productName] || 0;
-            const stock = Number(product.stock) || 0;
-            
-            if (currentQty < stock) {
-                singleProductQuantities[productName] = currentQty + 1;
-                renderSingleProductList();
-            }
-            return;
-        }
-        
-        const decreaseBtn = event.target.closest('.single-product-decrease');
-        if (decreaseBtn) {
-            const productName = decreaseBtn.dataset.productName;
-            const currentQty = singleProductQuantities[productName] || 0;
-            
-            if (currentQty > 0) {
-                singleProductQuantities[productName] = currentQty - 1;
-                renderSingleProductList();
-            }
-            return;
-        }
-        
-        const addBtn = event.target.closest('.single-product-add-btn');
-        if (addBtn) {
-            const productName = addBtn.dataset.productName;
-            const quantity = singleProductQuantities[productName] || 0;
-            addSingleProductToCart(productName, quantity);
-            return;
-        }
     });
 }
 

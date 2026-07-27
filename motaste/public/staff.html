@@ -103,7 +103,9 @@
         </div>
     </div>
 
-    <div id="dashboardPanel" class="dashboard-panel always-visible" aria-label="Dashboard menu">
+    <div id="dashboardPanel" class="dashboard-panel" aria-label="Dashboard menu">
+        <button type="button" class="panel-close" id="closePanelBtn" aria-label="Close dashboard">×</button>
+
         <div class="dashboard-profile">
             <div class="dashboard-profile-avatar" aria-hidden="true">
                 <i class="fa-solid fa-user"></i>
@@ -115,17 +117,15 @@
         </div>
 
         <h3>Dashboard</h3>
-        <nav class="dashboard-menu" id="dashboardMenu">
-            <a href="#overview" id="overviewLink" class="dashboard-link">Overview</a>
-            <a href="#pending-orders" id="ordersLink" class="dashboard-link">Orders</a>
-            <a href="#inventory" id="inventoryLink" class="dashboard-link">Inventory</a>
-            <a href="#sales" id="salesLink" class="dashboard-link">Sales</a>
-            <a href="#logs" id="logsLink" class="dashboard-link" data-required-role="Admin">Logs</a>
-            <a href="#account-management" id="accountManagementLink" class="dashboard-link" data-required-role="Admin">Account Management</a>
-            <a href="#highlights" id="highlightsLink" class="dashboard-link" data-required-role="Admin">Highlights</a>
-            <a href="#credentials" id="credentialsLink" class="dashboard-link" data-required-role="Admin">Credentials</a>
-        </nav>
-        <button type="button" id="logoutBtn" class="logout-btn">Logout</button>
+        <a href="#overview" id="overviewLink">Overview</a>
+        <a href="#pending-orders" id="ordersLink">Orders</a>
+        <a href="#inventory" id="inventoryLink">Inventory</a>
+        <a href="#sales" id="salesLink">Sales</a>
+        <a href="#logs" id="logsLink">Logs</a>
+        <a href="#account-management" id="accountManagementLink">Account Management</a>
+        <a href="#highlights" id="highlightsLink">Highlights</a>
+        <a href="#credentials" id="credentialsLink">Credentials</a>
+        <button type="button" id="logoutBtn" class="logout-btn" hidden>Logout</button>
     </div>
 
     <section id="overview" class="overview-section" hidden>
