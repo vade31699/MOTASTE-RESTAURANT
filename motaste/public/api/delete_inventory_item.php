@@ -122,7 +122,7 @@ try {
     $normalizedName = normalizeItemName($name);
 
     $existing = DB::table('inventory_items')
-        ->whereRaw('LOWER(name) = ?', [$normalizedName])
+        ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedName])
         ->first();
 
     $removedFromSnapshot = removeFromCustomMenuSnapshot($normalizedName);
@@ -138,7 +138,7 @@ try {
     }
 
     DB::table('inventory_items')
-        ->whereRaw('LOWER(name) = ?', [$normalizedName])
+        ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedName])
         ->delete();
 
     DB::table('order_activity_logs')->insert([

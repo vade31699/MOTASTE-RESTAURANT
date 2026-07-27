@@ -1,14 +1,3 @@
-/**
- * MOTASTE Restaurant - Public Customer Interface
- * 
- * Configuration:
- * - Backend: Laravel 13.8 with PostgreSQL (AWS)
- * - Environment: https://motasterestaurant.laravel.cloud/
- * - Database: PostgreSQL (AWS ep-empty-math-aolpjkzb.c-2.aws-ap-southeast-1.pg.laravel.cloud)
- * - Compatibility: Cross-device (Windows, Mac, Linux, Mobile browsers, tablets)
- * - All paths use localStorage for client-side state
- */
-
 const openModalBtn = document.getElementById('openModalBtn');
 const closeModalBtn = document.getElementById('closeModalBtn');
 const modal = document.getElementById('adminModal');

@@ -63,56 +63,37 @@ try {
     $existingBefore = null;
     if ($normalizedPrevious !== '') {
         $existingBefore = DB::table('inventory_items')
-            ->whereRaw('LOWER(name) = ?', [$normalizedPrevious])
+            ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedPrevious])
             ->first();
     }
 
     if (!$existingBefore) {
         $existingBefore = DB::table('inventory_items')
-            ->whereRaw('LOWER(name) = ?', [$normalizedLookup])
+            ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedLookup])
             ->first();
     }
 
-    DB::transaction(function () use ($normalizedLookup, $normalizedPrevious, $canonicalName, $price, $stock, $normalizedStatus, $category, $description, $isAddon, $existingBefore) {
-        if ($existingBefore) {
-            // Update existing item
-            DB::table('inventory_items')
-                ->where('id', $existingBefore->id)
-                ->update([
-                    'name' => $canonicalName,
-                    'price' => $price,
-                    'stock' => $stock,
-                    'status' => $normalizedStatus,
-                    'category' => $category,
-                    'description' => $description,
-                    'is_addon' => $isAddon,
-                    'updated_at' => now(),
-                ]);
-            
-            // Delete any other items with the normalized name (in case of duplicates)
-            DB::table('inventory_items')
-                ->where('id', '!=', $existingBefore->id)
-                ->whereRaw('LOWER(name) = ?', [$normalizedLookup])
-                ->delete();
-        } else {
-            // New item - delete any existing with same normalized name first
-            DB::table('inventory_items')
-                ->whereRaw('LOWER(name) = ?', [$normalizedLookup])
-                ->delete();
+    DB::transaction(function () use ($normalizedLookup, $normalizedPrevious, $canonicalName, $price, $stock, $normalizedStatus, $category, $description, $isAddon) {
+        $deleteQuery = DB::table('inventory_items')
+            ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedLookup]);
 
-            // Then insert
-            DB::table('inventory_items')->insert([
-                'name' => $canonicalName,
-                'price' => $price,
-                'stock' => $stock,
-                'status' => $normalizedStatus,
-                'category' => $category,
-                'description' => $description,
-                'is_addon' => $isAddon,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+        if ($normalizedPrevious !== '' && $normalizedPrevious !== $normalizedLookup) {
+            $deleteQuery->orWhereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedPrevious]);
         }
+
+        $deleteQuery->delete();
+
+        DB::table('inventory_items')->insert([
+            'name' => $canonicalName,
+            'price' => $price,
+            'stock' => $stock,
+            'status' => $normalizedStatus,
+            'category' => $category,
+            'description' => $description,
+            'is_addon' => $isAddon,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     });
 
     $action = 'inventory_item_added';
@@ -145,7 +126,7 @@ try {
     ]);
 
     $itemId = DB::table('inventory_items')
-        ->whereRaw('LOWER(name) = ?', [$normalizedLookup])
+        ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedLookup])
         ->value('id');
 
     echo json_encode([

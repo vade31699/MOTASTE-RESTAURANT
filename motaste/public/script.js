@@ -1,19 +1,3 @@
-/**
- * MOTASTE Restaurant - Laravel Staff Dashboard
- * 
- * Configuration:
- * - Backend: Laravel 13.8 with PostgreSQL (AWS)
- * - Environment: https://motasterestaurant.laravel.cloud/
- * - Database: PostgreSQL (AWS ep-empty-math-aolpjkzb.c-2.aws-ap-southeast-1.pg.laravel.cloud)
- * - API: All endpoints use relative paths for cross-device compatibility
- * - Compatibility: Works on Windows, Mac, Linux, Mobile browsers, tablets
- * 
- * Cross-Device Paths:
- * - All API calls use relative URLs (e.g., "api/get_inventory.php")
- * - getApiUrl() resolves relative to current domain/device
- * - Automatically works on localhost, laravel.cloud, any mobile browser, any device
- */
-
 const openModalBtn = document.getElementById('openModalBtn');
 const closeModalBtn = document.getElementById('closeModalBtn');
 const modal = document.getElementById('adminModal');
@@ -255,18 +239,8 @@ function stopStaffAccountsRefresh() {
 
 function getApiUrl(path) {
     try {
-        // Handle absolute URLs (already have protocol://domain)
-        if (/^https?:\/\//.test(path)) {
-            return path;
-        }
-        
-        // For relative paths, resolve relative to current location
-        // This ensures it works on any device and environment (localhost, laravel.cloud, mobile, etc)
-        const base = window.location.href.split('?')[0]; // Remove query params to get clean base
-        const url = new URL(path, base);
-        return url.toString();
+        return new URL(path, window.location.href).toString();
     } catch (error) {
-        console.warn(`Failed to resolve API URL for path: ${path}`, error);
         return path;
     }
 }
