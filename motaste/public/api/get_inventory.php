@@ -17,7 +17,7 @@ try {
         ->delete();
 
     $rawItems = DB::table('inventory_items')
-        ->select('name', 'price', 'stock', 'status', 'category')
+        ->select('name', 'price', 'stock', 'status', 'category', 'description', 'is_addon')
         ->orderBy('updated_at', 'desc')
         ->orderBy('id', 'desc')
         ->get()
@@ -37,6 +37,8 @@ try {
             'stock' => $stock,
             'status' => $row->status ?: ($stock > 0 ? 'In stock' : 'Out of stock'),
             'category' => $row->category ?: 'specials',
+            'description' => $row->description ?: '',
+            'is_addon' => (bool)($row->is_addon ?? false),
         ];
     }
 

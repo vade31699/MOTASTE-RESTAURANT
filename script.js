@@ -716,6 +716,7 @@ const inventoryCategoryInput = document.getElementById('inventoryCategoryInput')
 const inventoryPriceInput = document.getElementById('inventoryPriceInput');
 const inventoryStockInput = document.getElementById('inventoryStockInput');
 const inventoryStatusInput = document.getElementById('inventoryStatusInput');
+const inventoryDescriptionInput = document.getElementById('inventoryDescriptionInput');
 const inventorySaveBtn = document.getElementById('inventorySaveBtn');
 const inventoryItemsWrapper = document.getElementById('inventoryItemsWrapper');
 const inventorySearchInput = document.getElementById('inventorySearchInput');
@@ -1252,6 +1253,14 @@ const orderPaymentMethod = document.getElementById('orderPaymentMethod');
 const orderPaymentMessage = document.getElementById('orderPaymentMessage');
 const paymentQrPlaceholder = document.getElementById('paymentQrPlaceholder');
 const orderPaymentCloseBtn = document.getElementById('orderPaymentCloseBtn');
+const productDetailsScreen = document.getElementById('productDetailsScreen');
+const productDetailsBackBtn = document.getElementById('productDetailsBackBtn');
+const productDetailsImage = document.getElementById('productDetailsImage');
+const productDetailsName = document.getElementById('productDetailsName');
+const productDetailsDescription = document.getElementById('productDetailsDescription');
+const productDetailsPrice = document.getElementById('productDetailsPrice');
+const addToCartBtn = document.getElementById('addToCartBtn');
+const purchaseNowBtn = document.getElementById('purchaseNowBtn');
 const liveClock = document.getElementById('liveClock');
 
 let cartItems = [];
@@ -1261,6 +1270,7 @@ let inventoryData = [];
 let currentMenuCategoryId = null;
 let inventoryEditItemName = null;
 let ignoredPendingOrderNumbers = new Set();
+let currentProductDetails = null;
 
 function loadIgnoredPendingOrders() {
     try {
@@ -1904,6 +1914,7 @@ function saveInventoryItem(event) {
     const price = Number(inventoryPriceInput.value);
     const stock = Number(inventoryStockInput.value);
     const category = inventoryCategoryInput.value || 'specials';
+    const description = inventoryDescriptionInput ? inventoryDescriptionInput.value.trim() : '';
     const status = stock <= 0 ? 'Out of stock' : inventoryStatusInput.value;
 
     if (!name || Number.isNaN(price) || Number.isNaN(stock)) {
@@ -1917,6 +1928,7 @@ function saveInventoryItem(event) {
         existingItem.stock = stock;
         existingItem.status = status;
         existingItem.category = category;
+        existingItem.description = description;
         saveMenuCatalogItem(existingItem);
     } else {
         inventoryData.push({
@@ -1924,9 +1936,10 @@ function saveInventoryItem(event) {
             price,
             stock,
             status,
-            category
+            category,
+            description
         });
-        saveMenuCatalogItem({ name, price, stock, status, category });
+        saveMenuCatalogItem({ name, price, stock, status, category, description });
     }
 
     inventoryEditItemName = null;
@@ -2036,21 +2049,48 @@ function renderSpecialFoods() {
     specialFoodsList.innerHTML = specialFoods.map((item) => {
         const imageSrc = item.image || 'img1.jpg';
         return `
-        <article class="special-food-card">
+        <article class="special-food-card" data-name="${item.name}" data-price="${item.price}" style="cursor: pointer;">
             <img src="${imageSrc}" alt="${item.name}">
             <div class="special-food-details">
                 <h4>${item.name}</h4>
                 <strong>${formatCurrency(item.price)}</strong>
             </div>
-            <div class="special-food-cart-action">
-                <button type="button" class="special-food-add" data-name="${item.name}" data-price="${item.price}" aria-label="Add ${item.name} to cart">
-                    <i class="fa-solid fa-cart-plus" aria-hidden="true"></i>
-                </button>
-                <span class="special-food-added-message" aria-live="polite"></span>
-            </div>
         </article>
     `;
     }).join('');
+}
+
+function showProductDetails(product) {
+    if (!product || !productDetailsScreen) return;
+    
+    currentProductDetails = product;
+    const imageSrc = product.image || 'img1.jpg';
+    
+    if (productDetailsImage) {
+        productDetailsImage.src = imageSrc;
+        productDetailsImage.alt = product.name;
+    }
+    if (productDetailsName) {
+        productDetailsName.textContent = product.name;
+    }
+    if (productDetailsDescription) {
+        productDetailsDescription.textContent = product.description || '';
+    }
+    if (productDetailsPrice) {
+        productDetailsPrice.textContent = formatCurrency(product.price);
+    }
+    
+    menuCategoryScreen.classList.add('hidden');
+    productDetailsScreen.classList.remove('hidden');
+    productDetailsScreen.setAttribute('aria-hidden', 'false');
+}
+
+function closeProductDetails() {
+    if (!productDetailsScreen || !menuCategoryScreen) return;
+    productDetailsScreen.classList.add('hidden');
+    productDetailsScreen.setAttribute('aria-hidden', 'true');
+    menuCategoryScreen.classList.remove('hidden');
+    currentProductDetails = null;
 }
 
 function addToCart(item) {
@@ -2450,24 +2490,15 @@ if (mobileMenuToggle && topNav) {
 
 if (specialFoodsList) {
     specialFoodsList.addEventListener('click', (event) => {
-        const button = event.target.closest('.special-food-add');
-        if (!button) return;
+        const card = event.target.closest('.special-food-card');
+        if (!card) return;
 
-        const card = button.closest('.special-food-card');
-        if (card) {
-            specialFoodsList.querySelectorAll('.special-food-card').forEach((foodCard) => {
-                foodCard.classList.remove('is-active');
-            });
-            card.classList.add('is-active');
-        }
-
-        addToCart({
-            name: button.dataset.name,
-            price: Number(button.dataset.price)
-        });
-        const message = button.parentElement.querySelector('.special-food-added-message');
-        if (message) {
-            message.textContent = 'Added to cart';
+        const name = card.dataset.name;
+        const price = Number(card.dataset.price);
+        const product = specialFoods.find((f) => f.name === name);
+        
+        if (product) {
+            showProductDetails(product);
         }
     });
 }
@@ -2615,6 +2646,31 @@ if (orderPaymentCloseBtn) {
         if (orderCheckoutScreen) {
             orderCheckoutScreen.classList.add('hidden');
             orderCheckoutScreen.setAttribute('aria-hidden', 'true');
+        }
+    });
+}
+
+if (productDetailsBackBtn) {
+    productDetailsBackBtn.addEventListener('click', closeProductDetails);
+}
+
+if (addToCartBtn) {
+    addToCartBtn.addEventListener('click', () => {
+        if (currentProductDetails) {
+            addToCart(currentProductDetails);
+            if (menuOrderMessage) {
+                menuOrderMessage.textContent = `${currentProductDetails.name} added to cart.`;
+            }
+        }
+    });
+}
+
+if (purchaseNowBtn) {
+    purchaseNowBtn.addEventListener('click', () => {
+        if (currentProductDetails) {
+            addToCart(currentProductDetails);
+            closeProductDetails();
+            openCheckoutScreen();
         }
     });
 }
