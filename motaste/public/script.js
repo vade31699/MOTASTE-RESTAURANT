@@ -1643,64 +1643,27 @@ if (slideshow) {
 const menuData = {
     batchoy: {
         title: 'BATCHOY',
-        items: [
-            { name: 'Classic Batchoy', price: '₱60', description: 'Savory pork and beef broth with noodles, pork slices, liver, and chicharon.' },
-            { name: 'Special Batchoy', price: '₱80', description: 'Classic batchoy with egg and extra meat.' },
-            { name: 'Big Bowl Batchoy', price: '₱150', description: 'Larger serving with more noodles, meat, and satisfaction.' }
-        ]
+        items: []
     },
     silog: {
         title: 'SILOG',
-        items: [
-            { name: 'Tapsilog', price: '₱90', description: 'Cured beef tapa served with garlic rice and egg.' },
-            { name: 'Tocilog', price: '₱80', description: 'Sweet pork tocino served with garlic rice and egg.' },
-            { name: 'Longsilog', price: '₱80', description: 'Homemade pork longganisa with garlic rice and egg.' },
-            { name: 'Hotsilog', price: '₱80', description: 'Juicy hotdog served with garlic rice and egg.' },
-            { name: 'Bangsilog', price: '₱80', description: 'Marinated bangus belly with garlic rice and egg.' },
-            { name: 'Chicksilog', price: '₱80', description: 'Fried chicken fillet served with garlic rice and egg.' }
-        ]
+        items: []
     },
     friedChicken: {
         title: 'FRIED CHICKEN',
-        items: [
-            { name: '1 pc. Fried Chicken', price: '₱30', description: 'Crispy on the outside, juicy on the inside.' },
-            { name: 'Combo Meal 1', price: '₱80', description: '1 pc. chicken, 1 rice, and juice drink.' },
-            { name: 'Combo Meal 2', price: '₱110', description: '2 pc. chicken, 1 rice, and juice drink.' },
-            { name: 'Combo Meal 3', price: '₱130', description: '2 pc. chicken, 2 rice, and juice drink.' }
-        ]
+        items: []
     },
     breakfast: {
         title: 'BREAKFAST',
-        items: [
-            { name: 'Breakfast Plate', price: '₱80', description: 'Egg, toasted bread, choice of meat, garlic rice, and egg.' },
-            { name: 'American Breakfast', price: '₱120', description: 'Egg, toasted bread, bacon, ham, and no hashbrown.' },
-            { name: 'Overload Breakfast', price: '₱180', description: 'Egg, toasted bread, bacon, ham, and no hashbrown.' }
-        ]
+        items: []
     },
     drinks: {
         title: 'DRINKS',
-        items: [
-            { name: 'Iced Tea', price: '₱55', description: 'Chilled iced tea with refreshing flavor.' },
-            { name: 'Lemonade', price: '₱55', description: 'Freshly squeezed lemonade.' },
-            { name: 'Bottled Water', price: '₱30', description: 'Pure bottled water.' }
-        ]
+        items: []
     }
 };
 
-const specialFoods = [
-    { name: 'Special Batchoy', price: 80, image: 'img1.jpg' },
-    { name: 'Tapsilog', price: 90, image: 'img2.jpg' },
-    { name: 'Combo Meal 2', price: 110, image: 'img3.jpg' },
-    { name: 'Overload Breakfast', price: 180, image: 'img4.jpg' },
-    { name: 'Ramen batchoy overload', price: 80, image: 'img1.jpg' },
-    { name: 'sizzling pork chop', price: 90, image: 'img2.jpg' },
-    { name: 'sizzling hungarian', price: 110, image: 'img3.jpg' },
-    { name: 'fried siomai', price: 180, image: 'img4.jpg' },
-    { name: 'pork chops, egg and rice', price: 80, image: 'img1.jpg' },
-    { name: 'tapa, egg and rice', price: 90, image: 'img2.jpg' },
-    { name: 'tocino egg and rice', price: 110, image: 'img3.jpg' },
-    { name: 'pork fried egg and rice', price: 180, image: 'img4.jpg' }
-];
+const specialFoods = [];
 
 const mobileMenuToggle = document.getElementById('mobileMenuToggle');
 const topNav = document.getElementById('topNav');
@@ -3014,61 +2977,133 @@ function saveCustomMenuData() {
 function applyCustomMenuSnapshot(snapshot) {
     if (!snapshot || typeof snapshot !== 'object') return false;
 
-    let changed = false;
+    const beforeSignature = JSON.stringify({
+        menuData: Object.fromEntries(Object.entries(menuData).map(([key, category]) => [
+            key,
+            {
+                title: category.title,
+                items: (category.items || []).map((item) => ({
+                    name: item.name,
+                    price: item.price,
+                    description: item.description || ''
+                }))
+            }
+        ])),
+        specialFoods: specialFoods.map((food) => ({
+            name: food.name,
+            price: Number(food.price) || 0,
+            image: food.image || 'img1.jpg'
+        }))
+    });
+
+    const fixedCategories = ['batchoy', 'silog', 'friedChicken', 'breakfast', 'drinks'];
+    fixedCategories.forEach((categoryKey) => {
+        if (!menuData[categoryKey]) {
+            menuData[categoryKey] = { title: categoryKey.toUpperCase(), items: [] };
+        }
+        menuData[categoryKey].items = [];
+    });
+
+    specialFoods.length = 0;
 
     const menuDataSnapshot = snapshot.menuData || {};
-    Object.entries(menuDataSnapshot).forEach(([categoryKey, category]) => {
-        if (!menuData[categoryKey]) {
-            menuData[categoryKey] = { title: category.title || categoryKey.toUpperCase(), items: [] };
-        }
-        const seenNames = new Set((menuData[categoryKey].items || []).map((item) => (item.name || '').trim().toLowerCase()));
-        (category.items || []).forEach((item) => {
+    fixedCategories.forEach((categoryKey) => {
+        const category = menuDataSnapshot[categoryKey];
+        if (!category || !Array.isArray(category.items)) return;
+
+        const seenNames = new Set();
+        category.items.forEach((item) => {
             const normalizedName = (item.name || '').trim().toLowerCase();
             if (!normalizedName || seenNames.has(normalizedName)) return;
+
             menuData[categoryKey].items.push({
                 name: item.name,
                 price: item.price,
                 description: item.description || `${item.name} has been added by staff.`
             });
             seenNames.add(normalizedName);
-            changed = true;
         });
     });
 
     if (Array.isArray(snapshot.specialFoods)) {
-        const seenSpecialFoods = new Set(specialFoods.map((food) => (food.name || '').trim().toLowerCase()));
+        const seenSpecialFoods = new Set();
         snapshot.specialFoods.forEach((food) => {
             const normalizedName = (food.name || '').trim().toLowerCase();
             if (!normalizedName || seenSpecialFoods.has(normalizedName)) return;
+
             specialFoods.push({
                 name: food.name,
                 price: Number(food.price) || 0,
                 image: food.image || 'img1.jpg'
             });
             seenSpecialFoods.add(normalizedName);
-            changed = true;
         });
     }
 
-    return changed;
+    const afterSignature = JSON.stringify({
+        menuData: Object.fromEntries(Object.entries(menuData).map(([key, category]) => [
+            key,
+            {
+                title: category.title,
+                items: (category.items || []).map((item) => ({
+                    name: item.name,
+                    price: item.price,
+                    description: item.description || ''
+                }))
+            }
+        ])),
+        specialFoods: specialFoods.map((food) => ({
+            name: food.name,
+            price: Number(food.price) || 0,
+            image: food.image || 'img1.jpg'
+        }))
+    });
+
+    return beforeSignature !== afterSignature;
 }
 
 async function loadCustomMenuData() {
     try {
         const raw = localStorage.getItem('motasteCustomMenuData');
-        if (!raw) return;
-
-        const parsed = JSON.parse(raw);
-        applyCustomMenuSnapshot(parsed);
+        let parsed = null;
+        if (raw) {
+            parsed = JSON.parse(raw);
+        }
 
         const response = await fetch(getApiUrl(`api/get_custom_menu.php?_=${Date.now()}`), { cache: 'no-store' });
-        if (!response.ok) return;
+        if (!response.ok) {
+            if (parsed) {
+                const changed = applyCustomMenuSnapshot(parsed);
+                if (changed) {
+                    syncMenuPricesWithInventory();
+                    renderSpecialFoods();
+                    renderInventoryManagement();
+                    if (currentMenuCategoryId) {
+                        showMenuCategory(currentMenuCategoryId);
+                    }
+                }
+            }
+            return;
+        }
 
         const payload = await response.json();
         if (payload && payload.success && payload.snapshot) {
             const changed = applyCustomMenuSnapshot(payload.snapshot);
             if (changed) {
                 saveCustomMenuData();
+                syncMenuPricesWithInventory();
+                renderSpecialFoods();
+                renderInventoryManagement();
+                if (currentMenuCategoryId) {
+                    showMenuCategory(currentMenuCategoryId);
+                }
+            }
+            return;
+        }
+
+        if (parsed) {
+            const changed = applyCustomMenuSnapshot(parsed);
+            if (changed) {
                 syncMenuPricesWithInventory();
                 renderSpecialFoods();
                 renderInventoryManagement();
