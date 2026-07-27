@@ -65,6 +65,30 @@
             width: calc(100% - 32px);
         }
 
+        .social-login-btn {
+            width: 42px;
+            height: 42px;
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #fff;
+            background: rgba(255,255,255,0.08);
+            cursor: pointer;
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+
+        .social-login-btn:hover {
+            transform: translateY(-1px);
+            background: rgba(255,255,255,0.18);
+        }
+
+        .social-login-google { color: #ea4335; }
+        .social-login-facebook { color: #1877f2; }
+        .social-login-tiktok { color: #f5f5f5; }
+
         @media (max-width: 1400px){ .bg-logo{ width: 115vmin; } }
         @media (max-width: 900px){ .bg-logo{ width: 110vmin; } }
         @media (max-width: 420px){ .bg-logo{ width: 100vmin; } }
@@ -400,9 +424,15 @@
                     <button type="submit">Login</button>
 
                     <div class="social-login-group" style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-                        <button type="button" class="social-login-btn" data-provider="google">Login with Google</button>
-                        <button type="button" class="social-login-btn" data-provider="facebook">Login with Facebook</button>
-                        <button type="button" class="social-login-btn" data-provider="tiktok">Login with TikTok</button>
+                        <button type="button" class="social-login-btn social-login-google" data-provider="google" aria-label="Login with Google" title="Login with Google">
+                            <i class="fa-brands fa-google" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="social-login-btn social-login-facebook" data-provider="facebook" aria-label="Login with Facebook" title="Login with Facebook">
+                            <i class="fa-brands fa-facebook-f" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="social-login-btn social-login-tiktok" data-provider="tiktok" aria-label="Login with TikTok" title="Login with TikTok">
+                            <i class="fa-brands fa-tiktok" aria-hidden="true"></i>
+                        </button>
                     </div>
                 </div>
             </form>

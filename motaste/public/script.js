@@ -289,6 +289,8 @@ async function sendStaffInviteEmail(account) {
     if (!response.ok || !payload.success) {
         throw new Error(payload.error || `Unable to send invite email (HTTP ${response.status})`);
     }
+
+    return payload;
 }
 
 async function confirmStaffInviteCode(email, role, code) {
@@ -957,7 +959,11 @@ async function requestAdminCredentialsChange() {
             throw new Error(payload.error || `Unable to request verification code (HTTP ${response.status})`);
         }
 
-        setCredentialsMessage('Verification code sent to current admin email. Enter code to apply changes.');
+        if (payload.warning) {
+            setCredentialsMessage(`${payload.warning} Configure SMTP in .env to deliver real Gmail messages.`, true);
+        } else {
+            setCredentialsMessage('Verification code sent to current admin email. Enter code to apply changes.');
+        }
     } catch (error) {
         setCredentialsMessage(error.message || 'Unable to send verification code.', true);
     }
@@ -1763,8 +1769,9 @@ if (accountForm) {
 
         const previousAccount = accountEditIndex !== null ? accounts[accountEditIndex] : null;
 
+        let invitePayload = null;
         try {
-            await sendStaffInviteEmail(account);
+            invitePayload = await sendStaffInviteEmail(account);
         } catch (error) {
             alert(error.message || 'Unable to send invite email.');
             return;
@@ -1811,7 +1818,11 @@ if (accountForm) {
 
         renderAccounts();
         resetAccountForm();
-        alert('Invite email sent. The staff account can login after confirming the email verification code.');
+        if (invitePayload && invitePayload.warning) {
+            alert(`${invitePayload.warning} Configure SMTP in .env to deliver real Gmail messages.`);
+        } else {
+            alert('Invite email sent. The staff account can login after confirming the email verification code.');
+        }
     });
 }
 

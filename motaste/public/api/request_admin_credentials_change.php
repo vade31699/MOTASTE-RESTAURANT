@@ -73,7 +73,12 @@ try {
         exit;
     }
 
-    echo json_encode(['success' => true]);
+    echo json_encode([
+        'success' => true,
+        'warning' => $emailResult['warning'] ?? null,
+        'mailDriver' => $emailResult['driver'] ?? null,
+        'delivered' => array_key_exists('delivered', $emailResult) ? (bool)$emailResult['delivered'] : true,
+    ]);
 } catch (Throwable $error) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Unable to request credentials change', 'details' => $error->getMessage()]);

@@ -159,7 +159,18 @@ function sendSystemEmail(string $to, string $subject, string $body): array
         Mail::raw($body, function ($message) use ($to, $subject): void {
             $message->to($to)->subject($subject);
         });
-        return ['success' => true, 'driver' => 'laravel-mail'];
+
+        $activeMailer = (string)config('mail.default', 'log');
+        if (in_array($activeMailer, ['log', 'array'], true)) {
+            return [
+                'success' => true,
+                'driver' => $activeMailer,
+                'delivered' => false,
+                'warning' => 'Mail driver is set to log/array. Message was recorded locally, not sent to Gmail inbox.'
+            ];
+        }
+
+        return ['success' => true, 'driver' => $activeMailer, 'delivered' => true];
     } catch (Throwable $mailError) {
         $headers = [
             'MIME-Version: 1.0',
@@ -169,7 +180,7 @@ function sendSystemEmail(string $to, string $subject, string $body): array
 
         $nativeSent = @mail($to, $subject, $body, implode("\r\n", $headers));
         if ($nativeSent) {
-            return ['success' => true, 'driver' => 'php-mail'];
+            return ['success' => true, 'driver' => 'php-mail', 'delivered' => true];
         }
 
         return ['success' => false, 'error' => $mailError->getMessage()];
