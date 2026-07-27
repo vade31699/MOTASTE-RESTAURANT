@@ -184,6 +184,7 @@ function forceLogoutCurrentStaffSession() {
     if (pendingOrdersSection) pendingOrdersSection.hidden = true;
     if (logsSection) logsSection.hidden = true;
     if (accountManagementSection) accountManagementSection.hidden = true;
+    if (highlightsSection) highlightsSection.hidden = true;
     if (credentialsSection) credentialsSection.hidden = true;
 }
 
@@ -580,6 +581,10 @@ function canManageAccounts() {
     return getCurrentStaffRole() === 'Admin';
 }
 
+function canManageHighlights() {
+    return getCurrentStaffRole() === 'Admin';
+}
+
 function canAccessCredentials() {
     return getCurrentStaffRole() === 'Admin';
 }
@@ -590,6 +595,7 @@ function resolveAccessibleSection(sectionId) {
     if (requested === 'logs' && !canAccessLogs()) return 'overview';
     if (requested === 'pending-orders' && !canManageOrders()) return 'overview';
     if (requested === 'account-management' && !canManageAccounts()) return 'overview';
+    if (requested === 'highlights' && !canManageHighlights()) return 'overview';
     if (requested === 'credentials' && !canAccessCredentials()) return 'overview';
     return requested || 'overview';
 }
@@ -866,6 +872,9 @@ if (logoutBtn) {
         if (accountManagementSection) {
             accountManagementSection.hidden = true;
         }
+        if (highlightsSection) {
+            highlightsSection.hidden = true;
+        }
         if (credentialsSection) {
             credentialsSection.hidden = true;
         }
@@ -895,9 +904,11 @@ if (closePanelBtn) {
 }
 
 const accountManagementLink = document.getElementById('accountManagementLink');
+const highlightsLink = document.getElementById('highlightsLink');
 const credentialsLink = document.getElementById('credentialsLink');
 const logsLink = document.getElementById('logsLink');
 const accountManagementSection = document.getElementById('account-management');
+const highlightsSection = document.getElementById('highlights');
 const credentialsSection = document.getElementById('credentials');
 const accountForm = document.getElementById('accountForm');
 const accountList = document.getElementById('accountList');
@@ -905,6 +916,12 @@ const accountNameInput = document.getElementById('accountName');
 const accountRoleInput = document.getElementById('accountRole');
 const accountEmailInput = document.getElementById('accountEmail');
 const accountPasswordInput = document.getElementById('accountPassword');
+const highlightsForm = document.getElementById('highlightsForm');
+const highlightsImagesInput = document.getElementById('highlightsImagesInput');
+const highlightsMessage = document.getElementById('highlightsMessage');
+const highlightsList = document.getElementById('highlightsList');
+const highlightsStorageKey = 'motasteHighlightsSlides';
+const highlightsMaxImages = 15;
 const credentialsForm = document.getElementById('credentialsForm');
 const adminCurrentEmailInput = document.getElementById('adminCurrentEmail');
 const adminCurrentPasswordInput = document.getElementById('adminCurrentPassword');
@@ -1090,6 +1107,17 @@ if (accountManagementLink && accountManagementSection) {
     });
 }
 
+if (highlightsLink && highlightsSection) {
+    highlightsLink.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (!canManageHighlights()) {
+            return;
+        }
+        showDashboardSection(highlightsSection);
+        renderHighlightsManagement();
+    });
+}
+
 if (credentialsLink && credentialsSection) {
     credentialsLink.addEventListener('click', (event) => {
         event.preventDefault();
@@ -1112,13 +1140,14 @@ function updateAccountManagementAccess() {
     setLinkState(inventoryLink, canAccessInventory());
     setLinkState(logsLink, canAccessLogs());
     setLinkState(accountManagementLink, canManageAccounts());
+    setLinkState(highlightsLink, canManageHighlights());
     setLinkState(credentialsLink, canAccessCredentials());
 
     if (!document.body.classList.contains('auth')) {
         return;
     }
 
-    const activeSection = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, credentialsSection]
+    const activeSection = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, highlightsSection, credentialsSection]
         .find((section) => section && section.hidden === false);
     if (!activeSection) return;
 
@@ -1973,6 +2002,7 @@ renderAccounts();
 if (isStaffPage) {
     void ensureCsrfToken();
     void loadStaffAccountsFromServer();
+    void loadHighlightsFromServer();
     void loadAdminCredentials();
     startStaffAccountsRefresh();
     void loadOrderLogsFromServer();
@@ -1980,74 +2010,267 @@ if (isStaffPage) {
     startPendingOrdersRefresh();
 }
 
-/* Slideshow functionality */
+/* Highlights slideshow functionality (cross-device via API) */
 const slideshow = document.querySelector('.slideshow');
-if (slideshow) {
-    const slides = Array.from(slideshow.querySelectorAll('.slides img'));
-    const dotsContainer = document.getElementById('slideDots');
-    let current = 0;
-    let timer = null;
+const slideDots = document.getElementById('slideDots');
+let highlightsSlides = [];
+let highlightsCurrentIndex = 0;
+let highlightsTimer = null;
 
-    const lightbox = document.createElement('div');
-    lightbox.className = 'image-lightbox hidden';
-    lightbox.innerHTML = '<button type="button" class="close-btn" aria-label="Close image">×</button><img alt="Expanded view">';
-    document.body.appendChild(lightbox);
+const highlightsLightbox = document.createElement('div');
+highlightsLightbox.className = 'image-lightbox hidden';
+highlightsLightbox.innerHTML = '<button type="button" class="close-btn" aria-label="Close image">×</button><img alt="Expanded view">';
+document.body.appendChild(highlightsLightbox);
 
-    const lightboxImage = lightbox.querySelector('img');
-    const closeButton = lightbox.querySelector('.close-btn');
+const highlightsLightboxImage = highlightsLightbox.querySelector('img');
+const highlightsCloseButton = highlightsLightbox.querySelector('.close-btn');
 
-    function closeLightbox() {
-        lightbox.classList.add('hidden');
+function closeLightbox() {
+    highlightsLightbox.classList.add('hidden');
+}
+
+if (highlightsCloseButton) {
+    highlightsCloseButton.addEventListener('click', closeLightbox);
+}
+
+highlightsLightbox.addEventListener('click', (event) => {
+    if (event.target === highlightsLightbox) {
+        closeLightbox();
+    }
+});
+
+function setHighlightsMessage(message, isError = false) {
+    if (!highlightsMessage) return;
+    highlightsMessage.textContent = message || '';
+    highlightsMessage.style.color = isError ? '#b00020' : '#0b6b2f';
+}
+
+function persistHighlightsToStorage() {
+    localStorage.setItem(highlightsStorageKey, JSON.stringify(highlightsSlides));
+}
+
+function loadHighlightsFromStorage() {
+    try {
+        const raw = localStorage.getItem(highlightsStorageKey);
+        const parsed = raw ? JSON.parse(raw) : [];
+        highlightsSlides = Array.isArray(parsed)
+            ? parsed.filter((item) => typeof item === 'string' && item.trim() !== '')
+            : [];
+    } catch (error) {
+        highlightsSlides = [];
+    }
+}
+
+async function loadHighlightsFromServer() {
+    try {
+        const response = await fetch(getApiUrl(`api/get_highlights.php?_=${Date.now()}`), { cache: 'no-store' });
+        if (!response.ok) return false;
+
+        const payload = await response.json().catch(() => ({}));
+        if (!payload || payload.success !== true || !Array.isArray(payload.slides)) return false;
+
+        highlightsSlides = payload.slides
+            .filter((item) => typeof item === 'string' && item.trim() !== '')
+            .slice(0, highlightsMaxImages);
+        persistHighlightsToStorage();
+        renderHighlightsSlideshow();
+        renderHighlightsManagement();
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+async function saveHighlightsToServer() {
+    const headers = await withCsrfHeaders({
+        'Content-Type': 'application/json'
+    });
+
+    const response = await fetch(getApiUrl('api/save_highlights.php'), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ slides: highlightsSlides.slice(0, highlightsMaxImages) }),
+        cache: 'no-store'
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.success) {
+        throw new Error(payload.error || `Unable to save highlights (HTTP ${response.status})`);
+    }
+}
+
+function renderHighlightsSlideshow() {
+    if (!slideshow) return;
+    const slidesContainer = slideshow.querySelector('.slides');
+    if (!slidesContainer || !slideDots) return;
+
+    if (highlightsTimer) {
+        clearInterval(highlightsTimer);
+        highlightsTimer = null;
     }
 
-    function showSlide(index) {
-        slides.forEach((s, i) => s.classList.toggle('active', i === index));
-        const dots = Array.from(dotsContainer.children);
-        dots.forEach((d, i) => d.classList.toggle('active', i === index));
-        current = index;
+    if (!highlightsSlides.length) {
+        slidesContainer.innerHTML = '<div class="slideshow-empty">No highlights yet. Admin can upload images in Highlights tab.</div>';
+        slideDots.innerHTML = '';
+        return;
     }
 
-    function nextSlide() { showSlide((current + 1) % slides.length); }
-    function prevSlide() { showSlide((current - 1 + slides.length) % slides.length); }
+    slidesContainer.innerHTML = highlightsSlides.map((src, index) => `
+        <img src="${src}" alt="Highlight ${index + 1}"${index === 0 ? ' class="active"' : ''}>
+    `).join('');
+    slideDots.innerHTML = '';
+
+    const slides = Array.from(slidesContainer.querySelectorAll('img'));
+    highlightsCurrentIndex = Math.min(highlightsCurrentIndex, Math.max(0, slides.length - 1));
+
+    const showSlide = (index) => {
+        slides.forEach((slide, idx) => {
+            slide.classList.toggle('active', idx === index);
+        });
+
+        Array.from(slideDots.children).forEach((dot, idx) => {
+            dot.classList.toggle('active', idx === index);
+        });
+
+        highlightsCurrentIndex = index;
+    };
 
     slides.forEach((slide) => {
         slide.addEventListener('click', () => {
-            if (!slide.classList.contains('active')) {
-                return;
-            }
-
-            lightboxImage.src = slide.src;
-            lightboxImage.alt = slide.alt || 'Expanded image';
-            lightbox.classList.remove('hidden');
+            if (!slide.classList.contains('active')) return;
+            highlightsLightboxImage.src = slide.src;
+            highlightsLightboxImage.alt = slide.alt || 'Expanded image';
+            highlightsLightbox.classList.remove('hidden');
         });
     });
 
-    closeButton.addEventListener('click', closeLightbox);
-    lightbox.addEventListener('click', (event) => {
-        if (event.target === lightbox) {
-            closeLightbox();
+    slides.forEach((_, index) => {
+        const dot = document.createElement('button');
+        if (index === highlightsCurrentIndex) {
+            dot.classList.add('active');
+        }
+        dot.addEventListener('click', () => {
+            showSlide(index);
+        });
+        slideDots.appendChild(dot);
+    });
+
+    showSlide(highlightsCurrentIndex);
+    highlightsTimer = setInterval(() => {
+        const next = (highlightsCurrentIndex + 1) % slides.length;
+        showSlide(next);
+    }, 4000);
+}
+
+function renderHighlightsManagement() {
+    if (!highlightsList) return;
+
+    if (!highlightsSlides.length) {
+        highlightsList.innerHTML = '<p class="menu-cart-empty">No highlight images uploaded yet.</p>';
+    } else {
+        highlightsList.innerHTML = highlightsSlides.map((src, index) => `
+            <article class="highlight-item-card">
+                <img src="${src}" alt="Highlight ${index + 1}">
+                <button type="button" class="highlight-remove-btn" data-index="${index}">Remove</button>
+            </article>
+        `).join('');
+    }
+
+    setHighlightsMessage(`${highlightsSlides.length}/${highlightsMaxImages} images in slideshow.`);
+}
+
+function readImageAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Unable to read image file.'));
+        reader.readAsDataURL(file);
+    });
+}
+
+if (highlightsForm) {
+    highlightsForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!canManageHighlights()) {
+            setHighlightsMessage('Only admin can manage highlights.', true);
+            return;
+        }
+
+        const files = highlightsImagesInput && highlightsImagesInput.files
+            ? Array.from(highlightsImagesInput.files)
+            : [];
+
+        if (!files.length) {
+            setHighlightsMessage('Select at least one image.', true);
+            return;
+        }
+
+        const slotsLeft = highlightsMaxImages - highlightsSlides.length;
+        if (slotsLeft <= 0) {
+            setHighlightsMessage(`Maximum of ${highlightsMaxImages} images reached.`, true);
+            return;
+        }
+
+        const filesToUpload = files.filter((file) => file.type.startsWith('image/')).slice(0, slotsLeft);
+        if (!filesToUpload.length) {
+            setHighlightsMessage('Only image files are allowed.', true);
+            return;
+        }
+
+        try {
+            const newSlides = await Promise.all(filesToUpload.map((file) => readImageAsDataUrl(file)));
+            highlightsSlides = [...highlightsSlides, ...newSlides].slice(0, highlightsMaxImages);
+            persistHighlightsToStorage();
+            await saveHighlightsToServer();
+
+            renderHighlightsSlideshow();
+            renderHighlightsManagement();
+            if (highlightsImagesInput) {
+                highlightsImagesInput.value = '';
+            }
+
+            if (files.length > filesToUpload.length) {
+                setHighlightsMessage(`Uploaded ${filesToUpload.length} image(s). Extra files were skipped by the ${highlightsMaxImages}-image limit.`);
+            } else {
+                setHighlightsMessage(`Uploaded ${filesToUpload.length} image(s).`);
+            }
+        } catch (error) {
+            setHighlightsMessage(error.message || 'Unable to upload highlights.', true);
         }
     });
-
-    slides.forEach((_, i) => {
-        const btn = document.createElement('button');
-        btn.addEventListener('click', () => { showSlide(i); resetTimer(); });
-        if (i === 0) btn.classList.add('active');
-        dotsContainer.appendChild(btn);
-    });
-
-    function startTimer() {
-        timer = setInterval(nextSlide, 4000);
-    }
-
-    function resetTimer() {
-        clearInterval(timer);
-        startTimer();
-    }
-
-    showSlide(0);
-    startTimer();
 }
+
+if (highlightsList) {
+    highlightsList.addEventListener('click', async (event) => {
+        const removeButton = event.target.closest('.highlight-remove-btn');
+        if (!removeButton) return;
+        if (!canManageHighlights()) {
+            setHighlightsMessage('Only admin can manage highlights.', true);
+            return;
+        }
+
+        const index = Number(removeButton.dataset.index);
+        if (Number.isNaN(index) || index < 0 || index >= highlightsSlides.length) return;
+
+        highlightsSlides.splice(index, 1);
+        if (highlightsCurrentIndex >= highlightsSlides.length) {
+            highlightsCurrentIndex = Math.max(0, highlightsSlides.length - 1);
+        }
+
+        try {
+            persistHighlightsToStorage();
+            await saveHighlightsToServer();
+            renderHighlightsSlideshow();
+            renderHighlightsManagement();
+        } catch (error) {
+            setHighlightsMessage(error.message || 'Unable to remove highlight image.', true);
+        }
+    });
+}
+
+loadHighlightsFromStorage();
+renderHighlightsSlideshow();
+renderHighlightsManagement();
 
 const menuData = {
     batchoy: {
@@ -4312,7 +4535,7 @@ function renderOverviewAnalytics() {
 function showDashboardSection(section) {
     setInventoryModalVisible(false);
 
-    const sections = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, credentialsSection];
+    const sections = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, highlightsSection, credentialsSection];
     sections.forEach((el) => {
         if (!el) return;
         el.hidden = el !== section;
@@ -5037,6 +5260,12 @@ if (dashboardPanel) {
                 return;
             }
             showDashboardSection(accountManagementSection);
+        } else if (href === '#highlights') {
+            if (!canManageHighlights()) {
+                return;
+            }
+            showDashboardSection(highlightsSection);
+            renderHighlightsManagement();
         } else if (href === '#credentials') {
             if (!canAccessCredentials()) {
                 return;
@@ -5081,6 +5310,7 @@ if (pendingOrdersList) {
 
 function initOrders() {
     void ensureCsrfToken();
+    void loadHighlightsFromServer();
     loadCart();
     loadPendingOrders();
     loadIgnoredPendingOrders();
@@ -5118,6 +5348,7 @@ document.addEventListener('visibilitychange', () => {
     if (isCustomerPage && !document.hidden) {
         void loadCustomMenuData();
         void initializeInventoryData(true);
+        void loadHighlightsFromServer();
     }
 
     if (!enableInventoryAutoRefresh) return;
@@ -5130,6 +5361,7 @@ window.addEventListener('focus', () => {
     if (isCustomerPage) {
         void loadCustomMenuData();
         void initializeInventoryData(true);
+        void loadHighlightsFromServer();
     }
 
     if (!enableInventoryAutoRefresh) return;

@@ -123,6 +123,7 @@
         <a href="#sales" id="salesLink">Sales</a>
         <a href="#logs" id="logsLink">Logs</a>
         <a href="#account-management" id="accountManagementLink">Account Management</a>
+        <a href="#highlights" id="highlightsLink">Highlights</a>
         <a href="#credentials" id="credentialsLink">Credentials</a>
         <button type="button" id="logoutBtn" class="logout-btn" hidden>Logout</button>
     </div>
@@ -383,6 +384,19 @@
         </form>
 
         <ul id="accountList" class="account-list"></ul>
+    </section>
+
+    <section id="highlights" class="account-management" hidden>
+        <h2>Highlights</h2>
+        <p>Upload homepage slideshow images. Maximum of 15 images.</p>
+
+        <form id="highlightsForm" class="account-form">
+            <input type="file" id="highlightsImagesInput" accept="image/*" multiple>
+            <button type="submit">Upload Highlights</button>
+        </form>
+
+        <p id="highlightsMessage" class="menu-order-message" aria-live="polite"></p>
+        <div id="highlightsList" class="highlights-list"></div>
     </section>
 
     <section id="credentials" class="account-management" hidden>
