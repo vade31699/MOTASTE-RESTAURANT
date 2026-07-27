@@ -12,6 +12,7 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 use Illuminate\Support\Facades\DB;
 
 require_once __DIR__ . '/_email_auth_helpers.php';
+require_once __DIR__ . '/csrf_guard.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
 if (!is_array($input)) {
@@ -28,3 +29,5 @@ try {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Unable to save staff accounts', 'details' => $error->getMessage()]);
 }
+
+validateCsrfOrExit();

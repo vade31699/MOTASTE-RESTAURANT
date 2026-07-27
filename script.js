@@ -295,6 +295,9 @@ if (logoutBtn) {
         if (accountManagementSection) {
             accountManagementSection.hidden = true;
         }
+        if (highlightsSection) {
+            highlightsSection.hidden = true;
+        }
 
         updateAccountManagementAccess();
         setAuthButtonsVisible(false);
@@ -320,13 +323,21 @@ if (closePanelBtn) {
 }
 
 const accountManagementLink = document.getElementById('accountManagementLink');
+const highlightsLink = document.getElementById('highlightsLink');
 const accountManagementSection = document.getElementById('account-management');
+const highlightsSection = document.getElementById('highlights');
 const accountForm = document.getElementById('accountForm');
 const accountList = document.getElementById('accountList');
 const accountNameInput = document.getElementById('accountName');
 const accountRoleInput = document.getElementById('accountRole');
 const accountEmailInput = document.getElementById('accountEmail');
 const accountPasswordInput = document.getElementById('accountPassword');
+const highlightsForm = document.getElementById('highlightsForm');
+const highlightsImagesInput = document.getElementById('highlightsImagesInput');
+const highlightsMessage = document.getElementById('highlightsMessage');
+const highlightsList = document.getElementById('highlightsList');
+const highlightsStorageKey = 'motasteHighlightsSlides';
+const highlightsMaxImages = 15;
 let accountEditIndex = null;
 let accounts = [
     { name: 'Cashier One', role: 'Cashier', email: 'cashier@motaste.com', password: 'cashier123' },
@@ -358,11 +369,14 @@ function resetAccountForm() {
     accountEditIndex = null;
 }
 
+function isAdminAuthenticated() {
+    return document.body.classList.contains('auth') && Boolean(selectedRoleInput && selectedRoleInput.value === 'Admin');
+}
+
 if (accountManagementLink && accountManagementSection) {
     accountManagementLink.addEventListener('click', (event) => {
         event.preventDefault();
-        const isAdmin = document.body.classList.contains('auth') && (selectedRoleInput && selectedRoleInput.value === 'Admin');
-        if (!isAdmin) {
+        if (!isAdminAuthenticated()) {
             return;
         }
         const showAccountManagement = accountManagementSection.hidden;
@@ -374,6 +388,17 @@ if (accountManagementLink && accountManagementSection) {
     });
 }
 
+if (highlightsLink && highlightsSection) {
+    highlightsLink.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (!isAdminAuthenticated()) {
+            return;
+        }
+        showDashboardSection(highlightsSection);
+        renderHighlightsManagement();
+    });
+}
+
 function updateAccountManagementAccess() {
     const isAdmin = selectedRoleInput && selectedRoleInput.value === 'Admin';
     if (accountManagementLink) {
@@ -381,6 +406,13 @@ function updateAccountManagementAccess() {
             accountManagementLink.classList.remove('disabled');
         } else {
             accountManagementLink.classList.add('disabled');
+        }
+    }
+    if (highlightsLink) {
+        if (isAdmin) {
+            highlightsLink.classList.remove('disabled');
+        } else {
+            highlightsLink.classList.add('disabled');
         }
     }
 }
@@ -898,74 +930,227 @@ if (accountList) {
 
 renderAccounts();
 
-/* Slideshow functionality */
+/* Highlights slideshow functionality */
 const slideshow = document.querySelector('.slideshow');
-if (slideshow) {
-    const slides = Array.from(slideshow.querySelectorAll('.slides img'));
-    const dotsContainer = document.getElementById('slideDots');
-    let current = 0;
-    let timer = null;
+const slideDots = document.getElementById('slideDots');
+let highlightsSlides = [];
+let highlightsCurrentIndex = 0;
+let highlightsTimer = null;
 
-    const lightbox = document.createElement('div');
-    lightbox.className = 'image-lightbox hidden';
-    lightbox.innerHTML = '<button type="button" class="close-btn" aria-label="Close image">×</button><img alt="Expanded view">';
-    document.body.appendChild(lightbox);
+const highlightsLightbox = document.createElement('div');
+highlightsLightbox.className = 'image-lightbox hidden';
+highlightsLightbox.innerHTML = '<button type="button" class="close-btn" aria-label="Close image">×</button><img alt="Expanded view">';
+document.body.appendChild(highlightsLightbox);
+const highlightsLightboxImage = highlightsLightbox.querySelector('img');
+const highlightsLightboxCloseButton = highlightsLightbox.querySelector('.close-btn');
 
-    const lightboxImage = lightbox.querySelector('img');
-    const closeButton = lightbox.querySelector('.close-btn');
+function closeLightbox() {
+    highlightsLightbox.classList.add('hidden');
+}
 
-    function closeLightbox() {
-        lightbox.classList.add('hidden');
+if (highlightsLightboxCloseButton) {
+    highlightsLightboxCloseButton.addEventListener('click', closeLightbox);
+}
+
+highlightsLightbox.addEventListener('click', (event) => {
+    if (event.target === highlightsLightbox) {
+        closeLightbox();
+    }
+});
+
+function loadHighlightsSlides() {
+    try {
+        const raw = localStorage.getItem(highlightsStorageKey);
+        const parsed = raw ? JSON.parse(raw) : [];
+        highlightsSlides = Array.isArray(parsed)
+            ? parsed.filter((src) => typeof src === 'string' && src.trim() !== '')
+            : [];
+    } catch (error) {
+        highlightsSlides = [];
+    }
+}
+
+function saveHighlightsSlides() {
+    localStorage.setItem(highlightsStorageKey, JSON.stringify(highlightsSlides));
+}
+
+function setHighlightsMessage(message, isError = false) {
+    if (!highlightsMessage) return;
+    highlightsMessage.textContent = message || '';
+    highlightsMessage.style.color = isError ? '#b00020' : '#0b6b2f';
+}
+
+function renderHighlightsManagement() {
+    if (!highlightsList) return;
+
+    if (!highlightsSlides.length) {
+        highlightsList.innerHTML = '<p class="menu-cart-empty">No highlights uploaded yet.</p>';
+    } else {
+        highlightsList.innerHTML = highlightsSlides.map((src, index) => `
+            <article class="highlight-item-card">
+                <img src="${src}" alt="Highlight ${index + 1}">
+                <button type="button" class="highlight-remove-btn" data-index="${index}">Remove</button>
+            </article>
+        `).join('');
     }
 
-    function showSlide(index) {
-        slides.forEach((s, i) => s.classList.toggle('active', i === index));
-        const dots = Array.from(dotsContainer.children);
-        dots.forEach((d, i) => d.classList.toggle('active', i === index));
-        current = index;
+    setHighlightsMessage(`${highlightsSlides.length}/${highlightsMaxImages} images in slideshow.`);
+}
+
+function renderHighlightsSlideshow() {
+    if (!slideshow) return;
+
+    const slidesContainer = slideshow.querySelector('.slides');
+    if (!slidesContainer || !slideDots) return;
+
+    if (highlightsTimer) {
+        clearInterval(highlightsTimer);
+        highlightsTimer = null;
     }
 
-    function nextSlide() { showSlide((current + 1) % slides.length); }
-    function prevSlide() { showSlide((current - 1 + slides.length) % slides.length); }
+    if (!highlightsSlides.length) {
+        slidesContainer.innerHTML = '<div class="slideshow-empty">No highlights yet. Admin can upload images in the Highlights tab.</div>';
+        slideDots.innerHTML = '';
+        return;
+    }
+
+    slidesContainer.innerHTML = highlightsSlides.map((src, index) => `
+        <img src="${src}" alt="Highlight ${index + 1}"${index === 0 ? ' class="active"' : ''}>
+    `).join('');
+    slideDots.innerHTML = '';
+
+    const slides = Array.from(slidesContainer.querySelectorAll('img'));
+    highlightsCurrentIndex = Math.min(highlightsCurrentIndex, slides.length - 1);
+
+    const showSlide = (index) => {
+        slides.forEach((slide, idx) => {
+            slide.classList.toggle('active', idx === index);
+        });
+        Array.from(slideDots.children).forEach((dot, idx) => {
+            dot.classList.toggle('active', idx === index);
+        });
+        highlightsCurrentIndex = index;
+    };
 
     slides.forEach((slide) => {
         slide.addEventListener('click', () => {
-            if (!slide.classList.contains('active')) {
-                return;
-            }
-
-            lightboxImage.src = slide.src;
-            lightboxImage.alt = slide.alt || 'Expanded image';
-            lightbox.classList.remove('hidden');
+            if (!slide.classList.contains('active')) return;
+            highlightsLightboxImage.src = slide.src;
+            highlightsLightboxImage.alt = slide.alt || 'Expanded image';
+            highlightsLightbox.classList.remove('hidden');
         });
     });
 
-    closeButton.addEventListener('click', closeLightbox);
-    lightbox.addEventListener('click', (event) => {
-        if (event.target === lightbox) {
-            closeLightbox();
+    slides.forEach((_, idx) => {
+        const dot = document.createElement('button');
+        if (idx === highlightsCurrentIndex) {
+            dot.classList.add('active');
+        }
+        dot.addEventListener('click', () => {
+            showSlide(idx);
+            if (highlightsTimer) {
+                clearInterval(highlightsTimer);
+            }
+            highlightsTimer = setInterval(() => {
+                const nextIndex = (highlightsCurrentIndex + 1) % slides.length;
+                showSlide(nextIndex);
+            }, 4000);
+        });
+        slideDots.appendChild(dot);
+    });
+
+    showSlide(highlightsCurrentIndex);
+    highlightsTimer = setInterval(() => {
+        const nextIndex = (highlightsCurrentIndex + 1) % slides.length;
+        showSlide(nextIndex);
+    }, 4000);
+}
+
+function readImageFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Unable to read image file.'));
+        reader.readAsDataURL(file);
+    });
+}
+
+if (highlightsForm) {
+    highlightsForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!isAdminAuthenticated()) {
+            setHighlightsMessage('Only admin can manage highlights.', true);
+            return;
+        }
+
+        const files = highlightsImagesInput && highlightsImagesInput.files
+            ? Array.from(highlightsImagesInput.files)
+            : [];
+
+        if (!files.length) {
+            setHighlightsMessage('Select at least one image to upload.', true);
+            return;
+        }
+
+        const availableSlots = highlightsMaxImages - highlightsSlides.length;
+        if (availableSlots <= 0) {
+            setHighlightsMessage(`Maximum of ${highlightsMaxImages} images reached. Remove one before uploading another.`, true);
+            return;
+        }
+
+        const filesToUpload = files.filter((file) => file.type.startsWith('image/')).slice(0, availableSlots);
+        if (!filesToUpload.length) {
+            setHighlightsMessage('Only image files are allowed.', true);
+            return;
+        }
+
+        try {
+            const uploaded = await Promise.all(filesToUpload.map((file) => readImageFileAsDataUrl(file)));
+            highlightsSlides = [...highlightsSlides, ...uploaded].slice(0, highlightsMaxImages);
+            saveHighlightsSlides();
+            renderHighlightsManagement();
+            renderHighlightsSlideshow();
+
+            if (highlightsImagesInput) {
+                highlightsImagesInput.value = '';
+            }
+
+            if (files.length > filesToUpload.length) {
+                setHighlightsMessage(`Uploaded ${filesToUpload.length} image(s). Some files were skipped due to the ${highlightsMaxImages}-image limit.`, false);
+            } else {
+                setHighlightsMessage(`Uploaded ${filesToUpload.length} image(s).`, false);
+            }
+        } catch (error) {
+            setHighlightsMessage(error.message || 'Unable to upload slideshow images.', true);
         }
     });
-
-    slides.forEach((_, i) => {
-        const btn = document.createElement('button');
-        btn.addEventListener('click', () => { showSlide(i); resetTimer(); });
-        if (i === 0) btn.classList.add('active');
-        dotsContainer.appendChild(btn);
-    });
-
-    function startTimer() {
-        timer = setInterval(nextSlide, 4000);
-    }
-
-    function resetTimer() {
-        clearInterval(timer);
-        startTimer();
-    }
-
-    showSlide(0);
-    startTimer();
 }
+
+if (highlightsList) {
+    highlightsList.addEventListener('click', (event) => {
+        const removeButton = event.target.closest('.highlight-remove-btn');
+        if (!removeButton) return;
+        if (!isAdminAuthenticated()) {
+            setHighlightsMessage('Only admin can manage highlights.', true);
+            return;
+        }
+
+        const index = Number(removeButton.dataset.index);
+        if (Number.isNaN(index) || index < 0 || index >= highlightsSlides.length) return;
+
+        highlightsSlides.splice(index, 1);
+        if (highlightsCurrentIndex >= highlightsSlides.length) {
+            highlightsCurrentIndex = Math.max(0, highlightsSlides.length - 1);
+        }
+        saveHighlightsSlides();
+        renderHighlightsManagement();
+        renderHighlightsSlideshow();
+    });
+}
+
+loadHighlightsSlides();
+renderHighlightsManagement();
+renderHighlightsSlideshow();
 
 const menuData = {
     batchoy: {
@@ -1308,6 +1493,13 @@ function loadCustomMenuData() {
 
 window.addEventListener('storage', (event) => {
     if (!event.key) return;
+
+    if (event.key === highlightsStorageKey) {
+        loadHighlightsSlides();
+        renderHighlightsManagement();
+        renderHighlightsSlideshow();
+        return;
+    }
 
     if (event.key === 'motasteCustomMenuData') {
         loadCustomMenuData();
@@ -1831,7 +2023,7 @@ function renderOverviewAnalytics() {
 function showDashboardSection(section) {
     setInventoryModalVisible(false);
 
-    const sections = [overviewSection, salesSection, pendingOrdersSection, inventorySection, accountManagementSection];
+    const sections = [overviewSection, salesSection, pendingOrdersSection, inventorySection, accountManagementSection, highlightsSection];
     sections.forEach((el) => {
         if (!el) return;
         el.hidden = el !== section;
@@ -2473,11 +2665,16 @@ if (dashboardPanel) {
             showDashboardSection(salesSection);
             updateAnalyticsView();
         } else if (href === '#account-management') {
-            const isAdmin = document.body.classList.contains('auth') && (selectedRoleInput && selectedRoleInput.value === 'Admin');
-            if (!isAdmin) {
+            if (!isAdminAuthenticated()) {
                 return;
             }
             showDashboardSection(accountManagementSection);
+        } else if (href === '#highlights') {
+            if (!isAdminAuthenticated()) {
+                return;
+            }
+            showDashboardSection(highlightsSection);
+            renderHighlightsManagement();
         }
 
         setDashboardPanelState(false);

@@ -11,6 +11,8 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
 
+require_once __DIR__ . '/csrf_guard.php';
+
 function ensureReviewTables(): void
 {
     DB::statement("CREATE TABLE IF NOT EXISTS customer_reviews (
@@ -77,9 +79,21 @@ $rating = isset($input['rating']) ? (int)$input['rating'] : 0;
 $reviewText = trim((string)($input['reviewText'] ?? ''));
 $reviewerToken = trim((string)($input['reviewerToken'] ?? ''));
 
+validateCsrfOrExit();
+
+$reviewText = strip_tags($reviewText);
+$reviewText = preg_replace('/\s+/u', ' ', $reviewText);
+$reviewText = trim((string)$reviewText);
+
 if ($rating < 1 || $rating > 5 || $reviewText === '') {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'rating and reviewText are required']);
+    exit;
+}
+
+if (mb_strlen($reviewText) > 500) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Review must be 500 characters or fewer']);
     exit;
 }
 

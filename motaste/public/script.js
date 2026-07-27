@@ -207,13 +207,15 @@ function saveStaffAccountsToServer() {
     saveStaffAccountsToStorage();
     window.motasteStaffAccounts = accounts;
 
-    void fetch(getApiUrl('api/save_staff_accounts.php'), {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(accounts),
-        cache: 'no-store'
+    void withCsrfHeaders({
+        'Content-Type': 'application/json'
+    }).then((headers) => {
+        return fetch(getApiUrl('api/save_staff_accounts.php'), {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(accounts),
+            cache: 'no-store'
+        });
     }).catch((error) => {
         console.error('Unable to sync staff accounts to server', error);
     });
@@ -242,6 +244,40 @@ function getApiUrl(path) {
     }
 }
 
+let csrfToken = '';
+
+async function ensureCsrfToken() {
+    if (csrfToken) return csrfToken;
+
+    try {
+        const response = await fetch(getApiUrl(`api/get_csrf_token.php?_=${Date.now()}`), { cache: 'no-store' });
+        if (!response.ok) return '';
+        const payload = await response.json().catch(() => ({}));
+        csrfToken = String(payload.csrfToken || '').trim();
+        return csrfToken;
+    } catch (error) {
+        return '';
+    }
+}
+
+async function withCsrfHeaders(headers = {}) {
+    const token = await ensureCsrfToken();
+    const merged = { ...headers };
+    if (token) {
+        merged['X-CSRF-TOKEN'] = token;
+    }
+    return merged;
+}
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function isGmailAddress(email) {
     const normalized = (email || '').trim().toLowerCase();
     return /@gmail\.com$/.test(normalized);
@@ -252,11 +288,13 @@ async function notifyStaffSessionEvent(eventName, actorRole, actorEmail) {
     if (actorRole !== 'Cashier' && actorRole !== 'Inventory Manager') return;
 
     try {
+        const headers = await withCsrfHeaders({
+            'Content-Type': 'application/json'
+        });
+
         await fetch(getApiUrl('api/notify_staff_session.php'), {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers,
             body: JSON.stringify({
                 event: eventName,
                 role: actorRole,
@@ -272,11 +310,13 @@ async function notifyStaffSessionEvent(eventName, actorRole, actorEmail) {
 }
 
 async function sendStaffInviteEmail(account) {
+    const headers = await withCsrfHeaders({
+        'Content-Type': 'application/json'
+    });
+
     const response = await fetch(getApiUrl('api/send_staff_invite.php'), {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify({
             name: account.name,
             role: account.role,
@@ -294,11 +334,13 @@ async function sendStaffInviteEmail(account) {
 }
 
 async function confirmStaffInviteCode(email, role, code) {
+    const headers = await withCsrfHeaders({
+        'Content-Type': 'application/json'
+    });
+
     const response = await fetch(getApiUrl('api/confirm_staff_invite.php'), {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify({ email, role, code }),
         cache: 'no-store'
     });
@@ -940,11 +982,13 @@ async function requestAdminCredentialsChange() {
     }
 
     try {
+        const headers = await withCsrfHeaders({
+            'Content-Type': 'application/json'
+        });
+
         const response = await fetch(getApiUrl('api/request_admin_credentials_change.php'), {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers,
             body: JSON.stringify({
                 currentEmail,
                 currentPassword,
@@ -982,11 +1026,13 @@ async function confirmAdminCredentialsChange(event) {
     }
 
     try {
+        const headers = await withCsrfHeaders({
+            'Content-Type': 'application/json'
+        });
+
         const response = await fetch(getApiUrl('api/confirm_admin_credentials_change.php'), {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers,
             body: JSON.stringify({ currentEmail, currentPassword, code }),
             cache: 'no-store'
         });
@@ -1925,6 +1971,7 @@ if (socialLoginButtons && socialLoginButtons.length) {
 loadStaffAccountsFromStorage();
 renderAccounts();
 if (isStaffPage) {
+    void ensureCsrfToken();
     void loadStaffAccountsFromServer();
     void loadAdminCredentials();
     startStaffAccountsRefresh();
@@ -2952,10 +2999,11 @@ function renderCustomerReviews() {
     }
 
     customerReviewsList.innerHTML = cachedReviews.map((review) => {
+        const safeReviewText = escapeHtml(review.review_text);
         return `
             <article class="customer-review-card">
                 <p><strong class="review-stars">${renderStarRating(review.rating)}</strong></p>
-                <p class="review-comment">${review.review_text}</p>
+                <p class="review-comment">${safeReviewText}</p>
                 <p><span>${formatRealtimeDate(review.created_at_iso || review.created_at)}</span></p>
             </article>
         `;
@@ -2973,11 +3021,12 @@ function renderStaffReviews() {
     staffReviewList.innerHTML = cachedStaffReviews.map((review) => {
         const status = (review.publish_status || 'pending').toLowerCase();
         const showPublishButton = status !== 'published';
+        const safeReviewText = escapeHtml(review.review_text);
         return `
             <article class="staff-review-card">
                 <p><span class="review-status-badge ${status === 'published' ? 'is-published' : 'is-pending'}">${getReviewPublishStatusLabel(status)}</span></p>
                 <p><strong class="review-stars">${renderStarRating(review.rating)}</strong></p>
-                <p class="review-comment">${review.review_text}</p>
+                <p class="review-comment">${safeReviewText}</p>
                 <p><span>${formatRealtimeDate(review.created_at_iso || review.created_at)}</span></p>
                 ${showPublishButton ? `<button type="button" class="staff-review-publish-btn" data-review-id="${review.id}">Publish Review</button>` : ''}
                 <button type="button" class="staff-review-delete-btn" data-review-id="${review.id}">Delete Review</button>
@@ -3038,11 +3087,13 @@ if (customerReviewForm) {
 
         try {
             const reviewerToken = getOrCreateReviewerToken();
+            const headers = await withCsrfHeaders({
+                'Content-Type': 'application/json'
+            });
+
             const response = await fetch(getApiUrl('api/save_review.php'), {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers,
                 body: JSON.stringify({ rating, reviewText, reviewerToken }),
                 cache: 'no-store'
             });
@@ -3077,11 +3128,13 @@ if (staffReviewList) {
         const actor = getCurrentStaffActor();
         try {
             const endpoint = publishButton ? 'api/publish_review.php' : 'api/delete_review.php';
+            const headers = await withCsrfHeaders({
+                'Content-Type': 'application/json'
+            });
+
             const response = await fetch(getApiUrl(endpoint), {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers,
                 body: JSON.stringify({
                     reviewId,
                     actorRole: actor.role,
@@ -5027,6 +5080,7 @@ if (pendingOrdersList) {
 }
 
 function initOrders() {
+    void ensureCsrfToken();
     loadCart();
     loadPendingOrders();
     loadIgnoredPendingOrders();

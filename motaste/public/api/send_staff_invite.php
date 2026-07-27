@@ -12,11 +12,14 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 use Illuminate\Support\Facades\DB;
 
 require_once __DIR__ . '/_email_auth_helpers.php';
+require_once __DIR__ . '/csrf_guard.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
 $name = trim((string)($input['name'] ?? ''));
 $role = trim((string)($input['role'] ?? ''));
 $email = strtolower(trim((string)($input['email'] ?? '')));
+
+validateCsrfOrExit();
 
 if ($name === '' || $role === '' || $email === '') {
     http_response_code(400);

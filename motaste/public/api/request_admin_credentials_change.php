@@ -12,12 +12,15 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 use Illuminate\Support\Facades\DB;
 
 require_once __DIR__ . '/_email_auth_helpers.php';
+require_once __DIR__ . '/csrf_guard.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
 $currentEmail = strtolower(trim((string)($input['currentEmail'] ?? '')));
 $currentPassword = (string)($input['currentPassword'] ?? '');
 $newEmail = strtolower(trim((string)($input['newEmail'] ?? '')));
 $newPassword = (string)($input['newPassword'] ?? '');
+
+validateCsrfOrExit();
 
 if ($currentEmail === '' || $currentPassword === '' || $newEmail === '' || $newPassword === '') {
     http_response_code(400);

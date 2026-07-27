@@ -3344,6 +3344,8 @@ body.dashboard-panel-open .menu-btn {
     border-radius: 10px;
     border: 1px solid rgba(0, 0, 0, 0.14);
     padding: 10px 12px;
+    font-size: 1rem;
+    letter-spacing: 0.4px;
 }
 
 .review-submit-message {

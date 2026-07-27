@@ -10,6 +10,7 @@ $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 require_once __DIR__ . '/_email_auth_helpers.php';
+require_once __DIR__ . '/csrf_guard.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
 $event = strtolower(trim((string)($input['event'] ?? '')));
@@ -17,6 +18,8 @@ $role = trim((string)($input['role'] ?? ''));
 $email = strtolower(trim((string)($input['email'] ?? '')));
 $occurredAt = trim((string)($input['occurredAt'] ?? ''));
 $userAgent = trim((string)($input['userAgent'] ?? ''));
+
+validateCsrfOrExit();
 
 if (!in_array($event, ['login', 'logout'], true) || $role === '' || $email === '') {
     http_response_code(400);

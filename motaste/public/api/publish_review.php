@@ -11,6 +11,8 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
 
+require_once __DIR__ . '/csrf_guard.php';
+
 function ensureReviewTables(): void
 {
     DB::statement("CREATE TABLE IF NOT EXISTS customer_reviews (
@@ -51,6 +53,8 @@ $input = json_decode(file_get_contents('php://input'), true);
 $reviewId = isset($input['reviewId']) ? (int)$input['reviewId'] : 0;
 $actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
 $actorEmail = trim((string)($input['actorEmail'] ?? ''));
+
+validateCsrfOrExit();
 
 if ($reviewId <= 0) {
     http_response_code(400);
