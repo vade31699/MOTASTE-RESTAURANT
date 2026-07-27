@@ -4858,7 +4858,10 @@ function isItemOutOfStock(itemName) {
 function renderSpecialFoods() {
     if (!specialFoodsList) return;
 
-    specialFoodsList.innerHTML = specialFoods.map((item) => {
+    // Get special foods from inventory (live data from database)
+    const specialItems = (inventoryData || []).filter((item) => item.category === 'specials');
+
+    specialFoodsList.innerHTML = specialItems.map((item) => {
         const imageSrc = item.image || 'img1.jpg';
         const stock = Number(item.stock) || 0;
         const isOutOfStock = stock <= 0;
@@ -5414,7 +5417,18 @@ function showMenuCategory(categoryId) {
 
     currentMenuCategoryId = categoryId;
     menuCategoryTitle.textContent = category.title;
-    menuItemsList.innerHTML = category.items.map((item) => {
+
+    // For specials category, get items from inventory data (live from database)
+    let itemsToDisplay = category.items;
+    if (categoryId === 'specials') {
+        itemsToDisplay = (inventoryData || []).filter((item) => item.category === 'specials').map((invItem) => ({
+            name: invItem.name,
+            description: invItem.description || '',
+            price: formatCurrency(invItem.price)
+        }));
+    }
+
+    menuItemsList.innerHTML = itemsToDisplay.map((item) => {
         const isOutOfStock = isItemOutOfStock(item.name);
         const currentQty = getCartQuantityForItem(item.name);
         const availableStock = getAvailableStockForItem(item.name);
