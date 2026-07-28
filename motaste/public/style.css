@@ -1456,9 +1456,9 @@ body.dashboard-panel-open .menu-btn {
     left: 50%;
     transform: translate(-50%, -50%);
     width: min(520px, 90vw);
-    max-height: min(80vh, 700px);
+    height: min(80vh, 700px);
     z-index: 3000;
-    background: rgba(231, 12, 12, 0.98);
+    background: rgba(255, 255, 255, 0.98);
     border-radius: 16px;
     padding: 14px;
     display: grid;
@@ -1500,9 +1500,9 @@ body.dashboard-panel-open .menu-btn {
     border-color: #ff9800;
 }
 .cart-addon-list {
-    min-height: 120px;
-    max-height: 300px;
+    min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     display: grid;
     align-content: start;
     gap: 10px;
