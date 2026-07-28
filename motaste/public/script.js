@@ -2585,6 +2585,24 @@ function loadCart() {
     } catch (error) {
         cartItems = [];
     }
+
+    if (!Array.isArray(cartItems)) {
+        cartItems = [];
+        return;
+    }
+
+    cartItems = cartItems.map((item) => ({
+        ...item,
+        components: Array.isArray(item.components)
+            ? item.components
+                .map((component) => ({
+                    name: (component && component.name ? String(component.name) : '').trim(),
+                    quantity: Math.max(1, Number(component && component.quantity ? component.quantity : 1) || 1)
+                }))
+                .filter((component) => component.name !== '')
+            : [],
+        componentsOpen: Boolean(item.componentsOpen)
+    }));
 }
 
 function saveCart() {
@@ -4114,23 +4132,44 @@ function updateCartDisplay() {
     menuCartList.innerHTML = cartItems.map((item, index) => {
         const itemTotal = item.quantity * item.price;
         total += itemTotal;
+        const hasComponents = Array.isArray(item.components) && item.components.length > 0;
+        const componentRows = hasComponents
+            ? item.components.map((component, componentIndex) => {
+                const canIncrease = canIncreaseCartComponentQuantity(index, component.name);
+                return `
+                    <li class="menu-cart-component-item">
+                        <span class="menu-cart-component-name">${escapeHtml(component.name)}</span>
+                        <div class="menu-cart-component-controls">
+                            <button type="button" class="menu-cart-component-btn" data-action="component-decrease" data-index="${index}" data-component-index="${componentIndex}" aria-label="Decrease ${escapeHtml(component.name)} quantity"${component.quantity <= 1 ? ' disabled' : ''}>−</button>
+                            <span class="menu-cart-component-qty">${component.quantity}</span>
+                            <button type="button" class="menu-cart-component-btn" data-action="component-increase" data-index="${index}" data-component-index="${componentIndex}" aria-label="Increase ${escapeHtml(component.name)} quantity"${canIncrease ? '' : ' disabled'}>+</button>
+                            <button type="button" class="menu-cart-component-remove" data-index="${index}" data-component-index="${componentIndex}" aria-label="Remove ${escapeHtml(component.name)}">Remove</button>
+                        </div>
+                    </li>
+                `;
+            }).join('')
+            : '';
         return `
             <div class="menu-cart-item">
                 <div class="menu-cart-item-details">
                     <div>
-                        <strong>${item.name}</strong>
+                        <div class="menu-cart-item-title-row">
+                            <strong>${item.name}</strong>
+                            ${hasComponents ? `<button type="button" class="menu-cart-components-toggle" data-index="${index}" aria-expanded="${item.componentsOpen ? 'true' : 'false'}" aria-label="Toggle customize options">${item.componentsOpen ? '▾' : '▸'}</button>` : ''}
+                        </div>
                         <div class="menu-cart-item-qty-controls">
                             <button type="button" class="menu-cart-item-quantity-btn" data-action="decrease" data-index="${index}" aria-label="Decrease ${item.name} quantity"${item.quantity === 1 ? ' disabled' : ''}>
                                 <i class="fa-solid fa-minus" aria-hidden="true"></i>
                             </button>
                             <span class="menu-cart-item-qty">${item.quantity}</span>
-                            <button type="button" class="menu-cart-item-quantity-btn" data-action="increase" data-index="${index}" aria-label="Increase ${item.name} quantity">
+                            <button type="button" class="menu-cart-item-quantity-btn" data-action="increase" data-index="${index}" aria-label="Increase ${item.name} quantity"${canIncreaseCartItemQuantity(index) ? '' : ' disabled'}>
                                 <i class="fa-solid fa-plus" aria-hidden="true"></i>
                             </button>
                         </div>
                     </div>
                     <button type="button" class="menu-cart-item-remove" data-index="${index}">Remove</button>
                 </div>
+                ${hasComponents && item.componentsOpen ? `<div class="menu-cart-components"><p class="menu-cart-components-title">Customize</p><ul class="menu-cart-component-list">${componentRows}</ul></div>` : ''}
                 <div>${formatCurrency(itemTotal)}</div>
             </div>
         `;
@@ -4158,6 +4197,60 @@ function getAvailableStockForItem(name) {
     return Math.max(0, stock - getCartQuantityForItem(name));
 }
 
+function getReservedComponentQuantityInCart(componentName) {
+    const normalizedComponentName = normalizeInventoryName(componentName);
+    if (!normalizedComponentName) return 0;
+
+    return cartItems.reduce((sum, cartItem) => {
+        const itemQuantity = Math.max(0, Number(cartItem.quantity) || 0);
+        if (itemQuantity <= 0 || !Array.isArray(cartItem.components)) return sum;
+
+        const component = cartItem.components.find((entry) => normalizeInventoryName(entry.name) === normalizedComponentName);
+        if (!component) return sum;
+
+        const componentQuantity = Math.max(0, Number(component.quantity) || 0);
+        return sum + (componentQuantity * itemQuantity);
+    }, 0);
+}
+
+function getAvailableStockForCartComponent(componentName) {
+    const inventoryItem = getInventoryItem(componentName);
+    if (!inventoryItem) return 0;
+
+    const stock = Math.max(0, Number(inventoryItem.stock) || 0);
+    const reserved = getReservedComponentQuantityInCart(componentName);
+    return Math.max(0, stock - reserved);
+}
+
+function canIncreaseCartItemQuantity(index) {
+    if (index < 0 || index >= cartItems.length) return false;
+
+    const cartItem = cartItems[index];
+    if (getAvailableStockForItem(cartItem.name) <= 0) {
+        return false;
+    }
+
+    if (!Array.isArray(cartItem.components) || !cartItem.components.length) {
+        return true;
+    }
+
+    return cartItem.components.every((component) => {
+        const componentPerDishQty = Math.max(0, Number(component.quantity) || 0);
+        if (componentPerDishQty <= 0) return true;
+        return getAvailableStockForCartComponent(component.name) >= componentPerDishQty;
+    });
+}
+
+function canIncreaseCartComponentQuantity(index, componentName) {
+    if (index < 0 || index >= cartItems.length) return false;
+
+    const cartItem = cartItems[index];
+    const dishQuantity = Math.max(0, Number(cartItem.quantity) || 0);
+    if (dishQuantity <= 0) return false;
+
+    return getAvailableStockForCartComponent(componentName) >= dishQuantity;
+}
+
 function clampCartToInventory() {
     let changed = false;
 
@@ -4182,6 +4275,64 @@ function clampCartToInventory() {
         items.push({ ...item, quantity: nextQuantity });
         return items;
     }, []);
+
+    if (changed) {
+        saveCart();
+    }
+
+    const reservedUsage = {};
+    cartItems.forEach((item) => {
+        if (!Array.isArray(item.components)) {
+            item.components = [];
+            return;
+        }
+
+        const dishQuantity = Math.max(0, Number(item.quantity) || 0);
+        const nextComponents = [];
+
+        item.components.forEach((component) => {
+            const componentName = (component && component.name ? String(component.name) : '').trim();
+            if (!componentName) {
+                changed = true;
+                return;
+            }
+
+            const inventoryComponent = getInventoryItem(componentName);
+            if (!inventoryComponent) {
+                changed = true;
+                return;
+            }
+
+            const normalized = normalizeInventoryName(componentName);
+            const stock = Math.max(0, Number(inventoryComponent.stock) || 0);
+            const alreadyReserved = reservedUsage[normalized] || 0;
+            const remainingStock = Math.max(0, stock - alreadyReserved);
+            const maxPerDishQty = dishQuantity > 0 ? Math.floor(remainingStock / dishQuantity) : 0;
+            const requestedPerDishQty = Math.max(1, Number(component.quantity) || 1);
+            const clampedPerDishQty = Math.min(requestedPerDishQty, Math.max(0, maxPerDishQty));
+
+            if (clampedPerDishQty <= 0) {
+                changed = true;
+                return;
+            }
+
+            if (clampedPerDishQty !== requestedPerDishQty) {
+                changed = true;
+            }
+
+            nextComponents.push({
+                name: componentName,
+                quantity: clampedPerDishQty
+            });
+            reservedUsage[normalized] = alreadyReserved + (clampedPerDishQty * dishQuantity);
+        });
+
+        if (nextComponents.length !== item.components.length) {
+            changed = true;
+        }
+
+        item.components = nextComponents;
+    });
 
     if (changed) {
         saveCart();
@@ -4244,7 +4395,11 @@ function decrementInventory(items) {
 
         applyStockReduction(item.name, orderedQuantity);
 
-        const components = getSpecialFoodComponentsByName(item.name);
+        const components = normalizeSpecialComponents(
+            Array.isArray(item.components) && item.components.length
+                ? item.components
+                : getSpecialFoodComponentsByName(item.name)
+        );
         components.forEach((component) => {
             const needed = Math.max(0, Number(component.quantity) || 0) * orderedQuantity;
             if (needed <= 0) return;
@@ -4963,17 +5118,45 @@ function addToCart(item, quantityToAdd = 1) {
         return;
     }
 
-    const quantity = Math.min(requestedQuantity, availableStock);
+    const specialComponents = getSpecialFoodComponentsByName(item.name);
+    const maxAdditionalByComponents = specialComponents.length
+        ? specialComponents.reduce((minAllowed, component) => {
+            const perDishQty = Math.max(0, Number(component.quantity) || 0);
+            if (perDishQty <= 0) return minAllowed;
+
+            const availableComponentStock = getAvailableStockForCartComponent(component.name);
+            const maxByThisComponent = Math.floor(availableComponentStock / perDishQty);
+            return Math.min(minAllowed, maxByThisComponent);
+        }, Number.POSITIVE_INFINITY)
+        : Number.POSITIVE_INFINITY;
+
+    const quantity = Math.min(requestedQuantity, availableStock, maxAdditionalByComponents);
+    if (quantity <= 0) {
+        if (menuOrderMessage) {
+            menuOrderMessage.textContent = `${item.name} cannot be added. ADD ON stock limit reached.`;
+        }
+        return;
+    }
+
     const existing = cartItems.find((cartItem) => cartItem.name === item.name);
+
     if (existing) {
+        if (!Array.isArray(existing.components) || !existing.components.length) {
+            existing.components = specialComponents;
+        }
         existing.quantity += quantity;
     } else {
-        cartItems.push({ ...item, quantity });
+        cartItems.push({
+            ...item,
+            quantity,
+            components: specialComponents,
+            componentsOpen: false
+        });
     }
     saveCart();
     updateCartDisplay();
     if (menuOrderMessage) {
-        if (quantity < requestedQuantity) {
+        if (quantity < requestedQuantity || quantity < availableStock) {
             menuOrderMessage.textContent = `${item.name}: only ${quantity} item(s) were added due to stock limit.`;
         } else {
             menuOrderMessage.textContent = `${quantity} ${item.name} added to cart.`;
@@ -5005,9 +5188,71 @@ function removeCartItem(index) {
 function adjustCartItemQuantity(index, change) {
     if (index < 0 || index >= cartItems.length || !change) return;
     const item = cartItems[index];
+
+    if (change > 0 && !canIncreaseCartItemQuantity(index)) {
+        if (menuOrderMessage) {
+            menuOrderMessage.textContent = `Cannot increase ${item.name}. ADD ON stock limit reached.`;
+        }
+        return;
+    }
+
     const nextQuantity = item.quantity + change;
     if (nextQuantity < 1) return;
     item.quantity = nextQuantity;
+    saveCart();
+    updateCartDisplay();
+}
+
+function toggleCartItemComponents(index) {
+    if (Number.isNaN(index) || index < 0 || index >= cartItems.length) return;
+    const item = cartItems[index];
+    if (!Array.isArray(item.components) || !item.components.length) return;
+
+    item.componentsOpen = !item.componentsOpen;
+    saveCart();
+    updateCartDisplay();
+}
+
+function adjustCartItemComponentQuantity(index, componentIndex, change) {
+    if (Number.isNaN(index) || Number.isNaN(componentIndex) || index < 0 || index >= cartItems.length || !change) return;
+
+    const item = cartItems[index];
+    if (!Array.isArray(item.components) || !item.components.length) return;
+
+    if (componentIndex < 0) return;
+
+    const component = item.components[componentIndex];
+    const nextQuantity = (Number(component.quantity) || 0) + change;
+
+    if (change > 0 && !canIncreaseCartComponentQuantity(index, component.name)) {
+        if (menuOrderMessage) {
+            menuOrderMessage.textContent = `Cannot add more ${component.name}. ADD ON stock limit reached.`;
+        }
+        return;
+    }
+
+    if (nextQuantity < 1) {
+        return;
+    }
+
+    component.quantity = nextQuantity;
+    saveCart();
+    updateCartDisplay();
+}
+
+function removeCartItemComponent(index, componentIndex) {
+    if (Number.isNaN(index) || Number.isNaN(componentIndex) || index < 0 || index >= cartItems.length) return;
+
+    const item = cartItems[index];
+    if (!Array.isArray(item.components) || !item.components.length) return;
+
+    if (componentIndex < 0 || componentIndex >= item.components.length) return;
+    item.components.splice(componentIndex, 1);
+
+    if (item.componentsOpen && item.components.length === 0) {
+        item.componentsOpen = false;
+    }
+
     saveCart();
     updateCartDisplay();
 }
@@ -5415,7 +5660,12 @@ async function confirmOrder() {
         orderNumber: generateOrderNumber(),
         id: Date.now(),
         timestamp: Date.now(),
-        items: cartItems.map((item) => ({ name: item.name, price: item.price, quantity: item.quantity })),
+        items: cartItems.map((item) => ({
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            components: normalizeSpecialComponents(item.components)
+        })),
         total: cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
         paymentMethod: selectedPaymentMethod,
         orderType: selectedOrderType
@@ -5747,6 +5997,30 @@ if (menuCategoryScreen) {
 
 if (menuCartList) {
     menuCartList.addEventListener('click', (event) => {
+        const toggleButton = event.target.closest('.menu-cart-components-toggle');
+        if (toggleButton) {
+            const index = Number(toggleButton.dataset.index);
+            toggleCartItemComponents(index);
+            return;
+        }
+
+        const componentButton = event.target.closest('.menu-cart-component-btn');
+        if (componentButton) {
+            const index = Number(componentButton.dataset.index);
+            const componentIndex = Number(componentButton.dataset.componentIndex);
+            const change = componentButton.dataset.action === 'component-increase' ? 1 : -1;
+            adjustCartItemComponentQuantity(index, componentIndex, change);
+            return;
+        }
+
+        const removeComponentButton = event.target.closest('.menu-cart-component-remove');
+        if (removeComponentButton) {
+            const index = Number(removeComponentButton.dataset.index);
+            const componentIndex = Number(removeComponentButton.dataset.componentIndex);
+            removeCartItemComponent(index, componentIndex);
+            return;
+        }
+
         const quantityButton = event.target.closest('.menu-cart-item-quantity-btn');
         if (quantityButton) {
             const index = Number(quantityButton.dataset.index);
