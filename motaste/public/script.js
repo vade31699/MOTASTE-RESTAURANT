@@ -4207,23 +4207,49 @@ function syncMenuPricesWithInventory() {
     if (!inventoryData || !inventoryData.length) return;
 
     const priceMap = inventoryData.reduce((map, item) => {
-        map[item.name] = item;
+        const normalizedName = normalizeInventoryName(item.name);
+        if (!normalizedName) return map;
+        map[normalizedName] = item;
         return map;
     }, {});
 
+    (inventoryData || []).forEach((inventoryItem) => {
+        const categoryKey = inventoryItem.category || resolveInventoryCategory(inventoryItem.name);
+        if (!categoryKey || categoryKey === 'specials') return;
+        if (blockedProductNames.has(normalizeInventoryName(inventoryItem.name))) return;
+
+        if (!menuData[categoryKey]) {
+            menuData[categoryKey] = {
+                title: (inventoryCategoryLabels[categoryKey] || String(categoryKey)).toUpperCase(),
+                items: []
+            };
+        }
+
+        const existsInCategory = (menuData[categoryKey].items || []).some((menuItem) => normalizeInventoryName(menuItem.name) === normalizeInventoryName(inventoryItem.name));
+        if (!existsInCategory) {
+            menuData[categoryKey].items.push({
+                name: inventoryItem.name,
+                price: `₱${Number(inventoryItem.price || 0).toLocaleString()}`,
+                description: inventoryItem.description || `${inventoryItem.name} has been added by staff.`
+            });
+        }
+    });
+
     Object.values(menuData).forEach((category) => {
         category.items.forEach((item) => {
-            if (priceMap[item.name] !== undefined) {
-                item.price = `₱${Number(priceMap[item.name].price || 0).toLocaleString()}`;
-                item.description = priceMap[item.name].description || item.description || '';
+            const normalizedName = normalizeInventoryName(item.name);
+            if (priceMap[normalizedName] !== undefined) {
+                item.price = `₱${Number(priceMap[normalizedName].price || 0).toLocaleString()}`;
+                item.description = priceMap[normalizedName].description || item.description || '';
             }
         });
     });
 
     specialFoods.forEach((food) => {
-        if (priceMap[food.name] !== undefined) {
-            food.price = Number(priceMap[food.name].price) || 0;
-            food.description = priceMap[food.name].description || food.description || '';
+        const normalizedName = normalizeInventoryName(food.name);
+        if (priceMap[normalizedName] !== undefined) {
+            food.price = Number(priceMap[normalizedName].price) || 0;
+            food.description = priceMap[normalizedName].description || food.description || '';
         }
     });
 }
