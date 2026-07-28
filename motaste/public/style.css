@@ -1187,6 +1187,30 @@ body.dashboard-panel-open .menu-btn {
         padding-bottom: 84px;
     }
 
+    .menu-total-panel {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .menu-total-panel > div {
+        text-align: right;
+    }
+
+    .menu-total-panel > div span {
+        display: block;
+        font-size: 0.9rem;
+        color: #555;
+    }
+
+    .menu-total-panel > div strong {
+        display: block;
+        font-size: 1.25rem;
+        color: #111;
+    }
+
     #menuCartButton.menu-cart-button {
         position: fixed;
         right: 14px;
@@ -2105,6 +2129,7 @@ body.dashboard-panel-open .menu-btn {
     align-items: center;
     justify-content: center;
     width: 100%;
+    min-width: 110px;
     border: none;
     background: #111;
     color: #fff;
@@ -2116,6 +2141,16 @@ body.dashboard-panel-open .menu-btn {
 }
 .menu-item-card .menu-item-action:hover {
     background: #ff9800;
+}
+.menu-item-card .menu-item-action.menu-item-action-primary {
+    background: #ff8c00;
+}
+.menu-item-card .menu-item-action.menu-item-action-primary:hover {
+    background: #ff7a00;
+}
+.menu-item-actions {
+    display: grid;
+    gap: 8px;
 }
 .menu-item-price {
     font-weight: 700;

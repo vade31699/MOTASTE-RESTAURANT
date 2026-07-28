@@ -4486,6 +4486,7 @@ function updateCartDisplay() {
         menuTopCartCount.textContent = totalItems;
         menuTopCartCount.parentElement.classList.toggle('has-items', totalItems > 0);
     }
+    updateMenuSalesTotal();
     syncVisibleMenuItemQuantities();
     if (!menuCartList || !menuCartCount || !menuCartTotal || !menuPlaceOrderBtn) return;
 
@@ -4559,6 +4560,13 @@ function getInventoryItem(name) {
 
 function getCartQuantityForItem(name) {
     return cartItems.reduce((total, item) => total + (normalizeInventoryName(item.name) === normalizeInventoryName(name) ? Number(item.quantity) || 0 : 0), 0);
+}
+
+function updateMenuSalesTotal() {
+    const menuSalesTotal = document.getElementById('menuSalesTotal');
+    if (!menuSalesTotal) return;
+    const total = cartItems.reduce((sum, item) => sum + getCartItemLineTotal(item), 0);
+    menuSalesTotal.textContent = formatCurrency(total);
 }
 
 function getAvailableStockForItem(name) {
@@ -6419,6 +6427,10 @@ function showMenuCategory(categoryId) {
                     <span class="menu-item-qty">${currentQty}</span>
                     <button type="button" class="menu-item-qty-btn" data-action="increase" data-name="${item.name}" data-price="${parsePrice(item.price)}" aria-label="Increase ${item.name} quantity"${availableStock <= 0 ? ' disabled' : ''}>+</button>
                 </div>
+                <div class="menu-item-actions">
+                    <button type="button" class="menu-item-action" data-action="add-to-cart" data-name="${item.name}" data-price="${parsePrice(item.price)}">Add to cart</button>
+                    <button type="button" class="menu-item-action menu-item-action-primary" data-action="purchase-now" data-name="${item.name}" data-price="${parsePrice(item.price)}">Purchase now</button>
+                </div>
                 <span class="menu-item-confirmation" aria-live="polite"></span>
             </div>
         </article>
@@ -6691,28 +6703,43 @@ if (menuOverlayCategories) {
 if (menuCategoryScreen) {
     menuCategoryScreen.addEventListener('click', (event) => {
         const qtyButton = event.target.closest('.menu-item-qty-btn');
-        if (!qtyButton) return;
+        const actionButton = event.target.closest('.menu-item-action');
+        if (!qtyButton && !actionButton) return;
 
-        const card = qtyButton.closest('.menu-item-card');
-        const qtyElement = card?.querySelector('.menu-item-qty');
+        const target = qtyButton || actionButton;
+        const card = target.closest('.menu-item-card');
         const confirmation = card?.querySelector('.menu-item-confirmation');
-        const name = qtyButton.dataset.name;
-        const price = Number(qtyButton.dataset.price);
-        const currentQty = Number(qtyElement?.textContent || 0);
-        const change = qtyButton.dataset.action === 'increase' ? 1 : -1;
+        const name = target.dataset.name;
+        const price = Number(target.dataset.price);
 
-        if (change > 0) {
-            addToCart({ name, price });
-        } else if (currentQty > 0) {
-            const cartIndex = cartItems.findIndex((item) => item.name === name);
-            if (cartIndex >= 0) {
-                const existing = cartItems[cartIndex];
-                existing.quantity = Math.max(0, existing.quantity - 1);
-                if (existing.quantity === 0) {
-                    cartItems.splice(cartIndex, 1);
+        if (qtyButton) {
+            const qtyElement = card?.querySelector('.menu-item-qty');
+            const currentQty = Number(qtyElement?.textContent || 0);
+            const change = qtyButton.dataset.action === 'increase' ? 1 : -1;
+
+            if (change > 0) {
+                addToCart({ name, price });
+            } else if (currentQty > 0) {
+                const cartIndex = cartItems.findIndex((item) => item.name === name);
+                if (cartIndex >= 0) {
+                    const existing = cartItems[cartIndex];
+                    existing.quantity = Math.max(0, existing.quantity - 1);
+                    if (existing.quantity === 0) {
+                        cartItems.splice(cartIndex, 1);
+                    }
+                    saveCart();
+                    updateCartDisplay();
                 }
-                saveCart();
-                updateCartDisplay();
+            }
+        }
+
+        if (actionButton) {
+            const action = actionButton.dataset.action;
+            if (action === 'add-to-cart') {
+                addToCart({ name, price });
+            } else if (action === 'purchase-now') {
+                addToCart({ name, price });
+                openCartModal();
             }
         }
 
