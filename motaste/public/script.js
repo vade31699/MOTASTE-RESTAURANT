@@ -2760,6 +2760,7 @@ const menuItemsList = document.getElementById('menuItemsList');
 const menuBackBtn = document.getElementById('menuBackBtn');
 const menuCartList = document.getElementById('menuCartList');
 const menuCartCount = document.getElementById('menuCartCount');
+const menuCartHeader = document.querySelector('.menu-cart-header');
 const menuCartTotal = document.getElementById('menuCartTotal');
 const menuCartSummary = document.querySelector('.menu-cart-summary');
 const menuPlaceOrderBtn = document.getElementById('menuPlaceOrderBtn');
@@ -6027,6 +6028,9 @@ function closeCartAddOnScreen() {
     if (menuPlaceOrderBtn) {
         menuPlaceOrderBtn.classList.remove('hidden');
     }
+    if (menuCartHeader) {
+        menuCartHeader.classList.remove('hidden');
+    }
     if (menuCartList) {
         menuCartList.classList.remove('hidden');
     }
@@ -6116,6 +6120,9 @@ async function openCartAddOnScreen() {
     if (!cartAddOnScreen) return;
     if (menuPlaceOrderBtn) {
         menuPlaceOrderBtn.classList.add('hidden');
+    }
+    if (menuCartHeader) {
+        menuCartHeader.classList.add('hidden');
     }
     if (menuCartList) {
         menuCartList.classList.add('hidden');
