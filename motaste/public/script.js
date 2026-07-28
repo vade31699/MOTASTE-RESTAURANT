@@ -5810,6 +5810,7 @@ let selectedPaymentMethod = 'Cash';
 let selectedOrderType = 'Dine In';
 let cartAddOnDraftQuantities = {};
 let cartAddOnSearchQuery = '';
+let cartAddOnDataRefreshInFlight = null;
 
 function resetCartAddOnDraft() {
     cartAddOnDraftQuantities = {};
@@ -5840,6 +5841,32 @@ function updateCartAddOnTotalDisplay(allAddOnItems) {
 
     const combinedTotal = getCurrentCartTotalAmount() + getCartAddOnDraftTotal(allAddOnItems);
     cartAddOnTotal.innerHTML = `<span>Total if added</span><strong>${formatCurrency(combinedTotal)}</strong>`;
+}
+
+async function refreshCartAddOnData() {
+    if (cartAddOnDataRefreshInFlight) {
+        return cartAddOnDataRefreshInFlight;
+    }
+
+    cartAddOnDataRefreshInFlight = (async () => {
+        try {
+            await loadCustomMenuData();
+        } catch (error) {
+            console.error('Unable to refresh custom menu data for add on screen', error);
+        }
+
+        try {
+            await initializeInventoryData(true);
+        } catch (error) {
+            console.error('Unable to refresh inventory data for add on screen', error);
+        }
+    })();
+
+    try {
+        await cartAddOnDataRefreshInFlight;
+    } finally {
+        cartAddOnDataRefreshInFlight = null;
+    }
 }
 
 function closeCartAddOnScreen() {
@@ -5919,15 +5946,24 @@ function renderCartAddOnScreen() {
     }
 }
 
-function openCartAddOnScreen() {
+async function openCartAddOnScreen() {
     if (!cartAddOnScreen) return;
     if (cartAddOnSearchInput) {
         cartAddOnSearchInput.value = '';
     }
     cartAddOnSearchQuery = '';
-    renderCartAddOnScreen();
     cartAddOnScreen.classList.remove('hidden');
     cartAddOnScreen.setAttribute('aria-hidden', 'false');
+
+    if (cartAddOnList) {
+        cartAddOnList.innerHTML = '<p class="menu-cart-empty">Loading add on items...</p>';
+    }
+    if (cartAddOnApplyBtn) {
+        cartAddOnApplyBtn.disabled = true;
+    }
+
+    await refreshCartAddOnData();
+    renderCartAddOnScreen();
 }
 
 function applySelectedCartAddOns() {
