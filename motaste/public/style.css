@@ -1439,7 +1439,7 @@ body.dashboard-panel-open .menu-btn {
 }
 .cart-modal .menu-cart-panel {
     width: min(520px, 100%);
-    max-height: min(74vh, 640px);
+    max-height: min(80vh, 700px);
     box-sizing: border-box;
     overflow-y: auto;
     position: relative;

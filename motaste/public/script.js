@@ -1607,7 +1607,14 @@ const reviewerTokenStorageKey = 'motasteReviewerToken';
 
 function isAddOnCategory(category) {
     const normalized = String(category || '').trim().toLowerCase().replace(/[^a-z]/g, '');
-    return normalized === 'addons' || normalized === 'addon' || normalized === 'addonitem' || normalized === 'addonitems';
+    return normalized === 'addons'
+        || normalized === 'addon'
+        || normalized === 'addonitem'
+        || normalized === 'addonitems'
+        || normalized === 'customize'
+        || normalized === 'customization'
+        || normalized === 'component'
+        || normalized === 'components';
 }
 
 function normalizeSpecialComponents(components) {
@@ -1773,15 +1780,29 @@ function getOrderComponents(components) {
 
 function getAddOnInventoryItems() {
     const byName = new Map();
+    const componentNames = new Set();
+
+    specialFoods.forEach((food) => {
+        normalizeSpecialComponents(food && food.components).forEach((component) => {
+            const normalizedName = normalizeInventoryName(component.name);
+            if (normalizedName) {
+                componentNames.add(normalizedName);
+            }
+        });
+    });
 
     (inventoryData || []).forEach((item) => {
-        if (!item || !isAddOnCategory(item.category)) return;
+        if (!item) return;
 
         const name = String(item.name || '').trim();
         if (!name) return;
 
         const normalizedName = normalizeInventoryName(name);
         if (!normalizedName) return;
+
+        const addOnByCategory = isAddOnCategory(item.category);
+        const addOnBySpecialComponent = componentNames.has(normalizedName);
+        if (!addOnByCategory && !addOnBySpecialComponent) return;
 
         byName.set(normalizedName, {
             ...item,
