@@ -6092,20 +6092,8 @@ function closeCartAddOnScreen() {
     if (!cartAddOnScreen) return;
     cartAddOnScreen.classList.add('hidden');
     cartAddOnScreen.setAttribute('aria-hidden', 'true');
-    if (menuPlaceOrderBtn) {
-        menuPlaceOrderBtn.classList.remove('hidden');
-    }
-    if (menuCartHeader) {
-        menuCartHeader.classList.remove('hidden');
-    }
     if (menuCartList) {
         menuCartList.classList.remove('hidden');
-    }
-    if (menuCartSummary) {
-        menuCartSummary.classList.remove('hidden');
-    }
-    if (menuOrderMessage) {
-        menuOrderMessage.classList.remove('hidden');
     }
     if (cartAddOnBtn) {
         cartAddOnBtn.classList.remove('hidden');
@@ -6185,28 +6173,12 @@ function renderCartAddOnScreen() {
 
 async function openCartAddOnScreen() {
     if (!cartAddOnScreen) return;
-    if (menuPlaceOrderBtn) {
-        menuPlaceOrderBtn.classList.add('hidden');
-    }
-    if (menuCartHeader) {
-        menuCartHeader.classList.add('hidden');
-    }
     if (menuCartList) {
         menuCartList.classList.add('hidden');
-    }
-    if (menuCartSummary) {
-        menuCartSummary.classList.add('hidden');
-    }
-    if (menuOrderMessage) {
-        menuOrderMessage.classList.add('hidden');
     }
     if (cartAddOnBtn) {
         cartAddOnBtn.classList.add('hidden');
     }
-    if (cartAddOnSearchInput) {
-        cartAddOnSearchInput.value = '';
-    }
-    cartAddOnSearchQuery = '';
     cartAddOnScreen.classList.remove('hidden');
     cartAddOnScreen.setAttribute('aria-hidden', 'false');
 

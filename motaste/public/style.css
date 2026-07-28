@@ -1494,26 +1494,26 @@ body.dashboard-panel-open .menu-btn {
     -webkit-backdrop-filter: blur(16px);
 }
 .cart-addon-screen {
-    position: fixed;
-    inset: 20px 14px 20px;
+    position: relative;
+    inset: auto;
     top: auto;
     left: auto;
     right: auto;
     bottom: auto;
-    width: min(470px, calc(100vw - 32px));
-    max-width: 92vw;
-    max-height: calc(90vh - 40px);
-    z-index: 3200;
-    background: #ffffff;
-    border-radius: 16px;
-    padding: 16px;
+    width: auto;
+    max-width: 100%;
+    max-height: none;
+    z-index: auto;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
     gap: 10px;
     box-sizing: border-box;
-    border: 1px solid rgba(0, 0, 0, 0.12);
-    box-shadow: 0 20px 54px rgba(0, 0, 0, 0.28);
-    overflow: hidden;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
 }
 .cart-addon-screen-header {
     display: flex;
