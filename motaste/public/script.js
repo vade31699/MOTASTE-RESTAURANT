@@ -2691,6 +2691,11 @@ const menuCartList = document.getElementById('menuCartList');
 const menuCartCount = document.getElementById('menuCartCount');
 const menuCartTotal = document.getElementById('menuCartTotal');
 const menuPlaceOrderBtn = document.getElementById('menuPlaceOrderBtn');
+const cartAddOnBtn = document.getElementById('cartAddOnBtn');
+const cartAddOnScreen = document.getElementById('cartAddOnScreen');
+const cartAddOnCloseBtn = document.getElementById('cartAddOnCloseBtn');
+const cartAddOnList = document.getElementById('cartAddOnList');
+const cartAddOnMessage = document.getElementById('cartAddOnMessage');
 const menuOrderMessage = document.getElementById('menuOrderMessage');
 const menuOverlay = document.getElementById('menuOverlay');
 const openMenuBtn = document.getElementById('openMenuBtn');
@@ -5782,6 +5787,69 @@ async function placeWalkInOrder() {
 
 let selectedPaymentMethod = 'Cash';
 let selectedOrderType = 'Dine In';
+let cartAddOnDraftQuantities = {};
+
+function resetCartAddOnDraft() {
+    cartAddOnDraftQuantities = {};
+}
+
+function closeCartAddOnScreen() {
+    if (!cartAddOnScreen) return;
+    cartAddOnScreen.classList.add('hidden');
+    cartAddOnScreen.setAttribute('aria-hidden', 'true');
+    resetCartAddOnDraft();
+    if (cartAddOnMessage) {
+        cartAddOnMessage.textContent = '';
+    }
+}
+
+function renderCartAddOnScreen() {
+    if (!cartAddOnList) return;
+
+    const addOnItems = Array.isArray(menuData?.addons?.items)
+        ? menuData.addons.items
+            .map((item) => ({
+                ...item,
+                price: Number(item.price) || 0,
+                stock: getAvailableStockForItem(item.name)
+            }))
+            .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+        : [];
+
+    if (!addOnItems.length) {
+        cartAddOnList.innerHTML = '<p class="menu-cart-empty">No add on items available.</p>';
+        return;
+    }
+
+    cartAddOnList.innerHTML = addOnItems.map((item) => {
+        const normalizedName = normalizeInventoryName(item.name);
+        const selectedQty = Math.max(0, Number(cartAddOnDraftQuantities[normalizedName] || 0));
+        const availableStock = Math.max(0, Number(item.stock) || 0);
+        const maxAddable = Math.max(0, availableStock);
+        return `
+            <article class="cart-addon-item">
+                <div class="cart-addon-item-head">
+                    <strong>${escapeHtml(item.name)}</strong>
+                    <span>${formatCurrency(item.price)}</span>
+                </div>
+                <div class="cart-addon-item-controls" data-name="${escapeHtml(item.name)}" data-price="${item.price}" data-max="${maxAddable}">
+                    <button type="button" class="menu-item-qty-btn" data-action="decrease" ${selectedQty <= 0 ? 'disabled' : ''}>−</button>
+                    <span class="menu-item-qty">${selectedQty}</span>
+                    <button type="button" class="menu-item-qty-btn" data-action="increase" ${selectedQty >= maxAddable ? 'disabled' : ''}>+</button>
+                    <button type="button" class="menu-add-single-btn cart-addon-add-btn" data-action="add" ${selectedQty <= 0 ? 'disabled' : ''}>Add</button>
+                </div>
+                <div class="cart-addon-item-stock">Available: ${availableStock}</div>
+            </article>
+        `;
+    }).join('');
+}
+
+function openCartAddOnScreen() {
+    if (!cartAddOnScreen) return;
+    renderCartAddOnScreen();
+    cartAddOnScreen.classList.remove('hidden');
+    cartAddOnScreen.setAttribute('aria-hidden', 'false');
+}
 
 function openCheckoutScreen() {
     if (!cartItems.length || getCartPayableTotal() <= 0) return;
@@ -6031,6 +6099,7 @@ function openCartModal() {
 
 function closeCartModal() {
     if (!cartModal) return;
+    closeCartAddOnScreen();
     cartModal.classList.add('hidden');
     cartModal.setAttribute('aria-hidden', 'true');
 }
@@ -6302,6 +6371,57 @@ if (menuCartList) {
         if (!button) return;
         const index = Number(button.dataset.index);
         removeCartItem(index);
+    });
+}
+
+if (cartAddOnBtn) {
+    cartAddOnBtn.addEventListener('click', openCartAddOnScreen);
+}
+
+if (cartAddOnCloseBtn) {
+    cartAddOnCloseBtn.addEventListener('click', closeCartAddOnScreen);
+}
+
+if (cartAddOnList) {
+    cartAddOnList.addEventListener('click', (event) => {
+        const controls = event.target.closest('.cart-addon-item-controls');
+        if (!controls) return;
+
+        const name = String(controls.dataset.name || '').trim();
+        const price = Number(controls.dataset.price || 0);
+        const max = Math.max(0, Number(controls.dataset.max || 0));
+        const normalizedName = normalizeInventoryName(name);
+        if (!name || !normalizedName) return;
+
+        const actionBtn = event.target.closest('button[data-action]');
+        if (!actionBtn) return;
+
+        const action = actionBtn.dataset.action;
+        const current = Math.max(0, Number(cartAddOnDraftQuantities[normalizedName] || 0));
+
+        if (action === 'increase') {
+            cartAddOnDraftQuantities[normalizedName] = Math.min(max, current + 1);
+            renderCartAddOnScreen();
+            return;
+        }
+
+        if (action === 'decrease') {
+            cartAddOnDraftQuantities[normalizedName] = Math.max(0, current - 1);
+            renderCartAddOnScreen();
+            return;
+        }
+
+        if (action === 'add') {
+            const quantity = Math.max(0, Number(cartAddOnDraftQuantities[normalizedName] || 0));
+            if (quantity <= 0) return;
+
+            addToCart({ name, price }, quantity);
+            cartAddOnDraftQuantities[normalizedName] = 0;
+            if (cartAddOnMessage) {
+                cartAddOnMessage.textContent = `${quantity} ${name} added to cart.`;
+            }
+            renderCartAddOnScreen();
+        }
     });
 }
 

@@ -129,9 +129,19 @@
                     <span>Total</span>
                     <strong id="menuCartTotal">₱0</strong>
                 </div>
+                <button type="button" id="cartAddOnBtn" class="menu-add-single-btn">Add On</button>
                 <button type="button" id="menuPlaceOrderBtn" class="menu-place-order-btn" disabled>Proceed to Payment</button>
             </div>
             <p class="menu-order-message" id="menuOrderMessage"></p>
+
+            <div id="cartAddOnScreen" class="cart-addon-screen hidden" aria-hidden="true">
+                <div class="cart-addon-screen-header">
+                    <h4>Add On Items</h4>
+                    <button type="button" id="cartAddOnCloseBtn" class="menu-back-btn">Back</button>
+                </div>
+                <div id="cartAddOnList" class="cart-addon-list"></div>
+                <p id="cartAddOnMessage" class="menu-order-message"></p>
+            </div>
         </aside>
     </section>
 
