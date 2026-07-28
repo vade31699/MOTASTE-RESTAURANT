@@ -6154,6 +6154,13 @@ function applySelectedCartAddOns() {
     }
 }
 
+function updateOverlayHeaderVisibility() {
+    if (!menuOverlay) return;
+    const hideHeader = (orderCheckoutScreen && !orderCheckoutScreen.classList.contains('hidden')) ||
+        (orderPaymentScreen && !orderPaymentScreen.classList.contains('hidden'));
+    menuOverlay.classList.toggle('hide-header', hideHeader);
+}
+
 function openCheckoutScreen() {
     if (!cartItems.length || getCartPayableTotal() <= 0) return;
     if (!orderCheckoutScreen || !menuCategoryScreen) return;
@@ -6162,6 +6169,7 @@ function openCheckoutScreen() {
     orderCheckoutScreen.classList.remove('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'false');
     renderCheckoutSummary();
+    updateOverlayHeaderVisibility();
 }
 
 function closeCheckoutScreen() {
@@ -6170,6 +6178,7 @@ function closeCheckoutScreen() {
     orderCheckoutScreen.classList.add('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'true');
     menuCategoryScreen.classList.remove('hidden');
+    updateOverlayHeaderVisibility();
 }
 
 function renderCheckoutSummary() {
@@ -6237,6 +6246,7 @@ function openPaymentScreen(order) {
     orderCheckoutScreen.classList.add('hidden');
     orderPaymentScreen.classList.remove('hidden');
     orderPaymentScreen.setAttribute('aria-hidden', 'false');
+    updateOverlayHeaderVisibility();
 
     if (orderPaymentNumber) {
         orderPaymentNumber.textContent = order.orderNumber;
@@ -6271,6 +6281,7 @@ function closePaymentScreen() {
     orderPaymentScreen.setAttribute('aria-hidden', 'true');
     orderCheckoutScreen.classList.remove('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'false');
+    updateOverlayHeaderVisibility();
 }
 
 function showPaymentSuccessMessage() {

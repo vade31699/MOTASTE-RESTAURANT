@@ -1654,6 +1654,9 @@ body.dashboard-panel-open .menu-btn {
     justify-content: space-between;
     gap: 16px;
 }
+.menu-overlay.hide-header .menu-overlay-header {
+    display: none;
+}
 .menu-overlay-actions {
     display: flex;
     align-items: center;
