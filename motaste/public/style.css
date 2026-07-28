@@ -1500,7 +1500,7 @@ body.dashboard-panel-open .menu-btn {
     border-color: #ff9800;
 }
 .cart-addon-list {
-    min-height: 120px;
+    min-height: 0px;
     max-height: 300px;
     overflow-y: auto;
     display: grid;
