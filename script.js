@@ -1473,7 +1473,17 @@ function openProductDetailModal(item) {
 
     productDetailModal.hidden = false;
     productDetailModal.classList.remove('hidden');
+    productDetailModal.style.display = 'flex';
+    productDetailModal.style.alignItems = 'center';
+    productDetailModal.style.justifyContent = 'center';
+    productDetailModal.style.visibility = 'visible';
+    productDetailModal.style.opacity = '1';
+    productDetailModal.style.pointerEvents = 'auto';
+    productDetailModal.style.zIndex = '99999';
     productDetailModal.setAttribute('aria-hidden', 'false');
+    if (document.documentElement) {
+        document.documentElement.style.overflow = 'hidden';
+    }
     document.body.style.overflow = 'hidden';
 }
 
@@ -1482,7 +1492,15 @@ function closeProductDetailModal() {
 
     productDetailModal.classList.add('hidden');
     productDetailModal.hidden = true;
+    productDetailModal.style.display = '';
+    productDetailModal.style.visibility = '';
+    productDetailModal.style.opacity = '';
+    productDetailModal.style.pointerEvents = '';
+    productDetailModal.style.zIndex = '';
     productDetailModal.setAttribute('aria-hidden', 'true');
+    if (document.documentElement) {
+        document.documentElement.style.overflow = '';
+    }
     document.body.style.overflow = '';
     activeProductDetailItem = null;
 }
