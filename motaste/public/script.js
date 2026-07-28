@@ -5861,15 +5861,13 @@ function renderCartAddOnScreen() {
 
     const query = String(cartAddOnSearchQuery || '').trim().toLowerCase();
 
-    const allAddOnItems = Array.isArray(menuData?.addons?.items)
-        ? menuData.addons.items
-            .map((item) => ({
-                ...item,
-                price: getResolvedAddOnPrice(item.name, item.price),
-                stock: getAvailableStockForItem(item.name)
-            }))
-            .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
-        : [];
+    const allAddOnItems = getAddOnInventoryItems()
+        .map((item) => ({
+            ...item,
+            price: getResolvedAddOnPrice(item.name, item.price),
+            stock: getAvailableStockForItem(item.name)
+        }))
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 
     updateCartAddOnTotalDisplay(allAddOnItems);
 
@@ -5933,7 +5931,7 @@ function openCartAddOnScreen() {
 }
 
 function applySelectedCartAddOns() {
-    const addOnItems = Array.isArray(menuData?.addons?.items) ? menuData.addons.items : [];
+    const addOnItems = getAddOnInventoryItems();
     let addedGroups = 0;
     let addedUnits = 0;
 
