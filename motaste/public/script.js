@@ -1701,10 +1701,16 @@ function resizeImageToSquareDataUrl(file) {
                     return;
                 }
 
-                const sourceSize = Math.min(img.width, img.height);
-                const sx = Math.floor((img.width - sourceSize) / 2);
-                const sy = Math.floor((img.height - sourceSize) / 2);
-                ctx.drawImage(img, sx, sy, sourceSize, sourceSize, 0, 0, size, size);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, size, size);
+
+                const scale = Math.min(size / img.width, size / img.height);
+                const drawWidth = Math.round(img.width * scale);
+                const drawHeight = Math.round(img.height * scale);
+                const dx = Math.floor((size - drawWidth) / 2);
+                const dy = Math.floor((size - drawHeight) / 2);
+
+                ctx.drawImage(img, dx, dy, drawWidth, drawHeight);
 
                 resolve(canvas.toDataURL('image/jpeg', 0.85));
             };
