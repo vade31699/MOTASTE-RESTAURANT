@@ -2754,6 +2754,7 @@ const specialFoods = [];
 const mobileMenuToggle = document.getElementById('mobileMenuToggle');
 const topNav = document.getElementById('topNav');
 const menuCategories = document.getElementById('menuCategories');
+const menuOverlayCategories = document.getElementById('menuOverlayCategories');
 const menuCategoryScreen = document.getElementById('menuCategoryScreen');
 const menuCategoryTitle = document.getElementById('menuCategoryTitle');
 const menuItemsList = document.getElementById('menuItemsList');
@@ -6370,6 +6371,10 @@ function showMenuCategory(categoryId) {
 
     const category = menuData[categoryId];
     if (!category || !menuCategoryScreen || !menuItemsList || !menuCategoryTitle || !menuCategories) return;
+    if (menuOverlayCategories) {
+        menuOverlayCategories.hidden = true;
+        renderMenuOverlayCategories(categoryId);
+    }
 
     currentMenuCategoryId = categoryId;
     menuCategoryTitle.textContent = category.title;
@@ -6404,9 +6409,28 @@ function showMenuCategory(categoryId) {
     updateCartDisplay();
 }
 
+function renderMenuOverlayCategories(activeCategoryId = '') {
+    if (!menuOverlayCategories) return;
+    const categoryKeys = ['batchoy', 'silog', 'friedChicken', 'breakfast', 'drinks', 'addons'];
+    menuOverlayCategories.innerHTML = categoryKeys.map((categoryKey) => {
+        const category = menuData[categoryKey];
+        if (!category) return '';
+        const isActive = categoryKey === activeCategoryId;
+        return `
+            <button type="button" class="menu-category-btn${isActive ? ' active' : ''}" data-category="${categoryKey}">
+                ${category.title}
+            </button>
+        `;
+    }).join('');
+}
+
 function showMenuCategories() {
     if (!menuCategories || !menuCategoryScreen) return;
     menuCategories.hidden = false;
+    if (menuOverlayCategories) {
+        menuOverlayCategories.hidden = false;
+        renderMenuOverlayCategories();
+    }
     menuCategoryScreen.classList.add('hidden');
     menuCategoryScreen.setAttribute('aria-hidden', 'true');
 }
@@ -6633,6 +6657,15 @@ if (menuAddOnQuickBtn) {
     });
 }
 
+if (menuOverlayCategories) {
+    menuOverlayCategories.addEventListener('click', (event) => {
+        const button = event.target.closest('.menu-category-btn');
+        if (!button) return;
+        const categoryId = button.dataset.category;
+        showMenuCategory(categoryId);
+    });
+}
+
 if (menuCategoryScreen) {
     menuCategoryScreen.addEventListener('click', (event) => {
         const qtyButton = event.target.closest('.menu-item-qty-btn');
@@ -6827,7 +6860,7 @@ if (orderTypeOptions) {
 }
 
 if (menuBackBtn) {
-    menuBackBtn.addEventListener('click', closeMenuOverlay);
+    menuBackBtn.addEventListener('click', showMenuCategories);
 }
 
 if (dashboardPanel) {
