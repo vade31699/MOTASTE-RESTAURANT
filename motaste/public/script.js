@@ -4509,7 +4509,7 @@ function updateCartDisplay() {
         total += itemTotal;
         const customizeOptions = getCartItemCustomizeOptions(item);
         const hasCustomizeOptions = customizeOptions.length > 0;
-        const customizeExpanded = hasCustomizeOptions && item.componentsOpen === true;
+        const customizeExpanded = hasCustomizeOptions && (item.componentsOpen !== false);
         const componentRows = hasCustomizeOptions
             ? customizeOptions.map((componentName) => {
                 const quantity = getCartItemComponentQuantity(item, componentName);
@@ -5562,7 +5562,7 @@ function addToCart(item, quantityToAdd = 1) {
             existing.baseComponents = normalizeSpecialComponents(specialComponents);
         }
         applyBaseComponentsDeltaToCartItem(existing, quantity);
-        existing.componentsOpen = Boolean(existing.components && existing.components.length && existing.componentsOpen === true);
+        existing.componentsOpen = Array.isArray(existing.components) && existing.components.length > 0;
         existing.componentsMode = 'total';
         existing.quantity += quantity;
     } else {
@@ -5572,7 +5572,7 @@ function addToCart(item, quantityToAdd = 1) {
             baseComponents: normalizeSpecialComponents(specialComponents),
             components: buildInitialCartComponents(specialComponents, quantity),
             componentsMode: 'total',
-            componentsOpen: false
+            componentsOpen: specialComponents.length > 0
         });
     }
     saveCart();
