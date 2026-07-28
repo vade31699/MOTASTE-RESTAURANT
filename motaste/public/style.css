@@ -1626,9 +1626,9 @@ body.dashboard-panel-open .menu-btn {
 }
 .special-food-view-btn img {
     width: 100%;
-    height: 62%;
+    height: 46%;
     object-fit: cover;
-    object-position: center 32%;
+    object-position: center 24%;
 }
 .special-food-image-meta {
     position: absolute;
