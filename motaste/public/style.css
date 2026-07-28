@@ -1979,10 +1979,46 @@ body.dashboard-panel-open .menu-btn {
 /* RIGHT CART */
 
 .menu-right {
-    position: fixed;
-    right: 20px;
-    bottom: 20px;
-    z-index: 1500;
+    position: static;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    max-width: 360px;
+    margin-left: auto;
+}
+
+.menu-right-panel {
+    display: grid;
+    gap: 16px;
+    background: rgba(255, 255, 255, 0.96);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+}
+
+.menu-action-panel {
+    display: grid;
+    gap: 12px;
+}
+
+.menu-total-panel {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.menu-total-panel > div span {
+    display: block;
+    font-size: 0.95rem;
+    color: #555;
+}
+
+.menu-total-panel > div strong {
+    display: block;
+    font-size: 1.3rem;
+    color: #111;
 }
 
 #menuCartButton.menu-cart-button {

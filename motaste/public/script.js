@@ -2785,6 +2785,8 @@ const closeMenuOverlayBtn = document.getElementById('closeMenuOverlayBtn');
 const menuAddOnQuickBtn = document.getElementById('menuAddOnQuickBtn');
 const menuCartButton = document.getElementById('menuCartButton');
 const menuTopCartCount = document.getElementById('menuTopCartCount');
+const menuAddToCartBtn = document.getElementById('menuAddToCartBtn');
+const menuPurchaseNowBtn = document.getElementById('menuPurchaseNowBtn');
 const specialFoodsList = document.getElementById('specialFoodsList');
 const cartModal = document.getElementById('cart');
 const closeCartButton = document.getElementById('closeCartButton');
@@ -6427,10 +6429,6 @@ function showMenuCategory(categoryId) {
                     <span class="menu-item-qty">${currentQty}</span>
                     <button type="button" class="menu-item-qty-btn" data-action="increase" data-name="${item.name}" data-price="${parsePrice(item.price)}" aria-label="Increase ${item.name} quantity"${availableStock <= 0 ? ' disabled' : ''}>+</button>
                 </div>
-                <div class="menu-item-actions">
-                    <button type="button" class="menu-item-action" data-action="add-to-cart" data-name="${item.name}" data-price="${parsePrice(item.price)}">Add to cart</button>
-                    <button type="button" class="menu-item-action menu-item-action-primary" data-action="purchase-now" data-name="${item.name}" data-price="${parsePrice(item.price)}">Purchase now</button>
-                </div>
                 <span class="menu-item-confirmation" aria-live="polite"></span>
             </div>
         </article>
@@ -6843,6 +6841,32 @@ if (cartAddOnSearchInput) {
 if (menuPlaceOrderBtn) {
     menuPlaceOrderBtn.addEventListener('click', () => {
         closeCartModal();
+        openMenuOverlay();
+        openCheckoutScreen();
+    });
+}
+
+if (menuAddToCartBtn) {
+    menuAddToCartBtn.addEventListener('click', () => {
+        if (!cartItems.length) {
+            if (menuOrderMessage) {
+                menuOrderMessage.textContent = 'Select item quantities first to add items to cart.';
+            }
+            return;
+        }
+        openCartModal();
+    });
+}
+
+if (menuPurchaseNowBtn) {
+    menuPurchaseNowBtn.addEventListener('click', () => {
+        if (!cartItems.length) {
+            if (menuOrderMessage) {
+                menuOrderMessage.textContent = 'Select item quantities first to proceed with purchase.';
+            }
+            return;
+        }
+        openCartModal();
         openMenuOverlay();
         openCheckoutScreen();
     });
