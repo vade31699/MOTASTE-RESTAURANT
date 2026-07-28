@@ -1606,8 +1606,8 @@ let selectedSpecialComponents = [];
 const reviewerTokenStorageKey = 'motasteReviewerToken';
 
 function isAddOnCategory(category) {
-    const normalized = String(category || '').trim().toLowerCase().replace(/\s+/g, '');
-    return normalized === 'addons' || normalized === 'addon' || normalized === 'add-on';
+    const normalized = String(category || '').trim().toLowerCase().replace(/[^a-z]/g, '');
+    return normalized === 'addons' || normalized === 'addon' || normalized === 'addonitem' || normalized === 'addonitems';
 }
 
 function normalizeSpecialComponents(components) {
@@ -1755,7 +1755,44 @@ function getOrderComponents(components) {
 }
 
 function getAddOnInventoryItems() {
-    return (inventoryData || []).filter((item) => isAddOnCategory(item.category));
+    const byName = new Map();
+
+    (inventoryData || []).forEach((item) => {
+        if (!item || !isAddOnCategory(item.category)) return;
+
+        const name = String(item.name || '').trim();
+        if (!name) return;
+
+        const normalizedName = normalizeInventoryName(name);
+        if (!normalizedName) return;
+
+        byName.set(normalizedName, {
+            ...item,
+            name,
+            price: Math.max(0, Number(item.price) || 0),
+            stock: Math.max(0, Number(item.stock) || 0),
+            category: 'addons'
+        });
+    });
+
+    const fallbackAddOnMenuItems = Array.isArray(menuData?.addons?.items) ? menuData.addons.items : [];
+    fallbackAddOnMenuItems.forEach((item) => {
+        const name = String(item && item.name ? item.name : '').trim();
+        if (!name) return;
+
+        const normalizedName = normalizeInventoryName(name);
+        if (!normalizedName || byName.has(normalizedName)) return;
+
+        byName.set(normalizedName, {
+            name,
+            price: Math.max(0, Number(item && item.price ? item.price : 0) || 0),
+            stock: 0,
+            status: 'Out of stock',
+            category: 'addons'
+        });
+    });
+
+    return [...byName.values()];
 }
 
 function getCartItemComponentQuantity(item, componentName) {
@@ -3873,14 +3910,18 @@ async function initializeInventoryData(forceRefresh = false) {
 
         const payload = await response.json();
         const serverItems = Array.isArray(payload.items) ? payload.items : [];
-        const merged = serverItems.map((item) => ({
-            name: item.name,
-            price: Number(item.price) || 0,
-            stock: Number(item.stock) || 0,
-            status: item.status || (Number(item.stock) > 0 ? 'In stock' : 'Out of stock'),
-            category: item.category || resolveInventoryCategory(item.name),
-            description: item.description || ''
-        })).filter((item) => !blockedProductNames.has(normalizeInventoryName(item.name)));
+        const merged = serverItems.map((item) => {
+            const normalizedServerName = normalizeInventoryName(item.name);
+            const localMatch = inventoryData.find((entry) => normalizeInventoryName(entry.name) === normalizedServerName);
+            return {
+                name: item.name,
+                price: Number(item.price) || 0,
+                stock: Number(item.stock) || 0,
+                status: item.status || (Number(item.stock) > 0 ? 'In stock' : 'Out of stock'),
+                category: item.category || localMatch?.category || resolveInventoryCategory(item.name),
+                description: item.description || localMatch?.description || ''
+            };
+        }).filter((item) => !blockedProductNames.has(normalizeInventoryName(item.name)));
 
         const mergedNames = new Set(merged.map((item) => normalizeInventoryName(item.name)));
         defaults.forEach((item) => {
@@ -3916,6 +3957,9 @@ async function initializeInventoryData(forceRefresh = false) {
     renderInventoryManagement();
     renderWalkInOrderBuilder();
     renderOverviewInventory();
+    if (inventoryModal && !inventoryModal.hidden && inventoryCategoryInput && inventoryCategoryInput.value === 'specials') {
+        renderSpecialCustomizeControls();
+    }
     if (currentMenuCategoryId) {
         showMenuCategory(currentMenuCategoryId);
     }

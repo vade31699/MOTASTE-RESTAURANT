@@ -3629,6 +3629,7 @@ body.dashboard-panel-open .menu-btn {
         padding: 20px 18px 18px;
         z-index: 40;
         overflow-y: auto;
+        overscroll-behavior: contain;
     }
 
     .inventory-modal[hidden] {
@@ -3639,7 +3640,9 @@ body.dashboard-panel-open .menu-btn {
         position: relative;
         width: min(720px, 100%);
         max-height: calc(100vh - 40px);
-        overflow-y: auto;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
 
     .inventory-modal-close {
@@ -3655,6 +3658,15 @@ body.dashboard-panel-open .menu-btn {
         padding: 18px;
         box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
         color: #111;
+    }
+
+    .inventory-form {
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 4px;
+        display: grid;
+        align-content: start;
+        gap: 12px;
     }
 
     .inventory-modal-header {
@@ -3731,6 +3743,12 @@ body.dashboard-panel-open .menu-btn {
         gap: 16px;
         margin-bottom: 20px;
         max-width: 100%;
+    }
+
+    #inventorySaveBtn {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
     }
 
     .inventory-form-grid label {
