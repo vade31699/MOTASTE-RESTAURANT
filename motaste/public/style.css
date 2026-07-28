@@ -1591,6 +1591,7 @@ body.dashboard-panel-open .menu-btn {
     overflow: hidden;
     border-radius: 14px;
     background: #ffffff;
+    cursor: pointer;
     box-shadow: 0 8px 20px rgba(241, 137, 57, 0.08);
 }
 .special-food-card:hover {
@@ -1647,6 +1648,7 @@ body.dashboard-panel-open .menu-btn {
     font-size: 0.8rem;
     line-height: 1.35;
     display: -webkit-box;
+    line-clamp: 2;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
@@ -2753,7 +2755,7 @@ body.dashboard-panel-open .menu-btn {
 .product-detail-modal {
     position: fixed;
     inset: 0;
-    z-index: 2200;
+    z-index: 5000;
     display: grid;
     place-items: center;
     padding: 20px;

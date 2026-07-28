@@ -4691,7 +4691,7 @@ function renderSpecialFoods() {
         const description = getInventoryDescription(item.name, item.description || 'Tap the image to view full details.');
         const isOutOfStock = isItemOutOfStock(item.name);
         return `
-        <article class="special-food-card${isOutOfStock ? ' is-out-of-stock' : ''}">
+        <article class="special-food-card${isOutOfStock ? ' is-out-of-stock' : ''}" data-name="${item.name}">
             <button type="button" class="special-food-view-btn" data-name="${item.name}" aria-label="View ${item.name} details">
                 <img src="${imageSrc}" alt="${item.name}">
             </button>
@@ -5389,10 +5389,10 @@ if (mobileMenuToggle && topNav) {
 
 if (specialFoodsList) {
     specialFoodsList.addEventListener('click', (event) => {
-        const viewButton = event.target.closest('.special-food-view-btn');
-        if (!viewButton) return;
+        const card = event.target.closest('.special-food-card');
+        if (!card) return;
 
-        const item = specialFoods.find((food) => food.name === viewButton.dataset.name);
+        const item = specialFoods.find((food) => food.name === card.dataset.name);
         if (!item) return;
 
         openProductDetailModal({
