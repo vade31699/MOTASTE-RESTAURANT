@@ -1621,6 +1621,17 @@ function normalizeSpecialComponents(components) {
         .filter((entry) => entry.name !== '');
 }
 
+function normalizeCartComponents(components) {
+    if (!Array.isArray(components)) return [];
+
+    return components
+        .map((entry) => ({
+            name: (entry && entry.name ? String(entry.name) : '').trim(),
+            quantity: Math.max(0, Number(entry && entry.quantity ? entry.quantity : 0) || 0)
+        }))
+        .filter((entry) => entry.name !== '');
+}
+
 function getSpecialFoodComponentsByName(itemName) {
     const targetName = normalizeInventoryName(itemName);
     if (!targetName) return [];
@@ -1633,7 +1644,7 @@ function getSpecialFoodComponentsByName(itemName) {
 
 function getComponentQuantityLookup(components) {
     const lookup = {};
-    normalizeSpecialComponents(components).forEach((component) => {
+    normalizeCartComponents(components).forEach((component) => {
         const normalizedName = normalizeInventoryName(component.name);
         if (!normalizedName) return;
         lookup[normalizedName] = (lookup[normalizedName] || 0) + Math.max(0, Number(component.quantity) || 0);
@@ -1683,6 +1694,15 @@ function getCartItemUnitPrice(item) {
 function getCartItemLineTotal(item) {
     const quantity = Math.max(0, Number(item && item.quantity ? item.quantity : 0) || 0);
     return getCartItemUnitPrice(item) * quantity;
+}
+
+function getOrderComponents(components) {
+    return normalizeCartComponents(components)
+        .filter((component) => Math.max(0, Number(component.quantity) || 0) > 0)
+        .map((component) => ({
+            name: component.name,
+            quantity: Math.max(1, Number(component.quantity) || 1)
+        }));
 }
 
 function getAddOnInventoryItems() {
@@ -2645,27 +2665,26 @@ function loadCart() {
         return;
     }
 
-    cartItems = cartItems.map((item) => ({
-        ...item,
-        baseComponents: normalizeSpecialComponents(
+    cartItems = cartItems.map((item) => {
+        const fallbackBase = getSpecialFoodComponentsByName(item.name);
+        const baseComponents = normalizeSpecialComponents(
             Array.isArray(item.baseComponents) && item.baseComponents.length
                 ? item.baseComponents
-                : (
-                    getSpecialFoodComponentsByName(item.name).length
-                        ? getSpecialFoodComponentsByName(item.name)
-                        : item.components
-                )
-        ),
-        components: Array.isArray(item.components)
-            ? item.components
-                .map((component) => ({
-                    name: (component && component.name ? String(component.name) : '').trim(),
-                    quantity: Math.max(1, Number(component && component.quantity ? component.quantity : 1) || 1)
-                }))
-                .filter((component) => component.name !== '')
-            : [],
-        componentsOpen: Boolean(item.componentsOpen)
-    }));
+                : (fallbackBase.length ? fallbackBase : item.components)
+        );
+
+        const loadedComponents = normalizeCartComponents(item.components);
+        const components = loadedComponents.length
+            ? loadedComponents
+            : baseComponents.map((component) => ({ ...component }));
+
+        return {
+            ...item,
+            baseComponents,
+            components,
+            componentsOpen: components.length > 0
+        };
+    });
 }
 
 function saveCart() {
@@ -4371,13 +4390,8 @@ function clampCartToInventory() {
             const alreadyReserved = reservedUsage[normalized] || 0;
             const remainingStock = Math.max(0, stock - alreadyReserved);
             const maxPerDishQty = dishQuantity > 0 ? Math.floor(remainingStock / dishQuantity) : 0;
-            const requestedPerDishQty = Math.max(1, Number(component.quantity) || 1);
+            const requestedPerDishQty = Math.max(0, Number(component.quantity) || 0);
             const clampedPerDishQty = Math.min(requestedPerDishQty, Math.max(0, maxPerDishQty));
-
-            if (clampedPerDishQty <= 0) {
-                changed = true;
-                return;
-            }
 
             if (clampedPerDishQty !== requestedPerDishQty) {
                 changed = true;
@@ -5205,19 +5219,20 @@ function addToCart(item, quantityToAdd = 1) {
 
     if (existing) {
         if (!Array.isArray(existing.components) || !existing.components.length) {
-            existing.components = normalizeSpecialComponents(specialComponents);
+            existing.components = normalizeCartComponents(specialComponents);
         }
         if (!Array.isArray(existing.baseComponents) || !existing.baseComponents.length) {
             existing.baseComponents = normalizeSpecialComponents(specialComponents);
         }
+        existing.componentsOpen = Array.isArray(existing.components) && existing.components.length > 0;
         existing.quantity += quantity;
     } else {
         cartItems.push({
             ...item,
             quantity,
             baseComponents: normalizeSpecialComponents(specialComponents),
-            components: normalizeSpecialComponents(specialComponents),
-            componentsOpen: false
+            components: normalizeCartComponents(specialComponents),
+            componentsOpen: specialComponents.length > 0
         });
     }
     saveCart();
@@ -5302,14 +5317,7 @@ function adjustCartItemComponentQuantity(index, componentIndex, change) {
         return;
     }
 
-    if (nextQuantity === 0) {
-        item.components.splice(componentIndex, 1);
-        if (item.componentsOpen && item.components.length === 0) {
-            item.componentsOpen = false;
-        }
-    } else {
-        component.quantity = nextQuantity;
-    }
+    component.quantity = nextQuantity;
     saveCart();
     updateCartDisplay();
 }
@@ -5321,11 +5329,7 @@ function removeCartItemComponent(index, componentIndex) {
     if (!Array.isArray(item.components) || !item.components.length) return;
 
     if (componentIndex < 0 || componentIndex >= item.components.length) return;
-    item.components.splice(componentIndex, 1);
-
-    if (item.componentsOpen && item.components.length === 0) {
-        item.componentsOpen = false;
-    }
+    item.components[componentIndex].quantity = 0;
 
     saveCart();
     updateCartDisplay();
@@ -5738,7 +5742,7 @@ async function confirmOrder() {
             name: item.name,
             price: getCartItemUnitPrice(item),
             quantity: item.quantity,
-            components: normalizeSpecialComponents(item.components)
+            components: getOrderComponents(item.components)
         })),
         total: cartItems.reduce((sum, item) => sum + getCartItemLineTotal(item), 0),
         paymentMethod: selectedPaymentMethod,
