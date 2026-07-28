@@ -6879,6 +6879,7 @@ if (menuPurchaseNowBtn) {
             return;
         }
 
+        closeMenuOverlay();
         if (currentMenuCategoryId) {
             showMenuCategory(currentMenuCategoryId);
         }
