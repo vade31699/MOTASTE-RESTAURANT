@@ -3122,6 +3122,15 @@ body.dashboard-panel-open .menu-btn {
     flex-wrap: wrap;
     margin-top: 6px;
 }
+.product-detail-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.product-detail-actions .menu-place-order-btn {
+    min-width: 140px;
+}
 .product-detail-footer strong {
     color: #e65100;
     font-size: clamp(1.2rem, 3vw, 1.6rem);

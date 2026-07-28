@@ -1528,6 +1528,7 @@ const productDetailQtyDecrease = document.getElementById('productDetailQtyDecrea
 const productDetailQtyIncrease = document.getElementById('productDetailQtyIncrease');
 const productDetailQtyValue = document.getElementById('productDetailQtyValue');
 const productDetailAddBtn = document.getElementById('productDetailAddBtn');
+const productDetailPurchaseBtn = document.getElementById('productDetailPurchaseBtn');
 const inventorySaveBtn = document.getElementById('inventorySaveBtn');
 const inventoryItemsWrapper = document.getElementById('inventoryItemsWrapper');
 const inventorySearchInput = document.getElementById('inventorySearchInput');
@@ -4188,6 +4189,18 @@ if (productDetailAddBtn) {
             price: Number(activeProductDetailItem.price) || 0
         }, productDetailQuantity);
         closeProductDetailModal();
+    });
+}
+
+if (productDetailPurchaseBtn) {
+    productDetailPurchaseBtn.addEventListener('click', () => {
+        if (!activeProductDetailItem) return;
+        addToCart({
+            name: activeProductDetailItem.name,
+            price: Number(activeProductDetailItem.price) || 0
+        }, productDetailQuantity);
+        closeProductDetailModal();
+        openCartModal();
     });
 }
 
