@@ -1244,6 +1244,16 @@ body.dashboard-panel-open .menu-btn {
         padding: 10px;
     }
 
+    .cart-addon-screen {
+        width: min(420px, calc(100vw - 24px));
+        max-height: calc(100vh - 32px);
+        padding: 14px;
+    }
+
+    .cart-addon-list {
+        max-height: calc(100vh - 300px);
+    }
+
     .menu-overlay-panel {
         width: min(100%, 100%);
         max-height: 92vh;
@@ -1271,6 +1281,16 @@ body.dashboard-panel-open .menu-btn {
 
     .cart-modal .menu-cart-panel {
         max-height: 80vh;
+    }
+
+    .cart-addon-screen {
+        width: min(420px, calc(100vw - 24px));
+        max-height: calc(100vh - 32px);
+        padding: 14px;
+    }
+
+    .cart-addon-list {
+        max-height: calc(100vh - 300px);
     }
 
     .order-checkout-screen,
