@@ -1829,33 +1829,6 @@ body.dashboard-panel-open .menu-btn {
 
 }
 
-.menu-addon-quick-wrap {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 16px;
-}
-
-.menu-addon-quick-btn {
-    border: none;
-    border-radius: 12px;
-    padding: 11px 18px;
-    font-size: 0.92rem;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    color: #fff;
-    background: linear-gradient(135deg, #e65100, #ff9800);
-    cursor: pointer;
-    box-shadow: 0 10px 26px rgba(165, 67, 8, 0.36);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.menu-addon-quick-btn:hover,
-.menu-addon-quick-btn:focus-visible {
-    transform: translateY(-2px);
-    box-shadow: 0 14px 30px rgba(165, 67, 8, 0.42);
-}
-
-
 .menu-categories {
 
     display:grid;
@@ -3244,10 +3217,6 @@ body.dashboard-panel-open .menu-btn {
 @media (max-width: 560px) {
     .special-foods-list {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .menu-addon-quick-btn {
-        width: 100%;
     }
 }
 

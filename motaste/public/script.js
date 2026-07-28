@@ -4636,7 +4636,11 @@ function clampCartToInventory() {
 
             const inventoryComponent = getInventoryItem(componentName);
             if (!inventoryComponent) {
-                changed = true;
+                // Keep component entries even when inventory metadata is temporarily unavailable.
+                nextComponents.push({
+                    name: componentName,
+                    quantity: Math.max(0, Number(component.quantity) || 0)
+                });
                 return;
             }
 
