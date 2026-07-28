@@ -2785,8 +2785,6 @@ const closeMenuOverlayBtn = document.getElementById('closeMenuOverlayBtn');
 const menuAddOnQuickBtn = document.getElementById('menuAddOnQuickBtn');
 const menuCartButton = document.getElementById('menuCartButton');
 const menuTopCartCount = document.getElementById('menuTopCartCount');
-const menuAddToCartBtn = document.getElementById('menuAddToCartBtn');
-const menuPurchaseNowBtn = document.getElementById('menuPurchaseNowBtn');
 const specialFoodsList = document.getElementById('specialFoodsList');
 const cartModal = document.getElementById('cart');
 const closeCartButton = document.getElementById('closeCartButton');
@@ -2812,6 +2810,7 @@ const paymentSuccessCloseBtn = document.getElementById('paymentSuccessCloseBtn')
 const liveClock = document.getElementById('liveClock');
 
 let cartItems = [];
+let menuSelectionQuantities = {};
 let pendingOrders = [];
 let completedOrders = [];
 let inventoryData = [];
@@ -6412,7 +6411,7 @@ function showMenuCategory(categoryId) {
     }
     menuItemsList.innerHTML = category.items.map((item) => {
         const isOutOfStock = isItemOutOfStock(item.name);
-        const currentQty = getCartQuantityForItem(item.name);
+        const selectedQty = menuSelectionQuantities[item.name] || 0;
         const availableStock = getAvailableStockForItem(item.name);
         const description = getInventoryDescription(item.name, item.description || 'Tap the image to view full details.');
         return `
@@ -6425,8 +6424,8 @@ function showMenuCategory(categoryId) {
             ${isOutOfStock ? `<div class="stock-status-overlay"><img src="outofstock1.png" alt="Out of stock"><span>Out of stock</span></div>` : ''}
             <div class="menu-item-controls">
                 <div class="menu-item-qty-controls">
-                    <button type="button" class="menu-item-qty-btn" data-action="decrease" data-name="${item.name}" data-price="${parsePrice(item.price)}" aria-label="Decrease ${item.name} quantity"${currentQty <= 0 ? ' disabled' : ''}>−</button>
-                    <span class="menu-item-qty">${currentQty}</span>
+                    <button type="button" class="menu-item-qty-btn" data-action="decrease" data-name="${item.name}" data-price="${parsePrice(item.price)}" aria-label="Decrease ${item.name} quantity"${selectedQty <= 0 ? ' disabled' : ''}>−</button>
+                    <span class="menu-item-qty">${selectedQty}</span>
                     <button type="button" class="menu-item-qty-btn" data-action="increase" data-name="${item.name}" data-price="${parsePrice(item.price)}" aria-label="Increase ${item.name} quantity"${availableStock <= 0 ? ' disabled' : ''}>+</button>
                 </div>
                 <span class="menu-item-confirmation" aria-live="polite"></span>
@@ -6841,32 +6840,6 @@ if (cartAddOnSearchInput) {
 if (menuPlaceOrderBtn) {
     menuPlaceOrderBtn.addEventListener('click', () => {
         closeCartModal();
-        openMenuOverlay();
-        openCheckoutScreen();
-    });
-}
-
-if (menuAddToCartBtn) {
-    menuAddToCartBtn.addEventListener('click', () => {
-        if (!cartItems.length) {
-            if (menuOrderMessage) {
-                menuOrderMessage.textContent = 'Select item quantities first to add items to cart.';
-            }
-            return;
-        }
-        openCartModal();
-    });
-}
-
-if (menuPurchaseNowBtn) {
-    menuPurchaseNowBtn.addEventListener('click', () => {
-        if (!cartItems.length) {
-            if (menuOrderMessage) {
-                menuOrderMessage.textContent = 'Select item quantities first to proceed with purchase.';
-            }
-            return;
-        }
-        openCartModal();
         openMenuOverlay();
         openCheckoutScreen();
     });
