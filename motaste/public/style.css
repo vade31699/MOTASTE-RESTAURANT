@@ -1470,16 +1470,16 @@ body.dashboard-panel-open .menu-btn {
     -webkit-backdrop-filter: blur(16px);
 }
 .cart-addon-screen {
-    position: fixed;
-    inset: 20px 14px 20px;
+    position: relative;
+    inset: auto;
     top: auto;
     left: auto;
     right: auto;
     bottom: auto;
-    width: min(470px, calc(100vw - 32px));
-    max-width: 92vw;
-    max-height: calc(90vh - 40px);
-    z-index: 3200;
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    z-index: 1;
     background: #ffffff;
     border-radius: 16px;
     padding: 16px;
@@ -1488,8 +1488,9 @@ body.dashboard-panel-open .menu-btn {
     gap: 10px;
     box-sizing: border-box;
     border: 1px solid rgba(0, 0, 0, 0.12);
-    box-shadow: 0 20px 54px rgba(0, 0, 0, 0.28);
+    box-shadow: inset 0 0 0 0 transparent;
     overflow: hidden;
+    margin-top: 20px;
 }
 .cart-addon-screen-header {
     display: flex;
