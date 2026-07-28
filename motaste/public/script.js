@@ -1921,6 +1921,15 @@ function getCartItemCustomizeOptions(item) {
         }
     });
 
+    currentComponents.forEach((component) => {
+        const name = String(component.name || '').trim();
+        const normalizedName = normalizeInventoryName(name);
+        if (!normalizedName) return;
+        if (!optionsByNormalizedName.has(normalizedName)) {
+            optionsByNormalizedName.set(normalizedName, name);
+        }
+    });
+
     return [...optionsByNormalizedName.values()].sort((a, b) => a.localeCompare(b));
 }
 
@@ -5935,6 +5944,54 @@ async function refreshCartAddOnData() {
     }
 }
 
+async function ensureCartAddOnItemsReady() {
+    await refreshCartAddOnData();
+
+    if (getAddOnInventoryItems().length > 0) {
+        return;
+    }
+
+    // Hard fallback for first-open empty-cart scenarios where menu/inventory data has not settled yet.
+    try {
+        const inventoryUrl = getApiUrl(`api/get_inventory.php?_=${Date.now()}`);
+        const response = await fetch(inventoryUrl, { cache: 'no-store' });
+        if (response.ok) {
+            const payload = await response.json();
+            const items = Array.isArray(payload?.items) ? payload.items : [];
+            if (items.length) {
+                inventoryData = items.map((item) => ({
+                    name: String(item?.name || '').trim(),
+                    price: Number(item?.price) || 0,
+                    stock: Number(item?.stock) || 0,
+                    status: item?.status || (Number(item?.stock) > 0 ? 'In stock' : 'Out of stock'),
+                    category: item?.category || resolveInventoryCategory(item?.name),
+                    description: item?.description || ''
+                })).filter((item) => item.name !== '');
+                saveInventoryData();
+            }
+        }
+    } catch (error) {
+        console.error('Fallback inventory fetch for add on screen failed', error);
+    }
+
+    if (getAddOnInventoryItems().length > 0) {
+        return;
+    }
+
+    try {
+        const menuUrl = getApiUrl(`api/get_custom_menu.php?_=${Date.now()}`);
+        const response = await fetch(menuUrl, { cache: 'no-store' });
+        if (response.ok) {
+            const payload = await response.json();
+            if (payload?.success && payload?.snapshot) {
+                applyCustomMenuSnapshot(payload.snapshot);
+            }
+        }
+    } catch (error) {
+        console.error('Fallback custom menu fetch for add on screen failed', error);
+    }
+}
+
 function closeCartAddOnScreen() {
     if (!cartAddOnScreen) return;
     cartAddOnScreen.classList.add('hidden');
@@ -6034,7 +6091,7 @@ async function openCartAddOnScreen() {
         cartAddOnApplyBtn.disabled = true;
     }
 
-    await refreshCartAddOnData();
+    await ensureCartAddOnItemsReady();
     renderCartAddOnScreen();
 }
 
