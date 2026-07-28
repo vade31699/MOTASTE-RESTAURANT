@@ -315,6 +315,21 @@
                                 <input id="specialFoodImageInput" type="file" accept="image/*">
                                 <small>Used only when category is Specials. Image will be cropped to square for consistent display.</small>
                             </label>
+                            <div id="specialCustomizeField" class="special-customize-field" hidden>
+                                <p class="special-customize-title">Customize</p>
+                                <div class="special-customize-builder">
+                                    <label>
+                                        Add-on item
+                                        <select id="specialCustomizeItemSelect"></select>
+                                    </label>
+                                    <label>
+                                        Quantity
+                                        <input id="specialCustomizeQtyInput" type="number" min="1" step="1" value="1">
+                                    </label>
+                                    <button type="button" id="specialCustomizeAddBtn" class="menu-place-order-btn">Add Component</button>
+                                </div>
+                                <div id="specialCustomizeList" class="special-customize-list"></div>
+                            </div>
                             <div id="specialFoodImagePreviewWrap" class="special-food-image-preview-wrap" hidden>
                                 <img id="specialFoodImagePreview" alt="Special food preview">
                             </div>

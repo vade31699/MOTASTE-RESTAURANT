@@ -1512,6 +1512,11 @@ const specialFoodImageField = document.getElementById('specialFoodImageField');
 const specialFoodImageInput = document.getElementById('specialFoodImageInput');
 const specialFoodImagePreviewWrap = document.getElementById('specialFoodImagePreviewWrap');
 const specialFoodImagePreview = document.getElementById('specialFoodImagePreview');
+const specialCustomizeField = document.getElementById('specialCustomizeField');
+const specialCustomizeItemSelect = document.getElementById('specialCustomizeItemSelect');
+const specialCustomizeQtyInput = document.getElementById('specialCustomizeQtyInput');
+const specialCustomizeAddBtn = document.getElementById('specialCustomizeAddBtn');
+const specialCustomizeList = document.getElementById('specialCustomizeList');
 const productDetailModal = document.getElementById('productDetailModal');
 const productDetailCloseBtn = document.getElementById('productDetailCloseBtn');
 const productDetailImage = document.getElementById('productDetailImage');
@@ -1597,7 +1602,71 @@ let cachedReviews = [];
 let cachedStaffReviews = [];
 let activeProductDetailItem = null;
 let productDetailQuantity = 1;
+let selectedSpecialComponents = [];
 const reviewerTokenStorageKey = 'motasteReviewerToken';
+
+function isAddOnCategory(category) {
+    const normalized = String(category || '').trim().toLowerCase().replace(/\s+/g, '');
+    return normalized === 'addons' || normalized === 'addon' || normalized === 'add-on';
+}
+
+function normalizeSpecialComponents(components) {
+    if (!Array.isArray(components)) return [];
+
+    return components
+        .map((entry) => ({
+            name: (entry && entry.name ? String(entry.name) : '').trim(),
+            quantity: Math.max(1, Number(entry && entry.quantity ? entry.quantity : 1) || 1)
+        }))
+        .filter((entry) => entry.name !== '');
+}
+
+function getSpecialFoodComponentsByName(itemName) {
+    const targetName = normalizeInventoryName(itemName);
+    if (!targetName) return [];
+
+    const specialItem = specialFoods.find((food) => normalizeInventoryName(food.name) === targetName);
+    if (!specialItem) return [];
+
+    return normalizeSpecialComponents(specialItem.components);
+}
+
+function getAddOnInventoryItems() {
+    return (inventoryData || []).filter((item) => isAddOnCategory(item.category));
+}
+
+function renderSpecialCustomizeControls() {
+    if (!specialCustomizeField || !specialCustomizeItemSelect || !specialCustomizeList) return;
+
+    const addOnItems = getAddOnInventoryItems().sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    const currentValue = specialCustomizeItemSelect.value;
+
+    if (!addOnItems.length) {
+        specialCustomizeItemSelect.innerHTML = '<option value="">No ADD ON items in inventory</option>';
+        specialCustomizeItemSelect.disabled = true;
+    } else {
+        specialCustomizeItemSelect.disabled = false;
+        specialCustomizeItemSelect.innerHTML = addOnItems.map((item) => {
+            const stock = Math.max(0, Number(item.stock) || 0);
+            return `<option value="${item.name}">${item.name} (stock ${stock})</option>`;
+        }).join('');
+
+        const stillExists = addOnItems.some((item) => item.name === currentValue);
+        specialCustomizeItemSelect.value = stillExists ? currentValue : addOnItems[0].name;
+    }
+
+    if (!selectedSpecialComponents.length) {
+        specialCustomizeList.innerHTML = '<p class="menu-cart-empty">No components added yet.</p>';
+        return;
+    }
+
+    specialCustomizeList.innerHTML = selectedSpecialComponents.map((entry, index) => `
+        <div class="special-customize-item">
+            <span>${escapeHtml(entry.name)} x${entry.quantity}</span>
+            <button type="button" class="special-customize-remove-btn" data-index="${index}">Remove</button>
+        </div>
+    `).join('');
+}
 
 function setInventoryModalVisible(isVisible) {
     if (!inventoryModal) return;
@@ -1612,6 +1681,7 @@ function setInventoryModalVisible(isVisible) {
             inventoryCategoryInput.value = 'batchoy';
         }
         selectedSpecialFoodImageData = '';
+        selectedSpecialComponents = [];
         updateSpecialFoodImageFieldVisibility();
     }
 }
@@ -1659,6 +1729,7 @@ function openInventoryModal() {
         }
     }
     selectedSpecialFoodImageData = '';
+    selectedSpecialComponents = [];
     updateSpecialFoodImageFieldVisibility();
 }
 
@@ -1680,13 +1751,58 @@ function updateSpecialFoodImageFieldVisibility() {
 
     const isSpecials = inventoryCategoryInput.value === 'specials';
     specialFoodImageField.hidden = !isSpecials;
+    if (specialCustomizeField) {
+        specialCustomizeField.hidden = !isSpecials;
+    }
+
+    if (isSpecials) {
+        renderSpecialCustomizeControls();
+    }
+
     if (!isSpecials) {
         selectedSpecialFoodImageData = '';
+        selectedSpecialComponents = [];
         if (specialFoodImageInput) {
             specialFoodImageInput.value = '';
         }
         setSpecialFoodImagePreview('');
     }
+}
+
+if (specialCustomizeAddBtn) {
+    specialCustomizeAddBtn.addEventListener('click', () => {
+        if (!specialCustomizeItemSelect || specialCustomizeItemSelect.disabled) return;
+
+        const name = String(specialCustomizeItemSelect.value || '').trim();
+        const quantity = Math.max(1, Number(specialCustomizeQtyInput ? specialCustomizeQtyInput.value : 1) || 1);
+        if (!name) return;
+
+        const existingIndex = selectedSpecialComponents.findIndex((entry) => normalizeInventoryName(entry.name) === normalizeInventoryName(name));
+        if (existingIndex >= 0) {
+            selectedSpecialComponents[existingIndex].quantity += quantity;
+        } else {
+            selectedSpecialComponents.push({ name, quantity });
+        }
+
+        if (specialCustomizeQtyInput) {
+            specialCustomizeQtyInput.value = '1';
+        }
+
+        renderSpecialCustomizeControls();
+    });
+}
+
+if (specialCustomizeList) {
+    specialCustomizeList.addEventListener('click', (event) => {
+        const removeButton = event.target.closest('.special-customize-remove-btn');
+        if (!removeButton) return;
+
+        const index = Number(removeButton.dataset.index);
+        if (Number.isNaN(index) || index < 0 || index >= selectedSpecialComponents.length) return;
+
+        selectedSpecialComponents.splice(index, 1);
+        renderSpecialCustomizeControls();
+    });
 }
 
 function resizeImageToSquareDataUrl(file) {
@@ -3506,7 +3622,8 @@ function buildDefaultInventoryFromMenu() {
             stock: 0,
             status: 'Out of stock',
             category: 'specials',
-            description: food.description || ''
+            description: food.description || '',
+            components: normalizeSpecialComponents(food.components)
         });
     });
 
@@ -3776,7 +3893,8 @@ function saveCustomMenuData() {
             name: food.name,
             price: food.price,
             image: food.image,
-            description: food.description || ''
+            description: food.description || '',
+            components: normalizeSpecialComponents(food.components)
         }))
     };
     localStorage.setItem('motasteCustomMenuData', JSON.stringify(snapshot));
@@ -3812,7 +3930,8 @@ function applyCustomMenuSnapshot(snapshot) {
             name: food.name,
             price: Number(food.price) || 0,
             image: food.image || 'img1.jpg',
-            description: food.description || ''
+            description: food.description || '',
+            components: normalizeSpecialComponents(food.components)
         }))
     });
 
@@ -3855,7 +3974,8 @@ function applyCustomMenuSnapshot(snapshot) {
                 name: food.name,
                 price: Number(food.price) || 0,
                 image: food.image || 'img1.jpg',
-                description: food.description || ''
+                description: food.description || '',
+                components: normalizeSpecialComponents(food.components)
             });
             seenSpecialFoods.add(normalizedName);
         });
@@ -3877,7 +3997,8 @@ function applyCustomMenuSnapshot(snapshot) {
             name: food.name,
             price: Number(food.price) || 0,
             image: food.image || 'img1.jpg',
-            description: food.description || ''
+            description: food.description || '',
+            components: normalizeSpecialComponents(food.components)
         }))
     });
 
@@ -4103,10 +4224,11 @@ function syncVisibleMenuItemQuantities() {
 }
 
 function decrementInventory(items) {
-    items.forEach((item) => {
-        const inventoryItem = getInventoryItem(item.name);
+    const applyStockReduction = (itemName, quantityToReduce) => {
+        const inventoryItem = getInventoryItem(itemName);
         if (!inventoryItem) return;
-        inventoryItem.stock = Math.max(0, inventoryItem.stock - item.quantity);
+
+        inventoryItem.stock = Math.max(0, Number(inventoryItem.stock || 0) - quantityToReduce);
         if (inventoryItem.stock <= 0) {
             inventoryItem.status = 'Out of stock';
         } else if (inventoryItem.stock <= 5) {
@@ -4114,6 +4236,20 @@ function decrementInventory(items) {
         } else {
             inventoryItem.status = 'In stock';
         }
+    };
+
+    items.forEach((item) => {
+        const orderedQuantity = Math.max(0, Number(item.quantity) || 0);
+        if (orderedQuantity <= 0) return;
+
+        applyStockReduction(item.name, orderedQuantity);
+
+        const components = getSpecialFoodComponentsByName(item.name);
+        components.forEach((component) => {
+            const needed = Math.max(0, Number(component.quantity) || 0) * orderedQuantity;
+            if (needed <= 0) return;
+            applyStockReduction(component.name, needed);
+        });
     });
     saveInventoryData();
 }
@@ -4374,6 +4510,7 @@ function saveMenuCatalogItem(item, previousName = null) {
     const priceNumber = Number(item.price) || 0;
     const normalizedPreviousName = (previousName || item.name || '').trim().toLowerCase();
     const description = item.description || '';
+    const components = normalizeSpecialComponents(item.components);
 
     if (category === 'specials') {
         const existingSpecialIndex = specialFoods.findIndex((food) => (food.name || '').trim().toLowerCase() === normalizedPreviousName || (food.name || '').trim().toLowerCase() === (item.name || '').trim().toLowerCase());
@@ -4384,14 +4521,16 @@ function saveMenuCatalogItem(item, previousName = null) {
                 name: item.name,
                 price: priceNumber,
                 description: description || specialFoods[existingSpecialIndex].description || '',
-                image: preferredImage || specialFoods[existingSpecialIndex].image || 'img1.jpg'
+                image: preferredImage || specialFoods[existingSpecialIndex].image || 'img1.jpg',
+                components: components.length ? components : normalizeSpecialComponents(specialFoods[existingSpecialIndex].components)
             };
         } else {
             specialFoods.push({
                 name: item.name,
                 price: priceNumber,
                 description,
-                image: preferredImage || 'img1.jpg'
+                image: preferredImage || 'img1.jpg',
+                components
             });
         }
     } else if (menuData[category]) {
@@ -4522,6 +4661,7 @@ async function saveInventoryItem(event) {
     const status = stock <= 0 ? 'Out of stock' : inventoryStatusInput.value;
     const description = inventoryDescriptionInput.value.trim();
     const specialImage = category === 'specials' ? selectedSpecialFoodImageData : '';
+    const specialComponents = category === 'specials' ? normalizeSpecialComponents(selectedSpecialComponents) : [];
 
     if (!name || Number.isNaN(price) || Number.isNaN(stock)) {
         return;
@@ -4535,7 +4675,8 @@ async function saveInventoryItem(event) {
         existingItem.status = status;
         existingItem.category = category;
         existingItem.description = description;
-        saveMenuCatalogItem({ ...existingItem, description, image: specialImage || existingItem.image || '' });
+        existingItem.components = specialComponents;
+        saveMenuCatalogItem({ ...existingItem, description, image: specialImage || existingItem.image || '', components: specialComponents });
     } else {
         inventoryData.push({
             name,
@@ -4543,9 +4684,10 @@ async function saveInventoryItem(event) {
             stock,
             status,
             category,
-            description
+            description,
+            components: specialComponents
         });
-        saveMenuCatalogItem({ name, price, stock, status, category, description, image: specialImage || '' });
+        saveMenuCatalogItem({ name, price, stock, status, category, description, image: specialImage || '', components: specialComponents });
     }
 
     inventoryEditItemName = null;
