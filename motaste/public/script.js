@@ -6818,47 +6818,26 @@ if (cartAddOnSearchInput) {
 
 if (menuAddToCartBtn) {
     menuAddToCartBtn.addEventListener('click', () => {
-        const selectionCount = Object.values(menuSelectionQuantities).reduce((sum, qty) => sum + Number(qty), 0);
-        if (selectionCount <= 0) {
-            if (menuOrderMessage) {
-                menuOrderMessage.textContent = 'Select item quantities first before adding to cart.';
-            }
+        if (!commitSelectedMenuQuantitiesToCart()) {
             return;
         }
 
-        Object.entries(menuSelectionQuantities).forEach(([name, quantity]) => {
-            const item = findMenuItemByName(name);
-            if (!item) return;
-            addToCart({ name, price: Number(parsePrice(item.price)) }, Number(quantity));
-        });
-
-        menuSelectionQuantities = {};
-        if (currentMenuCategoryId) {
-            showMenuCategory(currentMenuCategoryId);
-        }
         if (menuOrderMessage) {
             menuOrderMessage.textContent = 'Selected items added to cart.';
         }
+        updateCartDisplay();
     });
 }
 
 if (menuPurchaseNowBtn) {
     menuPurchaseNowBtn.addEventListener('click', () => {
-        const selectionCount = Object.values(menuSelectionQuantities).reduce((sum, qty) => sum + Number(qty), 0);
-        if (selectionCount <= 0) {
+        if (!commitSelectedMenuQuantitiesToCart()) {
             if (menuOrderMessage) {
                 menuOrderMessage.textContent = 'Select item quantities first before purchasing.';
             }
             return;
         }
 
-        Object.entries(menuSelectionQuantities).forEach(([name, quantity]) => {
-            const item = findMenuItemByName(name);
-            if (!item) return;
-            addToCart({ name, price: Number(parsePrice(item.price)) }, Number(quantity));
-        });
-
-        menuSelectionQuantities = {};
         if (currentMenuCategoryId) {
             showMenuCategory(currentMenuCategoryId);
         }
