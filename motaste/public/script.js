@@ -6869,7 +6869,10 @@ if (menuAddToCartBtn) {
 
 if (menuPurchaseNowBtn) {
     menuPurchaseNowBtn.addEventListener('click', () => {
-        if (!commitSelectedMenuQuantitiesToCart()) {
+        const hasNewSelection = Object.values(menuSelectionQuantities).some((qty) => Number(qty) > 0);
+        const committed = hasNewSelection ? commitSelectedMenuQuantitiesToCart() : false;
+
+        if (!committed && !cartItems.length) {
             if (menuOrderMessage) {
                 menuOrderMessage.textContent = 'Select item quantities first before purchasing.';
             }
