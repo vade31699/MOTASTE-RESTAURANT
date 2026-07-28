@@ -1781,8 +1781,25 @@ function getOrderComponents(components) {
 function getAddOnInventoryItems() {
     const byName = new Map();
     const componentNames = new Set();
+    const coreMenuItemNames = new Set();
+    const specialFoodNames = new Set();
+
+    ['batchoy', 'silog', 'friedChicken', 'breakfast', 'drinks'].forEach((categoryKey) => {
+        const items = Array.isArray(menuData?.[categoryKey]?.items) ? menuData[categoryKey].items : [];
+        items.forEach((item) => {
+            const normalizedName = normalizeInventoryName(item && item.name ? item.name : '');
+            if (normalizedName) {
+                coreMenuItemNames.add(normalizedName);
+            }
+        });
+    });
 
     specialFoods.forEach((food) => {
+        const normalizedFoodName = normalizeInventoryName(food && food.name ? food.name : '');
+        if (normalizedFoodName) {
+            specialFoodNames.add(normalizedFoodName);
+        }
+
         normalizeSpecialComponents(food && food.components).forEach((component) => {
             const normalizedName = normalizeInventoryName(component.name);
             if (normalizedName) {
@@ -1829,6 +1846,30 @@ function getAddOnInventoryItems() {
             category: 'addons'
         });
     });
+
+    // Fail-safe: if add-on category metadata is missing, infer add-ons from non-main inventory items.
+    if (byName.size === 0) {
+        (inventoryData || []).forEach((item) => {
+            if (!item) return;
+
+            const name = String(item.name || '').trim();
+            if (!name) return;
+
+            const normalizedName = normalizeInventoryName(name);
+            if (!normalizedName) return;
+            if (blockedProductNames.has(normalizedName)) return;
+            if (coreMenuItemNames.has(normalizedName)) return;
+            if (specialFoodNames.has(normalizedName)) return;
+
+            byName.set(normalizedName, {
+                ...item,
+                name,
+                price: Math.max(0, Number(item.price) || 0),
+                stock: Math.max(0, Number(item.stock) || 0),
+                category: 'addons'
+            });
+        });
+    }
 
     return [...byName.values()];
 }
