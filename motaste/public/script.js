@@ -3422,27 +3422,21 @@ function getMaxEditablePendingQuantity(orderId, item) {
     return Math.max(0, stock - reservedByOthers);
 }
 
-async function updatePendingOrderItemQuantity(orderId, itemId, quantity, componentName = '') {
+async function updatePendingOrderItemQuantity(orderId, itemId, quantity) {
     const actor = getCurrentStaffActor();
-
-    const body = {
-        orderId,
-        itemId,
-        quantity,
-        actorRole: actor.role,
-        actorEmail: actor.email
-    };
-    if (componentName) {
-        body.componentName = componentName;
-        body.componentQuantity = quantity;
-    }
 
     const response = await fetch(getApiUrl('api/update_pending_order_item.php'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+            orderId,
+            itemId,
+            quantity,
+            actorRole: actor.role,
+            actorEmail: actor.email
+        }),
         cache: 'no-store'
     });
 
@@ -3489,36 +3483,6 @@ async function changePendingOrderItemQuantity(orderIndex, itemId, direction) {
     void loadPendingOrdersFromServer();
     void initializeInventoryData(true);
     void loadOrderLogsFromServer(true);
-}
-
-async function changePendingOrderComponentQuantity(orderIndex, itemId, componentName, direction) {
-    if (!canManageOrders()) return;
-    if (orderIndex < 0 || orderIndex >= pendingOrders.length) return;
-    const order = pendingOrders[orderIndex];
-    const items = Array.isArray(order.items) ? order.items : [];
-    const item = items.find((entry) => Number(entry.id) === Number(itemId));
-    if (!item || !Array.isArray(item.components)) return;
-
-    const component = item.components.find((entry) => normalizeInventoryName(entry.name) === normalizeInventoryName(componentName));
-    const currentQuantity = Math.max(0, Number(component?.quantity || 0));
-    const delta = direction === 'increase' ? 1 : -1;
-    const nextQuantity = currentQuantity + delta;
-    if (nextQuantity < 0) return;
-
-    try {
-        const payload = await updatePendingOrderItemQuantity(order.id, item.id, nextQuantity, componentName);
-        if (payload && Array.isArray(payload.components)) {
-            item.components = payload.components;
-            savePendingOrders();
-        }
-    } catch (error) {
-        console.error('Unable to edit pending order component quantity', error);
-        if (typeof window !== 'undefined' && window.alert) {
-            window.alert(error.message || 'Unable to edit component quantity');
-        }
-    }
-
-    renderPendingOrders();
 }
 
 async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
@@ -5752,22 +5716,6 @@ function renderPendingOrders() {
             const maxAllowed = getMaxEditablePendingQuantity(order.id, item);
             const canIncrease = canCompleteOrders && (Number(item.quantity) || 0) < maxAllowed;
             const canDecrease = canCompleteOrders && (Number(item.quantity) || 0) > 0;
-            const componentRows = Array.isArray(item.components) && item.components.length
-                ? item.components.map((component) => {
-                    const componentQty = Math.max(0, Number(component.quantity) || 0);
-                    const canCompDecrease = canCompleteOrders && componentQty > 0;
-                    return `
-                        <li class="pending-item-component-row">
-                            <span>${escapeHtml(component.name)}</span>
-                            <div class="pending-item-component-qty-controls">
-                                <button type="button" class="pending-item-component-qty-btn" data-action="component-decrease" data-order-index="${index}" data-item-id="${item.id}" data-component-name="${escapeHtml(component.name)}"${canCompDecrease ? '' : ' disabled'}>−</button>
-                                <span>${componentQty}</span>
-                                <button type="button" class="pending-item-component-qty-btn" data-action="component-increase" data-order-index="${index}" data-item-id="${item.id}" data-component-name="${escapeHtml(component.name)}"${canCompleteOrders ? '' : ' disabled'}>+</button>
-                            </div>
-                        </li>
-                    `;
-                }).join('')
-                : '';
 
             return `
                 <li>
@@ -5779,7 +5727,6 @@ function renderPendingOrders() {
                             <button type="button" class="pending-item-qty-btn" data-action="increase" data-order-index="${index}" data-item-id="${item.id}"${canIncrease ? '' : ' disabled'}>+</button>
                         </div>
                     </div>
-                    ${componentRows ? `<div class="pending-item-components"><p class="pending-item-components-title">Components</p><ul class="pending-item-component-list">${componentRows}</ul></div>` : ''}
                 </li>
             `;
         }).join('');
@@ -7105,16 +7052,6 @@ if (pendingOrdersList) {
             const orderIndex = Number(qtyButton.dataset.orderIndex);
             const itemId = Number(qtyButton.dataset.itemId);
             await changePendingOrderItemQuantity(orderIndex, itemId, action);
-            return;
-        }
-
-        const componentButton = event.target.closest('.pending-item-component-qty-btn');
-        if (componentButton) {
-            const action = componentButton.dataset.action;
-            const orderIndex = Number(componentButton.dataset.orderIndex);
-            const itemId = Number(componentButton.dataset.itemId);
-            const componentName = componentButton.dataset.componentName;
-            await changePendingOrderComponentQuantity(orderIndex, itemId, componentName, action.replace('component-', ''));
             return;
         }
 

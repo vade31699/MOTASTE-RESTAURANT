@@ -34,11 +34,9 @@ try {
         unit_price NUMERIC(12,2) NOT NULL DEFAULT 0,
         line_total NUMERIC(12,2) NOT NULL DEFAULT 0,
         notes TEXT NULL,
-        components JSONB NULL,
         created_at TIMESTAMP NULL,
         updated_at TIMESTAMP NULL
     )");
-    DB::statement("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS components JSONB NULL");
 
     DB::table('orders')
         ->where('status', 'pending')
@@ -59,10 +57,6 @@ try {
             ->where('order_id', $order->id)
             ->get()
             ->map(function ($it) {
-                $components = json_decode((string)($it->components ?? '[]'), true);
-                if (!is_array($components)) {
-                    $components = [];
-                }
                 return [
                     'id' => (int)$it->id,
                     'order_id' => (int)$it->order_id,
@@ -71,7 +65,6 @@ try {
                     'price' => (float)($it->unit_price ?? 0),
                     'unit_price' => (float)($it->unit_price ?? 0),
                     'quantity' => (int)($it->quantity ?? 0),
-                    'components' => $components,
                 ];
             })
             ->values()

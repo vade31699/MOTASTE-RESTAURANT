@@ -38,11 +38,9 @@ $input = json_decode(file_get_contents('php://input'), true);
 $orderId = isset($input['orderId']) ? (int) $input['orderId'] : 0;
 $itemId = isset($input['itemId']) ? (int) $input['itemId'] : 0;
 $quantity = isset($input['quantity']) ? (int) $input['quantity'] : 0;
-$componentName = trim((string)($input['componentName'] ?? ''));
-$componentQuantity = array_key_exists('componentQuantity', $input) ? (int)$input['componentQuantity'] : null;
 $actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
 $actorEmail = trim((string)($input['actorEmail'] ?? ''));
-if ($orderId <= 0 || $itemId <= 0 || $quantity < 0 || ($componentName !== '' && $componentQuantity === null)) {
+if ($orderId <= 0 || $itemId <= 0 || $quantity < 0) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'orderId, itemId, and quantity are required']);
     exit;
@@ -52,8 +50,6 @@ try {
     ensureOrderLogsTable();
 
     $result = DB::transaction(function () use ($orderId, $itemId, $quantity) {
-        DB::statement("ALTER TABLE IF NOT EXISTS order_items ADD COLUMN IF NOT EXISTS components JSONB NULL");
-
         $order = DB::table('orders')->where('id', $orderId)->lockForUpdate()->first();
         if (!$order) {
             return ['success' => false, 'status' => 404, 'error' => 'Order not found'];
@@ -74,57 +70,6 @@ try {
         }
 
         $previousQuantity = (int)($targetItem->quantity ?? 0);
-
-        if ($componentName !== '') {
-            $components = json_decode((string)($targetItem->components ?? '[]'), true);
-            if (!is_array($components)) {
-                $components = [];
-            }
-
-            $normalizedComponentName = normalizeItemName($componentName);
-            $updatedComponents = [];
-            $found = false;
-            foreach ($components as $component) {
-                $existingName = normalizeItemName((string)($component['name'] ?? ''));
-                if ($existingName === $normalizedComponentName) {
-                    $found = true;
-                    if ($componentQuantity > 0) {
-                        $updatedComponents[] = [
-                            'name' => $componentName,
-                            'quantity' => $componentQuantity,
-                        ];
-                    }
-                    continue;
-                }
-                $updatedComponents[] = $component;
-            }
-            if (!$found && $componentQuantity > 0) {
-                $updatedComponents[] = [
-                    'name' => $componentName,
-                    'quantity' => $componentQuantity,
-                ];
-            }
-
-            DB::table('order_items')
-                ->where('id', $itemId)
-                ->update([
-                    'components' => json_encode($updatedComponents),
-                    'updated_at' => now(),
-                ]);
-
-            return [
-                'success' => true,
-                'orderId' => $orderId,
-                'orderNumber' => $order->order_number,
-                'itemId' => $itemId,
-                'itemName' => (string)($targetItem->notes ?? 'Menu item'),
-                'componentName' => $componentName,
-                'componentQuantity' => $componentQuantity,
-                'components' => $updatedComponents,
-                'previousQuantity' => $previousQuantity,
-                'action' => 'component_quantity_updated',
-            ];
-        }
 
         $itemName = normalizeItemName((string) ($targetItem->notes ?? ''));
         if ($quantity > 0 && $itemName !== '') {
@@ -247,9 +192,8 @@ try {
         'summary' => ($result['itemName'] ?? 'Item') . ': ' . (int)($result['previousQuantity'] ?? 0) . ' -> ' . (int)($result['quantity'] ?? 0),
         'details' => json_encode([
             'item' => $result['itemName'] ?? null,
-            'component' => $result['componentName'] ?? null,
             'previous_quantity' => $result['previousQuantity'] ?? null,
-            'new_quantity' => $result['componentQuantity'] ?? $result['quantity'] ?? null,
+            'new_quantity' => $result['quantity'] ?? null,
             'subtotal' => $result['subtotal'] ?? null,
             'event_time' => now()->toDateTimeString(),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),

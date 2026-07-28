@@ -55,12 +55,9 @@ try {
         unit_price NUMERIC(12,2) NOT NULL DEFAULT 0,
         line_total NUMERIC(12,2) NOT NULL DEFAULT 0,
         notes TEXT NULL,
-        components JSONB NULL,
         created_at TIMESTAMP NULL,
         updated_at TIMESTAMP NULL
     )");
-
-    DB::statement("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS components JSONB NULL");
 
     $orderId = null;
     $insertedItems = 0;
@@ -92,7 +89,6 @@ try {
                 'unit_price' => $price,
                 'line_total' => $lineTotal,
                 'notes' => $itemName,
-                'components' => json_encode(is_array($it['components'] ?? null) ? $it['components'] : []),
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
