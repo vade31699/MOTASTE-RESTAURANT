@@ -1456,7 +1456,7 @@ body.dashboard-panel-open .menu-btn {
     left: auto;
     right: auto;
     bottom: auto;
-    width: min(450px, calc(100vw - 32px));
+    width: min(460px, calc(100vw - 32px));
     max-width: 92vw;
     max-height: calc(100vh - 40px);
     z-index: 3200;
