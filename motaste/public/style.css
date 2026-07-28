@@ -1284,14 +1284,13 @@ body.dashboard-panel-open .menu-btn {
     }
 
     .cart-addon-screen {
-        width: min(420px, calc(100vw - 20px));
-        max-height: calc(100vh - 20px);
-        padding: 12px;
-        inset: 10px;
+        width: min(420px, calc(100vw - 24px));
+        max-height: calc(100vh - 32px);
+        padding: 14px;
     }
 
     .cart-addon-list {
-        max-height: calc(100vh - 280px);
+        max-height: calc(100vh - 300px);
     }
 
     .order-checkout-screen,
@@ -1472,21 +1471,25 @@ body.dashboard-panel-open .menu-btn {
 }
 .cart-addon-screen {
     position: fixed;
-    inset: 12px 10px 12px 10px;
-    width: min(470px, calc(100vw - 20px));
+    inset: 20px 14px 20px;
+    top: auto;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    width: min(470px, calc(100vw - 32px));
     max-width: 92vw;
-    max-height: calc(100vh - 24px);
+    max-height: calc(90vh - 40px);
     z-index: 3200;
     background: #ffffff;
     border-radius: 16px;
-    padding: 14px;
+    padding: 16px;
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
     gap: 10px;
     box-sizing: border-box;
     border: 1px solid rgba(0, 0, 0, 0.12);
     box-shadow: 0 20px 54px rgba(0, 0, 0, 0.28);
-    overflow: auto;
+    overflow: hidden;
 }
 .cart-addon-screen-header {
     display: flex;
