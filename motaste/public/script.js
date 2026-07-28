@@ -4565,6 +4565,44 @@ function getCartQuantityForItem(name) {
     return cartItems.reduce((total, item) => total + (normalizeInventoryName(item.name) === normalizeInventoryName(name) ? Number(item.quantity) || 0 : 0), 0);
 }
 
+function findMenuItemByName(name) {
+    const normalizedTarget = normalizeInventoryName(name);
+    if (!normalizedTarget) return null;
+
+    for (const category of Object.values(menuData)) {
+        if (!category || !Array.isArray(category.items)) continue;
+        const found = category.items.find((item) => normalizeInventoryName(item.name) === normalizedTarget);
+        if (found) return found;
+    }
+
+    return specialFoods.find((item) => normalizeInventoryName(item.name) === normalizedTarget) || null;
+}
+
+function commitSelectedMenuQuantitiesToCart() {
+    const selectedEntries = Object.entries(menuSelectionQuantities).filter(([, qty]) => Number(qty) > 0);
+    if (!selectedEntries.length) {
+        if (menuOrderMessage) {
+            menuOrderMessage.textContent = 'Select item quantities first before adding to cart.';
+        }
+        return false;
+    }
+
+    selectedEntries.forEach(([name, quantity]) => {
+        const item = findMenuItemByName(name);
+        if (!item) {
+            return;
+        }
+        addToCart({ name: item.name, price: Number(parsePrice(item.price)) }, Number(quantity));
+    });
+
+    menuSelectionQuantities = {};
+    if (currentMenuCategoryId) {
+        showMenuCategory(currentMenuCategoryId);
+    }
+    updateCartDisplay();
+    return true;
+}
+
 function updateMenuSalesTotal() {
     const menuSalesTotal = document.getElementById('menuSalesTotal');
     if (!menuSalesTotal) return;
