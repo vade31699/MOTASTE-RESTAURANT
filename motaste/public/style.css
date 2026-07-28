@@ -1432,6 +1432,7 @@ body.dashboard-panel-open .menu-btn {
     margin: 0;
     padding: 24px;
     background: rgba(0, 0, 0, 0.62);
+    position: relative; /* Add this if wrapping the main layout directly */
 }
 .cart-modal .menu-cart-section-heading {
     width: min(520px, 100%);
@@ -1450,13 +1451,10 @@ body.dashboard-panel-open .menu-btn {
     -webkit-backdrop-filter: blur(16px);
 }
 .cart-addon-screen {
-    position: fixed;
-    inset: auto;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: min(520px, 90vw);
-    height: min(80vh, 700px);
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     z-index: 3000;
     background: rgba(255, 255, 255, 0.98);
     border-radius: 16px;
@@ -1467,6 +1465,7 @@ body.dashboard-panel-open .menu-btn {
     box-sizing: border-box;
     border: 1px solid rgba(0, 0, 0, 0.12);
     box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+    overflow: hidden;
 }
 .cart-addon-screen-header {
     display: flex;
