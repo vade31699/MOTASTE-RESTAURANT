@@ -2696,6 +2696,8 @@ const cartAddOnScreen = document.getElementById('cartAddOnScreen');
 const cartAddOnCloseBtn = document.getElementById('cartAddOnCloseBtn');
 const cartAddOnList = document.getElementById('cartAddOnList');
 const cartAddOnMessage = document.getElementById('cartAddOnMessage');
+const cartAddOnApplyBtn = document.getElementById('cartAddOnApplyBtn');
+const cartAddOnSearchInput = document.getElementById('cartAddOnSearchInput');
 const menuOrderMessage = document.getElementById('menuOrderMessage');
 const menuOverlay = document.getElementById('menuOverlay');
 const openMenuBtn = document.getElementById('openMenuBtn');
@@ -2807,7 +2809,25 @@ function formatRealtimeDate(value) {
 }
 
 function parsePrice(priceText) {
-    return Number(priceText.replace(/[₱,\s]/g, '')) || 0;
+    if (typeof priceText === 'number') {
+        return Number.isFinite(priceText) ? priceText : 0;
+    }
+
+    const raw = String(priceText || '').trim();
+    if (!raw) return 0;
+    return Number(raw.replace(/[₱,\s]/g, '')) || 0;
+}
+
+function getResolvedAddOnPrice(itemName, fallbackPrice = 0) {
+    const inventoryItem = getInventoryItem(itemName);
+    if (inventoryItem) {
+        const inventoryPrice = Number(inventoryItem.price);
+        if (Number.isFinite(inventoryPrice) && inventoryPrice >= 0) {
+            return inventoryPrice;
+        }
+    }
+
+    return Math.max(0, parsePrice(fallbackPrice));
 }
 
 function loadCart() {
@@ -5788,6 +5808,7 @@ async function placeWalkInOrder() {
 let selectedPaymentMethod = 'Cash';
 let selectedOrderType = 'Dine In';
 let cartAddOnDraftQuantities = {};
+let cartAddOnSearchQuery = '';
 
 function resetCartAddOnDraft() {
     cartAddOnDraftQuantities = {};
@@ -5798,6 +5819,10 @@ function closeCartAddOnScreen() {
     cartAddOnScreen.classList.add('hidden');
     cartAddOnScreen.setAttribute('aria-hidden', 'true');
     resetCartAddOnDraft();
+    cartAddOnSearchQuery = '';
+    if (cartAddOnSearchInput) {
+        cartAddOnSearchInput.value = '';
+    }
     if (cartAddOnMessage) {
         cartAddOnMessage.textContent = '';
     }
@@ -5806,18 +5831,36 @@ function closeCartAddOnScreen() {
 function renderCartAddOnScreen() {
     if (!cartAddOnList) return;
 
-    const addOnItems = Array.isArray(menuData?.addons?.items)
+    const query = String(cartAddOnSearchQuery || '').trim().toLowerCase();
+
+    const allAddOnItems = Array.isArray(menuData?.addons?.items)
         ? menuData.addons.items
             .map((item) => ({
                 ...item,
-                price: Number(item.price) || 0,
+                price: getResolvedAddOnPrice(item.name, item.price),
                 stock: getAvailableStockForItem(item.name)
             }))
             .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
         : [];
 
-    if (!addOnItems.length) {
+    if (!allAddOnItems.length) {
         cartAddOnList.innerHTML = '<p class="menu-cart-empty">No add on items available.</p>';
+        if (cartAddOnApplyBtn) {
+            cartAddOnApplyBtn.disabled = true;
+        }
+        return;
+    }
+
+    const addOnItems = query
+        ? allAddOnItems.filter((item) => String(item.name || '').toLowerCase().includes(query))
+        : allAddOnItems;
+
+    if (!addOnItems.length) {
+        cartAddOnList.innerHTML = '<p class="menu-cart-empty">No add on items found.</p>';
+        if (cartAddOnApplyBtn) {
+            const hasSelected = Object.values(cartAddOnDraftQuantities).some((qty) => (Number(qty) || 0) > 0);
+            cartAddOnApplyBtn.disabled = !hasSelected;
+        }
         return;
     }
 
@@ -5832,23 +5875,63 @@ function renderCartAddOnScreen() {
                     <strong>${escapeHtml(item.name)}</strong>
                     <span>${formatCurrency(item.price)}</span>
                 </div>
-                <div class="cart-addon-item-controls" data-name="${escapeHtml(item.name)}" data-price="${item.price}" data-max="${maxAddable}">
+                <div class="cart-addon-item-controls" data-name="${escapeHtml(item.name)}" data-max="${maxAddable}">
                     <button type="button" class="menu-item-qty-btn" data-action="decrease" ${selectedQty <= 0 ? 'disabled' : ''}>−</button>
                     <span class="menu-item-qty">${selectedQty}</span>
                     <button type="button" class="menu-item-qty-btn" data-action="increase" ${selectedQty >= maxAddable ? 'disabled' : ''}>+</button>
-                    <button type="button" class="menu-add-single-btn cart-addon-add-btn" data-action="add" ${selectedQty <= 0 ? 'disabled' : ''}>Add</button>
                 </div>
                 <div class="cart-addon-item-stock">Available: ${availableStock}</div>
             </article>
         `;
     }).join('');
+
+    if (cartAddOnApplyBtn) {
+        const hasSelected = Object.values(cartAddOnDraftQuantities).some((qty) => (Number(qty) || 0) > 0);
+        cartAddOnApplyBtn.disabled = !hasSelected;
+    }
 }
 
 function openCartAddOnScreen() {
     if (!cartAddOnScreen) return;
+    if (cartAddOnSearchInput) {
+        cartAddOnSearchInput.value = '';
+    }
+    cartAddOnSearchQuery = '';
     renderCartAddOnScreen();
     cartAddOnScreen.classList.remove('hidden');
     cartAddOnScreen.setAttribute('aria-hidden', 'false');
+}
+
+function applySelectedCartAddOns() {
+    const addOnItems = Array.isArray(menuData?.addons?.items) ? menuData.addons.items : [];
+    let addedGroups = 0;
+    let addedUnits = 0;
+
+    Object.entries(cartAddOnDraftQuantities).forEach(([normalizedName, rawQty]) => {
+        const quantity = Math.max(0, Number(rawQty) || 0);
+        if (quantity <= 0) return;
+
+        const item = addOnItems.find((candidate) => normalizeInventoryName(candidate.name) === normalizedName);
+        if (!item) return;
+
+        addToCart({
+            name: item.name,
+            price: getResolvedAddOnPrice(item.name, item.price)
+        }, quantity);
+        addedGroups += 1;
+        addedUnits += quantity;
+    });
+
+    if (cartAddOnMessage) {
+        cartAddOnMessage.textContent = addedGroups > 0
+            ? `${addedUnits} add on item(s) added to cart.`
+            : 'Select add on quantity first.';
+    }
+
+    if (addedGroups > 0) {
+        resetCartAddOnDraft();
+        renderCartAddOnScreen();
+    }
 }
 
 function openCheckoutScreen() {
@@ -6388,7 +6471,6 @@ if (cartAddOnList) {
         if (!controls) return;
 
         const name = String(controls.dataset.name || '').trim();
-        const price = Number(controls.dataset.price || 0);
         const max = Math.max(0, Number(controls.dataset.max || 0));
         const normalizedName = normalizeInventoryName(name);
         if (!name || !normalizedName) return;
@@ -6410,18 +6492,17 @@ if (cartAddOnList) {
             renderCartAddOnScreen();
             return;
         }
+    });
+}
 
-        if (action === 'add') {
-            const quantity = Math.max(0, Number(cartAddOnDraftQuantities[normalizedName] || 0));
-            if (quantity <= 0) return;
+if (cartAddOnApplyBtn) {
+    cartAddOnApplyBtn.addEventListener('click', applySelectedCartAddOns);
+}
 
-            addToCart({ name, price }, quantity);
-            cartAddOnDraftQuantities[normalizedName] = 0;
-            if (cartAddOnMessage) {
-                cartAddOnMessage.textContent = `${quantity} ${name} added to cart.`;
-            }
-            renderCartAddOnScreen();
-        }
+if (cartAddOnSearchInput) {
+    cartAddOnSearchInput.addEventListener('input', () => {
+        cartAddOnSearchQuery = cartAddOnSearchInput.value || '';
+        renderCartAddOnScreen();
     });
 }
 

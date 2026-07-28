@@ -120,6 +120,7 @@
                     <h4>Order Summary</h4>
                     <p id="menuCartCount">0 items</p>
                 </div>
+                <button type="button" id="cartAddOnBtn" class="cart-add-on-btn" aria-label="Open add on items">ADD ON</button>
             </div>
             <div class="menu-cart-items" id="menuCartList">
                 <p class="menu-cart-empty">Your cart is empty.</p>
@@ -129,7 +130,6 @@
                     <span>Total</span>
                     <strong id="menuCartTotal">₱0</strong>
                 </div>
-                <button type="button" id="cartAddOnBtn" class="menu-add-single-btn">Add On</button>
                 <button type="button" id="menuPlaceOrderBtn" class="menu-place-order-btn" disabled>Proceed to Payment</button>
             </div>
             <p class="menu-order-message" id="menuOrderMessage"></p>
@@ -139,8 +139,17 @@
                     <h4>Add On Items</h4>
                     <button type="button" id="cartAddOnCloseBtn" class="menu-back-btn">Back</button>
                 </div>
+                <label for="cartAddOnSearchInput" class="cart-addon-search-label">Search Add On</label>
+                <input
+                    type="search"
+                    id="cartAddOnSearchInput"
+                    class="cart-addon-search-input"
+                    placeholder="Search add on items..."
+                    autocomplete="off"
+                >
                 <div id="cartAddOnList" class="cart-addon-list"></div>
                 <p id="cartAddOnMessage" class="menu-order-message"></p>
+                <button type="button" id="cartAddOnApplyBtn" class="menu-place-order-btn" disabled>Add Selected Add Ons</button>
             </div>
         </aside>
     </section>
