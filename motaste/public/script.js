@@ -1758,6 +1758,75 @@ function getAddOnInventoryItems() {
     return (inventoryData || []).filter((item) => isAddOnCategory(item.category));
 }
 
+function getCartItemComponentQuantity(item, componentName) {
+    const normalizedName = normalizeInventoryName(componentName);
+    if (!normalizedName || !item || !Array.isArray(item.components)) return 0;
+
+    const component = item.components.find((entry) => normalizeInventoryName(entry.name) === normalizedName);
+    return Math.max(0, Number(component && component.quantity ? component.quantity : 0) || 0);
+}
+
+function setCartItemComponentQuantity(item, componentName, quantity) {
+    if (!item) return;
+
+    const normalizedName = normalizeInventoryName(componentName);
+    if (!normalizedName) return;
+
+    if (!Array.isArray(item.components)) {
+        item.components = [];
+    }
+
+    const nextQuantity = Math.max(0, Number(quantity) || 0);
+    const existing = item.components.find((entry) => normalizeInventoryName(entry.name) === normalizedName);
+    if (existing) {
+        existing.quantity = nextQuantity;
+        return;
+    }
+
+    item.components.push({
+        name: String(componentName).trim(),
+        quantity: nextQuantity
+    });
+}
+
+function getCartItemCustomizeOptions(item) {
+    const baseComponents = getCartItemBaseComponents(item);
+    const currentComponents = normalizeCartComponents(item && item.components);
+    const isSpecial = baseComponents.length > 0 || currentComponents.length > 0;
+    if (!isSpecial) return [];
+
+    const optionsByNormalizedName = new Map();
+
+    getAddOnInventoryItems().forEach((addOn) => {
+        const name = String(addOn && addOn.name ? addOn.name : '').trim();
+        const normalizedName = normalizeInventoryName(name);
+        if (!normalizedName) return;
+        if (!optionsByNormalizedName.has(normalizedName)) {
+            optionsByNormalizedName.set(normalizedName, name);
+        }
+    });
+
+    baseComponents.forEach((component) => {
+        const name = String(component.name || '').trim();
+        const normalizedName = normalizeInventoryName(name);
+        if (!normalizedName) return;
+        if (!optionsByNormalizedName.has(normalizedName)) {
+            optionsByNormalizedName.set(normalizedName, name);
+        }
+    });
+
+    currentComponents.forEach((component) => {
+        const name = String(component.name || '').trim();
+        const normalizedName = normalizeInventoryName(name);
+        if (!normalizedName) return;
+        if (!optionsByNormalizedName.has(normalizedName)) {
+            optionsByNormalizedName.set(normalizedName, name);
+        }
+    });
+
+    return [...optionsByNormalizedName.values()].sort((a, b) => a.localeCompare(b));
+}
+
 function renderSpecialCustomizeControls() {
     if (!specialCustomizeField || !specialCustomizeItemSelect || !specialCustomizeList) return;
 
@@ -4273,18 +4342,20 @@ function updateCartDisplay() {
     menuCartList.innerHTML = cartItems.map((item, index) => {
         const itemTotal = getCartItemLineTotal(item);
         total += itemTotal;
-        const hasComponents = Array.isArray(item.components) && item.components.length > 0;
-        const componentRows = hasComponents
-            ? item.components.map((component, componentIndex) => {
-                const canIncrease = canIncreaseCartComponentQuantity(index, component.name);
+        const customizeOptions = getCartItemCustomizeOptions(item);
+        const hasCustomizeOptions = customizeOptions.length > 0;
+        const componentRows = hasCustomizeOptions
+            ? customizeOptions.map((componentName) => {
+                const quantity = getCartItemComponentQuantity(item, componentName);
+                const canIncrease = canIncreaseCartComponentQuantity(index, componentName);
                 return `
                     <li class="menu-cart-component-item">
-                        <span class="menu-cart-component-name">${escapeHtml(component.name)}</span>
+                        <span class="menu-cart-component-name">${escapeHtml(componentName)}</span>
                         <div class="menu-cart-component-controls">
-                            <button type="button" class="menu-cart-component-btn" data-action="component-decrease" data-index="${index}" data-component-index="${componentIndex}" aria-label="Decrease ${escapeHtml(component.name)} quantity"${component.quantity <= 0 ? ' disabled' : ''}>−</button>
-                            <span class="menu-cart-component-qty">${component.quantity}</span>
-                            <button type="button" class="menu-cart-component-btn" data-action="component-increase" data-index="${index}" data-component-index="${componentIndex}" aria-label="Increase ${escapeHtml(component.name)} quantity"${canIncrease ? '' : ' disabled'}>+</button>
-                            <button type="button" class="menu-cart-component-remove" data-index="${index}" data-component-index="${componentIndex}" aria-label="Remove ${escapeHtml(component.name)}">Remove</button>
+                            <button type="button" class="menu-cart-component-btn" data-action="component-decrease" data-index="${index}" data-component-name="${escapeHtml(componentName)}" aria-label="Decrease ${escapeHtml(componentName)} quantity"${quantity <= 0 ? ' disabled' : ''}>−</button>
+                            <span class="menu-cart-component-qty">${quantity}</span>
+                            <button type="button" class="menu-cart-component-btn" data-action="component-increase" data-index="${index}" data-component-name="${escapeHtml(componentName)}" aria-label="Increase ${escapeHtml(componentName)} quantity"${canIncrease ? '' : ' disabled'}>+</button>
+                            <button type="button" class="menu-cart-component-remove" data-index="${index}" data-component-name="${escapeHtml(componentName)}" aria-label="Remove ${escapeHtml(componentName)}"${quantity <= 0 ? ' disabled' : ''}>Remove</button>
                         </div>
                     </li>
                 `;
@@ -4296,7 +4367,7 @@ function updateCartDisplay() {
                     <div>
                         <div class="menu-cart-item-title-row">
                             <strong>${item.name}</strong>
-                            ${hasComponents ? `<button type="button" class="menu-cart-components-toggle" data-index="${index}" aria-expanded="${item.componentsOpen ? 'true' : 'false'}" aria-label="Toggle customize options">${item.componentsOpen ? '▾' : '▸'}</button>` : ''}
+                            ${hasCustomizeOptions ? `<button type="button" class="menu-cart-components-toggle" data-index="${index}" aria-expanded="${item.componentsOpen ? 'true' : 'false'}" aria-label="Toggle customize options">${item.componentsOpen ? '▾' : '▸'}</button>` : ''}
                         </div>
                         <div class="menu-cart-item-qty-controls">
                             <button type="button" class="menu-cart-item-quantity-btn" data-action="decrease" data-index="${index}" aria-label="Decrease ${item.name} quantity"${item.quantity === 1 ? ' disabled' : ''}>
@@ -4310,7 +4381,7 @@ function updateCartDisplay() {
                     </div>
                     <button type="button" class="menu-cart-item-remove" data-index="${index}">Remove</button>
                 </div>
-                ${hasComponents && item.componentsOpen ? `<div class="menu-cart-components"><p class="menu-cart-components-title">Customize</p><ul class="menu-cart-component-list">${componentRows}</ul></div>` : ''}
+                ${hasCustomizeOptions && item.componentsOpen ? `<div class="menu-cart-components"><p class="menu-cart-components-title">Customize</p><ul class="menu-cart-component-list">${componentRows}</ul></div>` : ''}
                 <div>${formatCurrency(itemTotal)}</div>
             </div>
         `;
@@ -5344,27 +5415,26 @@ function adjustCartItemQuantity(index, change) {
 function toggleCartItemComponents(index) {
     if (Number.isNaN(index) || index < 0 || index >= cartItems.length) return;
     const item = cartItems[index];
-    if (!Array.isArray(item.components) || !item.components.length) return;
+    if (!getCartItemCustomizeOptions(item).length) return;
 
     item.componentsOpen = !item.componentsOpen;
     saveCart();
     updateCartDisplay();
 }
 
-function adjustCartItemComponentQuantity(index, componentIndex, change) {
-    if (Number.isNaN(index) || Number.isNaN(componentIndex) || index < 0 || index >= cartItems.length || !change) return;
+function adjustCartItemComponentQuantity(index, componentName, change) {
+    if (Number.isNaN(index) || index < 0 || index >= cartItems.length || !change) return;
 
     const item = cartItems[index];
-    if (!Array.isArray(item.components) || !item.components.length) return;
+    const normalizedName = normalizeInventoryName(componentName);
+    if (!normalizedName) return;
 
-    if (componentIndex < 0) return;
+    const currentQuantity = getCartItemComponentQuantity(item, componentName);
+    const nextQuantity = currentQuantity + change;
 
-    const component = item.components[componentIndex];
-    const nextQuantity = (Number(component.quantity) || 0) + change;
-
-    if (change > 0 && !canIncreaseCartComponentQuantity(index, component.name)) {
+    if (change > 0 && !canIncreaseCartComponentQuantity(index, componentName)) {
         if (menuOrderMessage) {
-            menuOrderMessage.textContent = `Cannot add more ${component.name}. ADD ON stock limit reached.`;
+            menuOrderMessage.textContent = `Cannot add more ${componentName}. ADD ON stock limit reached.`;
         }
         return;
     }
@@ -5373,19 +5443,19 @@ function adjustCartItemComponentQuantity(index, componentIndex, change) {
         return;
     }
 
-    component.quantity = nextQuantity;
+    setCartItemComponentQuantity(item, componentName, nextQuantity);
     saveCart();
     updateCartDisplay();
 }
 
-function removeCartItemComponent(index, componentIndex) {
-    if (Number.isNaN(index) || Number.isNaN(componentIndex) || index < 0 || index >= cartItems.length) return;
+function removeCartItemComponent(index, componentName) {
+    if (Number.isNaN(index) || index < 0 || index >= cartItems.length) return;
 
     const item = cartItems[index];
-    if (!Array.isArray(item.components) || !item.components.length) return;
+    const normalizedName = normalizeInventoryName(componentName);
+    if (!normalizedName) return;
 
-    if (componentIndex < 0 || componentIndex >= item.components.length) return;
-    item.components[componentIndex].quantity = 0;
+    setCartItemComponentQuantity(item, componentName, 0);
 
     saveCart();
     updateCartDisplay();
@@ -6141,17 +6211,17 @@ if (menuCartList) {
         const componentButton = event.target.closest('.menu-cart-component-btn');
         if (componentButton) {
             const index = Number(componentButton.dataset.index);
-            const componentIndex = Number(componentButton.dataset.componentIndex);
+            const componentName = String(componentButton.dataset.componentName || '').trim();
             const change = componentButton.dataset.action === 'component-increase' ? 1 : -1;
-            adjustCartItemComponentQuantity(index, componentIndex, change);
+            adjustCartItemComponentQuantity(index, componentName, change);
             return;
         }
 
         const removeComponentButton = event.target.closest('.menu-cart-component-remove');
         if (removeComponentButton) {
             const index = Number(removeComponentButton.dataset.index);
-            const componentIndex = Number(removeComponentButton.dataset.componentIndex);
-            removeCartItemComponent(index, componentIndex);
+            const componentName = String(removeComponentButton.dataset.componentName || '').trim();
+            removeCartItemComponent(index, componentName);
             return;
         }
 
