@@ -1628,6 +1628,7 @@ body.dashboard-panel-open .menu-btn {
     width: 100%;
     height: 62%;
     object-fit: cover;
+    object-position: center 38%;
 }
 .special-food-image-meta {
     position: absolute;
@@ -1651,10 +1652,13 @@ body.dashboard-panel-open .menu-btn {
     text-overflow: ellipsis;
 }
 .special-food-image-price {
-    color: #ffd27f;
+    color: #fff7e2;
     font-size: 0.8rem;
     font-weight: 800;
     flex-shrink: 0;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(230, 81, 0, 0.9);
 }
 .special-food-details {
     display: grid;
@@ -1664,8 +1668,8 @@ body.dashboard-panel-open .menu-btn {
 .special-food-details p {
     margin: 0;
     color: #5d4b3b;
-    font-size: 0.8rem;
-    line-height: 1.35;
+    font-size: 0.84rem;
+    line-height: 1.42;
     display: -webkit-box;
     line-clamp: 2;
     -webkit-line-clamp: 2;
