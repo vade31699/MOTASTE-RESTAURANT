@@ -1451,13 +1451,14 @@ body.dashboard-panel-open .menu-btn {
 }
 .cart-addon-screen {
     position: fixed;
-    inset: auto;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: min(520px, 92vw);
+    inset: 20px 14px 20px;
+    top: auto;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    width: min(460px, calc(100vw - 32px));
     max-width: 92vw;
-    max-height: 92vh;
+    max-height: calc(100vh - 40px);
     z-index: 3000;
     background: rgba(255, 255, 255, 0.98);
     border-radius: 16px;
@@ -1475,6 +1476,15 @@ body.dashboard-panel-open .menu-btn {
     align-items: center;
     justify-content: space-between;
     gap: 10px;
+    flex-wrap: wrap;
+}
+.cart-addon-screen-header h4 {
+    margin: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.cart-addon-screen-header .menu-back-btn {
+    flex: 0 0 auto;
 }
 .cart-addon-screen-header h4 {
     margin: 0;
@@ -1503,7 +1513,7 @@ body.dashboard-panel-open .menu-btn {
 }
 .cart-addon-list {
     min-height: 0;
-    max-height: calc(92vh - 220px);
+    max-height: calc(100vh - 300px);
     overflow-y: auto;
     overflow-x: hidden;
     display: grid;
