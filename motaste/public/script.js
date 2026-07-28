@@ -5945,7 +5945,21 @@ async function refreshCartAddOnData() {
 }
 
 async function ensureCartAddOnItemsReady() {
+    // First pass: normal refresh pipeline
     await refreshCartAddOnData();
+
+    if (getAddOnInventoryItems().length > 0) {
+        return;
+    }
+
+    // Second pass: reverse order to handle slow custom-menu hydration timing.
+    try {
+        await initializeInventoryData(true);
+        await loadCustomMenuData();
+        await initializeInventoryData(true);
+    } catch (error) {
+        console.error('Secondary add on data refresh pass failed', error);
+    }
 
     if (getAddOnInventoryItems().length > 0) {
         return;
@@ -5989,6 +6003,18 @@ async function ensureCartAddOnItemsReady() {
         }
     } catch (error) {
         console.error('Fallback custom menu fetch for add on screen failed', error);
+    }
+
+    if (getAddOnInventoryItems().length > 0) {
+        return;
+    }
+
+    // Final pass: one more full refresh after forced fetches.
+    try {
+        await loadCustomMenuData();
+        await initializeInventoryData(true);
+    } catch (error) {
+        console.error('Final add on data refresh pass failed', error);
     }
 }
 

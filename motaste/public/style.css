@@ -1492,9 +1492,10 @@ body.dashboard-panel-open .menu-btn {
     border-color: #ff9800;
 }
 .cart-addon-list {
-    min-height: 0;
+    min-height: 120px;
     overflow-y: auto;
     display: grid;
+    align-content: start;
     gap: 10px;
     padding-right: 4px;
 }
