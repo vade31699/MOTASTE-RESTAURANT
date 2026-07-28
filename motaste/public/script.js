@@ -1668,6 +1668,18 @@ function buildInitialCartComponents(baseComponents, dishQuantity) {
     }));
 }
 
+function pruneEmptySpecialFoodsFromCart() {
+    const initialLength = cartItems.length;
+    cartItems = cartItems.filter((item) => {
+        const baseComponents = getCartItemBaseComponents(item);
+        if (!baseComponents.length) return true;
+
+        const currentComponents = normalizeCartComponents(item.components);
+        return currentComponents.some((component) => Math.max(0, Number(component.quantity) || 0) > 0);
+    });
+    return cartItems.length !== initialLength;
+}
+
 function applyBaseComponentsDeltaToCartItem(cartItem, dishQuantityDelta) {
     const delta = Number(dishQuantityDelta) || 0;
     if (!delta) return;
@@ -2958,6 +2970,10 @@ function loadCart() {
             componentsOpen: Boolean(item.componentsOpen) || components.length > 0
         };
     });
+
+    if (pruneEmptySpecialFoodsFromCart()) {
+        saveCart();
+    }
 }
 
 function saveCart() {
@@ -4485,6 +4501,9 @@ window.addEventListener('storage', (event) => {
 });
 
 function updateCartDisplay() {
+    if (pruneEmptySpecialFoodsFromCart()) {
+        saveCart();
+    }
     clampCartToInventory();
     const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
     if (menuTopCartCount) {
