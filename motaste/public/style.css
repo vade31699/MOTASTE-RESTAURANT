@@ -1457,8 +1457,8 @@ body.dashboard-panel-open .menu-btn {
     border-radius: 16px;
     padding: 14px;
     display: grid;
-    grid-template-rows: auto auto auto minmax(0, 1fr) auto auto auto;
-    gap: 12px;
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
+    gap: 8px;
 }
 .cart-addon-screen-header {
     display: flex;
@@ -1469,20 +1469,12 @@ body.dashboard-panel-open .menu-btn {
 .cart-addon-screen-header h4 {
     margin: 0;
 }
-.cart-addon-search-label {
-    display: block;
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: #5a4a3c;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
 .cart-addon-search-input {
     display: block;
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    height: 42px;
+    height: 38px;
     -webkit-appearance: none;
     appearance: none;
     border: 1px solid rgba(0, 0, 0, 0.16);
@@ -1507,12 +1499,12 @@ body.dashboard-panel-open .menu-btn {
     padding-right: 4px;
 }
 .cart-addon-total {
-    margin-top: 4px;
+    margin-top: 8px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    padding: 10px 12px;
+    padding: 8px 12px;
     border-radius: 10px;
     background: #fff6ec;
     border: 1px solid rgba(230, 81, 0, 0.2);

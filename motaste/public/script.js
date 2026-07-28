@@ -5873,6 +5873,9 @@ function closeCartAddOnScreen() {
     if (!cartAddOnScreen) return;
     cartAddOnScreen.classList.add('hidden');
     cartAddOnScreen.setAttribute('aria-hidden', 'true');
+    if (menuPlaceOrderBtn) {
+        menuPlaceOrderBtn.classList.remove('hidden');
+    }
     resetCartAddOnDraft();
     cartAddOnSearchQuery = '';
     if (cartAddOnSearchInput) {
@@ -5948,6 +5951,9 @@ function renderCartAddOnScreen() {
 
 async function openCartAddOnScreen() {
     if (!cartAddOnScreen) return;
+    if (menuPlaceOrderBtn) {
+        menuPlaceOrderBtn.classList.add('hidden');
+    }
     if (cartAddOnSearchInput) {
         cartAddOnSearchInput.value = '';
     }
