@@ -1459,16 +1459,16 @@ body.dashboard-panel-open .menu-btn {
     width: min(460px, calc(100vw - 32px));
     max-width: 92vw;
     max-height: calc(100vh - 40px);
-    z-index: 3000;
-    background: rgba(255, 255, 255, 0.98);
+    z-index: 3200;
+    background: #ffffff;
     border-radius: 16px;
-    padding: 14px;
+    padding: 16px;
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
-    gap: 8px;
+    gap: 10px;
     box-sizing: border-box;
     border: 1px solid rgba(0, 0, 0, 0.12);
-    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+    box-shadow: 0 20px 54px rgba(0, 0, 0, 0.28);
     overflow: hidden;
 }
 .cart-addon-screen-header {
