@@ -1450,7 +1450,7 @@ body.dashboard-panel-open .menu-btn {
     -webkit-backdrop-filter: blur(16px);
 }
 .cart-addon-screen {
-    position: fixed;
+    position: absolute;
     inset: 20px 14px 20px;
     top: auto;
     left: auto;
