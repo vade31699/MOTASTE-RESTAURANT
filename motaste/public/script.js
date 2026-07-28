@@ -2761,6 +2761,7 @@ const menuBackBtn = document.getElementById('menuBackBtn');
 const menuCartList = document.getElementById('menuCartList');
 const menuCartCount = document.getElementById('menuCartCount');
 const menuCartTotal = document.getElementById('menuCartTotal');
+const menuCartSummary = document.querySelector('.menu-cart-summary');
 const menuPlaceOrderBtn = document.getElementById('menuPlaceOrderBtn');
 const cartAddOnBtn = document.getElementById('cartAddOnBtn');
 const cartAddOnScreen = document.getElementById('cartAddOnScreen');
@@ -6026,6 +6027,18 @@ function closeCartAddOnScreen() {
     if (menuPlaceOrderBtn) {
         menuPlaceOrderBtn.classList.remove('hidden');
     }
+    if (menuCartList) {
+        menuCartList.classList.remove('hidden');
+    }
+    if (menuCartSummary) {
+        menuCartSummary.classList.remove('hidden');
+    }
+    if (menuOrderMessage) {
+        menuOrderMessage.classList.remove('hidden');
+    }
+    if (cartAddOnBtn) {
+        cartAddOnBtn.classList.remove('hidden');
+    }
     resetCartAddOnDraft();
     cartAddOnSearchQuery = '';
     if (cartAddOnSearchInput) {
@@ -6104,6 +6117,18 @@ async function openCartAddOnScreen() {
     if (menuPlaceOrderBtn) {
         menuPlaceOrderBtn.classList.add('hidden');
     }
+    if (menuCartList) {
+        menuCartList.classList.add('hidden');
+    }
+    if (menuCartSummary) {
+        menuCartSummary.classList.add('hidden');
+    }
+    if (menuOrderMessage) {
+        menuOrderMessage.classList.add('hidden');
+    }
+    if (cartAddOnBtn) {
+        cartAddOnBtn.classList.add('hidden');
+    }
     if (cartAddOnSearchInput) {
         cartAddOnSearchInput.value = '';
     }
@@ -6154,13 +6179,6 @@ function applySelectedCartAddOns() {
     }
 }
 
-function updateOverlayHeaderVisibility() {
-    if (!menuOverlay) return;
-    const hideHeader = (orderCheckoutScreen && !orderCheckoutScreen.classList.contains('hidden')) ||
-        (orderPaymentScreen && !orderPaymentScreen.classList.contains('hidden'));
-    menuOverlay.classList.toggle('hide-header', hideHeader);
-}
-
 function openCheckoutScreen() {
     if (!cartItems.length || getCartPayableTotal() <= 0) return;
     if (!orderCheckoutScreen || !menuCategoryScreen) return;
@@ -6169,7 +6187,6 @@ function openCheckoutScreen() {
     orderCheckoutScreen.classList.remove('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'false');
     renderCheckoutSummary();
-    updateOverlayHeaderVisibility();
 }
 
 function closeCheckoutScreen() {
@@ -6178,7 +6195,6 @@ function closeCheckoutScreen() {
     orderCheckoutScreen.classList.add('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'true');
     menuCategoryScreen.classList.remove('hidden');
-    updateOverlayHeaderVisibility();
 }
 
 function renderCheckoutSummary() {
@@ -6246,7 +6262,6 @@ function openPaymentScreen(order) {
     orderCheckoutScreen.classList.add('hidden');
     orderPaymentScreen.classList.remove('hidden');
     orderPaymentScreen.setAttribute('aria-hidden', 'false');
-    updateOverlayHeaderVisibility();
 
     if (orderPaymentNumber) {
         orderPaymentNumber.textContent = order.orderNumber;
@@ -6281,7 +6296,6 @@ function closePaymentScreen() {
     orderPaymentScreen.setAttribute('aria-hidden', 'true');
     orderCheckoutScreen.classList.remove('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'false');
-    updateOverlayHeaderVisibility();
 }
 
 function showPaymentSuccessMessage() {
@@ -6344,11 +6358,6 @@ async function confirmOrder() {
 }
 
 function showMenuCategory(categoryId) {
-    if ((orderPaymentScreen && !orderPaymentScreen.classList.contains('hidden')) ||
-        (orderCheckoutScreen && !orderCheckoutScreen.classList.contains('hidden'))) {
-        return;
-    }
-
     loadCustomMenuData();
     syncMenuPricesWithInventory();
 
@@ -6755,9 +6764,7 @@ if (orderCheckoutBackBtn) {
 }
 
 if (cancelOrderBtn) {
-    cancelOrderBtn.addEventListener('click', () => {
-        closeMenuOverlay();
-    });
+    cancelOrderBtn.addEventListener('click', closeCheckoutScreen);
 }
 
 if (confirmOrderBtn) {
