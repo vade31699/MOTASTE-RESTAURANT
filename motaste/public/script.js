@@ -2328,6 +2328,10 @@ const menuData = {
     drinks: {
         title: 'DRINKS',
         items: []
+    },
+    addons: {
+        title: 'ADD ON',
+        items: []
     }
 };
 
@@ -2348,6 +2352,7 @@ const menuOrderMessage = document.getElementById('menuOrderMessage');
 const menuOverlay = document.getElementById('menuOverlay');
 const openMenuBtn = document.getElementById('openMenuBtn');
 const closeMenuOverlayBtn = document.getElementById('closeMenuOverlayBtn');
+const menuAddOnQuickBtn = document.getElementById('menuAddOnQuickBtn');
 const menuCartButton = document.getElementById('menuCartButton');
 const menuTopCartCount = document.getElementById('menuTopCartCount');
 const specialFoodsList = document.getElementById('specialFoodsList');
@@ -3455,6 +3460,7 @@ const inventoryCategoryLabels = {
     friedChicken: 'Fried Chicken',
     breakfast: 'Breakfast',
     drinks: 'Drinks',
+    addons: 'Add On',
     specials: 'Specials'
 };
 
@@ -3810,7 +3816,7 @@ function applyCustomMenuSnapshot(snapshot) {
         }))
     });
 
-    const fixedCategories = ['batchoy', 'silog', 'friedChicken', 'breakfast', 'drinks'];
+    const fixedCategories = ['batchoy', 'silog', 'friedChicken', 'breakfast', 'drinks', 'addons'];
     fixedCategories.forEach((categoryKey) => {
         if (!menuData[categoryKey]) {
             menuData[categoryKey] = { title: categoryKey.toUpperCase(), items: [] };
@@ -4303,6 +4309,7 @@ function renderInventoryManagement() {
                             <option value="friedChicken" ${category === 'friedChicken' ? 'selected' : ''}>Fried Chicken</option>
                             <option value="breakfast" ${category === 'breakfast' ? 'selected' : ''}>Breakfast</option>
                             <option value="drinks" ${category === 'drinks' ? 'selected' : ''}>Drinks</option>
+                            <option value="addons" ${category === 'addons' ? 'selected' : ''}>Add On</option>
                             <option value="specials" ${category === 'specials' ? 'selected' : ''}>Specials</option>
                         </select>
                     </label>
@@ -5546,6 +5553,13 @@ if (menuCategories) {
         const categoryId = button.dataset.category;
         openMenuOverlay();
         showMenuCategory(categoryId);
+    });
+}
+
+if (menuAddOnQuickBtn) {
+    menuAddOnQuickBtn.addEventListener('click', () => {
+        openMenuOverlay();
+        showMenuCategory('addons');
     });
 }
 
