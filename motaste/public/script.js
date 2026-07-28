@@ -2767,9 +2767,11 @@ const menuBackBtn = document.getElementById('menuBackBtn');
 const menuCartList = document.getElementById('menuCartList');
 const menuCartCount = document.getElementById('menuCartCount');
 const menuCartHeader = document.querySelector('.menu-cart-header');
+const menuCartPanel = document.getElementById('menuCartPanel');
 const menuCartTotal = document.getElementById('menuCartTotal');
 const menuCartSummary = document.querySelector('.menu-cart-summary');
 const menuPlaceOrderBtn = document.getElementById('menuPlaceOrderBtn');
+const cartTitle = document.getElementById('cartTitle');
 const cartAddOnBtn = document.getElementById('cartAddOnBtn');
 const cartAddOnScreen = document.getElementById('cartAddOnScreen');
 const cartAddOnCloseBtn = document.getElementById('cartAddOnCloseBtn');
@@ -6095,8 +6097,20 @@ function closeCartAddOnScreen() {
     if (menuCartList) {
         menuCartList.classList.remove('hidden');
     }
+    if (menuCartHeader) {
+        menuCartHeader.classList.remove('hidden');
+    }
+    if (menuCartSummary) {
+        menuCartSummary.classList.remove('hidden');
+    }
+    if (cartTitle) {
+        cartTitle.classList.remove('hidden');
+    }
     if (cartAddOnBtn) {
         cartAddOnBtn.classList.remove('hidden');
+    }
+    if (menuCartPanel) {
+        menuCartPanel.classList.remove('cart-addon-active');
     }
     resetCartAddOnDraft();
     cartAddOnSearchQuery = '';
@@ -6176,8 +6190,20 @@ async function openCartAddOnScreen() {
     if (menuCartList) {
         menuCartList.classList.add('hidden');
     }
+    if (menuCartHeader) {
+        menuCartHeader.classList.add('hidden');
+    }
+    if (menuCartSummary) {
+        menuCartSummary.classList.add('hidden');
+    }
+    if (cartTitle) {
+        cartTitle.classList.add('hidden');
+    }
     if (cartAddOnBtn) {
         cartAddOnBtn.classList.add('hidden');
+    }
+    if (menuCartPanel) {
+        menuCartPanel.classList.add('cart-addon-active');
     }
     cartAddOnScreen.classList.remove('hidden');
     cartAddOnScreen.setAttribute('aria-hidden', 'false');

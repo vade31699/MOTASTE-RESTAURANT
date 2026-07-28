@@ -1557,7 +1557,7 @@ body.dashboard-panel-open .menu-btn {
 }
 .cart-addon-list {
     min-height: 0;
-    max-height: calc(100vh - 300px);
+    max-height: none;
     overflow-y: auto;
     overflow-x: hidden;
     display: grid;
