@@ -2785,6 +2785,8 @@ const closeMenuOverlayBtn = document.getElementById('closeMenuOverlayBtn');
 const menuAddOnQuickBtn = document.getElementById('menuAddOnQuickBtn');
 const menuCartButton = document.getElementById('menuCartButton');
 const menuTopCartCount = document.getElementById('menuTopCartCount');
+const menuAddToCartBtn = document.getElementById('menuAddToCartBtn');
+const menuPurchaseNowBtn = document.getElementById('menuPurchaseNowBtn');
 const specialFoodsList = document.getElementById('specialFoodsList');
 const cartModal = document.getElementById('cart');
 const closeCartButton = document.getElementById('closeCartButton');
@@ -4724,17 +4726,17 @@ function syncVisibleMenuItemQuantities() {
             const quantityElement = card.querySelector('.menu-item-qty');
             const increaseButton = card.querySelector('.menu-item-qty-btn[data-action="increase"]');
             const decreaseButton = card.querySelector('.menu-item-qty-btn[data-action="decrease"]');
-            const currentQty = getCartQuantityForItem(name);
+            const selectedQty = menuSelectionQuantities[name] || 0;
             const availableStock = getAvailableStockForItem(name);
 
             if (quantityElement) {
-                quantityElement.textContent = String(currentQty);
+                quantityElement.textContent = String(selectedQty);
             }
             if (increaseButton) {
-                increaseButton.disabled = availableStock <= 0;
+                increaseButton.disabled = availableStock <= 0 || selectedQty >= availableStock;
             }
             if (decreaseButton) {
-                decreaseButton.disabled = currentQty <= 0;
+                decreaseButton.disabled = selectedQty <= 0;
             }
         });
     }
@@ -6700,50 +6702,27 @@ if (menuOverlayCategories) {
 if (menuCategoryScreen) {
     menuCategoryScreen.addEventListener('click', (event) => {
         const qtyButton = event.target.closest('.menu-item-qty-btn');
-        const actionButton = event.target.closest('.menu-item-action');
-        if (!qtyButton && !actionButton) return;
+        if (!qtyButton) return;
 
-        const target = qtyButton || actionButton;
-        const card = target.closest('.menu-item-card');
+        const card = qtyButton.closest('.menu-item-card');
+        const name = qtyButton.dataset.name;
+        const price = Number(qtyButton.dataset.price);
+        const change = qtyButton.dataset.action === 'increase' ? 1 : -1;
+        const currentQty = menuSelectionQuantities[name] || 0;
+        const availableStock = getAvailableStockForItem(name);
+        const nextQty = Math.max(0, currentQty + change);
+
+        if (change > 0 && nextQty > availableStock) return;
+        menuSelectionQuantities[name] = nextQty;
+        if (menuSelectionQuantities[name] === 0) {
+            delete menuSelectionQuantities[name];
+        }
+
         const confirmation = card?.querySelector('.menu-item-confirmation');
-        const name = target.dataset.name;
-        const price = Number(target.dataset.price);
-
-        if (qtyButton) {
-            const qtyElement = card?.querySelector('.menu-item-qty');
-            const currentQty = Number(qtyElement?.textContent || 0);
-            const change = qtyButton.dataset.action === 'increase' ? 1 : -1;
-
-            if (change > 0) {
-                addToCart({ name, price });
-            } else if (currentQty > 0) {
-                const cartIndex = cartItems.findIndex((item) => item.name === name);
-                if (cartIndex >= 0) {
-                    const existing = cartItems[cartIndex];
-                    existing.quantity = Math.max(0, existing.quantity - 1);
-                    if (existing.quantity === 0) {
-                        cartItems.splice(cartIndex, 1);
-                    }
-                    saveCart();
-                    updateCartDisplay();
-                }
-            }
-        }
-
-        if (actionButton) {
-            const action = actionButton.dataset.action;
-            if (action === 'add-to-cart') {
-                addToCart({ name, price });
-            } else if (action === 'purchase-now') {
-                addToCart({ name, price });
-                openCartModal();
-            }
-        }
-
         if (confirmation) {
-            const updatedQty = getCartQuantityForItem(name);
-            confirmation.textContent = updatedQty > 0 ? `${updatedQty} ${updatedQty === 1 ? 'order' : 'orders'} added` : '';
+            confirmation.textContent = nextQty > 0 ? `${nextQty} selected` : '';
         }
+
         syncVisibleMenuItemQuantities();
     });
 }
@@ -6834,6 +6813,57 @@ if (cartAddOnSearchInput) {
     cartAddOnSearchInput.addEventListener('input', () => {
         cartAddOnSearchQuery = cartAddOnSearchInput.value || '';
         renderCartAddOnScreen();
+    });
+}
+
+if (menuAddToCartBtn) {
+    menuAddToCartBtn.addEventListener('click', () => {
+        const selectionCount = Object.values(menuSelectionQuantities).reduce((sum, qty) => sum + Number(qty), 0);
+        if (selectionCount <= 0) {
+            if (menuOrderMessage) {
+                menuOrderMessage.textContent = 'Select item quantities first before adding to cart.';
+            }
+            return;
+        }
+
+        Object.entries(menuSelectionQuantities).forEach(([name, quantity]) => {
+            const item = findMenuItemByName(name);
+            if (!item) return;
+            addToCart({ name, price: Number(parsePrice(item.price)) }, Number(quantity));
+        });
+
+        menuSelectionQuantities = {};
+        if (currentMenuCategoryId) {
+            showMenuCategory(currentMenuCategoryId);
+        }
+        if (menuOrderMessage) {
+            menuOrderMessage.textContent = 'Selected items added to cart.';
+        }
+    });
+}
+
+if (menuPurchaseNowBtn) {
+    menuPurchaseNowBtn.addEventListener('click', () => {
+        const selectionCount = Object.values(menuSelectionQuantities).reduce((sum, qty) => sum + Number(qty), 0);
+        if (selectionCount <= 0) {
+            if (menuOrderMessage) {
+                menuOrderMessage.textContent = 'Select item quantities first before purchasing.';
+            }
+            return;
+        }
+
+        Object.entries(menuSelectionQuantities).forEach(([name, quantity]) => {
+            const item = findMenuItemByName(name);
+            if (!item) return;
+            addToCart({ name, price: Number(parsePrice(item.price)) }, Number(quantity));
+        });
+
+        menuSelectionQuantities = {};
+        if (currentMenuCategoryId) {
+            showMenuCategory(currentMenuCategoryId);
+        }
+        openCartModal();
+        openCheckoutScreen();
     });
 }
 
