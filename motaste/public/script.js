@@ -2845,7 +2845,7 @@ function loadCart() {
             baseComponents,
             components,
             componentsMode: 'total',
-            componentsOpen: Boolean(item.componentsOpen)
+            componentsOpen: components.length > 0
         };
     });
 }
@@ -5389,7 +5389,7 @@ function addToCart(item, quantityToAdd = 1) {
             existing.baseComponents = normalizeSpecialComponents(specialComponents);
         }
         applyBaseComponentsDeltaToCartItem(existing, quantity);
-        existing.componentsOpen = Boolean(existing.componentsOpen);
+        existing.componentsOpen = Array.isArray(existing.components) && existing.components.length > 0;
         existing.componentsMode = 'total';
         existing.quantity += quantity;
     } else {
@@ -5399,7 +5399,7 @@ function addToCart(item, quantityToAdd = 1) {
             baseComponents: normalizeSpecialComponents(specialComponents),
             components: buildInitialCartComponents(specialComponents, quantity),
             componentsMode: 'total',
-            componentsOpen: false
+            componentsOpen: specialComponents.length > 0
         });
     }
     saveCart();
