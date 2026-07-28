@@ -1618,6 +1618,8 @@ body.dashboard-panel-open .menu-btn {
     position: relative;
     display: block;
     width: 100%;
+    height: 58%;
+    overflow: hidden;
     padding: 0;
     border: 0;
     background: transparent;
@@ -1625,10 +1627,11 @@ body.dashboard-panel-open .menu-btn {
     line-height: 0;
 }
 .special-food-view-btn img {
+    display: block;
     width: 100%;
-    height: 46%;
+    height: 100%;
     object-fit: cover;
-    object-position: center 24%;
+    object-position: center top;
 }
 .special-food-image-meta {
     position: absolute;
