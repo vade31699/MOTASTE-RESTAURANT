@@ -6333,6 +6333,11 @@ async function confirmOrder() {
 }
 
 function showMenuCategory(categoryId) {
+    if ((orderPaymentScreen && !orderPaymentScreen.classList.contains('hidden')) ||
+        (orderCheckoutScreen && !orderCheckoutScreen.classList.contains('hidden'))) {
+        return;
+    }
+
     loadCustomMenuData();
     syncMenuPricesWithInventory();
 
