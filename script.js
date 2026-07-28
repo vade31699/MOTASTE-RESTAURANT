@@ -1233,6 +1233,12 @@ const closeMenuOverlayBtn = document.getElementById('closeMenuOverlayBtn');
 const menuCartButton = document.getElementById('menuCartButton');
 const menuTopCartCount = document.getElementById('menuTopCartCount');
 const specialFoodsList = document.getElementById('specialFoodsList');
+const productDetailModal = document.getElementById('productDetailModal');
+const productDetailCloseBtn = document.getElementById('productDetailCloseBtn');
+const productDetailImage = document.getElementById('productDetailImage');
+const productDetailName = document.getElementById('productDetailName');
+const productDetailDescription = document.getElementById('productDetailDescription');
+const productDetailPrice = document.getElementById('productDetailPrice');
 const cartModal = document.getElementById('cart');
 const closeCartButton = document.getElementById('closeCartButton');
 const menuNavLink = document.querySelector('a[href="#menu"]');
@@ -1260,6 +1266,7 @@ let completedOrders = [];
 let inventoryData = [];
 let currentMenuCategoryId = null;
 let inventoryEditItemName = null;
+let activeProductDetailItem = null;
 let ignoredPendingOrderNumbers = new Set();
 
 function loadIgnoredPendingOrders() {
@@ -1425,6 +1432,57 @@ function initializeInventoryData() {
 
 function saveInventoryData() {
     localStorage.setItem('motasteInventoryData', JSON.stringify(inventoryData));
+}
+
+function getProductDescription(item) {
+    if (!item) return 'Description coming soon.';
+
+    if (item.description) return String(item.description).trim();
+
+    const inventoryItem = getInventoryItem(item.name);
+    if (inventoryItem && inventoryItem.description) {
+        return String(inventoryItem.description).trim();
+    }
+
+    return 'Description coming soon.';
+}
+
+function openProductDetailModal(item) {
+    if (!productDetailModal || !item) return;
+
+    activeProductDetailItem = {
+        name: item.name,
+        price: Number(item.price) || 0,
+        image: item.image || 'img1.jpg',
+        description: getProductDescription(item)
+    };
+
+    if (productDetailImage) {
+        productDetailImage.src = activeProductDetailItem.image;
+        productDetailImage.alt = activeProductDetailItem.name;
+    }
+    if (productDetailName) {
+        productDetailName.textContent = activeProductDetailItem.name;
+    }
+    if (productDetailDescription) {
+        productDetailDescription.textContent = activeProductDetailItem.description;
+    }
+    if (productDetailPrice) {
+        productDetailPrice.textContent = formatCurrency(activeProductDetailItem.price);
+    }
+
+    productDetailModal.hidden = false;
+    productDetailModal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeProductDetailModal() {
+    if (!productDetailModal) return;
+
+    productDetailModal.hidden = true;
+    productDetailModal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    activeProductDetailItem = null;
 }
 
 function saveCustomMenuData() {
@@ -2035,18 +2093,16 @@ function renderSpecialFoods() {
 
     specialFoodsList.innerHTML = specialFoods.map((item) => {
         const imageSrc = item.image || 'img1.jpg';
+        const description = getProductDescription(item);
         return `
         <article class="special-food-card">
-            <img src="${imageSrc}" alt="${item.name}">
+            <button type="button" class="special-food-view-btn" data-name="${item.name}" aria-label="View ${item.name} details">
+                <img src="${imageSrc}" alt="${item.name}">
+            </button>
             <div class="special-food-details">
                 <h4>${item.name}</h4>
+                <p>${escapeHtml(description)}</p>
                 <strong>${formatCurrency(item.price)}</strong>
-            </div>
-            <div class="special-food-cart-action">
-                <button type="button" class="special-food-add" data-name="${item.name}" data-price="${item.price}" aria-label="Add ${item.name} to cart">
-                    <i class="fa-solid fa-cart-plus" aria-hidden="true"></i>
-                </button>
-                <span class="special-food-added-message" aria-live="polite"></span>
             </div>
         </article>
     `;
@@ -2070,14 +2126,7 @@ function addToCart(item) {
 
 function clearSpecialFoodConfirmation(itemName) {
     if (!specialFoodsList) return;
-    const specialFoodButton = Array.from(specialFoodsList.querySelectorAll('.special-food-add'))
-        .find((button) => button.dataset.name === itemName);
-    const message = specialFoodButton && specialFoodButton.parentElement
-        ? specialFoodButton.parentElement.querySelector('.special-food-added-message')
-        : null;
-    if (message) {
-        message.textContent = '';
-    }
+    return itemName;
 }
 
 function removeCartItem(index) {
@@ -2450,24 +2499,24 @@ if (mobileMenuToggle && topNav) {
 
 if (specialFoodsList) {
     specialFoodsList.addEventListener('click', (event) => {
-        const button = event.target.closest('.special-food-add');
-        if (!button) return;
+        const viewButton = event.target.closest('.special-food-view-btn');
+        if (!viewButton) return;
 
-        const card = button.closest('.special-food-card');
-        if (card) {
-            specialFoodsList.querySelectorAll('.special-food-card').forEach((foodCard) => {
-                foodCard.classList.remove('is-active');
-            });
-            card.classList.add('is-active');
-        }
+        const item = specialFoods.find((food) => food.name === viewButton.dataset.name);
+        if (!item) return;
 
-        addToCart({
-            name: button.dataset.name,
-            price: Number(button.dataset.price)
-        });
-        const message = button.parentElement.querySelector('.special-food-added-message');
-        if (message) {
-            message.textContent = 'Added to cart';
+        openProductDetailModal(item);
+    });
+}
+
+if (productDetailCloseBtn) {
+    productDetailCloseBtn.addEventListener('click', closeProductDetailModal);
+}
+
+if (productDetailModal) {
+    productDetailModal.addEventListener('click', (event) => {
+        if (event.target === productDetailModal) {
+            closeProductDetailModal();
         }
     });
 }
