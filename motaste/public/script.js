@@ -2743,6 +2743,10 @@ const menuData = {
         title: 'DRINKS',
         items: []
     },
+    specials: {
+        title: 'SPECIALS',
+        items: []
+    },
     addons: {
         title: 'ADD ON',
         items: []
@@ -4305,7 +4309,7 @@ function applyCustomMenuSnapshot(snapshot) {
         }))
     });
 
-    const fixedCategories = ['batchoy', 'silog', 'friedChicken', 'breakfast', 'drinks', 'addons'];
+    const fixedCategories = ['batchoy', 'silog', 'friedChicken', 'breakfast', 'drinks', 'specials', 'addons'];
     fixedCategories.forEach((categoryKey) => {
         if (!menuData[categoryKey]) {
             menuData[categoryKey] = { title: categoryKey.toUpperCase(), items: [] };
@@ -6369,7 +6373,8 @@ function showMenuCategory(categoryId) {
     loadCustomMenuData();
     syncMenuPricesWithInventory();
 
-    const category = menuData[categoryId];
+    const isSpecialsCategory = categoryId === 'specials';
+    const category = isSpecialsCategory ? { title: 'SPECIALS', items: specialFoods } : menuData[categoryId];
     if (!category || !menuCategoryScreen || !menuItemsList || !menuCategoryTitle || !menuCategories) return;
     if (menuOverlayCategories) {
         menuOverlayCategories.hidden = true;
@@ -6378,6 +6383,10 @@ function showMenuCategory(categoryId) {
 
     currentMenuCategoryId = categoryId;
     menuCategoryTitle.textContent = category.title;
+    if (menuOverlayCategories) {
+        menuOverlayCategories.hidden = true;
+        renderMenuOverlayCategories(categoryId);
+    }
     menuItemsList.innerHTML = category.items.map((item) => {
         const isOutOfStock = isItemOutOfStock(item.name);
         const currentQty = getCartQuantityForItem(item.name);
@@ -6411,7 +6420,7 @@ function showMenuCategory(categoryId) {
 
 function renderMenuOverlayCategories(activeCategoryId = '') {
     if (!menuOverlayCategories) return;
-    const categoryKeys = ['batchoy', 'silog', 'friedChicken', 'breakfast', 'drinks', 'addons'];
+    const categoryKeys = ['batchoy', 'silog', 'friedChicken', 'breakfast', 'drinks', 'specials', 'addons'];
     menuOverlayCategories.innerHTML = categoryKeys.map((categoryKey) => {
         const category = menuData[categoryKey];
         if (!category) return '';
