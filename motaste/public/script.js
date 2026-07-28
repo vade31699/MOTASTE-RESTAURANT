@@ -1652,6 +1652,46 @@ function getComponentQuantityLookup(components) {
     return lookup;
 }
 
+function buildInitialCartComponents(baseComponents, dishQuantity) {
+    const qty = Math.max(0, Number(dishQuantity) || 0);
+    return normalizeSpecialComponents(baseComponents).map((component) => ({
+        name: component.name,
+        quantity: Math.max(0, Number(component.quantity) || 0) * qty
+    }));
+}
+
+function applyBaseComponentsDeltaToCartItem(cartItem, dishQuantityDelta) {
+    const delta = Number(dishQuantityDelta) || 0;
+    if (!delta) return;
+
+    const baseComponents = getCartItemBaseComponents(cartItem);
+    if (!baseComponents.length) return;
+
+    if (!Array.isArray(cartItem.components)) {
+        cartItem.components = [];
+    }
+
+    baseComponents.forEach((baseComponent) => {
+        const normalizedName = normalizeInventoryName(baseComponent.name);
+        if (!normalizedName) return;
+
+        const perDishQty = Math.max(0, Number(baseComponent.quantity) || 0);
+        if (perDishQty <= 0) return;
+
+        const changeBy = perDishQty * delta;
+        let component = cartItem.components.find((entry) => normalizeInventoryName(entry.name) === normalizedName);
+
+        if (!component) {
+            component = { name: baseComponent.name, quantity: 0 };
+            cartItem.components.push(component);
+        }
+
+        component.quantity = Math.max(0, (Number(component.quantity) || 0) + changeBy);
+    });
+
+    cartItem.components = normalizeCartComponents(cartItem.components);
+}
+
 function getCartItemBaseComponents(item) {
     const fromCart = normalizeSpecialComponents(item && item.baseComponents);
     if (fromCart.length) return fromCart;
@@ -1668,32 +1708,41 @@ function getInventoryUnitPrice(itemName) {
 }
 
 function getCartItemUnitPrice(item) {
-    const basePrice = Math.max(0, Number(item && item.price ? item.price : 0) || 0);
-    if (!item) return basePrice;
+    if (!item) return 0;
+
+    const dishQuantity = Math.max(0, Number(item.quantity) || 0);
+    if (dishQuantity <= 0) return 0;
+
+    return getCartItemLineTotal(item) / dishQuantity;
+}
+
+function getCartItemLineTotal(item) {
+    if (!item) return 0;
+
+    const dishQuantity = Math.max(0, Number(item.quantity) || 0);
+    const basePrice = Math.max(0, Number(item.price) || 0);
+    const baseLineTotal = basePrice * dishQuantity;
+    if (dishQuantity <= 0) return 0;
 
     const currentLookup = getComponentQuantityLookup(item.components);
     const baseLookup = getComponentQuantityLookup(getCartItemBaseComponents(item));
     const allComponentNames = new Set([...Object.keys(baseLookup), ...Object.keys(currentLookup)]);
 
-    let componentDelta = 0;
+    let componentLineDelta = 0;
     allComponentNames.forEach((componentName) => {
-        const baseQty = baseLookup[componentName] || 0;
+        const baseQtyPerDish = baseLookup[componentName] || 0;
+        const expectedBaseTotalQty = baseQtyPerDish * dishQuantity;
         const currentQty = currentLookup[componentName] || 0;
-        const quantityDelta = currentQty - baseQty;
+        const quantityDelta = currentQty - expectedBaseTotalQty;
         if (!quantityDelta) return;
 
         const unitPrice = getInventoryUnitPrice(componentName);
         if (!unitPrice) return;
 
-        componentDelta += quantityDelta * unitPrice;
+        componentLineDelta += quantityDelta * unitPrice;
     });
 
-    return Math.max(0, basePrice + componentDelta);
-}
-
-function getCartItemLineTotal(item) {
-    const quantity = Math.max(0, Number(item && item.quantity ? item.quantity : 0) || 0);
-    return getCartItemUnitPrice(item) * quantity;
+    return Math.max(0, baseLineTotal + componentLineDelta);
 }
 
 function getOrderComponents(components) {
@@ -1701,7 +1750,7 @@ function getOrderComponents(components) {
         .filter((component) => Math.max(0, Number(component.quantity) || 0) > 0)
         .map((component) => ({
             name: component.name,
-            quantity: Math.max(1, Number(component.quantity) || 1)
+            quantity: Math.max(0, Number(component.quantity) || 0)
         }));
 }
 
@@ -2666,6 +2715,7 @@ function loadCart() {
     }
 
     cartItems = cartItems.map((item) => {
+        const quantity = Math.max(1, Number(item && item.quantity ? item.quantity : 1) || 1);
         const fallbackBase = getSpecialFoodComponentsByName(item.name);
         const baseComponents = normalizeSpecialComponents(
             Array.isArray(item.baseComponents) && item.baseComponents.length
@@ -2673,15 +2723,24 @@ function loadCart() {
                 : (fallbackBase.length ? fallbackBase : item.components)
         );
 
-        const loadedComponents = normalizeCartComponents(item.components);
+        let loadedComponents = normalizeCartComponents(item.components);
+        if (loadedComponents.length && item.componentsMode !== 'total') {
+            loadedComponents = loadedComponents.map((component) => ({
+                ...component,
+                quantity: component.quantity * quantity
+            }));
+        }
+
         const components = loadedComponents.length
             ? loadedComponents
-            : baseComponents.map((component) => ({ ...component }));
+            : buildInitialCartComponents(baseComponents, quantity);
 
         return {
             ...item,
+            quantity,
             baseComponents,
             components,
+            componentsMode: 'total',
             componentsOpen: components.length > 0
         };
     });
@@ -4284,14 +4343,13 @@ function getReservedComponentQuantityInCart(componentName) {
     if (!normalizedComponentName) return 0;
 
     return cartItems.reduce((sum, cartItem) => {
-        const itemQuantity = Math.max(0, Number(cartItem.quantity) || 0);
-        if (itemQuantity <= 0 || !Array.isArray(cartItem.components)) return sum;
+        if (!Array.isArray(cartItem.components)) return sum;
 
         const component = cartItem.components.find((entry) => normalizeInventoryName(entry.name) === normalizedComponentName);
         if (!component) return sum;
 
         const componentQuantity = Math.max(0, Number(component.quantity) || 0);
-        return sum + (componentQuantity * itemQuantity);
+        return sum + componentQuantity;
     }, 0);
 }
 
@@ -4312,11 +4370,12 @@ function canIncreaseCartItemQuantity(index) {
         return false;
     }
 
-    if (!Array.isArray(cartItem.components) || !cartItem.components.length) {
+    const baseComponents = getCartItemBaseComponents(cartItem);
+    if (!baseComponents.length) {
         return true;
     }
 
-    return cartItem.components.every((component) => {
+    return baseComponents.every((component) => {
         const componentPerDishQty = Math.max(0, Number(component.quantity) || 0);
         if (componentPerDishQty <= 0) return true;
         return getAvailableStockForCartComponent(component.name) >= componentPerDishQty;
@@ -4326,11 +4385,7 @@ function canIncreaseCartItemQuantity(index) {
 function canIncreaseCartComponentQuantity(index, componentName) {
     if (index < 0 || index >= cartItems.length) return false;
 
-    const cartItem = cartItems[index];
-    const dishQuantity = Math.max(0, Number(cartItem.quantity) || 0);
-    if (dishQuantity <= 0) return false;
-
-    return getAvailableStockForCartComponent(componentName) >= dishQuantity;
+    return getAvailableStockForCartComponent(componentName) >= 1;
 }
 
 function clampCartToInventory() {
@@ -4369,7 +4424,6 @@ function clampCartToInventory() {
             return;
         }
 
-        const dishQuantity = Math.max(0, Number(item.quantity) || 0);
         const nextComponents = [];
 
         item.components.forEach((component) => {
@@ -4389,19 +4443,18 @@ function clampCartToInventory() {
             const stock = Math.max(0, Number(inventoryComponent.stock) || 0);
             const alreadyReserved = reservedUsage[normalized] || 0;
             const remainingStock = Math.max(0, stock - alreadyReserved);
-            const maxPerDishQty = dishQuantity > 0 ? Math.floor(remainingStock / dishQuantity) : 0;
-            const requestedPerDishQty = Math.max(0, Number(component.quantity) || 0);
-            const clampedPerDishQty = Math.min(requestedPerDishQty, Math.max(0, maxPerDishQty));
+            const requestedQty = Math.max(0, Number(component.quantity) || 0);
+            const clampedQty = Math.min(requestedQty, remainingStock);
 
-            if (clampedPerDishQty !== requestedPerDishQty) {
+            if (clampedQty !== requestedQty) {
                 changed = true;
             }
 
             nextComponents.push({
                 name: componentName,
-                quantity: clampedPerDishQty
+                quantity: clampedQty
             });
-            reservedUsage[normalized] = alreadyReserved + (clampedPerDishQty * dishQuantity);
+            reservedUsage[normalized] = alreadyReserved + clampedQty;
         });
 
         if (nextComponents.length !== item.components.length) {
@@ -4472,13 +4525,11 @@ function decrementInventory(items) {
 
         applyStockReduction(item.name, orderedQuantity);
 
-        const components = normalizeSpecialComponents(
-            Array.isArray(item.components) && item.components.length
-                ? item.components
-                : getSpecialFoodComponentsByName(item.name)
-        );
+        const components = Array.isArray(item.components) && item.components.length
+            ? normalizeCartComponents(item.components)
+            : buildInitialCartComponents(getSpecialFoodComponentsByName(item.name), orderedQuantity);
         components.forEach((component) => {
-            const needed = Math.max(0, Number(component.quantity) || 0) * orderedQuantity;
+            const needed = Math.max(0, Number(component.quantity) || 0);
             if (needed <= 0) return;
             applyStockReduction(component.name, needed);
         });
@@ -5219,19 +5270,22 @@ function addToCart(item, quantityToAdd = 1) {
 
     if (existing) {
         if (!Array.isArray(existing.components) || !existing.components.length) {
-            existing.components = normalizeCartComponents(specialComponents);
+            existing.components = buildInitialCartComponents(specialComponents, existing.quantity);
         }
         if (!Array.isArray(existing.baseComponents) || !existing.baseComponents.length) {
             existing.baseComponents = normalizeSpecialComponents(specialComponents);
         }
+        applyBaseComponentsDeltaToCartItem(existing, quantity);
         existing.componentsOpen = Array.isArray(existing.components) && existing.components.length > 0;
+        existing.componentsMode = 'total';
         existing.quantity += quantity;
     } else {
         cartItems.push({
             ...item,
             quantity,
             baseComponents: normalizeSpecialComponents(specialComponents),
-            components: normalizeCartComponents(specialComponents),
+            components: buildInitialCartComponents(specialComponents, quantity),
+            componentsMode: 'total',
             componentsOpen: specialComponents.length > 0
         });
     }
@@ -5280,6 +5334,8 @@ function adjustCartItemQuantity(index, change) {
 
     const nextQuantity = item.quantity + change;
     if (nextQuantity < 1) return;
+
+    applyBaseComponentsDeltaToCartItem(item, change);
     item.quantity = nextQuantity;
     saveCart();
     updateCartDisplay();
