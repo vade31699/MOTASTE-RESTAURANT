@@ -1724,8 +1724,17 @@ function getCartItemLineTotal(item) {
     const baseLineTotal = basePrice * dishQuantity;
     if (dishQuantity <= 0) return 0;
 
+    const baseComponents = getCartItemBaseComponents(item);
+    if (baseComponents.length) {
+        const currentComponents = normalizeCartComponents(item.components);
+        const totalCurrentComponentQty = currentComponents.reduce((sum, component) => sum + Math.max(0, Number(component.quantity) || 0), 0);
+        if (totalCurrentComponentQty <= 0) {
+            return 0;
+        }
+    }
+
     const currentLookup = getComponentQuantityLookup(item.components);
-    const baseLookup = getComponentQuantityLookup(getCartItemBaseComponents(item));
+    const baseLookup = getComponentQuantityLookup(baseComponents);
     const allComponentNames = new Set([...Object.keys(baseLookup), ...Object.keys(currentLookup)]);
 
     let componentLineDelta = 0;
@@ -1743,6 +1752,14 @@ function getCartItemLineTotal(item) {
     });
 
     return Math.max(0, baseLineTotal + componentLineDelta);
+}
+
+function getPayableCartItems() {
+    return cartItems.filter((item) => getCartItemLineTotal(item) > 0);
+}
+
+function getCartPayableTotal() {
+    return getPayableCartItems().reduce((sum, item) => sum + getCartItemLineTotal(item), 0);
 }
 
 function getOrderComponents(components) {
@@ -4414,7 +4431,7 @@ function updateCartDisplay() {
 
     menuCartCount.textContent = `${totalItems} items`;
     menuCartTotal.textContent = formatCurrency(total);
-    menuPlaceOrderBtn.disabled = false;
+    menuPlaceOrderBtn.disabled = total <= 0;
 }
 
 function getInventoryItem(name) {
@@ -5767,7 +5784,7 @@ let selectedPaymentMethod = 'Cash';
 let selectedOrderType = 'Dine In';
 
 function openCheckoutScreen() {
-    if (!cartItems.length) return;
+    if (!cartItems.length || getCartPayableTotal() <= 0) return;
     if (!orderCheckoutScreen || !menuCategoryScreen) return;
 
     menuCategoryScreen.classList.add('hidden');
@@ -5787,17 +5804,31 @@ function closeCheckoutScreen() {
 function renderCheckoutSummary() {
     if (!orderCheckoutItems || !orderCheckoutTotal) return;
 
-    orderCheckoutItems.innerHTML = cartItems.map((item) => `
+    const payableItems = getPayableCartItems();
+
+    if (!payableItems.length) {
+        orderCheckoutItems.innerHTML = '<p class="menu-cart-empty">No payable items in cart.</p>';
+        orderCheckoutTotal.textContent = formatCurrency(0);
+        if (confirmOrderBtn) {
+            confirmOrderBtn.disabled = true;
+        }
+        return;
+    }
+
+    orderCheckoutItems.innerHTML = payableItems.map((item) => `
         <div class="order-checkout-item">
             <div>
                 <strong>${item.name}</strong>
                 <span>Qty: ${item.quantity}</span>
             </div>
-            <div>${formatCurrency(item.price * item.quantity)}</div>
+            <div>${formatCurrency(getCartItemLineTotal(item))}</div>
         </div>
     `).join('');
 
-    orderCheckoutTotal.textContent = formatCurrency(cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0));
+    orderCheckoutTotal.textContent = formatCurrency(payableItems.reduce((sum, item) => sum + getCartItemLineTotal(item), 0));
+    if (confirmOrderBtn) {
+        confirmOrderBtn.disabled = false;
+    }
 }
 
 function selectCheckoutOption(container, type, selectedValue) {
@@ -5885,17 +5916,27 @@ function hidePaymentSuccessMessage() {
 
 async function confirmOrder() {
     if (!cartItems.length) return;
+    const payableItems = getPayableCartItems();
+    const payableTotal = payableItems.reduce((sum, item) => sum + getCartItemLineTotal(item), 0);
+
+    if (!payableItems.length || payableTotal <= 0) {
+        if (menuOrderMessage) {
+            menuOrderMessage.textContent = 'Add at least one payable item before proceeding to payment.';
+        }
+        return;
+    }
+
     const order = {
         orderNumber: generateOrderNumber(),
         id: Date.now(),
         timestamp: Date.now(),
-        items: cartItems.map((item) => ({
+        items: payableItems.map((item) => ({
             name: item.name,
             price: getCartItemUnitPrice(item),
             quantity: item.quantity,
             components: getOrderComponents(item.components)
         })),
-        total: cartItems.reduce((sum, item) => sum + getCartItemLineTotal(item), 0),
+        total: payableTotal,
         paymentMethod: selectedPaymentMethod,
         orderType: selectedOrderType
     };
