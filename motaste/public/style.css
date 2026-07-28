@@ -1455,13 +1455,13 @@ body.dashboard-panel-open .menu-btn {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: min(520px, 92vw);
+    width: min(460px, 92vw);
     max-width: 92vw;
-    max-height: 92vh;
+    max-height: 88vh;
     z-index: 3000;
     background: rgba(255, 255, 255, 0.98);
     border-radius: 16px;
-    padding: 14px;
+    padding: 12px;
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
     gap: 8px;
