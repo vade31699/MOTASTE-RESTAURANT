@@ -131,6 +131,24 @@
         </aside>
     </section>
 
+    <div class="product-detail-modal hidden" id="productDetailModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="productDetailName">
+        <div class="product-detail-card">
+            <button type="button" id="productDetailCloseBtn" class="product-detail-close" aria-label="Close product details">×</button>
+            <div class="product-detail-media">
+                <img id="productDetailImage" src="img1.jpg" alt="Product image">
+            </div>
+            <div class="product-detail-body">
+                <p class="product-detail-kicker">Dish details</p>
+                <h3 id="productDetailName">Product</h3>
+                <p id="productDetailDescription" class="product-detail-description">Description coming soon.</p>
+                <div class="product-detail-footer">
+                    <strong id="productDetailPrice">₱0</strong>
+                    <button type="button" id="productDetailAddBtn" class="menu-place-order-btn">Add to cart</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="menu-overlay hidden" id="menuOverlay" aria-hidden="true">
         <div class="menu-overlay-panel">
             <div class="menu-overlay-header">

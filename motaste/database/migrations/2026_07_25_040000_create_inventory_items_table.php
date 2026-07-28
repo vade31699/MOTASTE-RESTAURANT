@@ -15,6 +15,7 @@ return new class extends Migration
             $table->integer('stock')->default(0);
             $table->string('status')->default('Out of stock');
             $table->string('category')->default('specials');
+            $table->text('description')->nullable();
             $table->timestamps();
         });
     }
