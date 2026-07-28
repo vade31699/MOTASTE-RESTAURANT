@@ -1472,6 +1472,7 @@ function openProductDetailModal(item) {
     }
 
     productDetailModal.hidden = false;
+    productDetailModal.classList.remove('hidden');
     productDetailModal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
 }
@@ -1479,6 +1480,7 @@ function openProductDetailModal(item) {
 function closeProductDetailModal() {
     if (!productDetailModal) return;
 
+    productDetailModal.classList.add('hidden');
     productDetailModal.hidden = true;
     productDetailModal.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
