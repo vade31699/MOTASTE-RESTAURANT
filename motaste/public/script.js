@@ -6755,7 +6755,9 @@ if (orderCheckoutBackBtn) {
 }
 
 if (cancelOrderBtn) {
-    cancelOrderBtn.addEventListener('click', closeCheckoutScreen);
+    cancelOrderBtn.addEventListener('click', () => {
+        closeMenuOverlay();
+    });
 }
 
 if (confirmOrderBtn) {
