@@ -1459,6 +1459,8 @@ body.dashboard-panel-open .menu-btn {
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
     gap: 8px;
+    box-sizing: border-box;
+    border: 1px solid rgba(0, 0, 0, 0.06);
 }
 .cart-addon-screen-header {
     display: flex;
@@ -1498,6 +1500,7 @@ body.dashboard-panel-open .menu-btn {
     align-content: start;
     gap: 10px;
     padding-right: 4px;
+    padding-top: 2px;
 }
 .cart-addon-total {
     margin-top: 8px;
@@ -2158,6 +2161,7 @@ body.dashboard-panel-open .menu-btn {
     white-space: nowrap;
 }
 .menu-cart-panel {
+    position: relative;
     background: #fff;
     border-radius: 16px;
     padding: 18px;
@@ -2167,6 +2171,7 @@ body.dashboard-panel-open .menu-btn {
     flex-direction: column;
     gap: 16px;
     justify-content: space-between;
+    overflow: hidden;
 }
 .menu-cart-header {
     display: flex;
@@ -2175,17 +2180,18 @@ body.dashboard-panel-open .menu-btn {
     gap: 12px;
 }
 .cart-add-on-btn {
-    border: 1px solid #111;
-    background: #fff;
-    color: #111;
-    border-radius: 8px;
-    padding: 6px 10px;
+    border: 1px solid #ff9800;
+    background: #fff7eb;
+    color: #8a3d00;
+    border-radius: 999px;
+    padding: 7px 12px;
     font-size: 0.72rem;
     font-weight: 800;
     letter-spacing: 0.04em;
     cursor: pointer;
     text-transform: uppercase;
     line-height: 1;
+    box-shadow: inset 0 0 0 1px rgba(255, 152, 0, 0.12);
 }
 .cart-add-on-btn:hover,
 .cart-add-on-btn:focus-visible {
@@ -2203,6 +2209,7 @@ body.dashboard-panel-open .menu-btn {
 .menu-cart-empty {
     margin: 0;
     color: #555;
+    padding: 10px 0;
 }
 .menu-cart-item {
     background: #f7f7f7;

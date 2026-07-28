@@ -2942,7 +2942,7 @@ function loadCart() {
             baseComponents,
             components,
             componentsMode: 'total',
-            componentsOpen: components.length > 0
+            componentsOpen: Boolean(item.componentsOpen) || components.length > 0
         };
     });
 }
@@ -4483,6 +4483,7 @@ function updateCartDisplay() {
         total += itemTotal;
         const customizeOptions = getCartItemCustomizeOptions(item);
         const hasCustomizeOptions = customizeOptions.length > 0;
+        const customizeExpanded = hasCustomizeOptions && (item.componentsOpen !== false);
         const componentRows = hasCustomizeOptions
             ? customizeOptions.map((componentName) => {
                 const quantity = getCartItemComponentQuantity(item, componentName);
@@ -4506,7 +4507,7 @@ function updateCartDisplay() {
                     <div>
                         <div class="menu-cart-item-title-row">
                             <strong>${item.name}</strong>
-                            ${hasCustomizeOptions ? `<button type="button" class="menu-cart-components-toggle" data-index="${index}" aria-expanded="${item.componentsOpen ? 'true' : 'false'}" aria-label="Toggle customize options">${item.componentsOpen ? '▾' : '▸'}</button>` : ''}
+                            ${hasCustomizeOptions ? `<button type="button" class="menu-cart-components-toggle" data-index="${index}" aria-expanded="${customizeExpanded ? 'true' : 'false'}" aria-label="Toggle customize options">${customizeExpanded ? '▾' : '▸'}</button>` : ''}
                         </div>
                         <div class="menu-cart-item-qty-controls">
                             <button type="button" class="menu-cart-item-quantity-btn" data-action="decrease" data-index="${index}" aria-label="Decrease ${item.name} quantity"${item.quantity === 1 ? ' disabled' : ''}>
@@ -4520,7 +4521,7 @@ function updateCartDisplay() {
                     </div>
                     <button type="button" class="menu-cart-item-remove" data-index="${index}">Remove</button>
                 </div>
-                ${hasCustomizeOptions && item.componentsOpen ? `<div class="menu-cart-components"><p class="menu-cart-components-title">Customize</p><ul class="menu-cart-component-list">${componentRows}</ul></div>` : ''}
+                ${hasCustomizeOptions && customizeExpanded ? `<div class="menu-cart-components"><p class="menu-cart-components-title">Customize</p><ul class="menu-cart-component-list">${componentRows}</ul></div>` : ''}
                 <div>${formatCurrency(itemTotal)}</div>
             </div>
         `;
