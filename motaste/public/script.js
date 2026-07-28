@@ -1829,30 +1829,11 @@ function setCartItemComponentQuantity(item, componentName, quantity) {
 function getCartItemCustomizeOptions(item) {
     const baseComponents = getCartItemBaseComponents(item);
     const currentComponents = normalizeCartComponents(item && item.components);
-    const isSpecial = baseComponents.length > 0 || currentComponents.length > 0;
-    if (!isSpecial) return [];
+    if (!baseComponents.length && !currentComponents.length) return [];
 
     const optionsByNormalizedName = new Map();
 
-    getAddOnInventoryItems().forEach((addOn) => {
-        const name = String(addOn && addOn.name ? addOn.name : '').trim();
-        const normalizedName = normalizeInventoryName(name);
-        if (!normalizedName) return;
-        if (!optionsByNormalizedName.has(normalizedName)) {
-            optionsByNormalizedName.set(normalizedName, name);
-        }
-    });
-
     baseComponents.forEach((component) => {
-        const name = String(component.name || '').trim();
-        const normalizedName = normalizeInventoryName(name);
-        if (!normalizedName) return;
-        if (!optionsByNormalizedName.has(normalizedName)) {
-            optionsByNormalizedName.set(normalizedName, name);
-        }
-    });
-
-    currentComponents.forEach((component) => {
         const name = String(component.name || '').trim();
         const normalizedName = normalizeInventoryName(name);
         if (!normalizedName) return;
