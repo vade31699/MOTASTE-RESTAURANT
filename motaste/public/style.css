@@ -1654,30 +1654,33 @@ body.dashboard-panel-open .menu-btn {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.special-food-image-price {
-    color: #fff7e2;
-    font-size: 0.8rem;
-    font-weight: 800;
-    flex-shrink: 0;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: rgba(230, 81, 0, 0.9);
-}
 .special-food-details {
     display: grid;
-    gap: 2px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 8px;
     padding: 10px 12px 12px;
 }
-.special-food-details p {
+.special-food-description {
     margin: 0;
     color: #5d4b3b;
     font-size: 0.84rem;
     line-height: 1.42;
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    letter-spacing: 0.01em;
     display: -webkit-box;
     line-clamp: 2;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+}
+.special-food-details-price {
+    margin: 0;
+    color: #e65100;
+    font-size: 0.9rem;
+    font-weight: 800;
+    white-space: nowrap;
+    align-self: end;
 }
 .special-food-cart-action,
 .special-food-added-message,

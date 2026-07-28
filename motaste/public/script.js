@@ -4698,12 +4698,12 @@ function renderSpecialFoods() {
                 <img src="${imageSrc}" alt="${item.name}">
                 <div class="special-food-image-meta">
                     <span class="special-food-image-name">${item.name}</span>
-                    <span class="special-food-image-price">${formatCurrency(item.price)}</span>
                 </div>
             </button>
             ${isOutOfStock ? `<div class="stock-status-overlay"><img src="outofstock1.png" alt="Out of stock"><span>Out of stock</span></div>` : ''}
             <div class="special-food-details">
-                <p>${escapeHtml(description)}</p>
+                <p class="special-food-description">${escapeHtml(description)}</p>
+                <strong class="special-food-details-price">${formatCurrency(item.price)}</strong>
             </div>
         </article>
     `;
