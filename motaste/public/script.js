@@ -1518,6 +1518,10 @@ const productDetailImage = document.getElementById('productDetailImage');
 const productDetailName = document.getElementById('productDetailName');
 const productDetailDescription = document.getElementById('productDetailDescription');
 const productDetailPrice = document.getElementById('productDetailPrice');
+const productDetailQtyControls = document.getElementById('productDetailQtyControls');
+const productDetailQtyDecrease = document.getElementById('productDetailQtyDecrease');
+const productDetailQtyIncrease = document.getElementById('productDetailQtyIncrease');
+const productDetailQtyValue = document.getElementById('productDetailQtyValue');
 const productDetailAddBtn = document.getElementById('productDetailAddBtn');
 const inventorySaveBtn = document.getElementById('inventorySaveBtn');
 const inventoryItemsWrapper = document.getElementById('inventoryItemsWrapper');
@@ -1592,6 +1596,7 @@ let selectedSpecialFoodImageData = '';
 let cachedReviews = [];
 let cachedStaffReviews = [];
 let activeProductDetailItem = null;
+let productDetailQuantity = 1;
 const reviewerTokenStorageKey = 'motasteReviewerToken';
 
 function setInventoryModalVisible(isVisible) {
@@ -3608,15 +3613,51 @@ function openProductDetailModal(item) {
     if (productDetailPrice) {
         productDetailPrice.textContent = formatCurrency(activeProductDetailItem.price);
     }
-    if (productDetailAddBtn) {
-        productDetailAddBtn.textContent = `Add ${activeProductDetailItem.name} to cart`;
-        productDetailAddBtn.disabled = getAvailableStockForItem(activeProductDetailItem.name) <= 0;
-    }
+    productDetailQuantity = 1;
+    syncProductDetailQuantityControls();
 
     productDetailModal.classList.remove('hidden');
     productDetailModal.hidden = false;
     productDetailModal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
+}
+
+function syncProductDetailQuantityControls() {
+    if (!productDetailQtyValue || !productDetailAddBtn) return;
+
+    const availableStock = activeProductDetailItem
+        ? getAvailableStockForItem(activeProductDetailItem.name)
+        : 0;
+
+    if (availableStock <= 0) {
+        productDetailQuantity = 0;
+    } else {
+        if (productDetailQuantity < 1) {
+            productDetailQuantity = 1;
+        }
+        if (productDetailQuantity > availableStock) {
+            productDetailQuantity = availableStock;
+        }
+    }
+
+    productDetailQtyValue.textContent = String(productDetailQuantity);
+
+    if (productDetailQtyDecrease) {
+        productDetailQtyDecrease.disabled = availableStock <= 0 || productDetailQuantity <= 1;
+    }
+    if (productDetailQtyIncrease) {
+        productDetailQtyIncrease.disabled = availableStock <= 0 || productDetailQuantity >= availableStock;
+    }
+
+    if (!activeProductDetailItem) {
+        productDetailAddBtn.textContent = 'Add to cart';
+        productDetailAddBtn.disabled = true;
+        return;
+    }
+
+    const qtyLabel = productDetailQuantity === 1 ? '1 item' : `${productDetailQuantity} items`;
+    productDetailAddBtn.textContent = `Add ${qtyLabel} to cart`;
+    productDetailAddBtn.disabled = availableStock <= 0 || productDetailQuantity <= 0;
 }
 
 function closeProductDetailModal() {
@@ -3627,6 +3668,7 @@ function closeProductDetailModal() {
     productDetailModal.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
     activeProductDetailItem = null;
+    productDetailQuantity = 1;
 }
 
 if (productDetailCloseBtn) {
@@ -3647,8 +3689,25 @@ if (productDetailAddBtn) {
         addToCart({
             name: activeProductDetailItem.name,
             price: Number(activeProductDetailItem.price) || 0
-        });
+        }, productDetailQuantity);
         closeProductDetailModal();
+    });
+}
+
+if (productDetailQtyDecrease) {
+    productDetailQtyDecrease.addEventListener('click', () => {
+        if (!activeProductDetailItem) return;
+        productDetailQuantity = Math.max(1, productDetailQuantity - 1);
+        syncProductDetailQuantityControls();
+    });
+}
+
+if (productDetailQtyIncrease) {
+    productDetailQtyIncrease.addEventListener('click', () => {
+        if (!activeProductDetailItem) return;
+        const availableStock = getAvailableStockForItem(activeProductDetailItem.name);
+        productDetailQuantity = Math.min(availableStock, productDetailQuantity + 1);
+        syncProductDetailQuantityControls();
     });
 }
 
@@ -4718,8 +4777,9 @@ function renderSpecialFoods() {
     syncVisibleMenuItemQuantities();
 }
 
-function addToCart(item) {
+function addToCart(item, quantityToAdd = 1) {
     if (!item) return;
+    const requestedQuantity = Math.max(1, Number(quantityToAdd) || 1);
     const availableStock = getAvailableStockForItem(item.name);
     if (availableStock <= 0) {
         if (menuOrderMessage) {
@@ -4727,16 +4787,22 @@ function addToCart(item) {
         }
         return;
     }
+
+    const quantity = Math.min(requestedQuantity, availableStock);
     const existing = cartItems.find((cartItem) => cartItem.name === item.name);
     if (existing) {
-        existing.quantity += 1;
+        existing.quantity += quantity;
     } else {
-        cartItems.push({ ...item, quantity: 1 });
+        cartItems.push({ ...item, quantity });
     }
     saveCart();
     updateCartDisplay();
     if (menuOrderMessage) {
-        menuOrderMessage.textContent = `${item.name} added to cart.`;
+        if (quantity < requestedQuantity) {
+            menuOrderMessage.textContent = `${item.name}: only ${quantity} item(s) were added due to stock limit.`;
+        } else {
+            menuOrderMessage.textContent = `${quantity} ${item.name} added to cart.`;
+        }
     }
 }
 
