@@ -1470,6 +1470,7 @@ body.dashboard-panel-open .menu-btn {
     margin: 0;
 }
 .cart-addon-search-label {
+    display: block;
     font-size: 0.75rem;
     font-weight: 700;
     color: #5a4a3c;
@@ -1477,11 +1478,18 @@ body.dashboard-panel-open .menu-btn {
     letter-spacing: 0.04em;
 }
 .cart-addon-search-input {
+    display: block;
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    height: 42px;
+    -webkit-appearance: none;
+    appearance: none;
     border: 1px solid rgba(0, 0, 0, 0.16);
     border-radius: 10px;
     padding: 10px 12px;
-    font-size: 0.9rem;
+    font-size: 16px;
+    line-height: 1.2;
     background: #fff;
     color: #111;
     box-sizing: border-box;
@@ -1496,6 +1504,22 @@ body.dashboard-panel-open .menu-btn {
     display: grid;
     gap: 10px;
     padding-right: 4px;
+}
+.cart-addon-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #fff6ec;
+    border: 1px solid rgba(230, 81, 0, 0.2);
+    color: #8b3e04;
+    font-size: 0.9rem;
+}
+.cart-addon-total strong {
+    color: #e65100;
+    font-size: 1rem;
 }
 .cart-addon-item {
     background: #fff;

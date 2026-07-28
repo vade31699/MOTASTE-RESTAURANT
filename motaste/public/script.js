@@ -2695,6 +2695,7 @@ const cartAddOnBtn = document.getElementById('cartAddOnBtn');
 const cartAddOnScreen = document.getElementById('cartAddOnScreen');
 const cartAddOnCloseBtn = document.getElementById('cartAddOnCloseBtn');
 const cartAddOnList = document.getElementById('cartAddOnList');
+const cartAddOnTotal = document.getElementById('cartAddOnTotal');
 const cartAddOnMessage = document.getElementById('cartAddOnMessage');
 const cartAddOnApplyBtn = document.getElementById('cartAddOnApplyBtn');
 const cartAddOnSearchInput = document.getElementById('cartAddOnSearchInput');
@@ -5814,6 +5815,33 @@ function resetCartAddOnDraft() {
     cartAddOnDraftQuantities = {};
 }
 
+function getCurrentCartTotalAmount() {
+    return cartItems.reduce((sum, item) => sum + getCartItemLineTotal(item), 0);
+}
+
+function getCartAddOnDraftTotal(addOnItems) {
+    if (!Array.isArray(addOnItems) || !addOnItems.length) return 0;
+
+    const priceByName = new Map(
+        addOnItems.map((item) => [normalizeInventoryName(item.name), Math.max(0, Number(item.price) || 0)])
+    );
+
+    return Object.entries(cartAddOnDraftQuantities).reduce((sum, [normalizedName, rawQty]) => {
+        const quantity = Math.max(0, Number(rawQty) || 0);
+        if (quantity <= 0) return sum;
+
+        const unitPrice = Math.max(0, Number(priceByName.get(normalizedName)) || 0);
+        return sum + (quantity * unitPrice);
+    }, 0);
+}
+
+function updateCartAddOnTotalDisplay(allAddOnItems) {
+    if (!cartAddOnTotal) return;
+
+    const combinedTotal = getCurrentCartTotalAmount() + getCartAddOnDraftTotal(allAddOnItems);
+    cartAddOnTotal.innerHTML = `<span>Total if added</span><strong>${formatCurrency(combinedTotal)}</strong>`;
+}
+
 function closeCartAddOnScreen() {
     if (!cartAddOnScreen) return;
     cartAddOnScreen.classList.add('hidden');
@@ -5842,6 +5870,8 @@ function renderCartAddOnScreen() {
             }))
             .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
         : [];
+
+    updateCartAddOnTotalDisplay(allAddOnItems);
 
     if (!allAddOnItems.length) {
         cartAddOnList.innerHTML = '<p class="menu-cart-empty">No add on items available.</p>';
