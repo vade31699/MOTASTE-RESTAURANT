@@ -1937,25 +1937,6 @@ body.dashboard-panel-open .menu-btn {
     justify-content: space-between;
     gap: 16px;
 }
-.menu-item-image-btn {
-    flex: 0 0 104px;
-    width: 104px;
-    height: 104px;
-    padding: 0;
-    border: none;
-    border-radius: 14px;
-    overflow: hidden;
-    background: #eee;
-    cursor: pointer;
-    line-height: 0;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-}
-.menu-item-image-btn img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-}
 .menu-item-main {
     flex: 1 1 auto;
     min-width: 0;
@@ -2954,12 +2935,6 @@ body.dashboard-panel-open .menu-btn {
 
     .menu-item-card {
         flex-direction: column;
-    }
-
-    .menu-item-image-btn {
-        width: 100%;
-        height: clamp(180px, 40vw, 240px);
-        flex-basis: auto;
     }
 
     .menu-item-controls {

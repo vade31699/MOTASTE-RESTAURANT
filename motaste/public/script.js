@@ -5312,13 +5312,9 @@ function showMenuCategory(categoryId) {
         const isOutOfStock = isItemOutOfStock(item.name);
         const currentQty = getCartQuantityForItem(item.name);
         const availableStock = getAvailableStockForItem(item.name);
-        const imageSrc = item.image || getInventoryItem(item.name)?.image || 'img1.jpg';
         const description = getInventoryDescription(item.name, item.description || 'Tap the image to view full details.');
         return `
         <article class="menu-item-card${isOutOfStock ? ' is-out-of-stock' : ''}">
-            <button type="button" class="menu-item-image-btn" data-name="${item.name}" aria-label="View ${item.name} details">
-                <img src="${imageSrc}" alt="${item.name}">
-            </button>
             <div class="menu-item-main">
                 <h4>${item.name}</h4>
                 <p>${escapeHtml(description)}</p>
@@ -5508,24 +5504,6 @@ if (specialFoodsList) {
             name: item.name,
             price: Number(item.price) || 0,
             image: item.image || 'img1.jpg',
-            description: item.description || ''
-        });
-    });
-}
-
-if (menuItemsList) {
-    menuItemsList.addEventListener('click', (event) => {
-        const imageButton = event.target.closest('.menu-item-image-btn');
-        if (!imageButton) return;
-
-        const category = menuData[currentMenuCategoryId];
-        const item = category ? category.items.find((menuItem) => menuItem.name === imageButton.dataset.name) : null;
-        if (!item) return;
-
-        openProductDetailModal({
-            name: item.name,
-            price: parsePrice(item.price),
-            image: item.image || getInventoryItem(item.name)?.image || 'img1.jpg',
             description: item.description || ''
         });
     });
