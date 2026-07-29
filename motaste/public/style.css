@@ -4074,6 +4074,13 @@ body.modal-open {
     border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
+/* Ensure hidden attribute actually hides these elements even if other rules set display */
+#specialFoodImageField[hidden],
+#specialCustomizeField[hidden],
+#specialFoodImagePreviewWrap[hidden] {
+    display: none !important;
+}
+
 .special-customize-title {
     margin: 0;
     font-weight: 800;
