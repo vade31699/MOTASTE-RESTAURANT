@@ -143,12 +143,17 @@
                     autocomplete="off"
                 >
                 <div id="cartAddOnList" class="cart-addon-list"></div>
-                <div id="cartAddOnTotal" class="cart-addon-total" aria-live="polite">
-                    <span>Total if added</span>
-                    <strong>₱0</strong>
+
+                <div class="cart-addon-footer">
+                    <div id="cartAddOnTotal" class="cart-addon-total" aria-live="polite">
+                        <span>Total if added</span>
+                        <strong>₱0</strong>
+                    </div>
+                    <div class="cart-addon-footer-actions">
+                        <p id="cartAddOnMessage" class="menu-order-message"></p>
+                        <button type="button" id="cartAddOnApplyBtn" class="menu-place-order-btn" disabled>Add Selected Add Ons</button>
+                    </div>
                 </div>
-                <p id="cartAddOnMessage" class="menu-order-message"></p>
-                <button type="button" id="cartAddOnApplyBtn" class="menu-place-order-btn" disabled>Add Selected Add Ons</button>
             </div>
         </aside>
     </section>
