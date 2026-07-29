@@ -63,19 +63,19 @@ try {
         exit;
     }
 
-    foreach ($accounts as &$account) {
-        if (($account['role'] ?? '') === 'Admin') {
-            $account['email'] = strtolower(trim((string)$token->pending_email));
-            $account['password'] = (string)$token->pending_password;
-            $account['inviteConfirmed'] = true;
-            break;
-        }
-    }
-    unset($account);
+    $newEmail = strtolower(trim((string)$token->pending_email));
+    $newPassword = (string)$token->pending_password;
+    $newPasswordHash = password_hash($newPassword, PASSWORD_DEFAULT);
 
-    saveStaffAccountsSnapshot($accounts);
+    DB::table('staff')->where('id', $adminRow->id)->update([
+        'email' => $newEmail,
+        'password_hash' => $newPasswordHash,
+        'updated_at' => now(),
+    ]);
 
     DB::table('admin_credential_change_tokens')->where('id', $token->id)->delete();
+
+    $accounts = loadStaffAccountsSnapshot();
 
     echo json_encode([
         'success' => true,
