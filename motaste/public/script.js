@@ -2809,8 +2809,8 @@ const closeCartButton = document.getElementById('closeCartButton');
 const menuNavLink = document.querySelector('a[href="#menu"]');
 const orderCheckoutScreen = document.getElementById('orderCheckoutScreen');
 const orderCheckoutBackBtn = document.getElementById('orderCheckoutBackBtn');
+const orderCheckoutExitBtn = document.getElementById('orderCheckoutExitBtn');
 const confirmOrderBtn = document.getElementById('confirmOrderBtn');
-const cancelOrderBtn = document.getElementById('cancelOrderBtn');
 const paymentMethodOptions = document.getElementById('paymentMethodOptions');
 const orderTypeOptions = document.getElementById('orderTypeOptions');
 const orderCheckoutItems = document.getElementById('orderCheckoutItems');
@@ -6311,6 +6311,23 @@ function closeCheckoutScreen() {
     try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
 }
 
+function closeCheckoutScreenCompletely() {
+    if (!orderCheckoutScreen) return;
+
+    orderCheckoutScreen.classList.add('hidden');
+    orderCheckoutScreen.setAttribute('aria-hidden', 'true');
+    if (menuOverlay) {
+        menuOverlay.classList.add('hidden');
+        menuOverlay.setAttribute('aria-hidden', 'true');
+    }
+    if (menuCategoryScreen) {
+        menuCategoryScreen.classList.add('hidden');
+        menuCategoryScreen.setAttribute('aria-hidden', 'true');
+    }
+    closeCartAddOnScreen();
+    try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
+}
+
 function renderCheckoutSummary() {
     if (!orderCheckoutItems || !orderCheckoutTotal) return;
 
@@ -6967,8 +6984,8 @@ if (orderCheckoutBackBtn) {
     orderCheckoutBackBtn.addEventListener('click', closeCheckoutScreen);
 }
 
-if (cancelOrderBtn) {
-    cancelOrderBtn.addEventListener('click', closeCheckoutScreen);
+if (orderCheckoutExitBtn) {
+    orderCheckoutExitBtn.addEventListener('click', closeCheckoutScreenCompletely);
 }
 
 if (confirmOrderBtn) {
