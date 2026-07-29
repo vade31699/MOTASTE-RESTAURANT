@@ -2772,6 +2772,8 @@ const mobileMenuToggle = document.getElementById('mobileMenuToggle');
 const topNav = document.getElementById('topNav');
 const menuCategories = document.getElementById('menuCategories');
 const menuOverlayCategories = document.getElementById('menuOverlayCategories');
+const menuOverlayHeader = document.querySelector('.menu-overlay-header');
+const menuOverlayActionsPanel = document.querySelector('.menu-overlay-actions-panel');
 const menuCategoryScreen = document.getElementById('menuCategoryScreen');
 const menuCategoryTitle = document.getElementById('menuCategoryTitle');
 const menuItemsList = document.getElementById('menuItemsList');
@@ -6286,6 +6288,7 @@ function openCheckoutScreen() {
     orderCheckoutScreen.classList.remove('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'false');
     renderCheckoutSummary();
+    setMenuOverlayMenuVisibility(false);
     // hide the top menu tab while on checkout/payment
     try { if (menuNavLink) menuNavLink.style.display = 'none'; } catch (e) { }
 }
@@ -6296,6 +6299,7 @@ function closeCheckoutScreen() {
     orderCheckoutScreen.classList.add('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'true');
     menuCategoryScreen.classList.remove('hidden');
+    setMenuOverlayMenuVisibility(true);
     // restore the top menu tab when returning to the menu
     try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
 }
@@ -6391,6 +6395,7 @@ function openPaymentScreen(order) {
             paymentQrPlaceholder.classList.remove('hidden');
         }
     }
+    setMenuOverlayMenuVisibility(false);
     // hide the top menu tab while on payment screen
     try { if (menuNavLink) menuNavLink.style.display = 'none'; } catch (e) { }
 }
@@ -6401,6 +6406,7 @@ function closePaymentScreen() {
     orderPaymentScreen.setAttribute('aria-hidden', 'true');
     orderCheckoutScreen.classList.remove('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'false');
+    setMenuOverlayMenuVisibility(false);
     // keep the menu tab hidden while still in checkout
     try { if (menuNavLink) menuNavLink.style.display = 'none'; } catch (e) { }
 }
@@ -6528,6 +6534,18 @@ function renderMenuOverlayCategories(activeCategoryId = '') {
     }).join('');
 }
 
+function setMenuOverlayMenuVisibility(visible) {
+    if (menuOverlayHeader) {
+        menuOverlayHeader.style.display = visible ? '' : 'none';
+    }
+    if (menuOverlayCategories) {
+        menuOverlayCategories.style.display = visible ? '' : 'none';
+    }
+    if (menuOverlayActionsPanel) {
+        menuOverlayActionsPanel.style.display = visible ? '' : 'none';
+    }
+}
+
 function showMenuCategories() {
     if (!menuCategories || !menuCategoryScreen) return;
     menuCategories.hidden = false;
@@ -6537,6 +6555,7 @@ function showMenuCategories() {
     }
     menuCategoryScreen.classList.add('hidden');
     menuCategoryScreen.setAttribute('aria-hidden', 'true');
+    setMenuOverlayMenuVisibility(true);
 }
 
 function openMenuOverlay() {
@@ -6552,6 +6571,7 @@ function closeMenuOverlay() {
     showMenuCategories();
     menuOverlay.classList.add('hidden');
     menuOverlay.setAttribute('aria-hidden', 'true');
+    try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
 }
 
 function openCartModal() {
