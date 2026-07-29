@@ -6413,8 +6413,8 @@ function updateLiveClock() {
 function openPaymentScreen(order) {
     if (!orderPaymentScreen) return;
     if (menuOverlay) {
-        menuOverlay.classList.add('hidden');
-        menuOverlay.setAttribute('aria-hidden', 'true');
+        menuOverlay.classList.remove('hidden');
+        menuOverlay.setAttribute('aria-hidden', 'false');
     }
     if (menuCategoryScreen) {
         menuCategoryScreen.classList.add('hidden');
