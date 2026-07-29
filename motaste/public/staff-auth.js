@@ -1,7 +1,5 @@
 const staffCredentials = {
-    Admin: [
-        { email: 'vadevidad31699@gmail.com', password: 'admin123' }
-    ]
+    Admin: []
 };
 
 function validateStaffLogin(role, email, password, credentials = staffCredentials) {

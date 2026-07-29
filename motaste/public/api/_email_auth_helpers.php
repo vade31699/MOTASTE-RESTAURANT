@@ -55,9 +55,9 @@ function normalizeStaffAccountsSnapshot($snapshot): array
         $password = (string)($account['password'] ?? '');
         $inviteConfirmed = $role === 'Admin' ? true : (bool)($account['inviteConfirmed'] ?? false);
 
-        if ($name === '' || $role === '' || $email === '' || $password === '') {
-            continue;
-        }
+            if ($name === '' || $role === '' || $email === '') {
+                continue;
+            }
 
         if (!in_array($role, ['Admin', 'Cashier', 'Inventory Manager'], true)) {
             continue;
@@ -80,22 +80,9 @@ function normalizeStaffAccountsSnapshot($snapshot): array
         }
     }
 
-    if ($adminIndex < 0) {
-        array_unshift($normalized, [
-            'name' => 'Administrator',
-            'role' => 'Admin',
-            'email' => 'vadevidad31699@gmail.com',
-            'password' => 'admin123',
-            'inviteConfirmed' => true,
-        ]);
-    } else {
+    // Do not inject or assume any default admin credentials here.
+    if ($adminIndex >= 0) {
         $normalized[$adminIndex]['inviteConfirmed'] = true;
-        if ($normalized[$adminIndex]['email'] === 'admin@motaste.com' || $normalized[$adminIndex]['email'] === '') {
-            $normalized[$adminIndex]['email'] = 'vadevidad31699@gmail.com';
-        }
-        if ($normalized[$adminIndex]['password'] === '') {
-            $normalized[$adminIndex]['password'] = 'admin123';
-        }
     }
 
     return $normalized;

@@ -12,33 +12,38 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 use Illuminate\Support\Facades\DB;
 
 try {
-    $email = isset($_GET['email']) ? trim((string)$_GET['email']) : '';
-    if ($email === '') {
+    // Accept POST first, fallback to GET for quick testing
+    $email = isset($_POST['email']) ? trim((string)$_POST['email']) : (isset($_GET['email']) ? trim((string)$_GET['email']) : '');
+    $password = isset($_POST['password']) ? trim((string)$_POST['password']) : (isset($_GET['password']) ? trim((string)$_GET['password']) : '');
+
+    if ($email === '' || $password === '') {
         http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'Missing email parameter.']);
+        echo json_encode(['success' => false, 'error' => 'Missing email or password parameter.']);
         exit;
     }
 
     $email = strtolower($email);
 
-    // Try to find an admin row by role (case-insensitive) or by existing admin-like emails
+    // Find an existing admin row (role contains 'admin') or fallback to any row with admin-like email
     $adminRow = DB::table('staff')
         ->whereRaw('LOWER(role) LIKE ?', ['%admin%'])
         ->orWhereRaw('LOWER(email) LIKE ?', ['%admin%'])
         ->first();
 
+    $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+
     if ($adminRow) {
         DB::table('staff')->where('id', $adminRow->id)->update([
             'email' => $email,
+            'password_hash' => $passwordHash,
             'updated_at' => now(),
         ]);
     } else {
-        // Insert a new admin row with no password (set later)
         DB::table('staff')->insert([
             'full_name' => 'Administrator',
             'role' => 'Admin',
             'email' => $email,
-            'password_hash' => null,
+            'password_hash' => $passwordHash,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

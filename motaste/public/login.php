@@ -3,9 +3,9 @@
 // This file can be used if you want to submit the login form to the server.
 
 $allowedRoles = [
-    'Admin' => ['vadevidad31699@gmail.com' => 'admin123'],
-    'Cashier' => ['cashier@motaste.com' => 'cashier123'],
-    'Inventory Manager' => ['inventory@motaste.com' => 'inventory123'],
+    'Admin' => [],
+    'Cashier' => [],
+    'Inventory Manager' => [],
 ];
 
 function sanitize($value) {

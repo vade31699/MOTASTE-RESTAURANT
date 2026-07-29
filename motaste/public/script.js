@@ -36,12 +36,10 @@ let pendingOrdersRefreshTimer = null;
 const blockedProductNames = new Set(['softdrinks']);
 const isStaffPage = Boolean(document.getElementById('accountList') || document.getElementById('staffLoginForm'));
 
-const adminDefaultEmail = 'vadevidad31699@gmail.com';
-const adminDefaultPassword = 'admin123';
+const adminDefaultEmail = '';
+const adminDefaultPassword = '';
 
-const defaultStaffAccounts = [
-    { name: 'Administrator', role: 'Admin', email: adminDefaultEmail, password: adminDefaultPassword, inviteConfirmed: true }
-];
+const defaultStaffAccounts = [];
 
 let accounts = [...defaultStaffAccounts];
 window.motasteStaffAccounts = accounts;
@@ -55,7 +53,7 @@ function normalizeStaffAccount(account) {
     const password = (account.password || '').toString();
     const inviteConfirmed = account.role === 'Admin' ? true : Boolean(account.inviteConfirmed);
 
-    if (!name || !role || !email || !password) return null;
+    if (!name || !role || !email) return null;
     if (!allowedRoles.includes(role)) return null;
 
     return { name, role, email, password, inviteConfirmed };
@@ -68,19 +66,21 @@ function getCurrentStaffAccounts() {
 function ensureAdminAccountInvariant() {
     const adminIndex = accounts.findIndex((account) => account.role === 'Admin');
     if (adminIndex >= 0) {
-        accounts[adminIndex].email = adminDefaultEmail;
-        accounts[adminIndex].password = adminDefaultPassword;
         accounts[adminIndex].inviteConfirmed = true;
+        if (adminDefaultEmail && !accounts[adminIndex].email) accounts[adminIndex].email = adminDefaultEmail;
+        if (adminDefaultPassword && !accounts[adminIndex].password) accounts[adminIndex].password = adminDefaultPassword;
         return;
     }
 
-    accounts.unshift({
-        name: 'Administrator',
-        role: 'Admin',
-        email: adminDefaultEmail,
-        password: adminDefaultPassword,
-        inviteConfirmed: true
-    });
+    if (adminDefaultEmail || adminDefaultPassword) {
+        accounts.unshift({
+            name: 'Administrator',
+            role: 'Admin',
+            email: adminDefaultEmail,
+            password: adminDefaultPassword,
+            inviteConfirmed: true
+        });
+    }
 }
 
 function saveStaffAccountsToStorage() {
@@ -988,9 +988,6 @@ async function loadAdminCredentials() {
         }
 
         adminCurrentEmailInput.value = payload.credentials.email || adminDefaultEmail;
-        if (adminCurrentEmailInput.value === 'admin@motaste.com') {
-            adminCurrentEmailInput.value = adminDefaultEmail;
-        }
     } catch (error) {
         adminCurrentEmailInput.value = adminDefaultEmail;
         console.error('Unable to load admin credentials', error);
