@@ -63,6 +63,32 @@ function getCurrentStaffAccounts() {
     return Array.isArray(accounts) ? accounts : [];
 }
 
+function getLoggedInStaffSession() {
+    const persistedSession = getPersistedStaffSession();
+    if (!persistedSession || !persistedSession.email || !persistedSession.password || !persistedSession.role) {
+        return null;
+    }
+
+    return {
+        email: persistedSession.email.trim().toLowerCase(),
+        role: persistedSession.role.trim(),
+        password: persistedSession.password
+    };
+}
+
+function restoreSessionPasswords(accountsList) {
+    const session = getLoggedInStaffSession();
+    if (!session) return accountsList;
+
+    return accountsList.map((account) => {
+        if (!account || !account.email || !account.role) return account;
+        if (account.email.toLowerCase() === session.email && account.role === session.role) {
+            return { ...account, password: session.password };
+        }
+        return account;
+    });
+}
+
 function ensureAdminAccountInvariant() {
     const adminIndex = accounts.findIndex((account) => account.role === 'Admin');
     if (adminIndex >= 0) {
@@ -122,7 +148,7 @@ function applyStaffAccountsSnapshot(snapshot) {
     const nextSignature = JSON.stringify(normalized);
     if (currentSignature === nextSignature) return false;
 
-    accounts = normalized;
+    accounts = restoreSessionPasswords(normalized);
     ensureAdminAccountInvariant();
     window.motasteStaffAccounts = accounts;
     saveStaffAccountsToStorage();
