@@ -2807,7 +2807,6 @@ const specialFoodsList = document.getElementById('specialFoodsList');
 const cartModal = document.getElementById('cart');
 const closeCartButton = document.getElementById('closeCartButton');
 const menuNavLink = document.querySelector('a[href="#menu"]');
-const orderCheckoutWrapper = document.getElementById('orderCheckoutWrapper');
 const orderCheckoutScreen = document.getElementById('orderCheckoutScreen');
 const orderCheckoutBackBtn = document.getElementById('orderCheckoutBackBtn');
 const orderCheckoutExitBtn = document.getElementById('orderCheckoutExitBtn');
@@ -6283,11 +6282,9 @@ function applySelectedCartAddOns() {
 
 function openCheckoutScreen() {
     if (!cartItems.length || getCartPayableTotal() <= 0) return;
-    if (!orderCheckoutWrapper || !orderCheckoutScreen || !menuCategoryScreen) return;
+    if (!orderCheckoutScreen || !menuCategoryScreen) return;
 
     menuCategoryScreen.classList.add('hidden');
-    orderCheckoutWrapper.classList.remove('hidden');
-    orderCheckoutWrapper.setAttribute('aria-hidden', 'false');
     orderCheckoutScreen.classList.remove('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'false');
     renderCheckoutSummary();
@@ -6297,10 +6294,8 @@ function openCheckoutScreen() {
 }
 
 function closeCheckoutScreen() {
-    if (!orderCheckoutWrapper || !orderCheckoutScreen) return;
+    if (!orderCheckoutScreen) return;
 
-    orderCheckoutWrapper.classList.add('hidden');
-    orderCheckoutWrapper.setAttribute('aria-hidden', 'true');
     orderCheckoutScreen.classList.add('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'true');
     if (menuOverlay) {
@@ -6317,10 +6312,8 @@ function closeCheckoutScreen() {
 }
 
 function closeCheckoutScreenCompletely() {
-    if (!orderCheckoutWrapper || !orderCheckoutScreen) return;
+    if (!orderCheckoutScreen) return;
 
-    orderCheckoutWrapper.classList.add('hidden');
-    orderCheckoutWrapper.setAttribute('aria-hidden', 'true');
     orderCheckoutScreen.classList.add('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'true');
     if (menuOverlay) {
