@@ -2075,9 +2075,15 @@ function updateSpecialFoodImageFieldVisibility() {
         selectedSpecialComponents = [];
         if (specialFoodImageInput) {
             specialFoodImageInput.value = '';
+            specialFoodImageInput.disabled = true;
         }
         setSpecialFoodImagePreview('');
     }
+
+    // Ensure inputs are disabled when not specials to prevent interaction
+    if (specialFoodImageInput) specialFoodImageInput.disabled = !isSpecials;
+    if (specialCustomizeItemSelect) specialCustomizeItemSelect.disabled = !isSpecials;
+    if (specialCustomizeAddBtn) specialCustomizeAddBtn.disabled = !isSpecials;
 }
 
 if (specialCustomizeAddBtn) {
