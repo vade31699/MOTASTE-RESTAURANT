@@ -5008,6 +5008,19 @@ function syncMenuPricesWithInventory() {
 let inventorySelectedCategory = 'all';
 let inventorySearchTerm = '';
 
+// Helper: detect if user is currently in checkout/payment screens
+function isUserInCheckoutOrPayment() {
+    try {
+        const payment = document.getElementById('orderPaymentScreen');
+        const checkout = document.getElementById('orderCheckoutScreen');
+        const paymentVisible = payment && !payment.classList.contains('hidden') && payment.getAttribute('aria-hidden') !== 'true';
+        const checkoutVisible = checkout && !checkout.classList.contains('hidden') && checkout.getAttribute('aria-hidden') !== 'true';
+        return paymentVisible || checkoutVisible || Boolean(suppressMenuOverlay);
+    } catch (e) {
+        return Boolean(suppressMenuOverlay);
+    }
+}
+
 function getFilteredInventoryItems() {
     const term = (inventorySearchTerm || '').trim().toLowerCase();
     return (inventoryData || []).filter((item) => {
@@ -6837,6 +6850,19 @@ if (menuCategories) {
         showMenuCategory(categoryId);
     });
 }
+
+// Attach direct listeners to each category button as a fallback
+document.querySelectorAll('.menu-category-btn').forEach((btn) => {
+    if (!btn) return;
+    btn.addEventListener('click', (e) => {
+        // if the user is in checkout/payment, ignore clicks
+        if (isUserInCheckoutOrPayment()) return;
+        const categoryId = String(btn.dataset.category || '').trim();
+        if (!categoryId) return;
+        openMenuOverlay();
+        showMenuCategory(categoryId);
+    });
+});
 
 if (menuAddOnQuickBtn) {
     menuAddOnQuickBtn.addEventListener('click', () => {
