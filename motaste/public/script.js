@@ -6995,10 +6995,18 @@ if (menuPurchaseNowBtn) {
             return;
         }
 
-        closeMenuOverlay();
-        if (currentMenuCategoryId) {
-            showMenuCategory(currentMenuCategoryId);
-        }
+        // Directly hide the menu overlay and category screen, then open checkout.
+        try {
+            if (menuOverlay) {
+                menuOverlay.classList.add('hidden');
+                menuOverlay.setAttribute('aria-hidden', 'true');
+            }
+            if (menuCategoryScreen) {
+                menuCategoryScreen.classList.add('hidden');
+                menuCategoryScreen.setAttribute('aria-hidden', 'true');
+            }
+        } catch (e) {}
+
         openCartModal();
         openCheckoutScreen();
     });
