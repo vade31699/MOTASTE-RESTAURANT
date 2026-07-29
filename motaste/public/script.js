@@ -6387,10 +6387,17 @@ function updateLiveClock() {
 
 function openPaymentScreen(order) {
     if (!orderPaymentScreen) return;
+    if (menuOverlay) {
+        menuOverlay.classList.remove('hidden');
+        menuOverlay.setAttribute('aria-hidden', 'false');
+    }
     if (menuCategoryScreen) {
         menuCategoryScreen.classList.add('hidden');
     }
-    orderCheckoutScreen.classList.add('hidden');
+    if (orderCheckoutScreen) {
+        orderCheckoutScreen.classList.add('hidden');
+        orderCheckoutScreen.setAttribute('aria-hidden', 'true');
+    }
     orderPaymentScreen.classList.remove('hidden');
     orderPaymentScreen.setAttribute('aria-hidden', 'false');
 
@@ -6455,6 +6462,7 @@ function hidePaymentSuccessMessage() {
 
 async function confirmOrder() {
     if (!cartItems.length) return;
+    closeCartModal();
     const payableItems = getPayableCartItems();
     const payableTotal = payableItems.reduce((sum, item) => sum + getCartItemLineTotal(item), 0);
 
