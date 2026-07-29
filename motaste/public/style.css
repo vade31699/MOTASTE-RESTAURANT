@@ -1664,7 +1664,7 @@ body.modal-open {
     border: 1px solid rgba(0, 0, 0, 0.8);
     border-radius: 8px;
     padding: 8px 14px;
-    background: #000000;
+    background: rgba(255, 255, 255, 0.18);
     color: #000000;
     font-weight: 700;
     cursor: pointer;
