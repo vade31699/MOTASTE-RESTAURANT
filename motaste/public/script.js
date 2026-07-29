@@ -1120,13 +1120,14 @@ async function confirmAdminCredentialsChange(event) {
         }
 
         if (selectedRoleInput && selectedRoleInput.value === 'Admin') {
-            const nextAdmin = accounts.find((account) => account.role === 'Admin');
-            if (nextAdmin) {
-                if (emailInput) emailInput.value = nextAdmin.email;
-                if (passwordInput) passwordInput.value = nextAdmin.password;
-                saveStaffSession('Admin', nextAdmin.email, nextAdmin.password, rememberCheckbox ? rememberCheckbox.checked : false);
+            const nextEmail = adminNewEmailInput ? adminNewEmailInput.value.trim().toLowerCase() : '';
+            const nextPassword = adminNewPasswordInput ? adminNewPasswordInput.value : '';
+            if (nextEmail && nextPassword) {
+                if (emailInput) emailInput.value = nextEmail;
+                if (passwordInput) passwordInput.value = nextPassword;
+                saveStaffSession('Admin', nextEmail, nextPassword, rememberCheckbox ? rememberCheckbox.checked : false);
                 if (rememberCheckbox && rememberCheckbox.checked) {
-                    saveCredentialsForRole('Admin', nextAdmin.email, nextAdmin.password);
+                    saveCredentialsForRole('Admin', nextEmail, nextPassword);
                 }
                 updateDashboardProfile();
             }
