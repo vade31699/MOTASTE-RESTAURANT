@@ -129,7 +129,7 @@ function loadStaffAccountsFromStorage() {
         const normalized = parsed.map(normalizeStaffAccount).filter(Boolean);
         if (!normalized.length) return false;
 
-        accounts = normalized;
+        accounts = restoreSessionPasswords(normalized);
         ensureAdminAccountInvariant();
         window.motasteStaffAccounts = accounts;
         return true;
@@ -1121,10 +1121,16 @@ async function confirmAdminCredentialsChange(event) {
 
         const nextEmail = adminNewEmailInput ? adminNewEmailInput.value.trim().toLowerCase() : '';
         const nextPassword = adminNewPasswordInput ? adminNewPasswordInput.value : '';
-        const currentSession = getPersistedStaffSession();
-        if (nextEmail && nextPassword && currentSession && currentSession.role === 'Admin') {
-            if (emailInput) emailInput.value = nextEmail;
-            if (passwordInput) passwordInput.value = nextPassword;
+        if (nextEmail && nextPassword) {
+            if (selectedRoleInput) {
+                selectedRoleInput.value = 'Admin';
+            }
+            if (emailInput) {
+                emailInput.value = nextEmail;
+            }
+            if (passwordInput) {
+                passwordInput.value = nextPassword;
+            }
             saveStaffSession('Admin', nextEmail, nextPassword, rememberCheckbox ? rememberCheckbox.checked : false);
             if (rememberCheckbox && rememberCheckbox.checked) {
                 saveCredentialsForRole('Admin', nextEmail, nextPassword);
