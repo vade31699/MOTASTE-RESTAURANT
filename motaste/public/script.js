@@ -134,6 +134,7 @@ async function loadStaffAccountsFromServer(forceRefresh = false) {
         if (!response.ok) return false;
 
         const payload = await response.json();
+        console.debug('submitOrderToServer: response', { status: response.status, payload });
         if (!payload || payload.success !== true) return false;
 
         if (Array.isArray(payload.accounts)) {
@@ -6426,6 +6427,7 @@ function updateLiveClock() {
 
 function openPaymentScreen(order) {
     if (!orderPaymentScreen) return;
+    console.debug('openPaymentScreen: start', order);
     if (menuOverlay) {
         menuOverlay.classList.add('hidden');
         menuOverlay.setAttribute('aria-hidden', 'true');
@@ -6466,8 +6468,11 @@ function openPaymentScreen(order) {
         }
     }
     setMenuOverlayMenuVisibility(false);
-    // hide the top menu tab while on payment screen
+    // hide the top menu tab while on payment screen and suppress menu overlay
+    suppressMenuOverlay = true;
+    try { document.body.classList.add('suppress-menu'); } catch (e) { }
     try { if (menuNavLink) menuNavLink.style.display = 'none'; } catch (e) { }
+    console.debug('openPaymentScreen: done, suppressed menu overlay');
 }
 
 function closePaymentScreen() {
@@ -6502,6 +6507,7 @@ function hidePaymentSuccessMessage() {
 async function confirmOrder() {
     if (!cartItems.length) return;
     closeCartModal();
+    console.debug('confirmOrder: started', { cartItemsLength: cartItems.length });
     const payableItems = getPayableCartItems();
     const payableTotal = payableItems.reduce((sum, item) => sum + getCartItemLineTotal(item), 0);
 
@@ -6528,6 +6534,7 @@ async function confirmOrder() {
     };
 
     const syncedOrder = await submitOrderToServer(order);
+    console.debug('confirmOrder: submitOrderToServer returned', syncedOrder);
     if (!syncedOrder) {
         if (menuOrderMessage) {
             menuOrderMessage.textContent = 'Unable to submit order to server. Please try again.';
@@ -6544,6 +6551,7 @@ async function confirmOrder() {
     if (menuOrderMessage) {
         menuOrderMessage.textContent = 'Order received! Proceed with payment to complete transaction.';
     }
+    console.debug('confirmOrder: opening payment screen for', syncedOrder.orderNumber);
     openPaymentScreen(syncedOrder);
 }
 
