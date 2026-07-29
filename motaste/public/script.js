@@ -722,6 +722,29 @@ roleButtons.forEach((button) => {
     button.addEventListener('click', () => selectRole(button.dataset.role));
 });
 
+async function authenticateStaffAccount(email, password, role = '') {
+    try {
+        const response = await fetch(getApiUrl('api/authenticate_staff.php'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password, role }),
+            cache: 'no-store'
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+            return null;
+        }
+
+        return payload;
+    } catch (error) {
+        console.error('Staff authentication failed', error);
+        return null;
+    }
+}
+
 function attachStaffLoginHandler() {
     if (!staffForm) return;
 
@@ -739,10 +762,9 @@ function attachStaffLoginHandler() {
         const email = emailInput ? emailInput.value.trim() : '';
         const password = passwordInput ? passwordInput.value : '';
         const remember = rememberCheckbox ? rememberCheckbox.checked : false;
-        const matchedAccount = findStaffAccountByCredentials(email, password);
-        const detectedRole = matchedAccount ? matchedAccount.role : role;
 
-        if (!matchedAccount || !allowedRoles.includes(detectedRole)) {
+        const authResult = await authenticateStaffAccount(email, password, role);
+        if (!authResult || !allowedRoles.includes(authResult.role)) {
             setAuthButtonsVisible(false);
             if (modalTitle) {
                 modalTitle.textContent = 'Invalid credentials';
@@ -750,11 +772,12 @@ function attachStaffLoginHandler() {
             return;
         }
 
+        const detectedRole = authResult.role;
         if (selectedRoleInput) {
             selectedRoleInput.value = detectedRole;
         }
 
-        if ((detectedRole === 'Cashier' || detectedRole === 'Inventory Manager') && matchedAccount && !matchedAccount.inviteConfirmed) {
+        if ((detectedRole === 'Cashier' || detectedRole === 'Inventory Manager') && !authResult.inviteConfirmed) {
             const inviteCode = typeof window !== 'undefined' ? window.prompt('Enter the invite verification code sent to your Gmail:') : '';
             if (!inviteCode) {
                 if (modalTitle) {
@@ -771,14 +794,6 @@ function attachStaffLoginHandler() {
                 }
                 return;
             }
-        }
-
-        if (!isValidStaffLogin(detectedRole, email, password)) {
-            setAuthButtonsVisible(false);
-            if (modalTitle) {
-                modalTitle.textContent = 'Invalid credentials';
-            }
-            return;
         }
 
         if (remember) {
