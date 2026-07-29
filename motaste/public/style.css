@@ -2536,6 +2536,13 @@ body.modal-open {
     align-items: center;
     gap: 10px;
 }
+.order-checkout-wrapper {
+    display: grid;
+    gap: 12px;
+}
+.order-checkout-wrapper > .cart-exit-button {
+    justify-self: end;
+}
 .order-checkout-screen {
     background: #f9f9f9;
     border-radius: 18px;
