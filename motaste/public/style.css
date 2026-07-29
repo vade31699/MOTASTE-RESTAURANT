@@ -1661,14 +1661,14 @@ body.modal-open {
     font-size: 0.78rem;
 }
 .cart-exit-button {
-    border: 1px solid rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(0, 0, 0, 0.8);
     border-radius: 8px;
     padding: 8px 14px;
-    background: rgba(255, 255, 255, 0.18);
-    color: #fff;
+    background: #000000;
+    color: #000000;
     font-weight: 700;
     cursor: pointer;
-}
+} 
 .cart-exit-button:hover,
 .cart-exit-button:focus-visible {
     background: rgba(255, 255, 255, 0.82);
