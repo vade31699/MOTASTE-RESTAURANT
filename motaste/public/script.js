@@ -6534,6 +6534,8 @@ async function confirmOrder() {
 }
 
 function showMenuCategory(categoryId) {
+    // Prevent background refreshes from forcing the menu overlay open
+    if (suppressMenuOverlay) return;
     loadCustomMenuData();
     syncMenuPricesWithInventory();
 
