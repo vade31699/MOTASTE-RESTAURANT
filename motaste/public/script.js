@@ -2858,6 +2858,7 @@ let pendingOrders = [];
 let completedOrders = [];
 let inventoryData = [];
 let currentMenuCategoryId = null;
+let suppressMenuOverlay = false; // when true, prevent menu overlay from opening
 let inventoryEditItemName = null;
 let inventoryEditLock = false;
 let ignoredPendingOrderNumbers = new Set();
@@ -6845,6 +6846,7 @@ if (menuCategories) {
     menuCategories.addEventListener('click', (event) => {
         const button = event.target.closest('.menu-category-btn');
         if (!button) return;
+        console.debug('menuCategories delegated click', button.dataset.category, event);
         const categoryId = button.dataset.category;
         openMenuOverlay();
         showMenuCategory(categoryId);
@@ -6856,6 +6858,7 @@ document.querySelectorAll('.menu-category-btn').forEach((btn) => {
     if (!btn) return;
     btn.addEventListener('click', (e) => {
         // if the user is in checkout/payment, ignore clicks
+        console.debug('menu-category-btn direct click', btn.dataset.category, e);
         if (isUserInCheckoutOrPayment()) return;
         const categoryId = String(btn.dataset.category || '').trim();
         if (!categoryId) return;
