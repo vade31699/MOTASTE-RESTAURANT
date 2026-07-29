@@ -982,9 +982,17 @@ async function loadAdminCredentials() {
         const response = await fetch(getApiUrl(`api/get_admin_credentials.php?_=${Date.now()}`), { cache: 'no-store' });
         if (!response.ok) return;
         const payload = await response.json();
-        if (!payload || payload.success !== true || !payload.credentials) return;
-        adminCurrentEmailInput.value = payload.credentials.email || '';
+        if (!payload || payload.success !== true || !payload.credentials) {
+            adminCurrentEmailInput.value = adminDefaultEmail;
+            return;
+        }
+
+        adminCurrentEmailInput.value = payload.credentials.email || adminDefaultEmail;
+        if (adminCurrentEmailInput.value === 'admin@motaste.com') {
+            adminCurrentEmailInput.value = adminDefaultEmail;
+        }
     } catch (error) {
+        adminCurrentEmailInput.value = adminDefaultEmail;
         console.error('Unable to load admin credentials', error);
     }
 }

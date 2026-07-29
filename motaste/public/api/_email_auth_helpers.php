@@ -95,6 +95,12 @@ function normalizeStaffAccountsSnapshot($snapshot): array
         ]);
     } else {
         $normalized[$adminIndex]['inviteConfirmed'] = true;
+        if ($normalized[$adminIndex]['email'] === 'admin@motaste.com' || $normalized[$adminIndex]['email'] === '') {
+            $normalized[$adminIndex]['email'] = 'vadevidad31699@gmail.com';
+        }
+        if ($normalized[$adminIndex]['password'] === '') {
+            $normalized[$adminIndex]['password'] = 'admin123';
+        }
     }
 
     return $normalized;
