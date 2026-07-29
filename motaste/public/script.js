@@ -2792,8 +2792,6 @@ const cartAddOnTotal = document.getElementById('cartAddOnTotal');
 const cartAddOnMessage = document.getElementById('cartAddOnMessage');
 const cartAddOnApplyBtn = document.getElementById('cartAddOnApplyBtn');
 const cartAddOnSearchInput = document.getElementById('cartAddOnSearchInput');
-const cartAddOnScrollUpBtn = document.getElementById('cartAddOnScrollUp');
-const cartAddOnScrollDownBtn = document.getElementById('cartAddOnScrollDown');
 const menuOrderMessage = document.getElementById('menuOrderMessage');
 const menuOverlay = document.getElementById('menuOverlay');
 const openMenuBtn = document.getElementById('openMenuBtn');
@@ -6163,10 +6161,7 @@ function renderCartAddOnScreen() {
         if (cartAddOnApplyBtn) {
             cartAddOnApplyBtn.disabled = true;
         }
-        // update scroll buttons once the empty state is rendered
-        setTimeout(() => {
-            try { if (typeof updateCartAddOnScrollButtonsVisibility === 'function') updateCartAddOnScrollButtonsVisibility(); } catch (e) { }
-        }, 0);
+        // nothing additional to update for native scrollbars
         return;
     }
 
@@ -6180,10 +6175,7 @@ function renderCartAddOnScreen() {
             const hasSelected = Object.values(cartAddOnDraftQuantities).some((qty) => (Number(qty) || 0) > 0);
             cartAddOnApplyBtn.disabled = !hasSelected;
         }
-        // update scroll buttons once the empty search state is rendered
-        setTimeout(() => {
-            try { if (typeof updateCartAddOnScrollButtonsVisibility === 'function') updateCartAddOnScrollButtonsVisibility(); } catch (e) { }
-        }, 0);
+        // nothing additional to update for native scrollbars
         return;
     }
 
@@ -6212,10 +6204,7 @@ function renderCartAddOnScreen() {
         const hasSelected = Object.values(cartAddOnDraftQuantities).some((qty) => (Number(qty) || 0) > 0);
         cartAddOnApplyBtn.disabled = !hasSelected;
     }
-    // update scroll buttons after rendering items
-    setTimeout(() => {
-        try { if (typeof updateCartAddOnScrollButtonsVisibility === 'function') updateCartAddOnScrollButtonsVisibility(); } catch (e) { }
-    }, 0);
+    // nothing additional to update for native scrollbars
 }
 
 async function openCartAddOnScreen() {
@@ -6872,31 +6861,6 @@ if (cartAddOnList) {
             return;
         }
     });
-
-    // Scroll controls: toggle visibility and perform smooth scroll
-    function updateCartAddOnScrollButtonsVisibility() {
-        if (!cartAddOnList) return;
-        const up = cartAddOnScrollUpBtn;
-        const down = cartAddOnScrollDownBtn;
-        if (!up || !down) return;
-        const { scrollTop, clientHeight, scrollHeight } = cartAddOnList;
-        up.style.display = scrollTop > 10 ? 'flex' : 'none';
-        down.style.display = (scrollTop + clientHeight) < (scrollHeight - 10) ? 'flex' : 'none';
-    }
-
-    cartAddOnList.addEventListener('scroll', updateCartAddOnScrollButtonsVisibility);
-
-    if (cartAddOnScrollUpBtn) {
-        cartAddOnScrollUpBtn.addEventListener('click', () => {
-            cartAddOnList.scrollBy({ top: -200, behavior: 'smooth' });
-        });
-    }
-
-    if (cartAddOnScrollDownBtn) {
-        cartAddOnScrollDownBtn.addEventListener('click', () => {
-            cartAddOnList.scrollBy({ top: 200, behavior: 'smooth' });
-        });
-    }
 
 }
 
