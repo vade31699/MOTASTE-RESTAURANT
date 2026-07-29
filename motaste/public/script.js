@@ -6286,6 +6286,8 @@ function openCheckoutScreen() {
     orderCheckoutScreen.classList.remove('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'false');
     renderCheckoutSummary();
+    // hide the top menu tab while on checkout/payment
+    try { if (menuNavLink) menuNavLink.style.display = 'none'; } catch (e) { }
 }
 
 function closeCheckoutScreen() {
@@ -6294,6 +6296,8 @@ function closeCheckoutScreen() {
     orderCheckoutScreen.classList.add('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'true');
     menuCategoryScreen.classList.remove('hidden');
+    // restore the top menu tab when returning to the menu
+    try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
 }
 
 function renderCheckoutSummary() {
@@ -6387,6 +6391,8 @@ function openPaymentScreen(order) {
             paymentQrPlaceholder.classList.remove('hidden');
         }
     }
+    // hide the top menu tab while on payment screen
+    try { if (menuNavLink) menuNavLink.style.display = 'none'; } catch (e) { }
 }
 
 function closePaymentScreen() {
@@ -6395,6 +6401,8 @@ function closePaymentScreen() {
     orderPaymentScreen.setAttribute('aria-hidden', 'true');
     orderCheckoutScreen.classList.remove('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'false');
+    // keep the menu tab hidden while still in checkout
+    try { if (menuNavLink) menuNavLink.style.display = 'none'; } catch (e) { }
 }
 
 function showPaymentSuccessMessage() {
