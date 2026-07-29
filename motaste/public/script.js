@@ -6284,7 +6284,12 @@ function openCheckoutScreen() {
     if (!cartItems.length || getCartPayableTotal() <= 0) return;
     if (!orderCheckoutScreen || !menuCategoryScreen) return;
 
+    if (menuOverlay) {
+        menuOverlay.classList.add('hidden');
+        menuOverlay.setAttribute('aria-hidden', 'true');
+    }
     menuCategoryScreen.classList.add('hidden');
+    menuCategoryScreen.setAttribute('aria-hidden', 'true');
     orderCheckoutScreen.classList.remove('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'false');
     renderCheckoutSummary();
@@ -6388,11 +6393,12 @@ function updateLiveClock() {
 function openPaymentScreen(order) {
     if (!orderPaymentScreen) return;
     if (menuOverlay) {
-        menuOverlay.classList.remove('hidden');
-        menuOverlay.setAttribute('aria-hidden', 'false');
+        menuOverlay.classList.add('hidden');
+        menuOverlay.setAttribute('aria-hidden', 'true');
     }
     if (menuCategoryScreen) {
         menuCategoryScreen.classList.add('hidden');
+        menuCategoryScreen.setAttribute('aria-hidden', 'true');
     }
     if (orderCheckoutScreen) {
         orderCheckoutScreen.classList.add('hidden');
