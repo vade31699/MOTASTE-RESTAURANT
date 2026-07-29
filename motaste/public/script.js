@@ -6294,13 +6294,16 @@ function openCheckoutScreen() {
 }
 
 function closeCheckoutScreen() {
-    if (!orderCheckoutScreen || !menuCategoryScreen) return;
+    if (!orderCheckoutScreen) return;
 
     orderCheckoutScreen.classList.add('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'true');
-    menuCategoryScreen.classList.remove('hidden');
+    if (menuOverlay) {
+        menuOverlay.classList.add('hidden');
+        menuOverlay.setAttribute('aria-hidden', 'true');
+    }
     setMenuOverlayMenuVisibility(true);
-    // restore the top menu tab when returning to the menu
+    openCartModal();
     try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
 }
 
