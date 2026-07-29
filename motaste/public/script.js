@@ -2086,6 +2086,27 @@ function updateSpecialFoodImageFieldVisibility() {
     if (specialCustomizeAddBtn) specialCustomizeAddBtn.disabled = !isSpecials;
 }
 
+// Force style-level hide/show to override any stylesheet or rendering timing issues
+function enforceSpecialFieldsVisibility() {
+    if (!specialFoodImageField || !specialCustomizeField || !specialFoodImagePreviewWrap || !inventoryCategoryInput) return;
+    const isSpecials = inventoryCategoryInput.value === 'specials';
+    specialFoodImageField.style.display = isSpecials ? '' : 'none';
+    specialCustomizeField.style.display = isSpecials ? '' : 'none';
+    specialFoodImagePreviewWrap.style.display = isSpecials ? '' : 'none';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // ensure correct visibility immediately after load
+    updateSpecialFoodImageFieldVisibility();
+    enforceSpecialFieldsVisibility();
+});
+
+// Run enforcement when modal is opened or category changes
+if (inventoryCategoryInput) inventoryCategoryInput.addEventListener('change', () => {
+    updateSpecialFoodImageFieldVisibility();
+    enforceSpecialFieldsVisibility();
+});
+
 if (specialCustomizeAddBtn) {
     specialCustomizeAddBtn.addEventListener('click', () => {
         if (!specialCustomizeItemSelect || specialCustomizeItemSelect.disabled) return;
