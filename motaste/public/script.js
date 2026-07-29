@@ -219,7 +219,7 @@ function forceLogoutCurrentStaffSession() {
     if (credentialsSection) credentialsSection.hidden = true;
 }
 
-function enforceActiveSessionValidity() {
+async function enforceActiveSessionValidity() {
     if (!document.body.classList.contains('auth')) return;
 
     const role = selectedRoleInput ? selectedRoleInput.value.trim() : '';
@@ -227,11 +227,26 @@ function enforceActiveSessionValidity() {
     const password = passwordInput ? passwordInput.value : '';
     if (!role || !email || !password) return;
 
-    if (!isValidStaffLogin(role, email, password)) {
-        forceLogoutCurrentStaffSession();
-        if (typeof window !== 'undefined' && window.alert) {
-            window.alert('Your account credentials changed or your account was removed. Please log in again.');
-        }
+    if (isValidStaffLogin(role, email, password)) {
+        return;
+    }
+
+    let refreshed = false;
+    if (!staffAccountsSyncInFlight) {
+        refreshed = await loadStaffAccountsFromServer(true);
+    }
+
+    if (refreshed && isValidStaffLogin(role, email, password)) {
+        return;
+    }
+
+    if (!refreshed && isValidStaffLogin(role, email, password)) {
+        return;
+    }
+
+    forceLogoutCurrentStaffSession();
+    if (typeof window !== 'undefined' && window.alert) {
+        window.alert('Your account credentials changed or your account was removed. Please log in again.');
     }
 }
 
