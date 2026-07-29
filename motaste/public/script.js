@@ -2802,9 +2802,7 @@ const menuOverlayCategories = document.getElementById('menuOverlayCategories');
 const menuOverlayHeader = document.querySelector('.menu-overlay-header');
 const menuOverlayActionsPanel = document.querySelector('.menu-overlay-actions-panel');
 const menuCategoryScreen = document.getElementById('menuCategoryScreen');
-const menuCategoryTitle = document.getElementById('menuCategoryTitle');
 const menuItemsList = document.getElementById('menuItemsList');
-const menuBackBtn = document.getElementById('menuBackBtn');
 const menuCartList = document.getElementById('menuCartList');
 const menuCartCount = document.getElementById('menuCartCount');
 const menuCartHeader = document.querySelector('.menu-cart-header');
@@ -6541,14 +6539,13 @@ function showMenuCategory(categoryId) {
 
     const isSpecialsCategory = categoryId === 'specials';
     const category = isSpecialsCategory ? { title: 'SPECIALS', items: specialFoods } : menuData[categoryId];
-    if (!category || !menuCategoryScreen || !menuItemsList || !menuCategoryTitle || !menuCategories) return;
+    if (!category || !menuCategoryScreen || !menuItemsList || !menuCategories) return;
     if (menuOverlayCategories) {
         menuOverlayCategories.hidden = true;
         renderMenuOverlayCategories(categoryId);
     }
 
     currentMenuCategoryId = categoryId;
-    menuCategoryTitle.textContent = category.title;
     if (menuOverlayCategories) {
         menuOverlayCategories.hidden = true;
         renderMenuOverlayCategories(categoryId);
@@ -7073,10 +7070,6 @@ if (orderTypeOptions) {
         selectedOrderType = button.dataset.order || 'Dine In';
         selectCheckoutOption(orderTypeOptions, 'order', selectedOrderType);
     });
-}
-
-if (menuBackBtn) {
-    menuBackBtn.addEventListener('click', showMenuCategories);
 }
 
 if (dashboardPanel) {
