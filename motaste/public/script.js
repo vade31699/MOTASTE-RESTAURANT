@@ -36,8 +36,11 @@ let pendingOrdersRefreshTimer = null;
 const blockedProductNames = new Set(['softdrinks']);
 const isStaffPage = Boolean(document.getElementById('accountList') || document.getElementById('staffLoginForm'));
 
+const adminDefaultEmail = 'vadevidad31699@gmail.com';
+const adminDefaultPassword = 'admin123';
+
 const defaultStaffAccounts = [
-    { name: 'Administrator', role: 'Admin', email: 'vadevidad31699@gmail.com', password: 'admin123', inviteConfirmed: true }
+    { name: 'Administrator', role: 'Admin', email: adminDefaultEmail, password: adminDefaultPassword, inviteConfirmed: true }
 ];
 
 let accounts = [...defaultStaffAccounts];
@@ -65,7 +68,7 @@ function getCurrentStaffAccounts() {
 function ensureAdminAccountInvariant() {
     const adminIndex = accounts.findIndex((account) => account.role === 'Admin');
     if (adminIndex >= 0) {
-        accounts[adminIndex].email = (accounts[adminIndex].email || 'vadevidad31699@gmail.com').trim().toLowerCase();
+        accounts[adminIndex].email = (accounts[adminIndex].email || adminDefaultEmail).trim().toLowerCase();
         accounts[adminIndex].inviteConfirmed = true;
         return;
     }
@@ -73,8 +76,8 @@ function ensureAdminAccountInvariant() {
     accounts.unshift({
         name: 'Administrator',
         role: 'Admin',
-        email: 'vadevidad31699@gmail.com',
-        password: 'admin123',
+        email: adminDefaultEmail,
+        password: adminDefaultPassword,
         inviteConfirmed: true
     });
 }
