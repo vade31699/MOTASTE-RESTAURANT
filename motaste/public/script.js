@@ -3998,6 +3998,34 @@ const inventoryCategoryLabels = {
     specials: 'Specials'
 };
 
+function normalizeMenuCategoryKey(category) {
+    const normalized = String(category || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    switch (normalized) {
+        case 'batchoy':
+            return 'batchoy';
+        case 'silog':
+            return 'silog';
+        case 'friedchicken':
+        case 'fried chicken':
+            return 'friedChicken';
+        case 'breakfast':
+            return 'breakfast';
+        case 'drinks':
+            return 'drinks';
+        case 'addons':
+        case 'add on':
+        case 'addon':
+            return 'addons';
+        case 'specials':
+            return 'specials';
+        case 'all':
+            return 'all';
+        default:
+            if (menuData[normalized]) return normalized;
+            return null;
+    }
+}
+
 function resolveInventoryCategory(itemName) {
     const normalizedName = (itemName || '').trim().toLowerCase();
     if (!normalizedName) return 'specials';
@@ -4967,7 +4995,7 @@ function syncMenuPricesWithInventory() {
     }, {});
 
     (inventoryData || []).forEach((inventoryItem) => {
-        const categoryKey = inventoryItem.category || resolveInventoryCategory(inventoryItem.name);
+        const categoryKey = normalizeMenuCategoryKey(inventoryItem.category || resolveInventoryCategory(inventoryItem.name));
         if (!categoryKey || categoryKey === 'specials') return;
         if (blockedProductNames.has(normalizeInventoryName(inventoryItem.name))) return;
 
@@ -6561,12 +6589,13 @@ function showMenuCategory(categoryId) {
     loadCustomMenuData();
     syncMenuPricesWithInventory();
 
-    const isSpecialsCategory = categoryId === 'specials';
-    const category = isSpecialsCategory ? { title: 'SPECIALS', items: specialFoods } : menuData[categoryId];
+    const resolvedCategoryId = normalizeMenuCategoryKey(categoryId) || String(categoryId || '').trim();
+    const isSpecialsCategory = resolvedCategoryId === 'specials';
+    const category = isSpecialsCategory ? { title: 'SPECIALS', items: specialFoods } : menuData[resolvedCategoryId];
     if (!category || !menuCategoryScreen || !menuItemsList || !menuCategories) return;
     if (menuOverlayCategories) {
         menuOverlayCategories.hidden = true;
-        renderMenuOverlayCategories(categoryId);
+        renderMenuOverlayCategories(resolvedCategoryId);
     }
 
     currentMenuCategoryId = categoryId;
@@ -6598,6 +6627,10 @@ function showMenuCategory(categoryId) {
         </article>
     `;
     }).join('');
+
+    if (!category.items || !category.items.length) {
+        menuItemsList.innerHTML = '<div class="menu-empty-message">No products available in this category.</div>';
+    }
 
     menuCategories.hidden = true;
     menuCategoryScreen.classList.remove('hidden');
