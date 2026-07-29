@@ -6,13 +6,8 @@ use Illuminate\Support\Facades\Log;
 
 function ensureStaffAccountSnapshotsTable(): void
 {
-    DB::statement("CREATE TABLE IF NOT EXISTS staff_account_snapshots (
-        id BIGSERIAL PRIMARY KEY,
-        snapshot_key VARCHAR(191) NOT NULL UNIQUE,
-        snapshot_payload TEXT NOT NULL,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
+    // Deprecated: previously used a snapshots table. Keep as no-op for compatibility.
+    return;
 }
 
 function ensureStaffInviteTokensTable(): void
@@ -108,30 +103,91 @@ function normalizeStaffAccountsSnapshot($snapshot): array
 
 function loadStaffAccountsSnapshot(): array
 {
-    ensureStaffAccountSnapshotsTable();
+    // Read accounts from the application's staff table instead of snapshot storage.
+    // This returns a normalized array suitable for the public APIs. Passwords
+    // cannot be recovered from hashes, so returned accounts will omit plaintext
+    // passwords (client-side may still have persisted credentials in localStorage).
+    try {
+        $rows = DB::table('staff')
+            ->select('full_name', 'role', 'email', 'password_hash', 'created_at')
+            ->orderBy('id', 'asc')
+            ->get()
+            ->all();
 
-    $snapshot = DB::table('staff_account_snapshots')
-        ->where('snapshot_key', 'motaste-staff-accounts')
-        ->value('snapshot_payload');
+        $accounts = [];
+        foreach ($rows as $row) {
+            $accounts[] = [
+                'name' => trim((string)($row->full_name ?? '')) ?: 'Staff',
+                'role' => trim((string)($row->role ?? '')) ?: 'Staff',
+                'email' => strtolower(trim((string)($row->email ?? ''))),
+                // Do not expose password hashes as plaintext to clients.
+                'password' => '',
+                'inviteConfirmed' => true,
+            ];
+        }
 
-    $decoded = $snapshot ? json_decode((string)$snapshot, true) : [];
-    return normalizeStaffAccountsSnapshot($decoded);
+        // Ensure admin fallback exists and is normalized
+        $normalized = normalizeStaffAccountsSnapshot($accounts);
+        return $normalized;
+    } catch (Throwable $error) {
+        // Fallback to previous snapshot behavior when DB access fails
+        ensureStaffAccountSnapshotsTable();
+        $snapshot = DB::table('staff_account_snapshots')
+            ->where('snapshot_key', 'motaste-staff-accounts')
+            ->value('snapshot_payload');
+
+        $decoded = $snapshot ? json_decode((string)$snapshot, true) : [];
+        return normalizeStaffAccountsSnapshot($decoded);
+    }
 }
 
 function saveStaffAccountsSnapshot(array $accounts): void
 {
-    ensureStaffAccountSnapshotsTable();
+    // Persist accounts into the application's `staff` table to centralize
+    // credential storage. Incoming $accounts may contain plaintext passwords
+    // (e.g. during an admin credentials change); when present we will hash
+    // them before saving. We match rows by email.
     $normalized = normalizeStaffAccountsSnapshot($accounts);
 
-    $now = now();
-    DB::table('staff_account_snapshots')->updateOrInsert(
-        ['snapshot_key' => 'motaste-staff-accounts'],
-        [
-            'snapshot_payload' => json_encode($normalized, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]
-    );
+    foreach ($normalized as $account) {
+        $email = strtolower(trim((string)($account['email'] ?? '')));
+        if ($email === '') continue;
+
+        $name = trim((string)($account['name'] ?? '')) ?: 'Staff';
+        $role = trim((string)($account['role'] ?? '')) ?: 'Staff';
+        $inviteConfirmed = ($account['inviteConfirmed'] ?? false) ? 1 : 0;
+
+        // Determine if a plaintext password was provided; if so hash it.
+        $passwordPlain = isset($account['password']) ? (string)$account['password'] : '';
+        $passwordHash = '';
+        if ($passwordPlain !== '') {
+            $passwordHash = password_hash($passwordPlain, PASSWORD_DEFAULT);
+        }
+
+        // Upsert into staff table using email as key. If password not provided,
+        // do not overwrite existing password_hash.
+        $existing = DB::table('staff')->whereRaw('LOWER(email) = ?', [$email])->first();
+        if ($existing) {
+            $update = [
+                'full_name' => $name,
+                'role' => $role,
+                'updated_at' => now(),
+            ];
+            if ($passwordHash !== '') {
+                $update['password_hash'] = $passwordHash;
+            }
+            DB::table('staff')->where('id', $existing->id)->update($update);
+        } else {
+            DB::table('staff')->insert([
+                'full_name' => $name,
+                'role' => $role,
+                'email' => $email,
+                'password_hash' => $passwordHash !== '' ? $passwordHash : null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
 }
 
 function getAdminAccount(array $accounts): ?array

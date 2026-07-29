@@ -30,9 +30,9 @@ if ($currentEmail === '' || $currentPassword === '' || $code === '') {
 try {
     ensureAdminCredentialChangeTokensTable();
 
-    $accounts = loadStaffAccountsSnapshot();
-    $admin = getAdminAccount($accounts);
-    if (!$admin || strtolower((string)$admin['email']) !== $currentEmail || (string)$admin['password'] !== $currentPassword) {
+    // Validate current admin credentials against the staff table
+    $adminRow = DB::table('staff')->whereRaw('LOWER(email) = ?', [$currentEmail])->first();
+    if (!$adminRow || !isset($adminRow->password_hash) || !password_verify($currentPassword, $adminRow->password_hash)) {
         http_response_code(403);
         echo json_encode(['success' => false, 'error' => 'Current admin credentials are invalid']);
         exit;
