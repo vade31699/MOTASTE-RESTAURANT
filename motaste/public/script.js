@@ -6302,7 +6302,11 @@ function closeCheckoutScreen() {
         menuOverlay.classList.add('hidden');
         menuOverlay.setAttribute('aria-hidden', 'true');
     }
-    setMenuOverlayMenuVisibility(true);
+    if (menuCategoryScreen) {
+        menuCategoryScreen.classList.add('hidden');
+        menuCategoryScreen.setAttribute('aria-hidden', 'true');
+    }
+    closeCartAddOnScreen();
     openCartModal();
     try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
 }
@@ -6411,6 +6415,11 @@ function closePaymentScreen() {
         menuOverlay.classList.add('hidden');
         menuOverlay.setAttribute('aria-hidden', 'true');
     }
+    if (menuCategoryScreen) {
+        menuCategoryScreen.classList.add('hidden');
+        menuCategoryScreen.setAttribute('aria-hidden', 'true');
+    }
+    closeCartAddOnScreen();
     openCartModal();
     try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
 }
