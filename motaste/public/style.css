@@ -3757,6 +3757,9 @@ body.modal-open {
         display: grid;
         gap: 12px;
         margin-top: 18px;
+        max-height: 360px;
+        overflow-y: auto;
+        padding-right: 6px;
     }
 
     .inventory-item-card {
@@ -3907,7 +3910,7 @@ body.modal-open {
     .inventory-modal-card {
         position: relative;
         width: min(720px, 100%);
-        max-height: calc(100vh - 40px);
+        max-height: 480px;
         overflow: hidden;
         display: flex;
         flex-direction: column;
@@ -3930,8 +3933,9 @@ body.modal-open {
 
     .inventory-form {
         min-height: 0;
+        max-height: 360px;
         overflow-y: auto;
-        padding-right: 4px;
+        padding-right: 8px;
         display: grid;
         align-content: start;
         gap: 12px;
