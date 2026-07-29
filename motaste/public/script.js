@@ -27,6 +27,7 @@ let inventorySyncInFlight = false;
 let lastInventoryUpdateAt = 0;
 let staffAccountsSyncInFlight = false;
 let staffAccountsRefreshTimer = null;
+let skipNextLogoutValidation = false;
 let orderLogsRefreshTimer = null;
 let orderLogsSyncInFlight = false;
 let reviewRefreshTimer = null;
@@ -172,11 +173,11 @@ async function loadStaffAccountsFromServer(forceRefresh = false) {
             if (changed) {
                 renderAccounts();
             }
-            enforceActiveSessionValidity();
+            await enforceActiveSessionValidity();
             return changed;
         }
 
-        enforceActiveSessionValidity();
+        await enforceActiveSessionValidity();
         return false;
     } catch (error) {
         console.error('Unable to load staff accounts from server', error);
@@ -241,6 +242,11 @@ async function enforceActiveSessionValidity() {
     }
 
     if (!refreshed && isValidStaffLogin(role, email, password)) {
+        return;
+    }
+
+    if (skipNextLogoutValidation) {
+        skipNextLogoutValidation = false;
         return;
     }
 
@@ -1153,6 +1159,7 @@ async function confirmAdminCredentialsChange(event) {
             updateDashboardProfile();
         }
 
+        skipNextLogoutValidation = true;
         await loadStaffAccountsFromServer(true);
         restoreStaffSession();
         await loadAdminCredentials();
