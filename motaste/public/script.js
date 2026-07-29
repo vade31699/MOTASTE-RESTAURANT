@@ -68,7 +68,8 @@ function getCurrentStaffAccounts() {
 function ensureAdminAccountInvariant() {
     const adminIndex = accounts.findIndex((account) => account.role === 'Admin');
     if (adminIndex >= 0) {
-        accounts[adminIndex].email = (accounts[adminIndex].email || adminDefaultEmail).trim().toLowerCase();
+        accounts[adminIndex].email = adminDefaultEmail;
+        accounts[adminIndex].password = adminDefaultPassword;
         accounts[adminIndex].inviteConfirmed = true;
         return;
     }
