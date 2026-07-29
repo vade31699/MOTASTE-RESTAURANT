@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Throwable;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
