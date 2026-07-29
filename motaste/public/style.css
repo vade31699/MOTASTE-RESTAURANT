@@ -1671,7 +1671,7 @@ body.modal-open {
 } 
 .cart-exit-button:hover,
 .cart-exit-button:focus-visible {
-    background: rgba(255, 255, 255, 0.82);
+    background: rgba(209, 121, 38, 0.82);
     color: #111;
 }
 .menu-category-btn {
