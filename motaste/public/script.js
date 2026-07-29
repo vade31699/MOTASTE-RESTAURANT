@@ -6282,13 +6282,21 @@ function applySelectedCartAddOns() {
 
 function openCheckoutScreen() {
     if (!cartItems.length || getCartPayableTotal() <= 0) return;
-    if (!orderCheckoutScreen || !menuCategoryScreen) return;
+    if (!orderCheckoutScreen) return;
 
-    menuCategoryScreen.classList.add('hidden');
+    closeCartModal();
+    if (menuOverlay) {
+        menuOverlay.classList.add('hidden');
+        menuOverlay.setAttribute('aria-hidden', 'true');
+    }
+    if (menuCategoryScreen) {
+        menuCategoryScreen.classList.add('hidden');
+        menuCategoryScreen.setAttribute('aria-hidden', 'true');
+    }
+
     orderCheckoutScreen.classList.remove('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'false');
     renderCheckoutSummary();
-    setMenuOverlayMenuVisibility(false);
     // hide the top menu tab while on checkout/payment
     try { if (menuNavLink) menuNavLink.style.display = 'none'; } catch (e) { }
 }
@@ -6298,14 +6306,6 @@ function closeCheckoutScreen() {
 
     orderCheckoutScreen.classList.add('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'true');
-    if (menuOverlay) {
-        menuOverlay.classList.add('hidden');
-        menuOverlay.setAttribute('aria-hidden', 'true');
-    }
-    if (menuCategoryScreen) {
-        menuCategoryScreen.classList.add('hidden');
-        menuCategoryScreen.setAttribute('aria-hidden', 'true');
-    }
     closeCartAddOnScreen();
     openCartModal();
     try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
@@ -6411,14 +6411,6 @@ function closePaymentScreen() {
     if (!orderPaymentScreen) return;
     orderPaymentScreen.classList.add('hidden');
     orderPaymentScreen.setAttribute('aria-hidden', 'true');
-    if (menuOverlay) {
-        menuOverlay.classList.add('hidden');
-        menuOverlay.setAttribute('aria-hidden', 'true');
-    }
-    if (menuCategoryScreen) {
-        menuCategoryScreen.classList.add('hidden');
-        menuCategoryScreen.setAttribute('aria-hidden', 'true');
-    }
     closeCartAddOnScreen();
     openCartModal();
     try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
@@ -6947,10 +6939,6 @@ if (menuPurchaseNowBtn) {
         }
 
         closeMenuOverlay();
-        if (currentMenuCategoryId) {
-            showMenuCategory(currentMenuCategoryId);
-        }
-        openCartModal();
         openCheckoutScreen();
     });
 }
@@ -6958,7 +6946,6 @@ if (menuPurchaseNowBtn) {
 if (menuPlaceOrderBtn) {
     menuPlaceOrderBtn.addEventListener('click', () => {
         closeCartModal();
-        openMenuOverlay();
         openCheckoutScreen();
     });
 }
