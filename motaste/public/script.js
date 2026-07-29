@@ -1119,20 +1119,21 @@ async function confirmAdminCredentialsChange(event) {
             renderAccounts();
         }
 
-        if (selectedRoleInput && selectedRoleInput.value === 'Admin') {
-            const nextEmail = adminNewEmailInput ? adminNewEmailInput.value.trim().toLowerCase() : '';
-            const nextPassword = adminNewPasswordInput ? adminNewPasswordInput.value : '';
-            if (nextEmail && nextPassword) {
-                if (emailInput) emailInput.value = nextEmail;
-                if (passwordInput) passwordInput.value = nextPassword;
-                saveStaffSession('Admin', nextEmail, nextPassword, rememberCheckbox ? rememberCheckbox.checked : false);
-                if (rememberCheckbox && rememberCheckbox.checked) {
-                    saveCredentialsForRole('Admin', nextEmail, nextPassword);
-                }
-                updateDashboardProfile();
+        const nextEmail = adminNewEmailInput ? adminNewEmailInput.value.trim().toLowerCase() : '';
+        const nextPassword = adminNewPasswordInput ? adminNewPasswordInput.value : '';
+        const currentSession = getPersistedStaffSession();
+        if (nextEmail && nextPassword && currentSession && currentSession.role === 'Admin') {
+            if (emailInput) emailInput.value = nextEmail;
+            if (passwordInput) passwordInput.value = nextPassword;
+            saveStaffSession('Admin', nextEmail, nextPassword, rememberCheckbox ? rememberCheckbox.checked : false);
+            if (rememberCheckbox && rememberCheckbox.checked) {
+                saveCredentialsForRole('Admin', nextEmail, nextPassword);
             }
+            updateDashboardProfile();
         }
 
+        await loadStaffAccountsFromServer(true);
+        restoreStaffSession();
         await loadAdminCredentials();
 
         if (credentialsForm) {
