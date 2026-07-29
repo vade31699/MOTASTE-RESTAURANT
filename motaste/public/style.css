@@ -2640,6 +2640,14 @@ body.modal-open {
     display: grid;
     gap: 10px;
     background: #fff;
+/* When suppressing the menu (checkout/payment flows), force-hide the overlay and top menu link */
+body.suppress-menu #menuOverlay {
+    display: none !important;
+}
+
+body.suppress-menu a[href="#menu"] {
+    display: none !important;
+}
     border-radius: 14px;
     padding: 16px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.05);
