@@ -2543,20 +2543,13 @@ body.modal-open {
     display: grid;
     gap: 18px;
     max-height: 80vh;
-    overflow-y: visible;
-    position: relative;
+    overflow-y: auto;
 }
 .order-checkout-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    position: relative;
-}
-.order-checkout-header .cart-exit-button {
-    position: absolute;
-    top: -18px;
-    right: 0;
 }
 .order-checkout-content {
     display: grid;
@@ -2632,20 +2625,12 @@ body.modal-open {
     padding: 22px;
     display: grid;
     gap: 18px;
-    overflow: visible;
-    position: relative;
 }
 .order-payment-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    position: relative;
-}
-.order-payment-header .cart-exit-button {
-    position: absolute;
-    top: -18px;
-    right: 0;
 }
 .order-payment-content {
     display: grid;
