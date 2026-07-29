@@ -1605,6 +1605,36 @@ body.dashboard-panel-open .menu-btn {
 .cart-addon-footer .menu-place-order-btn {
     margin-left: 6px;
 }
+
+.cart-addon-list-wrapper {
+    position: relative;
+}
+
+.cart-addon-scroll-btn {
+    position: absolute;
+    right: 6px;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 60;
+}
+
+.cart-addon-scroll-btn:active { transform: translateY(1px); }
+
+.cart-addon-scroll-btn#cartAddOnScrollUp { top: 8px; }
+.cart-addon-scroll-btn#cartAddOnScrollDown { bottom: 70px; }
+
+@media (max-width: 560px) {
+    .cart-addon-scroll-btn { width: 32px; height: 32px; right: 8px; }
+    .cart-addon-scroll-btn#cartAddOnScrollDown { bottom: 84px; }
+}
 .cart-addon-item {
     background: #fff;
     border: 1px solid rgba(0, 0, 0, 0.1);
