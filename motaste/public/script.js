@@ -6139,6 +6139,8 @@ function closeCartAddOnScreen() {
     if (cartAddOnMessage) {
         cartAddOnMessage.textContent = '';
     }
+    // restore body scrolling
+    try { document.body.classList.remove('modal-open'); } catch (e) { }
 }
 
 function renderCartAddOnScreen() {
@@ -6236,6 +6238,9 @@ async function openCartAddOnScreen() {
     if (cartAddOnApplyBtn) {
         cartAddOnApplyBtn.disabled = true;
     }
+
+    // prevent body scrolling while add-on screen is open
+    try { document.body.classList.add('modal-open'); } catch (e) { }
 
     await ensureCartAddOnItemsReady();
     renderCartAddOnScreen();

@@ -1608,7 +1608,9 @@ body.dashboard-panel-open .menu-btn {
 
 .cart-addon-list {
     min-height: 0;
-    max-height: calc(100vh - 300px);
+    /* Aim to show at least 3 items without increasing the main page scroll
+       Approx item height (~96px) × 3 + small gap */
+    max-height: calc(3 * 96px + 24px);
     overflow-y: auto;
     overflow-x: hidden;
     display: grid;
@@ -1616,6 +1618,11 @@ body.dashboard-panel-open .menu-btn {
     gap: 10px;
     padding-right: 12px;
     padding-top: 2px;
+}
+
+/* Prevent body scrolling while modal/add-on screen is open */
+body.modal-open {
+    overflow: hidden;
 }
 .cart-addon-item {
     background: #fff;
