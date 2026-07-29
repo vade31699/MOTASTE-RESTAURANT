@@ -2802,9 +2802,7 @@ const menuOverlayCategories = document.getElementById('menuOverlayCategories');
 const menuOverlayHeader = document.querySelector('.menu-overlay-header');
 const menuOverlayActionsPanel = document.querySelector('.menu-overlay-actions-panel');
 const menuCategoryScreen = document.getElementById('menuCategoryScreen');
-const menuCategoryTitle = document.getElementById('menuCategoryTitle');
 const menuItemsList = document.getElementById('menuItemsList');
-const menuBackBtn = document.getElementById('menuBackBtn');
 const menuCartList = document.getElementById('menuCartList');
 const menuCartCount = document.getElementById('menuCartCount');
 const menuCartHeader = document.querySelector('.menu-cart-header');
@@ -2825,7 +2823,6 @@ const menuOrderMessage = document.getElementById('menuOrderMessage');
 const menuOverlay = document.getElementById('menuOverlay');
 const openMenuBtn = document.getElementById('openMenuBtn');
 const closeMenuOverlayBtn = document.getElementById('closeMenuOverlayBtn');
-let suppressMenuOverlay = false; // when true, prevent menu overlay from opening
 const menuAddOnQuickBtn = document.getElementById('menuAddOnQuickBtn');
 const menuCartButton = document.getElementById('menuCartButton');
 const menuTopCartCount = document.getElementById('menuTopCartCount');
@@ -6317,9 +6314,7 @@ function openCheckoutScreen() {
     orderCheckoutScreen.setAttribute('aria-hidden', 'false');
     renderCheckoutSummary();
     setMenuOverlayMenuVisibility(false);
-    // hide the top menu tab while on checkout/payment and suppress overlay
-    suppressMenuOverlay = true;
-    try { document.body.classList.add('suppress-menu'); } catch (e) { }
+    // hide the top menu tab while on checkout/payment
     try { if (menuNavLink) menuNavLink.style.display = 'none'; } catch (e) { }
 }
 
@@ -6338,8 +6333,6 @@ function closeCheckoutScreen() {
     }
     closeCartAddOnScreen();
     openCartModal();
-    suppressMenuOverlay = false;
-    try { document.body.classList.remove('suppress-menu'); } catch (e) { }
     try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
 }
 
@@ -6357,8 +6350,6 @@ function closeCheckoutScreenCompletely() {
         menuCategoryScreen.setAttribute('aria-hidden', 'true');
     }
     closeCartAddOnScreen();
-    suppressMenuOverlay = false;
-    try { document.body.classList.remove('suppress-menu'); } catch (e) { }
     try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
 }
 
@@ -6461,9 +6452,7 @@ function openPaymentScreen(order) {
         }
     }
     setMenuOverlayMenuVisibility(false);
-    // hide the top menu tab while on payment screen and suppress overlay
-    suppressMenuOverlay = true;
-    try { document.body.classList.add('suppress-menu'); } catch (e) { }
+    // hide the top menu tab while on payment screen
     try { if (menuNavLink) menuNavLink.style.display = 'none'; } catch (e) { }
 }
 
@@ -6481,8 +6470,6 @@ function closePaymentScreen() {
     }
     closeCartAddOnScreen();
     openCartModal();
-    suppressMenuOverlay = false;
-    try { document.body.classList.remove('suppress-menu'); } catch (e) { }
     try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
 }
 
@@ -6552,14 +6539,13 @@ function showMenuCategory(categoryId) {
 
     const isSpecialsCategory = categoryId === 'specials';
     const category = isSpecialsCategory ? { title: 'SPECIALS', items: specialFoods } : menuData[categoryId];
-    if (!category || !menuCategoryScreen || !menuItemsList || !menuCategoryTitle || !menuCategories) return;
+    if (!category || !menuCategoryScreen || !menuItemsList || !menuCategories) return;
     if (menuOverlayCategories) {
         menuOverlayCategories.hidden = true;
         renderMenuOverlayCategories(categoryId);
     }
 
     currentMenuCategoryId = categoryId;
-    menuCategoryTitle.textContent = category.title;
     if (menuOverlayCategories) {
         menuOverlayCategories.hidden = true;
         renderMenuOverlayCategories(categoryId);
@@ -6636,7 +6622,6 @@ function showMenuCategories() {
 
 function openMenuOverlay() {
     if (!menuOverlay) return;
-    if (suppressMenuOverlay) return;
     menuOverlay.classList.remove('hidden');
     menuOverlay.setAttribute('aria-hidden', 'false');
     showMenuCategories();
@@ -7085,10 +7070,6 @@ if (orderTypeOptions) {
         selectedOrderType = button.dataset.order || 'Dine In';
         selectCheckoutOption(orderTypeOptions, 'order', selectedOrderType);
     });
-}
-
-if (menuBackBtn) {
-    menuBackBtn.addEventListener('click', showMenuCategories);
 }
 
 if (dashboardPanel) {
