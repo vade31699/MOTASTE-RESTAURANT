@@ -6404,11 +6404,12 @@ function closePaymentScreen() {
     if (!orderPaymentScreen) return;
     orderPaymentScreen.classList.add('hidden');
     orderPaymentScreen.setAttribute('aria-hidden', 'true');
-    orderCheckoutScreen.classList.remove('hidden');
-    orderCheckoutScreen.setAttribute('aria-hidden', 'false');
-    setMenuOverlayMenuVisibility(false);
-    // keep the menu tab hidden while still in checkout
-    try { if (menuNavLink) menuNavLink.style.display = 'none'; } catch (e) { }
+    if (menuOverlay) {
+        menuOverlay.classList.add('hidden');
+        menuOverlay.setAttribute('aria-hidden', 'true');
+    }
+    openCartModal();
+    try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
 }
 
 function showPaymentSuccessMessage() {
