@@ -2825,6 +2825,18 @@ const paymentSuccessModal = document.getElementById('paymentSuccessModal');
 const paymentSuccessCloseBtn = document.getElementById('paymentSuccessCloseBtn');
 const liveClock = document.getElementById('liveClock');
 
+// Helper to hide/show menu UI elements when entering checkout/payment
+function setMenuVisibility(visible) {
+    try {
+        if (topNav) topNav.style.display = visible ? '' : 'none';
+        if (menuCategories) menuCategories.style.display = visible ? '' : 'none';
+        if (menuCartButton) menuCartButton.style.display = visible ? '' : 'none';
+        const menuSection = document.getElementById('menu');
+        if (menuSection) menuSection.style.display = visible ? '' : 'none';
+        if (menuOverlay) menuOverlay.style.display = visible ? '' : 'none';
+    } catch (e) { /* ignore */ }
+}
+
 let cartItems = [];
 let menuSelectionQuantities = {};
 let pendingOrders = [];
@@ -6286,8 +6298,8 @@ function openCheckoutScreen() {
     orderCheckoutScreen.classList.remove('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'false');
     renderCheckoutSummary();
-    // hide the top menu tab while on checkout/payment
-    try { if (menuNavLink) menuNavLink.style.display = 'none'; } catch (e) { }
+    // hide menu UI while on checkout/payment
+    setMenuVisibility(false);
 }
 
 function closeCheckoutScreen() {
@@ -6296,8 +6308,8 @@ function closeCheckoutScreen() {
     orderCheckoutScreen.classList.add('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'true');
     menuCategoryScreen.classList.remove('hidden');
-    // restore the top menu tab when returning to the menu
-    try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
+    // restore menu UI when returning to the menu
+    setMenuVisibility(true);
 }
 
 function renderCheckoutSummary() {
@@ -6391,8 +6403,8 @@ function openPaymentScreen(order) {
             paymentQrPlaceholder.classList.remove('hidden');
         }
     }
-    // hide the top menu tab while on payment screen
-    try { if (menuNavLink) menuNavLink.style.display = 'none'; } catch (e) { }
+    // hide menu UI while on payment screen
+    setMenuVisibility(false);
 }
 
 function closePaymentScreen() {
@@ -6401,8 +6413,8 @@ function closePaymentScreen() {
     orderPaymentScreen.setAttribute('aria-hidden', 'true');
     orderCheckoutScreen.classList.remove('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'false');
-    // keep the menu tab hidden while still in checkout
-    try { if (menuNavLink) menuNavLink.style.display = 'none'; } catch (e) { }
+    // keep menu UI hidden while still in checkout
+    setMenuVisibility(false);
 }
 
 function showPaymentSuccessMessage() {
