@@ -6672,11 +6672,12 @@ function openPaymentScreen(order) {
     if (!orderPaymentScreen) return;
     console.debug('openPaymentScreen: start', order);
     if (menuOverlay) {
-        menuOverlay.classList.add('hidden');
-        menuOverlay.setAttribute('aria-hidden', 'true');
+        menuOverlay.classList.remove('hidden');
+        menuOverlay.setAttribute('aria-hidden', 'false');
     }
     if (menuCategoryScreen) {
         menuCategoryScreen.classList.add('hidden');
+        menuCategoryScreen.setAttribute('aria-hidden', 'true');
     }
     if (orderCheckoutScreen) {
         orderCheckoutScreen.classList.add('hidden');
@@ -6732,6 +6733,8 @@ function closePaymentScreen() {
     }
     closeCartAddOnScreen();
     openCartModal();
+    suppressMenuOverlay = false;
+    try { document.body.classList.remove('suppress-menu'); } catch (e) { }
     try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
 }
 
@@ -6786,6 +6789,8 @@ async function confirmOrder() {
     }
 
     pendingOrders.unshift(syncedOrder);
+    suppressMenuOverlay = false;
+    try { document.body.classList.remove('suppress-menu'); } catch (e) { }
     registerCustomerOrder(syncedOrder.orderNumber);
     savePendingOrders();
     renderPendingOrders();
@@ -6809,14 +6814,16 @@ function showMenuCategory(categoryId) {
     const isSpecialsCategory = resolvedCategoryId === 'specials';
     const category = isSpecialsCategory ? { title: 'SPECIALS', items: specialFoods } : menuData[resolvedCategoryId];
     if (!category || !menuCategoryScreen || !menuItemsList || !menuCategories) return;
-
-    currentMenuCategoryId = resolvedCategoryId;
-
     if (menuOverlayCategories) {
-        menuOverlayCategories.hidden = false;
+        menuOverlayCategories.hidden = true;
         renderMenuOverlayCategories(resolvedCategoryId);
     }
 
+    currentMenuCategoryId = categoryId;
+    if (menuOverlayCategories) {
+        menuOverlayCategories.hidden = true;
+        renderMenuOverlayCategories(categoryId);
+    }
     menuItemsList.innerHTML = category.items.map((item) => {
         const isOutOfStock = isItemOutOfStock(item.name);
         const selectedQty = menuSelectionQuantities[item.name] || 0;
@@ -6846,6 +6853,7 @@ function showMenuCategory(categoryId) {
         menuItemsList.innerHTML = '<div class="menu-empty-message">No products available in this category.</div>';
     }
 
+    menuCategories.hidden = true;
     menuCategoryScreen.classList.remove('hidden');
     menuCategoryScreen.setAttribute('aria-hidden', 'false');
     updateCartDisplay();
@@ -6883,7 +6891,7 @@ function showMenuCategories() {
     menuCategories.hidden = false;
     if (menuOverlayCategories) {
         menuOverlayCategories.hidden = false;
-        renderMenuOverlayCategories(currentMenuCategoryId || '');
+        renderMenuOverlayCategories();
     }
     menuCategoryScreen.classList.add('hidden');
     menuCategoryScreen.setAttribute('aria-hidden', 'true');
