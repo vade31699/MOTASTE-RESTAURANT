@@ -4641,19 +4641,17 @@ function applyCustomMenuSnapshot(snapshot) {
     });
 
     if (Array.isArray(snapshot.specialFoods)) {
-        const seenSpecialFoods = new Set();
         snapshot.specialFoods.forEach((food) => {
-            const normalizedName = (food.name || '').trim().toLowerCase();
-            if (!normalizedName || seenSpecialFoods.has(normalizedName)) return;
+            const name = (food.name || '').trim();
+            if (!name) return;
 
             specialFoods.push({
-                name: food.name,
+                name,
                 price: Number(food.price) || 0,
                 image: food.image || 'img1.jpg',
                 description: food.description || '',
                 components: normalizeSpecialComponents(food.components)
             });
-            seenSpecialFoods.add(normalizedName);
         });
     }
 
