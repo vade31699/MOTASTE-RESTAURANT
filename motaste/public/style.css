@@ -2848,7 +2848,7 @@ body.modal-open {
     border: none;
     border-radius: 10px;
     background: #111;
-    color: #fff;
+    color: #000000;
     font-weight: 700;
     cursor: pointer;
     padding: 8px 10px;
