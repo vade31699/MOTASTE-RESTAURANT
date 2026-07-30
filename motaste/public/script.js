@@ -7335,21 +7335,9 @@ if (paymentConfirmationBackBtn) {
 
 if (orderPaymentCloseBtn) {
     orderPaymentCloseBtn.addEventListener('click', () => {
-        if (orderPaymentScreen) {
-            orderPaymentScreen.classList.add('hidden');
-            orderPaymentScreen.setAttribute('aria-hidden', 'true');
-        }
-        if (menuOverlay) {
-            menuOverlay.classList.add('hidden');
-            menuOverlay.setAttribute('aria-hidden', 'true');
-        }
-        if (menuCategoryScreen) {
-            menuCategoryScreen.classList.add('hidden');
-        }
-        if (orderCheckoutScreen) {
-            orderCheckoutScreen.classList.add('hidden');
-            orderCheckoutScreen.setAttribute('aria-hidden', 'true');
-        }
+        // Reuse the central close path so UI state (suppressMenuOverlay, menu rendering)
+        // is consistently reset when closing the payment screen.
+        try { closePaymentScreen(); } catch (e) { /* ignore */ }
         clearCart();
         showPaymentSuccessMessage();
     });
