@@ -6695,6 +6695,8 @@ function openPaymentScreen(order) {
         orderCheckoutScreen.classList.add('hidden');
         orderCheckoutScreen.setAttribute('aria-hidden', 'true');
     }
+    // Ensure cart modal is closed when entering payment screen
+    try { closeCartModal(); } catch (e) { }
     orderPaymentScreen.classList.remove('hidden');
     orderPaymentScreen.setAttribute('aria-hidden', 'false');
 
@@ -6744,7 +6746,8 @@ function closePaymentScreen() {
         menuCategoryScreen.setAttribute('aria-hidden', 'true');
     }
     closeCartAddOnScreen();
-    openCartModal();
+    // Keep cart closed after closing payment screen
+    try { closeCartModal(); } catch (e) { }
     suppressMenuOverlay = false;
     try { document.body.classList.remove('suppress-menu'); } catch (e) { }
     try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
