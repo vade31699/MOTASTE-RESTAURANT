@@ -4587,6 +4587,55 @@ function saveCustomMenuData() {
     });
 }
 
+function mergeCustomMenuSnapshots(localSnapshot = {}, remoteSnapshot = {}) {
+    const fixedCategories = ['batchoy', 'silog', 'friedChicken', 'breakfast', 'drinks', 'specials', 'addons'];
+    const merged = { menuData: {}, specialFoods: [] };
+
+    fixedCategories.forEach((categoryKey) => {
+        const remoteItems = Array.isArray(remoteSnapshot.menuData?.[categoryKey]?.items) ? remoteSnapshot.menuData[categoryKey].items : [];
+        const localItems = Array.isArray(localSnapshot.menuData?.[categoryKey]?.items) ? localSnapshot.menuData[categoryKey].items : [];
+        const seenNames = new Set();
+
+        merged.menuData[categoryKey] = {
+            title: remoteSnapshot.menuData?.[categoryKey]?.title || localSnapshot.menuData?.[categoryKey]?.title || categoryKey.toUpperCase(),
+            items: []
+        };
+
+        [...remoteItems, ...localItems].forEach((item) => {
+            const normalizedName = (item.name || '').trim().toLowerCase();
+            if (!normalizedName || seenNames.has(normalizedName)) return;
+            seenNames.add(normalizedName);
+            merged.menuData[categoryKey].items.push({
+                name: item.name,
+                price: item.price,
+                description: item.description || ''
+            });
+        });
+    });
+
+    const seenSpecialSignatures = new Set();
+    const remoteSpecials = Array.isArray(remoteSnapshot.specialFoods) ? remoteSnapshot.specialFoods : [];
+    const localSpecials = Array.isArray(localSnapshot.specialFoods) ? localSnapshot.specialFoods : [];
+
+    [...remoteSpecials, ...localSpecials].forEach((food) => {
+        const name = (food.name || '').trim();
+        if (!name) return;
+        const signature = `${name.toLowerCase()}|${food.image || ''}|${food.description || ''}|${JSON.stringify(normalizeSpecialComponents(food.components))}`;
+        if (seenSpecialSignatures.has(signature)) return;
+        seenSpecialSignatures.add(signature);
+
+        merged.specialFoods.push({
+            name,
+            price: Number(food.price) || 0,
+            image: food.image || 'img1.jpg',
+            description: food.description || '',
+            components: normalizeSpecialComponents(food.components)
+        });
+    });
+
+    return merged;
+}
+
 function applyCustomMenuSnapshot(snapshot) {
     if (!snapshot || typeof snapshot !== 'object') return false;
 
@@ -4705,7 +4754,8 @@ async function loadCustomMenuData() {
 
         const payload = await response.json();
         if (payload && payload.success && payload.snapshot) {
-            const changed = applyCustomMenuSnapshot(payload.snapshot);
+            const mergedSnapshot = mergeCustomMenuSnapshots(parsed, payload.snapshot);
+            const changed = applyCustomMenuSnapshot(mergedSnapshot);
             if (changed) {
                 saveCustomMenuData();
                 syncMenuPricesWithInventory();
