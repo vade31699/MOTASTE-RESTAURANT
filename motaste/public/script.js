@@ -220,6 +220,20 @@ function forceLogoutCurrentStaffSession() {
     if (credentialsSection) credentialsSection.hidden = true;
 }
 
+function setPublicSectionsVisible(visible) {
+    const selectors = ['.front-section', '.about-section', '.menu-section', '#about', '#contact', '.special-foods-section'];
+    selectors.forEach((sel) => {
+        try {
+            const el = document.querySelector(sel);
+            if (!el) return;
+            el.hidden = !visible;
+            el.style.display = visible ? '' : 'none';
+        } catch (e) {
+            // ignore
+        }
+    });
+}
+
 async function enforceActiveSessionValidity() {
     // Disabled automatic logout when credentials change or are removed.
     // Previously this checked stored credentials and forced logout.
@@ -943,6 +957,44 @@ if (logoutBtn) {
         clearStaffSession();
         setDashboardPanelState(false);
         document.body.classList.remove('dashboard-panel-open');
+
+        // Stop background refresh timers and audio when logging out
+        try {
+            stopStaffAccountsRefresh();
+        } catch (e) {
+            console.debug('stopStaffAccountsRefresh unavailable', e);
+        }
+        if (orderLogsRefreshTimer) {
+            window.clearInterval(orderLogsRefreshTimer);
+            orderLogsRefreshTimer = null;
+        }
+        if (pendingOrdersRefreshTimer) {
+            window.clearInterval(pendingOrdersRefreshTimer);
+            pendingOrdersRefreshTimer = null;
+        }
+        if (customerOrderStatusPoller) {
+            window.clearInterval(customerOrderStatusPoller);
+            customerOrderStatusPoller = null;
+        }
+        if (inventoryRefreshTimer) {
+            window.clearInterval(inventoryRefreshTimer);
+            inventoryRefreshTimer = null;
+        }
+        stopOrderCompletedNotificationSound();
+
+        // Hide or remove the dashboard panel from the DOM so it is not visible after logout
+        try {
+            if (dashboardPanel && dashboardPanel.parentNode) {
+                dashboardPanel.remove();
+            }
+        } catch (e) {
+            console.debug('Unable to remove dashboard panel', e);
+            if (dashboardPanel) dashboardPanel.style.display = 'none';
+        }
+        if (menuBtn) {
+            menuBtn.style.display = 'none';
+            menuBtn.hidden = true;
+        }
     });
 }
 

@@ -12,6 +12,25 @@ body {
     max-width: 100%;
 }
 
+html, body {
+    height: 100%;
+    min-height: 100%;
+}
+
+/* Prevent hidden sections from contributing to layout and stop overscroll */
+[hidden], .hidden {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Contain overscroll within scrolling regions to avoid body overscroll */
+html, body {
+    overscroll-behavior-y: contain;
+}
+
 /* (Reverted: kept original behavior — no forced section hidden rule or image caps) */
 
 .top-bar {
