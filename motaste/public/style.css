@@ -2833,10 +2833,16 @@ body.modal-open {
     justify-content: space-between;
     gap: 12px;
     align-items: center;
+    color: #111;
 }
 .walkin-draft-item-card p {
     margin: 4px 0 0;
     color: #444;
+}
+.walkin-draft-item-card strong,
+.walkin-draft-component-name,
+.walkin-draft-components-title {
+    color: #111;
 }
 .walkin-draft-actions {
     display: inline-flex;
