@@ -1275,7 +1275,10 @@ const analyticsData = {
 };
 
 function createMonthlyDailyData(base, drift) {
-    return Array.from({ length: 30 }, (_, index) => {
+    const year = new Date().getFullYear();
+    const monthIndex = new Date().getMonth();
+    const days = daysInMonth(year, monthIndex);
+    return Array.from({ length: days }, (_, index) => {
         const value = Math.round(base + Math.sin(index / 3) * drift + index * 12);
         return { label: `${index + 1}`, value };
     });
@@ -1283,6 +1286,11 @@ function createMonthlyDailyData(base, drift) {
 
 const monthKeys = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function daysInMonth(year, monthIndex) {
+    // monthIndex: 0 = Jan, 11 = Dec
+    return new Date(year, monthIndex + 1, 0).getDate();
+}
 
 function getCurrentMonthKey() {
     return monthKeys[new Date().getMonth()] || 'jan';
@@ -1330,12 +1338,18 @@ const weeklySalesByMonth = {
 
 function initializeAnalyticsBuckets() {
     monthKeys.forEach((monthKey) => {
-        monthlySalesByMonth[monthKey] = Array.from({ length: 30 }, (_, index) => ({
+        // build per-month daily buckets using the actual days in that month
+        const year = new Date().getFullYear();
+        const monthIndex = monthKeys.indexOf(monthKey);
+        const days = Math.max(28, daysInMonth(year, monthIndex));
+        monthlySalesByMonth[monthKey] = Array.from({ length: days }, (_, index) => ({
             label: `${index + 1}`,
             value: 0,
             orders: 0
         }));
-        weeklySalesByMonth[monthKey] = Array.from({ length: 5 }, (_, index) => ({
+        // weekly buckets: dynamic number of weeks for the month
+        const weeks = Math.ceil(days / 7);
+        weeklySalesByMonth[monthKey] = Array.from({ length: weeks }, (_, index) => ({
             label: `W${index + 1}`,
             value: 0,
             orders: 0
@@ -1357,16 +1371,23 @@ function recalculateSalesAnalytics() {
         const orderDate = new Date(order.timestamp);
         const monthIndex = orderDate.getMonth();
         const monthKey = monthKeys[monthIndex];
-        const dayIndex = Math.min(29, Math.max(0, orderDate.getDate() - 1));
-        const weekIndex = Math.min(4, Math.floor(dayIndex / 7));
+        // Clamp day index to the dynamically-sized month bucket
+        const daysInThisMonth = (monthlySalesByMonth[monthKey] || []).length || 30;
+        const dayIndex = Math.min(Math.max(0, orderDate.getDate() - 1), daysInThisMonth - 1);
+        const weeksForMonth = (weeklySalesByMonth[monthKey] || []).length || 5;
+        const weekIndex = Math.min(weeksForMonth - 1, Math.floor(dayIndex / 7));
         const orderTotal = Number(order.total || 0);
         const completedProducts = (Array.isArray(order.items) ? order.items : []).reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
 
         if (monthKey && monthlySalesByMonth[monthKey]) {
-            monthlySalesByMonth[monthKey][dayIndex].value += orderTotal;
-            monthlySalesByMonth[monthKey][dayIndex].orders += completedProducts;
-            weeklySalesByMonth[monthKey][weekIndex].value += orderTotal;
-            weeklySalesByMonth[monthKey][weekIndex].orders += completedProducts;
+            if (monthlySalesByMonth[monthKey] && monthlySalesByMonth[monthKey][dayIndex]) {
+                monthlySalesByMonth[monthKey][dayIndex].value += orderTotal;
+                monthlySalesByMonth[monthKey][dayIndex].orders += completedProducts;
+            }
+            if (weeklySalesByMonth[monthKey] && weeklySalesByMonth[monthKey][weekIndex]) {
+                weeklySalesByMonth[monthKey][weekIndex].value += orderTotal;
+                weeklySalesByMonth[monthKey][weekIndex].orders += completedProducts;
+            }
             analyticsData.monthly.items[monthIndex].value += orderTotal;
             analyticsData.monthly.items[monthIndex].orders += completedProducts;
         }
