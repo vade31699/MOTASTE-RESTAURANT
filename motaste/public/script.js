@@ -1357,6 +1357,34 @@ function initializeAnalyticsBuckets() {
     });
 }
 
+function seedDemoAnalytics(year) {
+    // seed monthlySalesByMonth and weeklySalesByMonth with plausible demo data
+    monthKeys.forEach((monthKey, monthIdx) => {
+        const days = daysInMonth(year, monthIdx);
+        // seasonal base: simple sinusoidal yearly variation + month factor
+        const monthFactor = 1 + Math.sin((monthIdx / 12) * Math.PI * 2) * 0.15;
+        const base = Math.round(4000 * monthFactor + (year % 10) * 20);
+        const drift = Math.round(800 * monthFactor + (monthIdx % 3) * 40);
+
+        monthlySalesByMonth[monthKey] = Array.from({ length: days }, (_, d) => {
+            // daily pattern: slight weekly cadence + random jitter
+            const weekdayBoost = ((d % 7) === 5 || (d % 7) === 6) ? 1.25 : 1.0; // weekends higher
+            const value = Math.max(0, Math.round((base + Math.sin(d / 3) * drift + d * 8) * weekdayBoost * (0.85 + Math.random() * 0.3)));
+            const orders = Math.max(0, Math.round(value / (50 + Math.random() * 30)));
+            return { label: `${d + 1}`, value, orders };
+        });
+
+        const weeks = Math.ceil(days / 7);
+        weeklySalesByMonth[monthKey] = Array.from({ length: weeks }, (_, w) => {
+            const start = w * 7;
+            const end = Math.min(days, (w + 1) * 7);
+            const weekTotal = monthlySalesByMonth[monthKey].slice(start, end).reduce((s, it) => s + it.value, 0);
+            const weekOrders = monthlySalesByMonth[monthKey].slice(start, end).reduce((s, it) => s + it.orders, 0);
+            return { label: `W${w + 1}`, value: weekTotal, orders: weekOrders };
+        });
+    });
+}
+
 function recalculateSalesAnalytics() {
     initializeAnalyticsBuckets();
 
@@ -1366,6 +1394,19 @@ function recalculateSalesAnalytics() {
         orders: 0,
         display: `₱0`
     }));
+
+    // If there are no completed orders, seed demo analytics data
+    if (!Array.isArray(completedOrders) || completedOrders.length === 0) {
+        seedDemoAnalytics(new Date().getFullYear());
+        // populate monthly aggregate items from seeded daily buckets
+        monthKeys.forEach((mKey, idx) => {
+            const daily = monthlySalesByMonth[mKey] || [];
+            const total = daily.reduce((s, it) => s + (Number(it.value) || 0), 0);
+            const orders = daily.reduce((s, it) => s + (Number(it.orders) || 0), 0);
+            analyticsData.monthly.items[idx].value = total;
+            analyticsData.monthly.items[idx].orders = orders;
+        });
+    }
 
     completedOrders.forEach((order) => {
         const orderDate = new Date(order.timestamp);
