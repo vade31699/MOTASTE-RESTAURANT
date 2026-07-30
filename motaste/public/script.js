@@ -1261,8 +1261,9 @@ if (credentialsLink && credentialsSection) {
 function updateAccountManagementAccess() {
     const setLinkState = (link, isAllowed) => {
         if (!link) return;
-        link.classList.toggle('disabled', !isAllowed);
-        link.setAttribute('aria-disabled', String(!isAllowed));
+        link.hidden = !isAllowed;
+        link.classList.toggle('disabled', false);
+        link.removeAttribute('aria-disabled');
     };
 
     setLinkState(ordersLink, canManageOrders());
