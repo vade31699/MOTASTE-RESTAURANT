@@ -6809,16 +6809,14 @@ function showMenuCategory(categoryId) {
     const isSpecialsCategory = resolvedCategoryId === 'specials';
     const category = isSpecialsCategory ? { title: 'SPECIALS', items: specialFoods } : menuData[resolvedCategoryId];
     if (!category || !menuCategoryScreen || !menuItemsList || !menuCategories) return;
+
+    currentMenuCategoryId = resolvedCategoryId;
+
     if (menuOverlayCategories) {
-        menuOverlayCategories.hidden = true;
+        menuOverlayCategories.hidden = false;
         renderMenuOverlayCategories(resolvedCategoryId);
     }
 
-    currentMenuCategoryId = categoryId;
-    if (menuOverlayCategories) {
-        menuOverlayCategories.hidden = true;
-        renderMenuOverlayCategories(categoryId);
-    }
     menuItemsList.innerHTML = category.items.map((item) => {
         const isOutOfStock = isItemOutOfStock(item.name);
         const selectedQty = menuSelectionQuantities[item.name] || 0;
@@ -6848,7 +6846,6 @@ function showMenuCategory(categoryId) {
         menuItemsList.innerHTML = '<div class="menu-empty-message">No products available in this category.</div>';
     }
 
-    menuCategories.hidden = true;
     menuCategoryScreen.classList.remove('hidden');
     menuCategoryScreen.setAttribute('aria-hidden', 'false');
     updateCartDisplay();
@@ -6886,7 +6883,7 @@ function showMenuCategories() {
     menuCategories.hidden = false;
     if (menuOverlayCategories) {
         menuOverlayCategories.hidden = false;
-        renderMenuOverlayCategories();
+        renderMenuOverlayCategories(currentMenuCategoryId || '');
     }
     menuCategoryScreen.classList.add('hidden');
     menuCategoryScreen.setAttribute('aria-hidden', 'true');
