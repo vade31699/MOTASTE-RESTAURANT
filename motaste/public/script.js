@@ -226,22 +226,38 @@ async function enforceActiveSessionValidity() {
     return;
 }
 
-function saveStaffAccountsToServer() {
+async function saveStaffAccountsToServer() {
     saveStaffAccountsToStorage();
     window.motasteStaffAccounts = accounts;
 
-    void withCsrfHeaders({
-        'Content-Type': 'application/json'
-    }).then((headers) => {
-        return fetch(getApiUrl('api/save_staff_accounts.php'), {
+    try {
+        const headers = await withCsrfHeaders({
+            'Content-Type': 'application/json'
+        });
+
+        const response = await fetch(getApiUrl('api/save_staff_accounts.php'), {
             method: 'POST',
             headers,
             body: JSON.stringify(accounts),
             cache: 'no-store'
         });
-    }).catch((error) => {
+
+        if (!response.ok) {
+            console.error('Unable to sync staff accounts to server', response.statusText);
+            return false;
+        }
+
+        const payload = await response.json().catch(() => null);
+        if (!payload || payload.success !== true) {
+            console.error('Unable to sync staff accounts to server', payload);
+            return false;
+        }
+
+        return true;
+    } catch (error) {
         console.error('Unable to sync staff accounts to server', error);
-    });
+        return false;
+    }
 }
 
 function startStaffAccountsRefresh() {
@@ -2416,7 +2432,11 @@ if (accountForm) {
         void loadOrderLogsFromServer(true);
 
         window.motasteStaffAccounts = accounts;
-        saveStaffAccountsToServer();
+        const syncSuccessful = await saveStaffAccountsToServer();
+        if (!syncSuccessful) {
+            alert('Unable to save staff account to the server. Please try again or contact support.');
+            return;
+        }
 
         const currentRole = selectedRoleInput ? selectedRoleInput.value : '';
         const currentEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
