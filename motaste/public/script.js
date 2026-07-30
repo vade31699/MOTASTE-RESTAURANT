@@ -502,11 +502,15 @@ function getPersistedActiveSection() {
 
 function restoreStaffSession() {
     const persistedSession = getPersistedStaffSession();
-    if (!persistedSession) return false;
+    if (!persistedSession) {
+        forceLogoutCurrentStaffSession();
+        return false;
+    }
 
     const { role, email, password } = persistedSession;
     if (!role || !email || !password || !allowedRoles.includes(role) || !isValidStaffLogin(role, email, password)) {
         clearStaffSession();
+        forceLogoutCurrentStaffSession();
         return false;
     }
 
