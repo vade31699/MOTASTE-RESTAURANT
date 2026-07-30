@@ -2156,6 +2156,7 @@ function renderSpecialCustomizeControls() {
 
     if (!selectedSpecialComponents.length) {
         specialCustomizeList.innerHTML = '<p class="menu-cart-empty">No components added yet.</p>';
+        updateSpecialPriceForModal();
         return;
     }
 
@@ -2165,6 +2166,7 @@ function renderSpecialCustomizeControls() {
             <button type="button" class="special-customize-remove-btn" data-index="${index}">Remove</button>
         </div>
     `).join('');
+    updateSpecialPriceForModal();
 }
 
 function setInventoryModalVisible(isVisible) {
@@ -2256,6 +2258,7 @@ function updateSpecialFoodImageFieldVisibility() {
 
     if (isSpecials) {
         renderSpecialCustomizeControls();
+        updateSpecialPriceForModal();
     }
 
     if (!isSpecials) {
@@ -2266,6 +2269,11 @@ function updateSpecialFoodImageFieldVisibility() {
             specialFoodImageInput.disabled = true;
         }
         setSpecialFoodImagePreview('');
+    }
+
+    if (inventoryPriceInput) {
+        inventoryPriceInput.disabled = isSpecials;
+        inventoryPriceInput.placeholder = isSpecials ? 'Price auto-calculated from components' : 'Price';
     }
 
     // Ensure inputs are disabled when not specials to prevent interaction
@@ -2315,6 +2323,7 @@ if (specialCustomizeAddBtn) {
         }
 
         renderSpecialCustomizeControls();
+        updateSpecialPriceForModal();
     });
 }
 
@@ -2328,6 +2337,7 @@ if (specialCustomizeList) {
 
         selectedSpecialComponents.splice(index, 1);
         renderSpecialCustomizeControls();
+        updateSpecialPriceForModal();
     });
 }
 
@@ -4836,6 +4846,23 @@ function getInventoryItem(name) {
     return inventoryData.find((item) => normalizeInventoryName(item.name) === targetName);
 }
 
+function getSpecialPriceFromComponents(components) {
+    return normalizeSpecialComponents(components).reduce((sum, component) => {
+        const inventoryItem = getInventoryItem(component.name);
+        const unitPrice = inventoryItem ? Number(inventoryItem.price) : 0;
+        return sum + Math.max(0, unitPrice) * Math.max(0, Number(component.quantity) || 0);
+    }, 0);
+}
+
+function updateSpecialPriceForModal() {
+    if (!inventoryPriceInput || !inventoryCategoryInput) return;
+    const isSpecials = inventoryCategoryInput.value === 'specials';
+    if (!isSpecials) return;
+
+    const price = getSpecialPriceFromComponents(selectedSpecialComponents);
+    inventoryPriceInput.value = price.toFixed(2);
+}
+
 function getCartQuantityForItem(name) {
     return cartItems.reduce((total, item) => total + (normalizeInventoryName(item.name) === normalizeInventoryName(name) ? Number(item.quantity) || 0 : 0), 0);
 }
@@ -5510,15 +5537,22 @@ async function saveInventoryItem(event) {
     if (!inventoryNameInput || !inventoryPriceInput || !inventoryStockInput || !inventoryStatusInput || !inventoryCategoryInput || !inventoryDescriptionInput) return;
 
     const name = inventoryNameInput.value.trim();
-    const price = Number(inventoryPriceInput.value);
-    const stock = Number(inventoryStockInput.value);
     const category = inventoryCategoryInput.value || 'specials';
+    const stock = Number(inventoryStockInput.value);
     const status = stock <= 0 ? 'Out of stock' : inventoryStatusInput.value;
     const description = inventoryDescriptionInput.value.trim();
     const specialImage = category === 'specials' ? selectedSpecialFoodImageData : '';
     const specialComponents = category === 'specials' ? normalizeSpecialComponents(selectedSpecialComponents) : [];
+    const price = category === 'specials'
+        ? getSpecialPriceFromComponents(specialComponents)
+        : Number(inventoryPriceInput.value);
 
     if (!name || Number.isNaN(price) || Number.isNaN(stock)) {
+        return;
+    }
+
+    if (category === 'specials' && !specialComponents.length) {
+        window.alert('Special food price is calculated from added components. Add at least one component to save.');
         return;
     }
 
