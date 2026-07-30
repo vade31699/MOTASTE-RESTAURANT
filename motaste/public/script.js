@@ -549,6 +549,9 @@ function restoreStaffSession() {
     updateAccountManagementAccess();
     renderInventoryManagement();
     setAuthButtonsVisible(true);
+    if (dashboardPanel) {
+        dashboardPanel.style.display = '';
+    }
 
     const targetSectionId = resolveAccessibleSection(getPersistedActiveSection());
     const targetSection = document.getElementById(targetSectionId);
@@ -881,6 +884,9 @@ function attachStaffLoginHandler() {
         updateAccountManagementAccess();
         renderInventoryManagement();
         setAuthButtonsVisible(true);
+        if (dashboardPanel) {
+            dashboardPanel.style.display = '';
+        }
         // After login, show the Overview dashboard as the main page
         if (overviewSection) {
             showDashboardSection(overviewSection);
@@ -986,14 +992,9 @@ if (logoutBtn) {
         }
         stopOrderCompletedNotificationSound();
 
-        // Hide or remove the dashboard panel from the DOM so it is not visible after logout
-        try {
-            if (dashboardPanel && dashboardPanel.parentNode) {
-                dashboardPanel.remove();
-            }
-        } catch (e) {
-            console.debug('Unable to remove dashboard panel', e);
-            if (dashboardPanel) dashboardPanel.style.display = 'none';
+        // Hide the dashboard panel when logged out so it does not remain visible.
+        if (dashboardPanel) {
+            dashboardPanel.style.display = 'none';
         }
         if (menuBtn) {
             menuBtn.style.display = 'none';
