@@ -1702,10 +1702,16 @@ body.modal-open {
     color: #111;
 }
 .menu-category-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
     border: none;
     background: #111;
     color: #fff;
     padding: 18px 16px;
+    min-height: 52px;
+    min-width: 120px;
     font-size: 0.95rem;
     font-weight: 700;
     border-radius: 14px;
@@ -1714,6 +1720,7 @@ body.modal-open {
 }
 .menu-category-btn:hover,
 .menu-category-btn:focus {
+    transform: none;
     background: #ff9800;
     color: #111;
 }
@@ -2315,7 +2322,7 @@ body.modal-open {
 .menu-item-qty-btn {
     width: 32px;
     height: 32px;
-    border: none;
+    border: 1px solid transparent;
     border-radius: 50%;
     background: #111;
     color: #fff;
@@ -2324,10 +2331,17 @@ body.modal-open {
     cursor: pointer;
     display: grid;
     place-items: center;
+    outline: none;
     transition: background 0.2s ease, color 0.2s ease;
+    will-change: background, color;
 }
 .menu-item-qty-btn:hover,
-.menu-item-qty-btn:focus-visible {
+.menu-item-qty-btn:focus,
+.menu-item-qty-btn:focus-visible,
+.menu-item-qty-btn:active {
+    transform: none !important;
+    box-shadow: none !important;
+    outline: none !important;
     background: #ff9800;
 }
 .menu-item-qty {
@@ -2336,6 +2350,26 @@ body.modal-open {
     font-weight: 700;
     color: #111;
 }
+
+/* Force stable hover states for category and qty buttons */
+.menu-category-btn,
+.menu-item-qty-btn {
+    transform: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+.menu-category-btn:hover,
+.menu-category-btn:focus,
+.menu-category-btn:active,
+.menu-item-qty-btn:hover,
+.menu-item-qty-btn:focus,
+.menu-item-qty-btn:focus-visible,
+.menu-item-qty-btn:active {
+    transform: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
 .menu-item-confirmation {
     color: #ff9800;
     font-size: 0.75rem;
