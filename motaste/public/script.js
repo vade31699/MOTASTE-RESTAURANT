@@ -245,15 +245,17 @@ async function saveStaffAccountsToServer() {
         if (!response.ok) {
             const payload = await response.json().catch(() => null);
             const errorMessage = payload && payload.error ? payload.error : response.statusText || `HTTP ${response.status}`;
+            const detailMessage = payload && payload.details ? ` (${payload.details})` : '';
             console.error('Unable to sync staff accounts to server', errorMessage, payload);
-            return { success: false, error: errorMessage };
+            return { success: false, error: errorMessage + detailMessage };
         }
 
         const payload = await response.json().catch(() => null);
         if (!payload || payload.success !== true) {
             const errorMessage = payload && payload.error ? payload.error : 'Unknown server error';
+            const detailMessage = payload && payload.details ? ` (${payload.details})` : '';
             console.error('Unable to sync staff accounts to server', errorMessage, payload);
-            return { success: false, error: errorMessage };
+            return { success: false, error: errorMessage + detailMessage };
         }
 
         return { success: true };
