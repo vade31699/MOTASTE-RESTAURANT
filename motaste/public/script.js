@@ -200,6 +200,10 @@ function forceLogoutCurrentStaffSession() {
     setAuthButtonsVisible(false);
     updateAccountManagementAccess();
     setDashboardPanelState(false);
+    if (dashboardPanel) {
+        dashboardPanel.style.display = 'none';
+    }
+    document.body.classList.remove('dashboard-panel-open');
 
     const staffBox = document.querySelector('.staff-box');
     if (staffBox) {
