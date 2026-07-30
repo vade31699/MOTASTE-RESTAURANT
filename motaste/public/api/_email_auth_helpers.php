@@ -103,13 +103,26 @@ function loadStaffAccountsSnapshot(): array
 
         $accounts = [];
         foreach ($rows as $row) {
+            $email = strtolower(trim((string)($row->email ?? '')));
+            $role = trim((string)($row->role ?? '')) ?: 'Staff';
+            $inviteConfirmed = true;
+
+            if (in_array($role, ['Cashier', 'Inventory Manager'], true)) {
+                $token = DB::table('staff_invite_tokens')
+                    ->where('email', $email)
+                    ->where('role', $role)
+                    ->first();
+
+                $inviteConfirmed = $token ? false : true;
+            }
+
             $accounts[] = [
                 'name' => trim((string)($row->full_name ?? '')) ?: 'Staff',
-                'role' => trim((string)($row->role ?? '')) ?: 'Staff',
-                'email' => strtolower(trim((string)($row->email ?? ''))),
+                'role' => $role,
+                'email' => $email,
                 // Do not expose password hashes as plaintext to clients.
                 'password' => '',
-                'inviteConfirmed' => true,
+                'inviteConfirmed' => $inviteConfirmed,
             ];
         }
 
