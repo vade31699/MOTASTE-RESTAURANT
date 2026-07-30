@@ -2050,6 +2050,8 @@ body.modal-open {
 
 .menu-category-btn:hover {
 
+    transform:translateY(-5px);
+
     background:
     linear-gradient(135deg,#fffffe,#ff9900);
 
@@ -2324,11 +2326,12 @@ body.modal-open {
     cursor: pointer;
     display: grid;
     place-items: center;
-    transition: background 0.2s ease, color 0.2s ease;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 .menu-item-qty-btn:hover,
 .menu-item-qty-btn:focus-visible {
     background: #ff9800;
+    box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.3);
 }
 .menu-item-qty {
     min-width: 24px;
