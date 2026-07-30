@@ -221,39 +221,9 @@ function forceLogoutCurrentStaffSession() {
 }
 
 async function enforceActiveSessionValidity() {
-    if (!document.body.classList.contains('auth')) return;
-
-    const role = selectedRoleInput ? selectedRoleInput.value.trim() : '';
-    const email = emailInput ? emailInput.value.trim().toLowerCase() : '';
-    const password = passwordInput ? passwordInput.value : '';
-    if (!role || !email || !password) return;
-
-    if (isValidStaffLogin(role, email, password)) {
-        return;
-    }
-
-    let refreshed = false;
-    if (!staffAccountsSyncInFlight) {
-        refreshed = await loadStaffAccountsFromServer(true);
-    }
-
-    if (refreshed && isValidStaffLogin(role, email, password)) {
-        return;
-    }
-
-    if (!refreshed && isValidStaffLogin(role, email, password)) {
-        return;
-    }
-
-    if (skipNextLogoutValidation) {
-        skipNextLogoutValidation = false;
-        return;
-    }
-
-    forceLogoutCurrentStaffSession();
-    if (typeof window !== 'undefined' && window.alert) {
-        window.alert('Your account credentials changed or your account was removed. Please log in again.');
-    }
+    // Disabled automatic logout when credentials change or are removed.
+    // Previously this checked stored credentials and forced logout.
+    return;
 }
 
 function saveStaffAccountsToServer() {
