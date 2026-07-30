@@ -6591,7 +6591,13 @@ function closeCheckoutScreen() {
     }
     closeCartAddOnScreen();
     openCartModal();
+    suppressMenuOverlay = false;
+    try { document.body.classList.remove('suppress-menu'); } catch (e) { }
     try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
+    if (menuOverlayCategories) {
+        menuOverlayCategories.hidden = false;
+        renderMenuOverlayCategories(currentMenuCategoryId || '');
+    }
 }
 
 function closeCheckoutScreenCompletely() {
@@ -6608,7 +6614,13 @@ function closeCheckoutScreenCompletely() {
         menuCategoryScreen.setAttribute('aria-hidden', 'true');
     }
     closeCartAddOnScreen();
+    suppressMenuOverlay = false;
+    try { document.body.classList.remove('suppress-menu'); } catch (e) { }
     try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
+    if (menuOverlayCategories) {
+        menuOverlayCategories.hidden = false;
+        renderMenuOverlayCategories(currentMenuCategoryId || '');
+    }
 }
 
 function renderCheckoutSummary() {
@@ -6736,6 +6748,10 @@ function closePaymentScreen() {
     suppressMenuOverlay = false;
     try { document.body.classList.remove('suppress-menu'); } catch (e) { }
     try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
+    if (menuOverlayCategories) {
+        menuOverlayCategories.hidden = false;
+        renderMenuOverlayCategories(currentMenuCategoryId || '');
+    }
 }
 
 function showPaymentSuccessMessage() {
