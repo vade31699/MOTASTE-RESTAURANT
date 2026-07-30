@@ -95,6 +95,8 @@ function loadStaffAccountsSnapshot(): array
     // cannot be recovered from hashes, so returned accounts will omit plaintext
     // passwords (client-side may still have persisted credentials in localStorage).
     try {
+        ensureStaffInviteTokensTable();
+
         $rows = DB::table('staff')
             ->select('full_name', 'role', 'email', 'password_hash', 'created_at')
             ->orderBy('id', 'asc')
@@ -109,8 +111,8 @@ function loadStaffAccountsSnapshot(): array
 
             if (in_array($role, ['Cashier', 'Inventory Manager'], true)) {
                 $token = DB::table('staff_invite_tokens')
-                    ->where('email', $email)
-                    ->where('role', $role)
+                    ->whereRaw('LOWER(email) = ?', [$email])
+                    ->whereRaw('LOWER(role) = ?', [strtolower($role)])
                     ->first();
 
                 $inviteConfirmed = $token ? false : true;
@@ -227,11 +229,12 @@ function saveStaffAccountsSnapshot(array $accounts): void
     }
 
     // Remove any pending invite tokens for accounts that no longer exist.
+    ensureStaffInviteTokensTable();
     if (count($normalizedEmails) === 0) {
         DB::table('staff_invite_tokens')->delete();
     } else {
         DB::table('staff_invite_tokens')
-            ->whereNotIn('email', $normalizedEmails)
+            ->whereNotIn(DB::raw('LOWER(email)'), $normalizedEmails)
             ->delete();
     }
 }

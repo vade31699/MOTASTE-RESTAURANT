@@ -15,7 +15,6 @@ require_once __DIR__ . '/_email_auth_helpers.php';
 
 try {
     $accounts = loadStaffAccountsSnapshot();
-    saveStaffAccountsSnapshot($accounts);
 
     echo json_encode([
         'success' => true,

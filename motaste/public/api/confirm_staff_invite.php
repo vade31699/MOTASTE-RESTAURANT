@@ -31,8 +31,8 @@ try {
     ensureStaffInviteTokensTable();
 
     $token = DB::table('staff_invite_tokens')
-        ->where('email', $email)
-        ->where('role', $role)
+        ->whereRaw('LOWER(email) = ?', [$email])
+        ->whereRaw('LOWER(role) = ?', [strtolower($role)])
         ->orderBy('id', 'desc')
         ->first();
 

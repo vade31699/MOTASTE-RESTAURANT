@@ -13,7 +13,6 @@ require_once __DIR__ . '/_email_auth_helpers.php';
 
 try {
     $accounts = loadStaffAccountsSnapshot();
-    saveStaffAccountsSnapshot($accounts);
 
     $admin = getAdminAccount($accounts);
     if (!$admin) {

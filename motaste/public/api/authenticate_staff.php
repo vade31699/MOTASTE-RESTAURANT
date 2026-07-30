@@ -43,8 +43,8 @@ try {
     $inviteConfirmed = true;
     if (in_array($role, ['Cashier', 'Inventory Manager'], true)) {
         $token = DB::table('staff_invite_tokens')
-            ->where('email', $email)
-            ->where('role', $role)
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->whereRaw('LOWER(role) = ?', [strtolower($role)])
             ->first();
 
         if ($token) {
