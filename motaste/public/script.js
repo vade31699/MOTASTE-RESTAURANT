@@ -243,22 +243,17 @@ async function saveStaffAccountsToServer() {
         });
 
         if (!response.ok) {
-            const payload = await response.json().catch(() => null);
-            const errorMessage = payload && payload.error ? payload.error : response.statusText || `HTTP ${response.status}`;
-            const detailMessage = payload && payload.details ? ` (${payload.details})` : '';
-            console.error('Unable to sync staff accounts to server', errorMessage, payload);
-            return { success: false, error: errorMessage + detailMessage };
+            console.error('Unable to sync staff accounts to server', response.statusText);
+            return false;
         }
 
         const payload = await response.json().catch(() => null);
         if (!payload || payload.success !== true) {
-            const errorMessage = payload && payload.error ? payload.error : 'Unknown server error';
-            const detailMessage = payload && payload.details ? ` (${payload.details})` : '';
-            console.error('Unable to sync staff accounts to server', errorMessage, payload);
-            return { success: false, error: errorMessage + detailMessage };
+            console.error('Unable to sync staff accounts to server', payload);
+            return false;
         }
 
-        return { success: true };
+        return true;
     } catch (error) {
         console.error('Unable to sync staff accounts to server', error);
         return false;
@@ -2437,9 +2432,9 @@ if (accountForm) {
         void loadOrderLogsFromServer(true);
 
         window.motasteStaffAccounts = accounts;
-        const syncResult = await saveStaffAccountsToServer();
-        if (!syncResult.success) {
-            alert(`Unable to save staff account to the server. ${syncResult.error || 'Please try again or contact support.'}`);
+        const syncSuccessful = await saveStaffAccountsToServer();
+        if (!syncSuccessful) {
+            alert('Unable to save staff account to the server. Please try again or contact support.');
             return;
         }
 
