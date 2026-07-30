@@ -6075,6 +6075,59 @@ function getAvailablePendingStockForItem(itemName) {
     return Math.max(0, stock - reserved);
 }
 
+function getReservedPendingDraftComponentQuantity(componentName, excludingDraftIndex = null) {
+    const normalizedName = normalizeInventoryName(componentName);
+    if (!normalizedName) return 0;
+
+    const pendingReserved = getReservedPendingQuantityForItem(componentName);
+    const draftReserved = walkInDraftItems.reduce((sum, item, index) => {
+        if (excludingDraftIndex !== null && index === excludingDraftIndex) return sum;
+        if (!Array.isArray(item.components)) return sum;
+        const component = item.components.find((entry) => normalizeInventoryName(entry.name) === normalizedName);
+        return sum + Math.max(0, Number(component ? component.quantity : 0));
+    }, 0);
+
+    return pendingReserved + draftReserved;
+}
+
+function getAvailablePendingStockForComponent(componentName, excludingDraftIndex = null) {
+    const inventoryItem = getInventoryItem(componentName);
+    if (!inventoryItem) return 0;
+
+    const stock = Math.max(0, Number(inventoryItem.stock) || 0);
+    const reserved = getReservedPendingDraftComponentQuantity(componentName, excludingDraftIndex);
+    return Math.max(0, stock - reserved);
+}
+
+function canIncreaseWalkInDraftComponentQuantity(index, componentName) {
+    return getAvailablePendingStockForComponent(componentName, index) >= 1;
+}
+
+function adjustWalkInDraftItemComponentQuantity(index, componentName, change) {
+    if (Number.isNaN(index) || index < 0 || index >= walkInDraftItems.length || !change) return;
+    const item = walkInDraftItems[index];
+    if (!item) return;
+
+    const currentQuantity = getCartItemComponentQuantity(item, componentName);
+    const nextQuantity = currentQuantity + change;
+    if (change > 0 && !canIncreaseWalkInDraftComponentQuantity(index, componentName)) {
+        setWalkInOrderMessage(`Cannot add more ${componentName}. stock limit reached.`, true);
+        return;
+    }
+    if (nextQuantity < 0) return;
+
+    setCartItemComponentQuantity(item, componentName, nextQuantity);
+    renderWalkInOrderBuilder();
+}
+
+function removeWalkInDraftItemComponent(index, componentName) {
+    if (Number.isNaN(index) || index < 0 || index >= walkInDraftItems.length) return;
+    const item = walkInDraftItems[index];
+    if (!item) return;
+    setCartItemComponentQuantity(item, componentName, 0);
+    renderWalkInOrderBuilder();
+}
+
 function getWalkInDraftTotal() {
     return walkInDraftItems.reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.quantity) || 0)), 0);
 }
@@ -6114,6 +6167,29 @@ function renderWalkInOrderBuilder() {
                 const available = getAvailablePendingStockForItem(item.name);
                 const canIncrease = item.quantity < available;
                 const canDecrease = item.quantity > 1;
+                const customizeOptions = getCartItemCustomizeOptions(item);
+                const hasCustomizeOptions = customizeOptions.length > 0;
+                const customizeExpanded = hasCustomizeOptions && (item.componentsOpen !== false);
+
+                const componentRows = hasCustomizeOptions
+                    ? `<ul class="walkin-draft-component-list">
+                        ${customizeOptions.map((componentName) => {
+                            const quantity = getCartItemComponentQuantity(item, componentName);
+                            const canIncreaseComp = canIncreaseWalkInDraftComponentQuantity(index, componentName);
+                            return `
+                                <li class="walkin-draft-component-item">
+                                    <span class="walkin-draft-component-name">${escapeHtml(componentName)} x${quantity}</span>
+                                    <div class="walkin-draft-component-controls">
+                                        <button type="button" class="walkin-draft-component-btn" data-action="decrease" data-index="${index}" data-component-name="${escapeHtml(componentName)}"${quantity <= 0 ? ' disabled' : ''}>−</button>
+                                        <span class="walkin-draft-component-qty">${quantity}</span>
+                                        <button type="button" class="walkin-draft-component-btn" data-action="increase" data-index="${index}" data-component-name="${escapeHtml(componentName)}"${canIncreaseComp ? '' : ' disabled'}>+</button>
+                                        <button type="button" class="walkin-draft-component-remove-btn" data-index="${index}" data-component-name="${escapeHtml(componentName)}"${quantity <= 0 ? ' disabled' : ''}>Remove</button>
+                                    </div>
+                                </li>
+                            `;
+                        }).join('')}
+                    </ul>`
+                    : '';
 
                 return `
                     <article class="walkin-draft-item-card">
@@ -6127,6 +6203,10 @@ function renderWalkInOrderBuilder() {
                             <button type="button" class="walkin-draft-qty-btn" data-action="increase" data-index="${index}"${canIncrease ? '' : ' disabled'}>+</button>
                             <button type="button" class="walkin-draft-remove-btn" data-index="${index}">Remove</button>
                         </div>
+                        ${hasCustomizeOptions && customizeExpanded ? `<div class="walkin-draft-components">
+                            <p class="walkin-draft-components-title">Components</p>
+                            ${componentRows}
+                        </div>` : ''}
                     </article>
                 `;
             }).join('')}
@@ -6161,14 +6241,37 @@ function addWalkInDraftItem() {
     }
 
     const qtyToAdd = Math.min(quantity, maxAddable);
+    const specialComponents = getSpecialFoodComponentsByName(itemName);
+
     if (existingIndex >= 0) {
+        const existingDraftItem = walkInDraftItems[existingIndex];
+        if (specialComponents.length) {
+            if (!Array.isArray(existingDraftItem.baseComponents) || !existingDraftItem.baseComponents.length) {
+                existingDraftItem.baseComponents = normalizeSpecialComponents(specialComponents);
+            }
+            if (!Array.isArray(existingDraftItem.components) || !existingDraftItem.components.length) {
+                existingDraftItem.components = buildInitialCartComponents(specialComponents, currentDraftQty);
+            }
+            applyBaseComponentsDeltaToCartItem(existingDraftItem, qtyToAdd);
+            existingDraftItem.componentsOpen = Array.isArray(existingDraftItem.components) && existingDraftItem.components.length > 0;
+            existingDraftItem.componentsMode = 'total';
+        }
         walkInDraftItems[existingIndex].quantity += qtyToAdd;
     } else {
-        walkInDraftItems.push({
+        const draftItem = {
             name: inventoryItem.name,
             price: Number(inventoryItem.price) || 0,
             quantity: qtyToAdd
-        });
+        };
+
+        if (specialComponents.length) {
+            draftItem.baseComponents = normalizeSpecialComponents(specialComponents);
+            draftItem.components = buildInitialCartComponents(specialComponents, qtyToAdd);
+            draftItem.componentsMode = 'total';
+            draftItem.componentsOpen = specialComponents.length > 0;
+        }
+
+        walkInDraftItems.push(draftItem);
     }
 
     if (walkInItemQtyInput) {
@@ -7479,6 +7582,23 @@ if (walkInAddItemBtn) {
 
 if (walkInDraftList) {
     walkInDraftList.addEventListener('click', (event) => {
+        const componentButton = event.target.closest('.walkin-draft-component-btn');
+        if (componentButton) {
+            const index = Number(componentButton.dataset.index);
+            const componentName = String(componentButton.dataset.componentName || '').trim();
+            const change = componentButton.dataset.action === 'increase' ? 1 : -1;
+            adjustWalkInDraftItemComponentQuantity(index, componentName, change);
+            return;
+        }
+
+        const removeComponentButton = event.target.closest('.walkin-draft-component-remove-btn');
+        if (removeComponentButton) {
+            const index = Number(removeComponentButton.dataset.index);
+            const componentName = String(removeComponentButton.dataset.componentName || '').trim();
+            removeWalkInDraftItemComponent(index, componentName);
+            return;
+        }
+
         const qtyButton = event.target.closest('.walkin-draft-qty-btn');
         if (qtyButton) {
             const index = Number(qtyButton.dataset.index);
