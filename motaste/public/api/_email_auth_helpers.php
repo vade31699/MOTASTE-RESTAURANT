@@ -151,11 +151,32 @@ function saveStaffAccountsSnapshot(array $accounts): void
             $passwordHash = password_hash($passwordPlain, PASSWORD_DEFAULT);
         }
 
+        // Ensure there is a matching users row for this staff account.
+        $user = DB::table('users')->whereRaw('LOWER(email) = ?', [$email])->first();
+        if ($user) {
+            DB::table('users')->where('id', $user->id)->update([
+                'name' => $name,
+                'updated_at' => now(),
+            ]);
+            $userId = $user->id;
+        } else {
+            $userId = DB::table('users')->insertGetId([
+                'name' => $name,
+                'email' => $email,
+                'password' => $passwordHash !== '' ? $passwordHash : password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
+                'email_verified_at' => now(),
+                'remember_token' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
         // Upsert into staff table using email as key. If password not provided,
         // do not overwrite existing password_hash.
         $existing = DB::table('staff')->whereRaw('LOWER(email) = ?', [$email])->first();
         if ($existing) {
             $update = [
+                'user_id' => $userId,
                 'full_name' => $name,
                 'role' => $role,
                 'updated_at' => now(),
@@ -166,6 +187,8 @@ function saveStaffAccountsSnapshot(array $accounts): void
             DB::table('staff')->where('id', $existing->id)->update($update);
         } else {
             DB::table('staff')->insert([
+                'user_id' => $userId,
+                'position' => null,
                 'full_name' => $name,
                 'role' => $role,
                 'email' => $email,
