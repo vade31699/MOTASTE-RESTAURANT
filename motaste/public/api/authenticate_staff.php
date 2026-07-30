@@ -40,12 +40,24 @@ try {
         exit;
     }
 
+    $inviteConfirmed = true;
+    if (in_array($role, ['Cashier', 'Inventory Manager'], true)) {
+        $token = DB::table('staff_invite_tokens')
+            ->where('email', $email)
+            ->where('role', $role)
+            ->first();
+
+        if ($token) {
+            $inviteConfirmed = false;
+        }
+    }
+
     echo json_encode([
         'success' => true,
         'role' => $role,
         'email' => strtolower(trim((string)($staffRow->email ?? ''))),
         'name' => trim((string)($staffRow->full_name ?? '')),
-        'inviteConfirmed' => true
+        'inviteConfirmed' => $inviteConfirmed
     ]);
 } catch (Throwable $error) {
     http_response_code(500);
