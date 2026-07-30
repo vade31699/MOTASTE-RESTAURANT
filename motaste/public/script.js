@@ -243,17 +243,20 @@ async function saveStaffAccountsToServer() {
         });
 
         if (!response.ok) {
-            console.error('Unable to sync staff accounts to server', response.statusText);
-            return false;
+            const payload = await response.json().catch(() => null);
+            const errorMessage = payload && payload.error ? payload.error : response.statusText || `HTTP ${response.status}`;
+            console.error('Unable to sync staff accounts to server', errorMessage, payload);
+            return { success: false, error: errorMessage };
         }
 
         const payload = await response.json().catch(() => null);
         if (!payload || payload.success !== true) {
-            console.error('Unable to sync staff accounts to server', payload);
-            return false;
+            const errorMessage = payload && payload.error ? payload.error : 'Unknown server error';
+            console.error('Unable to sync staff accounts to server', errorMessage, payload);
+            return { success: false, error: errorMessage };
         }
 
-        return true;
+        return { success: true };
     } catch (error) {
         console.error('Unable to sync staff accounts to server', error);
         return false;
@@ -2432,9 +2435,9 @@ if (accountForm) {
         void loadOrderLogsFromServer(true);
 
         window.motasteStaffAccounts = accounts;
-        const syncSuccessful = await saveStaffAccountsToServer();
-        if (!syncSuccessful) {
-            alert('Unable to save staff account to the server. Please try again or contact support.');
+        const syncResult = await saveStaffAccountsToServer();
+        if (!syncResult.success) {
+            alert(`Unable to save staff account to the server. ${syncResult.error || 'Please try again or contact support.'}`);
             return;
         }
 
@@ -6655,7 +6658,8 @@ async function confirmOrder() {
 
 function showMenuCategory(categoryId) {
     // Prevent background refreshes from forcing the menu overlay open
-    if (suppressMenuOverlay) return;
+    // (also covers checkout/payment screens, not just suppressMenuOverlay)
+    if (isUserInCheckoutOrPayment()) return;
     loadCustomMenuData();
     syncMenuPricesWithInventory();
 
