@@ -180,18 +180,17 @@ body.dashboard-panel-open .menu-btn {
     height: 100vh;
     max-height: 100vh;
     overflow-y: auto;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateX(-100%);
-    background: rgba(255, 255, 255, 0.14);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    /* Dashboard always visible */
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+    background: linear-gradient(180deg,#0b63d7,#0753b8);
     color: #fff;
-    padding: 84px 20px 24px 84px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 84px 20px 24px 24px;
+    border: none;
     border-radius: 0;
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
-    transition: transform 0.32s ease, opacity 0.22s ease, padding 0.32s ease;
+    box-shadow: none;
+    transition: none;
     z-index: 2100;
 }
 
@@ -247,14 +246,23 @@ body.dashboard-panel-open .menu-btn {
 
 .dashboard-panel a {
     display: block;
-    color: #111;
+    color: rgba(255,255,255,0.92);
     text-decoration: none;
-    padding: 10px 0;
-    border-bottom: 1px solid rgba(0,0,0,0.08);
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    transition: background-color 0.12s ease, color 0.12s ease;
 }
 
 .dashboard-panel a:hover {
-    color: #000;
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+}
+
+.dashboard-panel a.active {
+    background: rgba(255,255,255,0.16);
+    color: #fff;
+    font-weight: 700;
 }
 
 .dashboard-panel a.disabled {

@@ -2343,9 +2343,6 @@ if (salesLink && salesSection) {
         event.preventDefault();
         showDashboardSection(salesSection);
         updateAnalyticsView();
-        if (dashboardPanel) {
-            setDashboardPanelState(false);
-        }
     });
 }
 
@@ -2570,6 +2567,8 @@ loadStaffAccountsFromStorage();
 renderAccounts();
 if (isStaffPage) {
     void ensureCsrfToken();
+    // Ensure dashboard is open by default for staff pages
+    setDashboardPanelState(true);
     void loadStaffAccountsFromServer();
     void loadHighlightsFromServer();
     void loadAdminCredentials();
@@ -5653,6 +5652,30 @@ function showDashboardSection(section) {
 
     if (section && section.id) {
         saveActiveSection(section.id);
+    }
+
+    // Update active link highlight in the dashboard panel
+    try {
+        const linkMap = {
+            overview: overviewLink,
+            'pending-orders': ordersLink,
+            inventory: inventoryLink,
+            sales: salesLink,
+            logs: logsLink,
+            'account-management': accountManagementLink,
+            highlights: highlightsLink,
+            credentials: credentialsLink,
+        };
+
+        Object.values(linkMap).forEach((lnk) => {
+            if (!lnk) return;
+            lnk.classList.remove('active');
+        });
+
+        const activeLink = linkMap[section.id];
+        if (activeLink) activeLink.classList.add('active');
+    } catch (e) {
+        // ignore
     }
 }
 
