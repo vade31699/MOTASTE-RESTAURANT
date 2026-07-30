@@ -242,21 +242,22 @@ async function saveStaffAccountsToServer() {
             cache: 'no-store'
         });
 
-        if (!response.ok) {
-            console.error('Unable to sync staff accounts to server', response.statusText);
-            return false;
-        }
-
         const payload = await response.json().catch(() => null);
-        if (!payload || payload.success !== true) {
-            console.error('Unable to sync staff accounts to server', payload);
-            return false;
+        if (!response.ok || !payload || payload.success !== true) {
+            console.error('Unable to sync staff accounts to server', response.statusText || payload);
+            return {
+                success: false,
+                error: (payload && payload.error) ? payload.error : response.statusText || 'Unknown error',
+            };
         }
 
-        return true;
+        return { success: true };
     } catch (error) {
         console.error('Unable to sync staff accounts to server', error);
-        return false;
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+        };
     }
 }
 
@@ -2432,9 +2433,9 @@ if (accountForm) {
         void loadOrderLogsFromServer(true);
 
         window.motasteStaffAccounts = accounts;
-        const syncSuccessful = await saveStaffAccountsToServer();
-        if (!syncSuccessful) {
-            alert('Unable to save staff account to the server. Please try again or contact support.');
+        const syncResult = await saveStaffAccountsToServer();
+        if (!syncResult.success) {
+            alert(`Unable to save staff account to the server. ${syncResult.error || 'Please try again or contact support.'}`);
             return;
         }
 
@@ -2463,7 +2464,7 @@ if (accountForm) {
 }
 
 if (accountList) {
-    accountList.addEventListener('click', (event) => {
+    accountList.addEventListener('click', async (event) => {
         const button = event.target.closest('button');
         if (!button) return;
 
@@ -2476,7 +2477,14 @@ if (accountList) {
             }
             accounts.splice(index, 1);
             window.motasteStaffAccounts = accounts;
-            saveStaffAccountsToServer();
+            const saveResult = await saveStaffAccountsToServer();
+            if (!saveResult.success) {
+                alert(`Unable to delete staff account on the server. ${saveResult.error || 'Please try again.'}`);
+                accounts.splice(index, 0, removedAccount);
+                window.motasteStaffAccounts = accounts;
+                renderAccounts();
+                return;
+            }
             if (removedAccount) {
                 void logStaffActivity('account_deleted', `${removedAccount.name} (${removedAccount.role})`, {
                     email: removedAccount.email,
@@ -2484,6 +2492,7 @@ if (accountList) {
                 });
             }
             void loadOrderLogsFromServer(true);
+            renderAccounts();
             if (removedAccount) {
                 clearSavedCredentialsForRole(removedAccount.role);
                 const currentRole = selectedRoleInput ? selectedRoleInput.value : '';
@@ -2503,7 +2512,6 @@ if (accountList) {
                     setDashboardPanelState(false);
                 }
             }
-            renderAccounts();
             return;
         }
 

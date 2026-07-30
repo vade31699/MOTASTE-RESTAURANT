@@ -211,6 +211,29 @@ function saveStaffAccountsSnapshot(array $accounts): void
             ]);
         }
     }
+
+    // Remove any staff records that were deleted from the account list.
+    $normalizedEmails = array_map(function ($account) {
+        return strtolower(trim((string)$account['email']));
+    }, $normalized);
+
+    if (count($normalizedEmails) === 0) {
+        DB::table('staff')->where('role', '!=', 'Admin')->delete();
+    } else {
+        DB::table('staff')
+            ->whereNotIn(DB::raw('LOWER(email)'), $normalizedEmails)
+            ->where('role', '!=', 'Admin')
+            ->delete();
+    }
+
+    // Remove any pending invite tokens for accounts that no longer exist.
+    if (count($normalizedEmails) === 0) {
+        DB::table('staff_invite_tokens')->delete();
+    } else {
+        DB::table('staff_invite_tokens')
+            ->whereNotIn('email', $normalizedEmails)
+            ->delete();
+    }
 }
 
 function getAdminAccount(array $accounts): ?array
