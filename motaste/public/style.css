@@ -3575,6 +3575,25 @@ body.modal-open {
     min-height: auto;
 }
 
+/* Ensure dashboard sections with the `hidden` attribute take no layout space
+   to prevent body scrolling into empty areas when switching tabs. */
+.overview-section[hidden],
+.inventory-section[hidden],
+.orders-section[hidden],
+.sales-section[hidden],
+.account-management[hidden],
+.orders-section[hidden],
+#pending-orders[hidden],
+#logs[hidden],
+#highlights[hidden],
+#credentials[hidden] {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
 .overview-grid {
     display: grid;
     gap: 20px;
