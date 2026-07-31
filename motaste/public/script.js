@@ -417,45 +417,205 @@ function normalizeInventoryName(name) {
 }
 
 function getSavedLoginCredentials() {
-    // Login credential persistence is disabled.
-    return {};
+    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+        return {};
+    }
+
+    try {
+        const raw = window.localStorage.getItem('motasteSavedLoginCredentials');
+        return raw ? JSON.parse(raw) : {};
+    } catch (error) {
+        console.warn('Unable to load saved login credentials', error);
+        return {};
+    }
 }
 
 function storeSavedLoginCredentials(credentials) {
-    // Login credential persistence is disabled.
+    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+        return;
+    }
+
+    try {
+        window.localStorage.setItem('motasteSavedLoginCredentials', JSON.stringify(credentials || {}));
+    } catch (error) {
+        console.warn('Unable to persist saved login credentials', error);
+    }
 }
 
 function saveCredentialsForRole(role, email, password) {
-    // Remember-me login storage is disabled.
+    if (!role || !email || !password) {
+        return;
+    }
+
+    const normalizedRole = role.trim();
+    if (!normalizedRole) {
+        return;
+    }
+
+    const credentials = getSavedLoginCredentials();
+    credentials[normalizedRole] = {
+        email: email.trim().toLowerCase(),
+        password: password || '',
+        savedAt: new Date().toISOString()
+    };
+
+    storeSavedLoginCredentials(credentials);
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+        try {
+            window.localStorage.setItem(lastLoginRoleStorageKey, normalizedRole);
+        } catch (error) {
+            console.warn('Unable to persist last login role', error);
+        }
+    }
 }
 
 function clearSavedCredentialsForRole(role) {
-    // Remember-me login storage is disabled.
+    if (!role) {
+        return;
+    }
+
+    const normalizedRole = role.trim();
+    const credentials = getSavedLoginCredentials();
+    if (credentials && Object.prototype.hasOwnProperty.call(credentials, normalizedRole)) {
+        delete credentials[normalizedRole];
+        storeSavedLoginCredentials(credentials);
+    }
+
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+        try {
+            const lastRole = window.localStorage.getItem(lastLoginRoleStorageKey);
+            if (lastRole === normalizedRole) {
+                window.localStorage.removeItem(lastLoginRoleStorageKey);
+            }
+        } catch (error) {
+            console.warn('Unable to clear last login role', error);
+        }
+    }
 }
 
 function loadSavedCredentialsForRole(role) {
-    if (emailInput) emailInput.value = '';
-    if (passwordInput) passwordInput.value = '';
-    if (rememberCheckbox) rememberCheckbox.checked = false;
+    const normalizedRole = role ? role.trim() : '';
+    if (!normalizedRole) {
+        if (emailInput) emailInput.value = '';
+        if (passwordInput) passwordInput.value = '';
+        if (rememberCheckbox) rememberCheckbox.checked = false;
+        return;
+    }
+
+    const credentials = getSavedLoginCredentials();
+    const saved = credentials[normalizedRole];
+    if (saved && saved.email && saved.password) {
+        if (selectedRoleInput) {
+            selectedRoleInput.value = normalizedRole;
+        }
+        if (emailInput) {
+            emailInput.value = saved.email;
+        }
+        if (passwordInput) {
+            passwordInput.value = saved.password;
+        }
+        if (rememberCheckbox) {
+            rememberCheckbox.checked = true;
+        }
+    } else {
+        if (emailInput) emailInput.value = '';
+        if (passwordInput) passwordInput.value = '';
+        if (rememberCheckbox) rememberCheckbox.checked = false;
+    }
 }
 
 function loadSavedCredentialsForLastLogin() {
+    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+        if (emailInput) emailInput.value = '';
+        if (passwordInput) passwordInput.value = '';
+        if (rememberCheckbox) rememberCheckbox.checked = false;
+        return;
+    }
+
+    try {
+        const lastRole = window.localStorage.getItem(lastLoginRoleStorageKey);
+        if (lastRole) {
+            loadSavedCredentialsForRole(lastRole);
+            return;
+        }
+    } catch (error) {
+        console.warn('Unable to load last login role', error);
+    }
+
     if (emailInput) emailInput.value = '';
     if (passwordInput) passwordInput.value = '';
     if (rememberCheckbox) rememberCheckbox.checked = false;
 }
 
 function getPersistedStaffSession() {
-    // Staff session persistence is disabled.
-    return null;
+    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+        return null;
+    }
+
+    try {
+        const raw = window.localStorage.getItem(staffSessionStorageKey);
+        if (!raw) {
+            return null;
+        }
+
+        const session = JSON.parse(raw);
+        if (!session || typeof session !== 'object') {
+            return null;
+        }
+
+        return {
+            role: session.role || '',
+            email: session.email || '',
+            password: session.password || '',
+            remember: Boolean(session.remember)
+        };
+    } catch (error) {
+        console.warn('Unable to restore persisted staff session', error);
+        return null;
+    }
 }
 
 function saveStaffSession(role, email, password, remember) {
-    // Staff session persistence is disabled.
+    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+        return;
+    }
+
+    try {
+        if (!remember) {
+            clearStaffSession();
+            return;
+        }
+
+        const session = {
+            role: role ? role.trim() : '',
+            email: email ? email.trim().toLowerCase() : '',
+            password: password || '',
+            remember: Boolean(remember),
+            savedAt: new Date().toISOString()
+        };
+
+        if (!session.role || !session.email || !session.password) {
+            clearStaffSession();
+            return;
+        }
+
+        window.localStorage.setItem(staffSessionStorageKey, JSON.stringify(session));
+        window.localStorage.setItem(lastLoginRoleStorageKey, session.role);
+    } catch (error) {
+        console.warn('Unable to persist staff session', error);
+    }
 }
 
 function clearStaffSession() {
-    // Staff session persistence is disabled.
+    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+        return;
+    }
+
+    try {
+        window.localStorage.removeItem(staffSessionStorageKey);
+    } catch (error) {
+        console.warn('Unable to clear persisted staff session', error);
+    }
 }
 
 function saveActiveSection(sectionId) {
