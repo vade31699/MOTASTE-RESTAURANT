@@ -6201,6 +6201,14 @@ function removeWalkInDraftItemComponent(index, componentName) {
     renderWalkInOrderBuilder();
 }
 
+function toggleWalkInDraftItemComponents(index) {
+    if (Number.isNaN(index) || index < 0 || index >= walkInDraftItems.length) return;
+    const item = walkInDraftItems[index];
+    if (!item || !getCartItemCustomizeOptions(item).length) return;
+    item.componentsOpen = !item.componentsOpen;
+    renderWalkInOrderBuilder();
+}
+
 function getWalkInDraftTotal() {
     return walkInDraftItems.reduce((sum, item) => sum + getCartItemLineTotal(item), 0);
 }
@@ -6242,7 +6250,7 @@ function renderWalkInOrderBuilder() {
                 const canDecrease = item.quantity > 1;
                 const customizeOptions = getCartItemCustomizeOptions(item);
                 const hasCustomizeOptions = customizeOptions.length > 0;
-                const customizeExpanded = hasCustomizeOptions && (item.componentsOpen !== false);
+                const customizeExpanded = hasCustomizeOptions && item.componentsOpen === true;
 
                 const componentRows = hasCustomizeOptions
                     ? `<ul class="walkin-draft-component-list">
@@ -6274,6 +6282,7 @@ function renderWalkInOrderBuilder() {
                             <button type="button" class="walkin-draft-qty-btn" data-action="decrease" data-index="${index}"${canDecrease ? '' : ' disabled'}>−</button>
                             <span>${item.quantity}</span>
                             <button type="button" class="walkin-draft-qty-btn" data-action="increase" data-index="${index}"${canIncrease ? '' : ' disabled'}>+</button>
+                            ${hasCustomizeOptions ? `<button type="button" class="walkin-draft-customize-toggle-btn" data-index="${index}" aria-expanded="${customizeExpanded ? 'true' : 'false'}">${customizeExpanded ? 'Hide Components' : 'Customize'}</button>` : ''}
                             <button type="button" class="walkin-draft-remove-btn" data-index="${index}">Remove</button>
                         </div>
                         ${hasCustomizeOptions && customizeExpanded ? `<div class="walkin-draft-components">
@@ -7670,6 +7679,13 @@ if (walkInDraftList) {
             const index = Number(removeComponentButton.dataset.index);
             const componentName = String(removeComponentButton.dataset.componentName || '').trim();
             removeWalkInDraftItemComponent(index, componentName);
+            return;
+        }
+
+        const toggleCustomizeButton = event.target.closest('.walkin-draft-customize-toggle-btn');
+        if (toggleCustomizeButton) {
+            const index = Number(toggleCustomizeButton.dataset.index);
+            toggleWalkInDraftItemComponents(index);
             return;
         }
 
