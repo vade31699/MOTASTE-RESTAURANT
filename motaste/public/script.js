@@ -1750,6 +1750,7 @@ const logsFilterLabelMap = {
 };
 
 let selectedSpecialFoodImageData = '';
+let selectedSpecialFoodImageFile = null;
 let cachedReviews = [];
 let cachedStaffReviews = [];
 let activeProductDetailItem = null;
@@ -2169,9 +2170,11 @@ if (specialFoodImageInput) {
         try {
             const dataUrl = await resizeImageToSquareDataUrl(file);
             selectedSpecialFoodImageData = dataUrl;
+            selectedSpecialFoodImageFile = file;
             setSpecialFoodImagePreview(dataUrl);
         } catch (error) {
             selectedSpecialFoodImageData = '';
+            selectedSpecialFoodImageFile = null;
             setSpecialFoodImagePreview('');
             if (typeof window !== 'undefined' && window.alert) {
                 window.alert('Unable to process the selected image. Please choose another image.');
@@ -2226,6 +2229,7 @@ function updateSpecialFoodImageFieldVisibility() {
 
     if (!isSpecials) {
         selectedSpecialFoodImageData = '';
+        selectedSpecialFoodImageFile = null;
         selectedSpecialComponents = [];
         if (specialFoodImageInput) {
             specialFoodImageInput.value = '';
@@ -4308,7 +4312,8 @@ async function initializeInventoryData(forceRefresh = false) {
                 stock: Number(item.stock) || 0,
                 status: item.status || (Number(item.stock) > 0 ? 'In stock' : 'Out of stock'),
                 category: item.category || localMatch?.category || resolveInventoryCategory(item.name),
-                description: item.description || localMatch?.description || ''
+                description: item.description || localMatch?.description || '',
+                image: item.image || localMatch?.image || ''
             };
         }).filter((item) => !blockedProductNames.has(normalizeInventoryName(item.name)));
 
@@ -5606,6 +5611,41 @@ async function saveInventoryItem(event) {
     }
 
     const existingItem = inventoryData.find((item) => item.name.toLowerCase() === name.toLowerCase());
+    const previousImageUrl = existingItem?.image || '';
+    let imageUrl = category === 'specials' ? previousImageUrl : '';
+
+    if (category === 'specials' && selectedSpecialFoodImageFile) {
+        try {
+            const uploadForm = new FormData();
+            uploadForm.append('image', selectedSpecialFoodImageFile);
+
+            const uploadResponse = await fetch(getApiUrl('api/upload_special_food_image.php'), {
+                method: 'POST',
+                body: uploadForm,
+                cache: 'no-store'
+            });
+
+            if (!uploadResponse.ok) {
+                throw new Error(`Image upload failed: HTTP ${uploadResponse.status}`);
+            }
+
+            const uploadPayload = await uploadResponse.json();
+            if (!uploadPayload || uploadPayload.success !== true || !uploadPayload.url) {
+                const details = uploadPayload?.details ? ` (${uploadPayload.details})` : '';
+                throw new Error(`Image upload failed: ${uploadPayload?.error || 'No URL returned'}${details}`);
+            }
+
+            imageUrl = uploadPayload.url;
+            selectedSpecialFoodImageData = imageUrl;
+            selectedSpecialFoodImageFile = null;
+        } catch (error) {
+            console.error('Unable to upload special food image', error);
+            window.alert(`Special food image upload failed. ${error?.message || ''}`);
+            inventoryEditLock = false;
+            startInventoryAutoRefresh();
+            return;
+        }
+    }
 
     if (existingItem) {
         existingItem.price = price;
@@ -5614,7 +5654,8 @@ async function saveInventoryItem(event) {
         existingItem.category = category;
         existingItem.description = description;
         existingItem.components = specialComponents;
-        saveMenuCatalogItem({ ...existingItem, description, image: specialImage || existingItem.image || '', components: specialComponents });
+        existingItem.image = imageUrl;
+        saveMenuCatalogItem({ ...existingItem, description, image: imageUrl, components: specialComponents });
     } else {
         inventoryData.push({
             name,
@@ -5623,9 +5664,10 @@ async function saveInventoryItem(event) {
             status,
             category,
             description,
-            components: specialComponents
+            components: specialComponents,
+            image: imageUrl
         });
-        saveMenuCatalogItem({ name, price, stock, status, category, description, image: specialImage || '', components: specialComponents });
+        saveMenuCatalogItem({ name, price, stock, status, category, description, image: imageUrl, components: specialComponents });
     }
 
     inventoryEditItemName = null;
@@ -5635,6 +5677,7 @@ async function saveInventoryItem(event) {
 
     saveInventoryData();
     let syncSucceeded = false;
+
     try {
         const actor = getCurrentStaffActor();
         const response = await fetch(getApiUrl('api/update_inventory.php'), {
@@ -5650,6 +5693,7 @@ async function saveInventoryItem(event) {
                 status,
                 category,
                 description,
+                image: imageUrl,
                 actorRole: actor.role,
                 actorEmail: actor.email
             })

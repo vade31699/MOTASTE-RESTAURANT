@@ -17,7 +17,7 @@ try {
         ->delete();
 
     $rawItems = DB::table('inventory_items')
-        ->select('name', 'price', 'stock', 'status', 'category', 'description')
+        ->select('name', 'price', 'stock', 'status', 'category', 'description', 'image')
         ->orderBy('updated_at', 'desc')
         ->orderBy('id', 'desc')
         ->get()

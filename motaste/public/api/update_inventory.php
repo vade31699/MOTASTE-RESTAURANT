@@ -72,7 +72,9 @@ try {
             ->first();
     }
 
-    DB::transaction(function () use ($normalizedLookup, $normalizedPrevious, $canonicalName, $price, $stock, $normalizedStatus, $category, $description) {
+    $image = isset($input['image']) ? trim((string)$input['image']) : null;
+
+    DB::transaction(function () use ($normalizedLookup, $normalizedPrevious, $canonicalName, $price, $stock, $normalizedStatus, $category, $description, $image) {
         $deleteQuery = DB::table('inventory_items')
             ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedLookup]);
 
@@ -89,6 +91,7 @@ try {
             'status' => $normalizedStatus,
             'category' => $category,
             'description' => $description !== '' ? $description : null,
+            'image' => $image !== '' ? $image : null,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
