@@ -3670,10 +3670,20 @@ async function changePendingOrderItemQuantity(orderIndex, itemId, direction) {
         return;
     }
 
+    // Optimistic UI update for faster response
+    const previousTotal = Number(order.total) || 0;
+    const previousQuantity = currentQuantity;
+    item.quantity = nextQuantity;
+    order.total = previousTotal + (direction === 'increase' ? Number(item.price) || 0 : -(Number(item.price) || 0));
+    renderPendingOrders();
+
     try {
         await updatePendingOrderItemQuantity(order.id, item.id, nextQuantity);
     } catch (error) {
         console.error('Unable to edit pending order quantity', error);
+        item.quantity = previousQuantity;
+        order.total = previousTotal;
+        renderPendingOrders();
         if (typeof window !== 'undefined' && window.alert) {
             window.alert(error.message || 'Unable to edit order quantity');
         }
