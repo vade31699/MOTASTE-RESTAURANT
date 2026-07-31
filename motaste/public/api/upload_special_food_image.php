@@ -46,12 +46,15 @@ try {
         throw new RuntimeException('Unable to save uploaded file to public folder');
     }
 
-    $url = '/special_food_images/' . $fileName;
+    $relativeUrl = '/special_food_images/' . $fileName;
+    $origin = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '');
+    $url = $origin . $relativeUrl;
 
     echo json_encode([
         'success' => true,
         'url' => $url,
         'path' => $destination,
+        'relativeUrl' => $relativeUrl,
     ]);
 } catch (Throwable $error) {
     http_response_code(500);

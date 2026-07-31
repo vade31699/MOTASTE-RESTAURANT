@@ -280,6 +280,26 @@ function getApiUrl(path) {
     }
 }
 
+function normalizeImageUrl(url) {
+    if (!url || typeof url !== 'string') return '';
+    const trimmed = url.trim();
+    if (!trimmed) return '';
+    if (/^https?:\/\//i.test(trimmed)) {
+        return trimmed;
+    }
+    if (trimmed.startsWith('//')) {
+        return `${window.location.protocol}${trimmed}`;
+    }
+    if (trimmed.startsWith('/')) {
+        return `${window.location.origin}${trimmed}`;
+    }
+    try {
+        return new URL(trimmed, window.location.href).toString();
+    } catch (error) {
+        return trimmed;
+    }
+}
+
 let csrfToken = '';
 
 async function ensureCsrfToken() {
@@ -4170,7 +4190,7 @@ async function initializeInventoryData(forceRefresh = false) {
                 status: item.status || (Number(item.stock) > 0 ? 'In stock' : 'Out of stock'),
                 category: item.category || localMatch?.category || resolveInventoryCategory(item.name),
                 description: item.description || localMatch?.description || '',
-                image: item.image || localMatch?.image || ''
+                image: normalizeImageUrl(item.image || localMatch?.image || '')
             };
         }).filter((item) => !blockedProductNames.has(normalizeInventoryName(item.name)));
 
@@ -4412,7 +4432,7 @@ function saveCustomMenuData() {
         specialFoods: specialFoods.map((food) => ({
             name: food.name,
             price: food.price,
-            image: food.image,
+            image: normalizeImageUrl(food.image || 'img1.jpg'),
             description: food.description || '',
             components: normalizeSpecialComponents(food.components)
         }))
@@ -4463,14 +4483,15 @@ function mergeCustomMenuSnapshots(localSnapshot = {}, remoteSnapshot = {}) {
     [...remoteSpecials, ...localSpecials].forEach((food) => {
         const name = (food.name || '').trim();
         if (!name) return;
-        const signature = `${name.toLowerCase()}|${food.image || ''}|${food.description || ''}|${JSON.stringify(normalizeSpecialComponents(food.components))}`;
+        const image = normalizeImageUrl(food.image || 'img1.jpg');
+        const signature = `${name.toLowerCase()}|${image}|${food.description || ''}|${JSON.stringify(normalizeSpecialComponents(food.components))}`;
         if (seenSpecialSignatures.has(signature)) return;
         seenSpecialSignatures.add(signature);
 
         merged.specialFoods.push({
             name,
             price: Number(food.price) || 0,
-            image: food.image || 'img1.jpg',
+            image,
             description: food.description || '',
             components: normalizeSpecialComponents(food.components)
         });
@@ -4540,7 +4561,7 @@ function applyCustomMenuSnapshot(snapshot) {
             specialFoods.push({
                 name,
                 price: Number(food.price) || 0,
-                image: food.image || 'img1.jpg',
+                image: normalizeImageUrl(food.image || 'img1.jpg'),
                 description: food.description || '',
                 components: normalizeSpecialComponents(food.components)
             });
@@ -5094,6 +5115,7 @@ function syncMenuPricesWithInventory() {
         if (priceMap[normalizedName] !== undefined) {
             food.price = Number(priceMap[normalizedName].price) || 0;
             food.description = priceMap[normalizedName].description || food.description || '';
+            food.image = normalizeImageUrl(priceMap[normalizedName].image || food.image || 'img1.jpg');
         }
     });
 }
@@ -5420,7 +5442,7 @@ async function saveInventoryItem(event) {
                 throw new Error(`Image upload failed: ${uploadPayload?.error || 'No URL returned'}${details}`);
             }
 
-            imageUrl = uploadPayload.url;
+            imageUrl = normalizeImageUrl(String(uploadPayload.url || ''));
             selectedSpecialFoodImageData = imageUrl;
             selectedSpecialFoodImageFile = null;
         } catch (error) {
@@ -5720,7 +5742,7 @@ function renderSpecialFoods() {
     if (!specialFoodsList) return;
 
     specialFoodsList.innerHTML = specialFoods.map((item) => {
-        const imageSrc = item.image || 'img1.jpg';
+        const imageSrc = normalizeImageUrl(item.image || 'img1.jpg');
         const description = getInventoryDescription(item.name, item.description || 'Tap the image to view full details.');
         const isOutOfStock = isItemOutOfStock(item.name);
         return `
@@ -6679,6 +6701,12 @@ function closeCheckoutScreenCompletely() {
         menuOverlayCategories.hidden = false;
         renderMenuOverlayCategories(currentMenuCategoryId || '');
     }
+
+    if (currentMenuCategoryId) {
+        showMenuCategory(currentMenuCategoryId);
+    } else if (menuOverlay) {
+        openMenuOverlay();
+    }
 }
 
 function renderCheckoutSummary() {
@@ -6998,6 +7026,16 @@ function closeCartModal() {
     closeCartAddOnScreen();
     cartModal.classList.add('hidden');
     cartModal.setAttribute('aria-hidden', 'true');
+
+    if (orderCheckoutScreen && !orderCheckoutScreen.classList.contains('hidden')) {
+        closeCheckoutScreenCompletely();
+        return;
+    }
+
+    if (orderPaymentScreen && !orderPaymentScreen.classList.contains('hidden')) {
+        closePaymentScreen();
+        return;
+    }
 }
 
 if (openMenuBtn) {
@@ -7010,6 +7048,9 @@ if (openMenuBtn) {
 if (menuNavLink) {
     menuNavLink.addEventListener('click', (event) => {
         event.preventDefault();
+        if (isUserInCheckoutOrPayment()) {
+            closeCheckoutScreenCompletely();
+        }
         if (menuCategories) {
             menuCategories.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
