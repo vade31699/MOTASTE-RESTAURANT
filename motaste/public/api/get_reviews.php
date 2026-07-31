@@ -13,23 +13,8 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 try {
-    DB::statement("CREATE TABLE IF NOT EXISTS customer_reviews (
-        id BIGSERIAL PRIMARY KEY,
-        rating INTEGER NOT NULL,
-        review_text TEXT NOT NULL,
-        reviewer_key VARCHAR(191) NULL,
-        reviewed_on DATE NULL,
-        publish_status VARCHAR(20) NOT NULL DEFAULT 'pending',
-        published_at TIMESTAMP NULL,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
-
-    DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS reviewer_key VARCHAR(191) NULL");
-    DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS reviewed_on DATE NULL");
-    DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS publish_status VARCHAR(20) NOT NULL DEFAULT 'pending'");
-    DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS published_at TIMESTAMP NULL");
-
+    
+                
     DB::statement("UPDATE customer_reviews SET publish_status = 'published' WHERE publish_status IS NULL");
     DB::statement("UPDATE customer_reviews SET reviewed_on = COALESCE(reviewed_on, DATE(created_at), CURRENT_DATE) WHERE reviewed_on IS NULL");
 

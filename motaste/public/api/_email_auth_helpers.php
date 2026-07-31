@@ -12,29 +12,14 @@ function ensureStaffAccountSnapshotsTable(): void
 
 function ensureStaffInviteTokensTable(): void
 {
-    DB::statement("CREATE TABLE IF NOT EXISTS staff_invite_tokens (
-        id BIGSERIAL PRIMARY KEY,
-        email VARCHAR(191) NOT NULL,
-        role VARCHAR(100) NOT NULL,
-        code_hash VARCHAR(191) NOT NULL,
-        expires_at TIMESTAMP NOT NULL,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
+    // Schema is managed by Laravel migrations.
+    return;
 }
 
 function ensureAdminCredentialChangeTokensTable(): void
 {
-    DB::statement("CREATE TABLE IF NOT EXISTS admin_credential_change_tokens (
-        id BIGSERIAL PRIMARY KEY,
-        current_email VARCHAR(191) NOT NULL,
-        code_hash VARCHAR(191) NOT NULL,
-        pending_email VARCHAR(191) NOT NULL,
-        pending_password VARCHAR(191) NOT NULL,
-        expires_at TIMESTAMP NOT NULL,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
+    // Schema is managed by Laravel migrations.
+    return;
 }
 
 function normalizeStaffAccountsSnapshot($snapshot): array
@@ -132,14 +117,8 @@ function loadStaffAccountsSnapshot(): array
         $normalized = normalizeStaffAccountsSnapshot($accounts);
         return $normalized;
     } catch (Throwable $error) {
-        // Fallback to previous snapshot behavior when DB access fails
-        ensureStaffAccountSnapshotsTable();
-        $snapshot = DB::table('staff_account_snapshots')
-            ->where('snapshot_key', 'motaste-staff-accounts')
-            ->value('snapshot_payload');
-
-        $decoded = $snapshot ? json_decode((string)$snapshot, true) : [];
-        return normalizeStaffAccountsSnapshot($decoded);
+        // Fallback to normalized empty account list when DB access fails.
+        return normalizeStaffAccountsSnapshot([]);
     }
 }
 

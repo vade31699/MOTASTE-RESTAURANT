@@ -12,14 +12,7 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 use Illuminate\Support\Facades\DB;
 
 try {
-    DB::statement("CREATE TABLE IF NOT EXISTS highlights_snapshots (
-        id BIGSERIAL PRIMARY KEY,
-        snapshot_key VARCHAR(191) NOT NULL UNIQUE,
-        snapshot_payload TEXT NOT NULL,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
-
+    
     $snapshot = DB::table('highlights_snapshots')
         ->where('snapshot_key', 'motaste-highlights')
         ->first();

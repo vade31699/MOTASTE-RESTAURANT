@@ -15,63 +15,8 @@ require_once __DIR__ . '/csrf_guard.php';
 
 function ensureReviewTables(): void
 {
-    DB::statement("CREATE TABLE IF NOT EXISTS customer_reviews (
-        id BIGSERIAL PRIMARY KEY,
-        rating INTEGER NOT NULL,
-        review_text TEXT NOT NULL,
-        reviewer_key VARCHAR(191) NULL,
-        reviewed_on DATE NULL,
-        publish_status VARCHAR(20) NOT NULL DEFAULT 'pending',
-        published_at TIMESTAMP NULL,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
-
-    DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS reviewer_key VARCHAR(191) NULL");
-    DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS reviewed_on DATE NULL");
-    DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS publish_status VARCHAR(20) NOT NULL DEFAULT 'pending'");
-    DB::statement("ALTER TABLE customer_reviews ADD COLUMN IF NOT EXISTS published_at TIMESTAMP NULL");
-
-    DB::statement("UPDATE customer_reviews SET publish_status = 'published' WHERE publish_status IS NULL");
-    DB::statement("UPDATE customer_reviews SET reviewed_on = COALESCE(reviewed_on, DATE(created_at), CURRENT_DATE) WHERE reviewed_on IS NULL");
-
-    DB::statement("CREATE TABLE IF NOT EXISTS order_activity_logs (
-        id BIGSERIAL PRIMARY KEY,
-        order_id BIGINT NULL,
-        order_number VARCHAR(191) NULL,
-        action VARCHAR(100) NOT NULL,
-        actor_role VARCHAR(100) NULL,
-        actor_email VARCHAR(191) NULL,
-        summary TEXT NULL,
-        details TEXT NULL,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
-
-    DB::statement("CREATE TABLE IF NOT EXISTS review_daily_blocks (
-        id BIGSERIAL PRIMARY KEY,
-        reviewer_key VARCHAR(191) NOT NULL,
-        blocked_on DATE NOT NULL,
-        reason VARCHAR(191) NULL,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
-    DB::statement("CREATE UNIQUE INDEX IF NOT EXISTS review_daily_blocks_reviewer_day_idx ON review_daily_blocks (reviewer_key, blocked_on)");
-}
-
-function resolveClientIpAddress(): string
-{
-    $forwarded = trim((string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
-    if ($forwarded !== '') {
-        $parts = explode(',', $forwarded);
-        $candidate = trim((string)($parts[0] ?? ''));
-        if ($candidate !== '') {
-            return $candidate;
-        }
-    }
-
-    $remote = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
-    return $remote !== '' ? $remote : 'unknown';
+    // Schema is managed by Laravel migrations.
+    return;
 }
 
 $input = json_decode(file_get_contents('php://input'), true);

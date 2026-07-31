@@ -13,33 +13,8 @@ use Illuminate\Support\Facades\DB;
 
 function ensureOrderLogsTable(): void
 {
-    DB::statement("CREATE TABLE IF NOT EXISTS order_activity_logs (
-        id BIGSERIAL PRIMARY KEY,
-        order_id BIGINT NULL,
-        order_number VARCHAR(191) NULL,
-        action VARCHAR(100) NOT NULL,
-        actor_role VARCHAR(100) NULL,
-        actor_email VARCHAR(191) NULL,
-        summary TEXT NULL,
-        details TEXT NULL,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
-}
-
-$input = json_decode(file_get_contents('php://input'), true);
-$action = trim((string)($input['action'] ?? ''));
-$summary = trim((string)($input['summary'] ?? ''));
-$actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
-$actorEmail = trim((string)($input['actorEmail'] ?? ''));
-$orderId = isset($input['orderId']) ? (int)$input['orderId'] : null;
-$orderNumber = isset($input['orderNumber']) ? trim((string)$input['orderNumber']) : null;
-$details = $input['details'] ?? null;
-
-if ($action === '') {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'action is required']);
-    exit;
+    // Schema is managed by Laravel migrations.
+    return;
 }
 
 try {

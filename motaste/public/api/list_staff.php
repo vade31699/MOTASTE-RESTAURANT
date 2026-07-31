@@ -1,13 +1,33 @@
 <?php
 header('Content-Type: application/json');
-$host = '127.0.0.1';
-$db = 'motaste_db';
-$user = 'root';
-$pass = '';
-$mysqli = new mysqli($host, $user, $pass, $db);
-if ($mysqli->connect_error) { http_response_code(500); echo json_encode(['error'=>'DB connect failed']); exit; }
-$res = $mysqli->query('SELECT id, full_name, role, email FROM staff ORDER BY id ASC');
-$out = [];
-if ($res) { while ($row = $res->fetch_assoc()) $out[] = $row; $res->free(); }
-$mysqli->close();
-echo json_encode(['staff'=>$out]);
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+
+require __DIR__ . '/../../vendor/autoload.php';
+
+$app = require_once __DIR__ . '/../../bootstrap/app.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
+use Illuminate\Support\Facades\DB;
+
+try {
+    $staffRecords = DB::table('staff')
+        ->select('id', 'full_name', 'role', 'email')
+        ->orderBy('id', 'asc')
+        ->get()
+        ->map(function ($record) {
+            return [
+                'id' => (int)($record->id ?? 0),
+                'full_name' => trim((string)($record->full_name ?? '')),
+                'role' => trim((string)($record->role ?? '')),
+                'email' => trim((string)($record->email ?? '')),
+            ];
+        })
+        ->all();
+
+    echo json_encode(['staff' => $staffRecords]);
+} catch (Throwable $error) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Unable to list staff', 'details' => $error->getMessage()]);
+}

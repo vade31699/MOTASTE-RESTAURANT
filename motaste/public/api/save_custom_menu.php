@@ -19,14 +19,7 @@ if (!is_array($input)) {
 }
 
 try {
-    DB::statement("CREATE TABLE IF NOT EXISTS custom_menu_snapshots (
-        id BIGSERIAL PRIMARY KEY,
-        snapshot_key VARCHAR(191) NOT NULL UNIQUE,
-        snapshot_payload LONGTEXT NOT NULL,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
-
+    
     $now = now();
     DB::table('custom_menu_snapshots')->updateOrInsert(
         ['snapshot_key' => 'motaste-menu'],

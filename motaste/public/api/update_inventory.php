@@ -10,18 +10,33 @@ use Illuminate\Support\Facades\DB;
 
 function ensureOrderLogsTable(): void
 {
-    DB::statement("CREATE TABLE IF NOT EXISTS order_activity_logs (
-        id BIGSERIAL PRIMARY KEY,
-        order_id BIGINT NULL,
-        order_number VARCHAR(191) NULL,
-        action VARCHAR(100) NOT NULL,
-        actor_role VARCHAR(100) NULL,
-        actor_email VARCHAR(191) NULL,
-        summary TEXT NULL,
-        details TEXT NULL,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
+    // Schema is managed by Laravel migrations.
+    return;
+}
+
+function findInventoryItemByNormalizedName(string $normalizedName): ?object
+{
+    $items = DB::table('inventory_items')->select('id', 'name', 'stock', 'status')->get();
+    foreach ($items as $item) {
+        if (normalizeInventoryName((string)($item->name ?? '')) === $normalizedName) {
+            return $item;
+        }
+    }
+
+    return null;
+}
+
+function findInventoryItemIdsByNormalizedNames(array $normalizedNames): array
+{
+    $ids = [];
+    $items = DB::table('inventory_items')->select('id', 'name')->get();
+    foreach ($items as $item) {
+        $normalized = normalizeInventoryName((string)($item->name ?? ''));
+        if (in_array($normalized, $normalizedNames, true)) {
+            $ids[] = (int)($item->id ?? 0);
+        }
+    }
+    return array_values(array_unique($ids));
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
@@ -56,35 +71,28 @@ $normalizedStatus = $stock > 0 ? ($status === 'Out of stock' ? 'In stock' : $sta
 try {
     ensureOrderLogsTable();
 
-    $normalizedLookup = strtolower($canonicalName);
-    $normalizedPrevious = strtolower(trim((string)preg_replace('/\s+/', ' ', $previousName)));
+    $normalizedLookup = normalizeInventoryName($canonicalName);
+    $normalizedPrevious = normalizeInventoryName($previousName);
 
     $existingBefore = null;
     if ($normalizedPrevious !== '') {
-        $existingBefore = DB::table('inventory_items')
-            ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedPrevious])
-            ->first();
+        $existingBefore = findInventoryItemByNormalizedName($normalizedPrevious);
     }
 
     if (!$existingBefore) {
-        $existingBefore = DB::table('inventory_items')
-            ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedLookup])
-            ->first();
+        $existingBefore = findInventoryItemByNormalizedName($normalizedLookup);
     }
 
     $image = isset($input['image']) ? trim((string)$input['image']) : null;
 
-    DB::transaction(function () use ($normalizedLookup, $normalizedPrevious, $canonicalName, $price, $stock, $normalizedStatus, $category, $description, $image) {
-        $deleteQuery = DB::table('inventory_items')
-            ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedLookup]);
-
-        if ($normalizedPrevious !== '' && $normalizedPrevious !== $normalizedLookup) {
-            $deleteQuery->orWhereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedPrevious]);
+    $itemId = null;
+    DB::transaction(function () use ($normalizedLookup, $normalizedPrevious, $canonicalName, $price, $stock, $normalizedStatus, $category, $description, $image, &$itemId) {
+        $deleteIds = findInventoryItemIdsByNormalizedNames(array_filter([$normalizedLookup, $normalizedPrevious]));
+        if (!empty($deleteIds)) {
+            DB::table('inventory_items')->whereIn('id', $deleteIds)->delete();
         }
 
-        $deleteQuery->delete();
-
-        DB::table('inventory_items')->insert([
+        $itemId = DB::table('inventory_items')->insertGetId([
             'name' => $canonicalName,
             'price' => $price,
             'stock' => $stock,
@@ -124,10 +132,6 @@ try {
         'created_at' => now(),
         'updated_at' => now(),
     ]);
-
-    $itemId = DB::table('inventory_items')
-        ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$normalizedLookup])
-        ->value('id');
 
     echo json_encode([
         'success' => true,

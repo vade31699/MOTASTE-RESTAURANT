@@ -13,31 +13,8 @@ use Illuminate\Support\Facades\DB;
 
 function ensureOrderLogsTable(): void
 {
-    DB::statement("CREATE TABLE IF NOT EXISTS order_activity_logs (
-        id BIGSERIAL PRIMARY KEY,
-        order_id BIGINT NULL,
-        order_number VARCHAR(191) NULL,
-        action VARCHAR(100) NOT NULL,
-        actor_role VARCHAR(100) NULL,
-        actor_email VARCHAR(191) NULL,
-        summary TEXT NULL,
-        details TEXT NULL,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
-}
-
-function buildOrderSummary($orderItems): string
-{
-    $parts = [];
-    foreach ($orderItems as $item) {
-        $name = trim((string)($item->notes ?? 'Menu item'));
-        $qty = (int)($item->quantity ?? 0);
-        if ($qty <= 0) continue;
-        $parts[] = $name . ' x' . $qty;
-    }
-
-    return implode(', ', $parts);
+    // Schema is managed by Laravel migrations.
+    return;
 }
 
 function normalizeOrderItemName(?string $value): string

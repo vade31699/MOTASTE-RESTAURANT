@@ -44,14 +44,7 @@ if (count($slides) > 15) {
 }
 
 try {
-    DB::statement("CREATE TABLE IF NOT EXISTS highlights_snapshots (
-        id BIGSERIAL PRIMARY KEY,
-        snapshot_key VARCHAR(191) NOT NULL UNIQUE,
-        snapshot_payload TEXT NOT NULL,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
-
+    
     $now = now();
     DB::table('highlights_snapshots')->updateOrInsert(
         ['snapshot_key' => 'motaste-highlights'],

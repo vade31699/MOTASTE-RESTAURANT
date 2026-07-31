@@ -13,25 +13,8 @@ use Illuminate\Support\Facades\DB;
 
 function ensureOrderLogsTable(): void
 {
-    DB::statement("CREATE TABLE IF NOT EXISTS order_activity_logs (
-        id BIGSERIAL PRIMARY KEY,
-        order_id BIGINT NULL,
-        order_number VARCHAR(191) NULL,
-        action VARCHAR(100) NOT NULL,
-        actor_role VARCHAR(100) NULL,
-        actor_email VARCHAR(191) NULL,
-        summary TEXT NULL,
-        details TEXT NULL,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
-}
-
-function normalizeItemName(?string $value): string
-{ 
-    $value = trim((string) $value);
-    $value = preg_replace('/\s+/', ' ', $value) ?? $value;
-    return mb_strtolower($value);
+    // Schema is managed by Laravel migrations.
+    return;
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
@@ -73,21 +56,33 @@ try {
 
         $itemName = normalizeItemName((string) ($targetItem->notes ?? ''));
         if ($quantity > 0 && $itemName !== '') {
-            $inventoryItem = DB::table('inventory_items')
-                ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", [$itemName])
-                ->first();
+            $inventoryItem = null;
+            $candidateInventory = DB::table('inventory_items')->select('id', 'stock', 'name')->get();
+            foreach ($candidateInventory as $inventoryRow) {
+                if (normalizeItemName((string)($inventoryRow->name ?? '')) === $itemName) {
+                    $inventoryItem = $inventoryRow;
+                    break;
+                }
+            }
 
             if ($inventoryItem) {
                 $inventoryStock = max(0, (int) ($inventoryItem->stock ?? 0));
 
-                $siblingReserved = DB::table('order_items as oi')
+                $pendingRawItems = DB::table('order_items as oi')
                     ->join('orders as o', 'o.id', '=', 'oi.order_id')
                     ->where('o.status', 'pending')
                     ->where('oi.id', '<>', $itemId)
-                    ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(oi.notes), '\\s+', ' ', 'g')) = ?", [$itemName])
-                    ->sum('oi.quantity');
+                    ->select('oi.quantity', 'oi.notes')
+                    ->get();
 
-                $maxAllowed = max(0, $inventoryStock - (int) $siblingReserved);
+                $siblingReserved = 0;
+                foreach ($pendingRawItems as $pendingRow) {
+                    if (normalizeItemName((string)($pendingRow->notes ?? '')) === $itemName) {
+                        $siblingReserved += (int) ($pendingRow->quantity ?? 0);
+                    }
+                }
+
+                $maxAllowed = max(0, $inventoryStock - $siblingReserved);
                 if ($quantity > $maxAllowed) {
                     return [
                         'success' => false,

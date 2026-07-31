@@ -49,11 +49,6 @@ Route::get('/temp-admin-setup', function (Request $request) {
     }
 
     try {
-        DB::statement("ALTER TABLE staff ADD COLUMN IF NOT EXISTS full_name VARCHAR(191)");
-        DB::statement("ALTER TABLE staff ADD COLUMN IF NOT EXISTS role VARCHAR(100)");
-        DB::statement("ALTER TABLE staff ADD COLUMN IF NOT EXISTS email VARCHAR(191)");
-        DB::statement("ALTER TABLE staff ADD COLUMN IF NOT EXISTS password_hash VARCHAR(191)");
-
         $user = DB::table('users')->whereRaw('LOWER(email) = ?', [$email])->first();
         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
 

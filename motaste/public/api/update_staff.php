@@ -1,24 +1,22 @@
 <?php
 header('Content-Type: application/json');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 
 $input = json_decode(file_get_contents('php://input'), true);
-if (!$input) {
+if (!is_array($input)) {
     http_response_code(400);
     echo json_encode(['error' => 'Invalid JSON']);
     exit;
 }
 
-$host = '127.0.0.1';
-$db = 'motaste_db';
-$user = 'root';
-$pass = '';
+require __DIR__ . '/../../vendor/autoload.php';
 
-$mysqli = new mysqli($host, $user, $pass, $db);
-if ($mysqli->connect_error) {
-    http_response_code(500);
-    echo json_encode(['error' => 'DB connect failed']);
-    exit;
-}
+$app = require_once __DIR__ . '/../../bootstrap/app.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
+use Illuminate\Support\Facades\DB;
 
 $name = isset($input['name']) ? trim($input['name']) : '';
 $role = isset($input['role']) ? trim($input['role']) : '';
@@ -33,28 +31,28 @@ if (!$name || !$role || !$email || !$password) {
     exit;
 }
 
+$lookupEmail = $currentEmail ?: $email;
 $hash = password_hash($password, PASSWORD_DEFAULT);
 
-if ($id > 0) {
-    $stmt = $mysqli->prepare('UPDATE staff SET full_name = ?, role = ?, email = ?, password_hash = ?, updated_at = NOW() WHERE id = ?');
-    $stmt->bind_param('ssssi', $name, $role, $email, $hash, $id);
-} else {
-    $lookupEmail = $currentEmail ?: $email;
-    $stmt = $mysqli->prepare('UPDATE staff SET full_name = ?, role = ?, email = ?, password_hash = ?, updated_at = NOW() WHERE email = ?');
-    $stmt->bind_param('sssss', $name, $role, $email, $hash, $lookupEmail);
-}
+try {
+    $query = DB::table('staff');
 
-$ok = $stmt->execute();
-if (!$ok) {
+    if ($id > 0) {
+        $query->where('id', $id);
+    } else {
+        $query->where('email', $lookupEmail);
+    }
+
+    $updated = $query->update([
+        'full_name' => $name,
+        'role' => $role,
+        'email' => $email,
+        'password_hash' => $hash,
+        'updated_at' => now(),
+    ]);
+
+    echo json_encode(['success' => true, 'updated' => $updated]);
+} catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['error' => 'Update failed', 'msg' => $stmt->error]);
-    $stmt->close();
-    $mysqli->close();
-    exit;
+    echo json_encode(['error' => 'Update failed', 'details' => $error->getMessage()]);
 }
-
-$affected = $stmt->affected_rows;
-$stmt->close();
-$mysqli->close();
-
-echo json_encode(['success' => true, 'updated' => $affected]);

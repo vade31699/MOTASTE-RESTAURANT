@@ -13,23 +13,8 @@ use Illuminate\Support\Facades\DB;
 
 function ensureOrderLogsTable(): void
 {
-    DB::statement("CREATE TABLE IF NOT EXISTS order_activity_logs (
-        id BIGSERIAL PRIMARY KEY,
-        order_id BIGINT NULL,
-        order_number VARCHAR(191) NULL,
-        action VARCHAR(100) NOT NULL,
-        actor_role VARCHAR(100) NULL,
-        actor_email VARCHAR(191) NULL,
-        summary TEXT NULL,
-        details TEXT NULL,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
-}
-
-function normalizeItemName(string $name): string
-{
-    return strtolower(trim((string)preg_replace('/\s+/', ' ', $name)));
+    // Schema is managed by Laravel migrations.
+    return;
 }
 
 function removeFromCustomMenuSnapshot(string $normalizedName): bool
@@ -38,14 +23,7 @@ function removeFromCustomMenuSnapshot(string $normalizedName): bool
         return false;
     }
 
-    DB::statement("CREATE TABLE IF NOT EXISTS custom_menu_snapshots (
-        id BIGSERIAL PRIMARY KEY,
-        snapshot_key VARCHAR(191) NOT NULL UNIQUE,
-        snapshot_payload TEXT NOT NULL,
-        created_at TIMESTAMP NULL,
-        updated_at TIMESTAMP NULL
-    )");
-
+    
     $snapshotRow = DB::table('custom_menu_snapshots')
         ->where('snapshot_key', 'motaste-menu')
         ->first();
