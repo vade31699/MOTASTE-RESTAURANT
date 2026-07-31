@@ -28,7 +28,7 @@ function ensureOrderLogsTable(): void
 }
 
 function normalizeItemName(?string $value): string
-{
+{ 
     $value = trim((string) $value);
     $value = preg_replace('/\s+/', ' ', $value) ?? $value;
     return mb_strtolower($value);
