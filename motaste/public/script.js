@@ -1419,34 +1419,6 @@ function initializeAnalyticsBuckets() {
     });
 }
 
-function seedDemoAnalytics(year) {
-    // seed monthlySalesByMonth and weeklySalesByMonth with plausible demo data
-    monthKeys.forEach((monthKey, monthIdx) => {
-        const days = daysInMonth(year, monthIdx);
-        // seasonal base: simple sinusoidal yearly variation + month factor
-        const monthFactor = 1 + Math.sin((monthIdx / 12) * Math.PI * 2) * 0.15;
-        const base = Math.round(4000 * monthFactor + (year % 10) * 20);
-        const drift = Math.round(800 * monthFactor + (monthIdx % 3) * 40);
-
-        monthlySalesByMonth[monthKey] = Array.from({ length: days }, (_, d) => {
-            // daily pattern: slight weekly cadence + random jitter
-            const weekdayBoost = ((d % 7) === 5 || (d % 7) === 6) ? 1.25 : 1.0; // weekends higher
-            const value = Math.max(0, Math.round((base + Math.sin(d / 3) * drift + d * 8) * weekdayBoost * (0.85 + Math.random() * 0.3)));
-            const orders = Math.max(0, Math.round(value / (50 + Math.random() * 30)));
-            return { label: `${d + 1}`, value, orders };
-        });
-
-        const weeks = Math.ceil(days / 7);
-        weeklySalesByMonth[monthKey] = Array.from({ length: weeks }, (_, w) => {
-            const start = w * 7;
-            const end = Math.min(days, (w + 1) * 7);
-            const weekTotal = monthlySalesByMonth[monthKey].slice(start, end).reduce((s, it) => s + it.value, 0);
-            const weekOrders = monthlySalesByMonth[monthKey].slice(start, end).reduce((s, it) => s + it.orders, 0);
-            return { label: `W${w + 1}`, value: weekTotal, orders: weekOrders };
-        });
-    });
-}
-
 function recalculateSalesAnalytics() {
     initializeAnalyticsBuckets();
 
@@ -1456,19 +1428,6 @@ function recalculateSalesAnalytics() {
         orders: 0,
         display: `₱0`
     }));
-
-    // If there are no completed orders, seed demo analytics data
-    if (!Array.isArray(completedOrders) || completedOrders.length === 0) {
-        seedDemoAnalytics(new Date().getFullYear());
-        // populate monthly aggregate items from seeded daily buckets
-        monthKeys.forEach((mKey, idx) => {
-            const daily = monthlySalesByMonth[mKey] || [];
-            const total = daily.reduce((s, it) => s + (Number(it.value) || 0), 0);
-            const orders = daily.reduce((s, it) => s + (Number(it.orders) || 0), 0);
-            analyticsData.monthly.items[idx].value = total;
-            analyticsData.monthly.items[idx].orders = orders;
-        });
-    }
 
     completedOrders.forEach((order) => {
         const orderDate = new Date(order.timestamp);
@@ -3553,7 +3512,8 @@ async function loadPendingOrdersFromServer() {
                     name: item.notes || item.name || 'Menu item',
                     notes: item.notes || item.name || 'Menu item',
                     price: Number(item.unit_price ?? item.price ?? 0),
-                    quantity: Number(item.quantity ?? 0)
+                    quantity: Number(item.quantity ?? 0),
+                    components: Array.isArray(item.components) ? item.components : []
                 }))
             };
         });
@@ -3744,7 +3704,6 @@ async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
     completedOrders.unshift(completedOrder);
     recalculateSalesAnalytics();
     savePendingOrders();
-    saveCompletedOrders();
     renderPendingOrders();
     renderWalkInOrderBuilder();
     renderOrderNotifications();
@@ -3752,6 +3711,7 @@ async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
     renderOverviewAnalytics();
     void initializeInventoryData(true);
     void loadOrderLogsFromServer(true);
+    void loadCompletedOrdersFromServer(true);
 }
 
 function formatOrderLogAction(action) {
@@ -4185,17 +4145,44 @@ if (logsFilterBar) {
 }
 
 function loadCompletedOrders() {
-    try {
-        const raw = localStorage.getItem('motasteCompletedOrders');
-        completedOrders = raw ? JSON.parse(raw) : [];
-    } catch (error) {
-        completedOrders = [];
-    }
-    completedOrders.sort((a, b) => b.timestamp - a.timestamp);
+    completedOrders = [];
 }
 
 function saveCompletedOrders() {
-    localStorage.setItem('motasteCompletedOrders', JSON.stringify(completedOrders));
+    // Completed orders are persisted on the server; no client-side storage.
+}
+
+async function loadCompletedOrdersFromServer(forceRefresh = false) {
+    if (completedOrdersSyncInFlight && !forceRefresh) return false;
+    completedOrdersSyncInFlight = true;
+
+    try {
+        const response = await fetch(getApiUrl(`api/get_completed_orders.php?_=${Date.now()}`), { cache: 'no-store' });
+        if (!response.ok) return false;
+
+        const payload = await response.json();
+        if (!payload || payload.success !== true || !Array.isArray(payload.orders)) return false;
+
+        completedOrders = payload.orders.map((order) => ({
+            ...order,
+            timestamp: order.order_date ? Date.parse(order.order_date) || Date.now() : Date.now(),
+            items: Array.isArray(order.items) ? order.items.map((item) => ({
+                ...item,
+                components: Array.isArray(item.components) ? item.components : []
+            })) : []
+        }));
+        completedOrders.sort((a, b) => b.timestamp - a.timestamp);
+        saveCompletedOrders();
+        recalculateSalesAnalytics();
+        updateAnalyticsView();
+        renderOverviewAnalytics();
+        return true;
+    } catch (error) {
+        console.error('Unable to load completed orders from server', error);
+        return false;
+    } finally {
+        completedOrdersSyncInFlight = false;
+    }
 }
 
 const inventoryCategoryLabels = {
@@ -6215,7 +6202,7 @@ function removeWalkInDraftItemComponent(index, componentName) {
 }
 
 function getWalkInDraftTotal() {
-    return walkInDraftItems.reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.quantity) || 0)), 0);
+    return walkInDraftItems.reduce((sum, item) => sum + getCartItemLineTotal(item), 0);
 }
 
 function renderWalkInOrderBuilder() {
@@ -6427,8 +6414,9 @@ async function placeWalkInOrder() {
         timestamp: Date.now(),
         items: walkInDraftItems.map((item) => ({
             name: item.name,
-            price: Number(item.price) || 0,
-            quantity: Number(item.quantity) || 0
+            price: getCartItemUnitPrice(item),
+            quantity: Number(item.quantity) || 0,
+            components: getOrderComponents(item.components)
         })),
         total: getWalkInDraftTotal(),
         paymentMethod: walkInPaymentMethodSelect ? walkInPaymentMethodSelect.value || 'Cash' : 'Cash',
@@ -7731,6 +7719,7 @@ function initOrders() {
     updateLiveClock();
     setInterval(updateLiveClock, 1000);
     void loadPendingOrdersFromServer();
+    void loadCompletedOrdersFromServer();
     void loadReviewsFromServer();
     startReviewRefresh();
 

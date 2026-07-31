@@ -55,6 +55,7 @@ try {
         unit_price NUMERIC(12,2) NOT NULL DEFAULT 0,
         line_total NUMERIC(12,2) NOT NULL DEFAULT 0,
         notes TEXT NULL,
+        components TEXT NULL,
         created_at TIMESTAMP NULL,
         updated_at TIMESTAMP NULL
     )");
@@ -82,6 +83,7 @@ try {
             $price = (float)($it['price'] ?? 0);
             $qty = (int)($it['quantity'] ?? 0);
             $lineTotal = $price * $qty;
+            $components = is_array($it['components'] ?? null) ? array_values($it['components']) : null;
 
             DB::table('order_items')->insert([
                 'order_id' => $orderId,
@@ -89,6 +91,7 @@ try {
                 'unit_price' => $price,
                 'line_total' => $lineTotal,
                 'notes' => $itemName,
+                'components' => $components !== null ? json_encode($components, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);

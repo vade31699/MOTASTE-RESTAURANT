@@ -15,7 +15,7 @@ try {
     DB::statement("CREATE TABLE IF NOT EXISTS custom_menu_snapshots (
         id BIGSERIAL PRIMARY KEY,
         snapshot_key VARCHAR(191) NOT NULL UNIQUE,
-        snapshot_payload TEXT NOT NULL,
+        snapshot_payload LONGTEXT NOT NULL,
         created_at TIMESTAMP NULL,
         updated_at TIMESTAMP NULL
     )");

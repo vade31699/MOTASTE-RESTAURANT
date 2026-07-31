@@ -1710,12 +1710,12 @@ body.modal-open {
     font-weight: 700;
     border-radius: 14px;
     cursor: pointer;
-    transition: transform 0.18s ease, background 0.18s ease;
+    transition: background 0.18s ease;
+    transform: translateY(0);
 }
 .menu-category-btn:hover,
 .menu-category-btn:focus {
     background: #ff9800;
-    transform: translateY(-2px);
 }
 .menu-category-screen {
     margin-top: 24px;
@@ -2049,8 +2049,6 @@ body.modal-open {
 
 
 .menu-category-btn:hover {
-
-    transform:translateY(-5px);
 
     background:
     linear-gradient(135deg,#fffffe,#ff9900);

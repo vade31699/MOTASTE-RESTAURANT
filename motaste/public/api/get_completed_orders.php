@@ -39,33 +39,26 @@ try {
         updated_at TIMESTAMP NULL
     )");
 
-    DB::table('orders')
-        ->where('status', 'pending')
-        ->whereRaw("COALESCE(updated_at, order_date) <= NOW() - INTERVAL '10 minutes'")
-        ->update([
-            'status' => 'expired',
-            'updated_at' => now(),
-        ]);
-
     $orders = DB::table('orders')
-        ->where('status', 'pending')
+        ->where('status', 'completed')
         ->orderByDesc('order_date')
-        ->limit(100)
+        ->limit(500)
         ->get();
 
     $result = $orders->map(function ($order) {
         $items = DB::table('order_items')
             ->where('order_id', $order->id)
             ->get()
-            ->map(function ($it) {
+            ->map(function ($item) {
                 return [
-                    'id' => (int)$it->id,
-                    'order_id' => (int)$it->order_id,
-                    'name' => $it->notes ?: 'Menu item',
-                    'notes' => $it->notes,
-                    'price' => (float)($it->unit_price ?? 0),
-                    'unit_price' => (float)($it->unit_price ?? 0),
-                    'quantity' => (int)($it->quantity ?? 0),
+                    'id' => (int)($item->id ?? 0),
+                    'order_id' => (int)($item->order_id ?? 0),
+                    'name' => $item->notes ?: 'Menu item',
+                    'notes' => $item->notes,
+                    'price' => (float)($item->unit_price ?? 0),
+                    'unit_price' => (float)($item->unit_price ?? 0),
+                    'quantity' => (int)($item->quantity ?? 0),
+                    'line_total' => (float)($item->line_total ?? 0),
                 ];
             })
             ->values()
@@ -89,5 +82,5 @@ try {
     echo json_encode(['success' => true, 'orders' => $result]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Load pending orders failed', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Unable to load completed orders', 'details' => $error->getMessage()]);
 }
