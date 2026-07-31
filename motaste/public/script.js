@@ -111,33 +111,12 @@ function ensureAdminAccountInvariant() {
 }
 
 function saveStaffAccountsToStorage() {
-    try {
-        ensureAdminAccountInvariant();
-        localStorage.setItem(staffAccountsStorageKey, JSON.stringify(accounts));
-    } catch (error) {
-        console.error('Unable to persist staff accounts to localStorage', error);
-    }
+    // Staff accounts are persisted by the server. Local storage is disabled.
 }
 
 function loadStaffAccountsFromStorage() {
-    try {
-        const raw = localStorage.getItem(staffAccountsStorageKey);
-        if (!raw) return false;
-
-        const parsed = JSON.parse(raw);
-        if (!Array.isArray(parsed)) return false;
-
-        const normalized = parsed.map(normalizeStaffAccount).filter(Boolean);
-        if (!normalized.length) return false;
-
-        accounts = restoreSessionPasswords(normalized);
-        ensureAdminAccountInvariant();
-        window.motasteStaffAccounts = accounts;
-        return true;
-    } catch (error) {
-        console.error('Unable to load staff accounts from localStorage', error);
-        return false;
-    }
+    // Local storage is disabled for staff accounts. Server will provide the source of truth.
+    return false;
 }
 
 function applyStaffAccountsSnapshot(snapshot) {
@@ -152,7 +131,6 @@ function applyStaffAccountsSnapshot(snapshot) {
     accounts = restoreSessionPasswords(normalized);
     ensureAdminAccountInvariant();
     window.motasteStaffAccounts = accounts;
-    saveStaffAccountsToStorage();
     return true;
 }
 
@@ -419,89 +397,53 @@ function normalizeInventoryName(name) {
 }
 
 function getSavedLoginCredentials() {
-    try {
-        return JSON.parse(localStorage.getItem('motasteSavedCredentials') || '{}');
-    } catch (error) {
-        return {};
-    }
+    // Login credential persistence is disabled.
+    return {};
 }
 
 function storeSavedLoginCredentials(credentials) {
-    localStorage.setItem('motasteSavedCredentials', JSON.stringify(credentials));
+    // Login credential persistence is disabled.
 }
 
 function saveCredentialsForRole(role, email, password) {
-    const normalizedRole = role || localStorage.getItem(lastLoginRoleStorageKey) || 'default';
-    if (!normalizedRole) return;
-    const saved = getSavedLoginCredentials();
-    saved[normalizedRole] = { email, password };
-    storeSavedLoginCredentials(saved);
+    // Remember-me login storage is disabled.
 }
 
 function clearSavedCredentialsForRole(role) {
-    if (!role) return;
-    const saved = getSavedLoginCredentials();
-    delete saved[role];
-    storeSavedLoginCredentials(saved);
+    // Remember-me login storage is disabled.
 }
 
 function loadSavedCredentialsForRole(role) {
-    const saved = getSavedLoginCredentials()[role];
-    if (!saved) {
-        if (emailInput) emailInput.value = '';
-        if (passwordInput) passwordInput.value = '';
-        if (rememberCheckbox) rememberCheckbox.checked = false;
-        return;
-    }
-
-    if (emailInput) emailInput.value = saved.email || '';
-    if (passwordInput) passwordInput.value = saved.password || '';
-    if (rememberCheckbox) rememberCheckbox.checked = true;
+    if (emailInput) emailInput.value = '';
+    if (passwordInput) passwordInput.value = '';
+    if (rememberCheckbox) rememberCheckbox.checked = false;
 }
 
 function loadSavedCredentialsForLastLogin() {
-    const lastRole = localStorage.getItem(lastLoginRoleStorageKey);
-    if (!lastRole) {
-        if (emailInput) emailInput.value = '';
-        if (passwordInput) passwordInput.value = '';
-        if (rememberCheckbox) rememberCheckbox.checked = false;
-        return;
-    }
-
-    loadSavedCredentialsForRole(lastRole);
+    if (emailInput) emailInput.value = '';
+    if (passwordInput) passwordInput.value = '';
+    if (rememberCheckbox) rememberCheckbox.checked = false;
 }
 
 function getPersistedStaffSession() {
-    try {
-        const raw = localStorage.getItem(staffSessionStorageKey);
-        return raw ? JSON.parse(raw) : null;
-    } catch (error) {
-        return null;
-    }
+    // Staff session persistence is disabled.
+    return null;
 }
 
 function saveStaffSession(role, email, password, remember) {
-    if (!role || !email || !password) return;
-    const payload = { role, email, password, remember: Boolean(remember) };
-    localStorage.setItem(staffSessionStorageKey, JSON.stringify(payload));
+    // Staff session persistence is disabled.
 }
 
 function clearStaffSession() {
-    localStorage.removeItem(staffSessionStorageKey);
-    localStorage.removeItem(staffActiveSectionStorageKey);
+    // Staff session persistence is disabled.
 }
 
 function saveActiveSection(sectionId) {
-    if (!sectionId) return;
-    localStorage.setItem(staffActiveSectionStorageKey, sectionId);
+    // Active section persistence is disabled.
 }
 
 function getPersistedActiveSection() {
-    try {
-        return localStorage.getItem(staffActiveSectionStorageKey) || 'overview';
-    } catch (error) {
-        return 'overview';
-    }
+    return 'overview';
 }
 
 function restoreStaffSession() {
@@ -857,10 +799,8 @@ function attachStaffLoginHandler() {
 
         if (remember) {
             saveCredentialsForRole(detectedRole, email, password);
-            localStorage.setItem(lastLoginRoleStorageKey, detectedRole);
         } else {
             clearSavedCredentialsForRole(detectedRole);
-            localStorage.removeItem(lastLoginRoleStorageKey);
         }
 
         saveStaffSession(detectedRole, email, password, remember);
@@ -2711,19 +2651,11 @@ function setHighlightsMessage(message, isError = false) {
 }
 
 function persistHighlightsToStorage() {
-    localStorage.setItem(highlightsStorageKey, JSON.stringify(highlightsSlides));
+    // Highlight data is persisted on the server only.
 }
 
 function loadHighlightsFromStorage() {
-    try {
-        const raw = localStorage.getItem(highlightsStorageKey);
-        const parsed = raw ? JSON.parse(raw) : [];
-        highlightsSlides = Array.isArray(parsed)
-            ? parsed.filter((item) => typeof item === 'string' && item.trim() !== '')
-            : [];
-    } catch (error) {
-        highlightsSlides = [];
-    }
+    highlightsSlides = [];
 }
 
 async function loadHighlightsFromServer() {
@@ -3056,17 +2988,11 @@ const isCustomerPage = (() => {
 })();
 
 function loadIgnoredPendingOrders() {
-    try {
-        const raw = localStorage.getItem('motasteIgnoredPendingOrders');
-        const parsed = raw ? JSON.parse(raw) : [];
-        ignoredPendingOrderNumbers = new Set(Array.isArray(parsed) ? parsed.map((value) => String(value)) : []);
-    } catch (error) {
-        ignoredPendingOrderNumbers = new Set();
-    }
+    ignoredPendingOrderNumbers = new Set();
 }
 
 function saveIgnoredPendingOrders() {
-    localStorage.setItem('motasteIgnoredPendingOrders', JSON.stringify([...ignoredPendingOrderNumbers]));
+    // Ignored pending orders are not persisted in local storage.
 }
 
 function ignorePendingOrder(orderNumber) {
@@ -3131,93 +3057,28 @@ function getResolvedAddOnPrice(itemName, fallbackPrice = 0) {
 }
 
 function loadCart() {
-    try {
-        const raw = localStorage.getItem('motasteCart');
-        cartItems = raw ? JSON.parse(raw) : [];
-    } catch (error) {
-        cartItems = [];
-    }
-
-    if (!Array.isArray(cartItems)) {
-        cartItems = [];
-        return;
-    }
-
-    cartItems = cartItems.map((item) => {
-        const quantity = Math.max(1, Number(item && item.quantity ? item.quantity : 1) || 1);
-        const fallbackBase = getSpecialFoodComponentsByName(item.name);
-        const baseComponents = normalizeSpecialComponents(
-            Array.isArray(item.baseComponents) && item.baseComponents.length
-                ? item.baseComponents
-                : (fallbackBase.length ? fallbackBase : item.components)
-        );
-
-        let loadedComponents = normalizeCartComponents(item.components);
-        if (loadedComponents.length && item.componentsMode !== 'total') {
-            loadedComponents = loadedComponents.map((component) => ({
-                ...component,
-                quantity: component.quantity * quantity
-            }));
-        }
-
-        const components = loadedComponents.length
-            ? loadedComponents
-            : buildInitialCartComponents(baseComponents, quantity);
-
-        return {
-            ...item,
-            quantity,
-            baseComponents,
-            components,
-            componentsMode: 'total',
-            componentsOpen: Boolean(item.componentsOpen) || components.length > 0
-        };
-    });
-
-    if (pruneEmptySpecialFoodsFromCart()) {
-        saveCart();
-    }
+    cartItems = [];
 }
 
 function saveCart() {
-    localStorage.setItem('motasteCart', JSON.stringify(cartItems));
+    // Cart state is not persisted in local storage.
 }
 
 function loadPendingOrders() {
-    try {
-        const raw = localStorage.getItem('motastePendingOrders');
-        pendingOrders = raw ? JSON.parse(raw) : [];
-    } catch (error) {
-        pendingOrders = [];
-    }
-    pendingOrders.sort((a, b) => b.timestamp - a.timestamp);
+    pendingOrders = [];
 }
 
 function savePendingOrders() {
-    localStorage.setItem('motastePendingOrders', JSON.stringify(pendingOrders));
+    // Pending orders are persisted directly on the server. No client-side localStorage persistence is used.
 }
 
 function loadCustomerOrderTracking() {
-    try {
-        const rawOrderNumbers = localStorage.getItem(customerOrderNumbersStorageKey);
-        const parsedOrderNumbers = rawOrderNumbers ? JSON.parse(rawOrderNumbers) : [];
-        customerOrderNumbers = new Set(Array.isArray(parsedOrderNumbers) ? parsedOrderNumbers.map((value) => String(value)) : []);
-    } catch (error) {
-        customerOrderNumbers = new Set();
-    }
-
-    try {
-        const rawSeen = localStorage.getItem(seenCompletedOrdersStorageKey);
-        const parsedSeen = rawSeen ? JSON.parse(rawSeen) : [];
-        seenCompletedOrders = new Set(Array.isArray(parsedSeen) ? parsedSeen.map((value) => String(value)) : []);
-    } catch (error) {
-        seenCompletedOrders = new Set();
-    }
+    customerOrderNumbers = new Set();
+    seenCompletedOrders = new Set();
 }
 
 function saveCustomerOrderTracking() {
-    localStorage.setItem(customerOrderNumbersStorageKey, JSON.stringify([...customerOrderNumbers]));
-    localStorage.setItem(seenCompletedOrdersStorageKey, JSON.stringify([...seenCompletedOrders]));
+    // Customer order tracking state is not persisted in local storage.
 }
 
 function registerCustomerOrder(orderNumber) {
@@ -3954,20 +3815,16 @@ function renderStarRating(value) {
     return `${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}`;
 }
 
+let reviewerToken = null;
+
 function getOrCreateReviewerToken() {
-    try {
-        const existing = localStorage.getItem(reviewerTokenStorageKey);
-        if (existing) return existing;
+    if (reviewerToken) return reviewerToken;
 
-        const token = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-            ? crypto.randomUUID()
-            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    reviewerToken = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-        localStorage.setItem(reviewerTokenStorageKey, token);
-        return token;
-    } catch (error) {
-        return `fallback-${Date.now()}`;
-    }
+    return reviewerToken;
 }
 
 function getReviewPublishStatusLabel(status) {
@@ -4326,18 +4183,8 @@ async function initializeInventoryData(forceRefresh = false) {
         });
 
         const latestInventory = merged.map((item) => ({ ...item }));
-        const hasLocalChanges = inventoryData.some((item) => {
-            const serverItem = latestInventory.find((candidate) => normalizeInventoryName(candidate.name) === normalizeInventoryName(item.name));
-            return serverItem && (serverItem.stock !== item.stock || serverItem.status !== item.status || serverItem.price !== item.price);
-        });
-
-        if (!hasLocalChanges || forceRefresh) {
-            inventoryData = latestInventory;
-            saveInventoryData();
-            debugInventory('Applied server inventory', 'server');
-        } else {
-            debugInventory('Skipped applying server inventory due to local changes', 'server');
-        }
+        inventoryData = latestInventory;
+        debugInventory('Applied server inventory', 'server');
     } catch (error) {
         inventoryData = inventoryData.length ? inventoryData : defaults;
         saveInventoryData();
@@ -4361,13 +4208,8 @@ async function initializeInventoryData(forceRefresh = false) {
 }
 
 function saveInventoryData() {
-    try {
-        lastInventoryUpdateAt = Date.now();
-        localStorage.setItem('motasteInventoryData', JSON.stringify(inventoryData));
-        localStorage.setItem('motasteInventoryDataUpdatedAt', String(lastInventoryUpdateAt));
-    } catch (error) {
-        console.error('Unable to persist inventory data to localStorage', error);
-    }
+    lastInventoryUpdateAt = Date.now();
+    // Inventory is persisted directly to the Laravel database. No localStorage persistence is used.
 }
 
 function getInventoryDescription(name, fallback = '') {
@@ -4575,7 +4417,6 @@ function saveCustomMenuData() {
             components: normalizeSpecialComponents(food.components)
         }))
     };
-    localStorage.setItem('motasteCustomMenuData', JSON.stringify(snapshot));
 
     void fetch(getApiUrl('api/save_custom_menu.php'), {
         method: 'POST',
@@ -4732,50 +4573,15 @@ function applyCustomMenuSnapshot(snapshot) {
 
 async function loadCustomMenuData() {
     try {
-        const raw = localStorage.getItem('motasteCustomMenuData');
-        let parsed = null;
-        if (raw) {
-            parsed = JSON.parse(raw);
-        }
-
         const response = await fetch(getApiUrl(`api/get_custom_menu.php?_=${Date.now()}`), { cache: 'no-store' });
         if (!response.ok) {
-            if (parsed) {
-                const changed = applyCustomMenuSnapshot(parsed);
-                if (changed) {
-                    syncMenuPricesWithInventory();
-                    renderSpecialFoods();
-                    renderInventoryManagement();
-                    hydrateWalkInDraftItemsFromSpecialFoods();
-                    renderWalkInOrderBuilder();
-                    if (currentMenuCategoryId) {
-                        showMenuCategory(currentMenuCategoryId);
-                    }
-                }
-            }
+            console.error('Unable to fetch custom menu snapshot from server', response.status);
             return;
         }
 
         const payload = await response.json();
         if (payload && payload.success && payload.snapshot) {
-            const mergedSnapshot = mergeCustomMenuSnapshots(parsed, payload.snapshot);
-            const changed = applyCustomMenuSnapshot(mergedSnapshot);
-            if (changed) {
-                saveCustomMenuData();
-                syncMenuPricesWithInventory();
-                renderSpecialFoods();
-                renderInventoryManagement();
-                hydrateWalkInDraftItemsFromSpecialFoods();
-                renderWalkInOrderBuilder();
-                if (currentMenuCategoryId) {
-                    showMenuCategory(currentMenuCategoryId);
-                }
-            }
-            return;
-        }
-
-        if (parsed) {
-            const changed = applyCustomMenuSnapshot(parsed);
+            const changed = applyCustomMenuSnapshot(payload.snapshot);
             if (changed) {
                 syncMenuPricesWithInventory();
                 renderSpecialFoods();
@@ -4795,33 +4601,6 @@ window.addEventListener('storage', (event) => {
     if (!event.key) return;
     if (inventoryEditLock) return;
 
-    if (event.key === 'motasteCustomMenuData') {
-        loadCustomMenuData();
-        if (currentMenuCategoryId) {
-            showMenuCategory(currentMenuCategoryId);
-        }
-    }
-
-    if (syncInventoryAcrossTabs && (event.key === 'motasteInventoryData' || event.key === 'motasteInventoryDataUpdatedAt')) {
-        try {
-            const remoteUpdatedAt = Number(localStorage.getItem('motasteInventoryDataUpdatedAt') || '0');
-            if (remoteUpdatedAt && remoteUpdatedAt <= (lastInventoryUpdateAt || 0)) {
-                // Ignore older updates
-                debugInventory('Ignored storage event: older remoteUpdatedAt', 'storage');
-                return;
-            }
-
-            const raw = localStorage.getItem('motasteInventoryData');
-            inventoryData = raw ? JSON.parse(raw) : [];
-        } catch (error) {
-            inventoryData = [];
-        }
-        debugInventory('Applied storage event inventory', 'storage');
-        syncMenuPricesWithInventory();
-        if (currentMenuCategoryId) {
-            showMenuCategory(currentMenuCategoryId);
-        }
-    }
 });
 
 function updateCartDisplay() {
