@@ -284,6 +284,9 @@ function normalizeImageUrl(url) {
     if (!url || typeof url !== 'string') return '';
     const trimmed = url.trim();
     if (!trimmed) return '';
+    if (/^data:/i.test(trimmed)) {
+        return trimmed;
+    }
     if (/^https?:\/\//i.test(trimmed)) {
         return trimmed;
     }
@@ -5581,37 +5584,9 @@ async function saveInventoryItem(event) {
     const previousImageUrl = existingItem?.image || '';
     let imageUrl = category === 'specials' ? previousImageUrl : '';
 
-    if (category === 'specials' && selectedSpecialFoodImageFile) {
-        try {
-            const uploadForm = new FormData();
-            uploadForm.append('image', selectedSpecialFoodImageFile);
-
-            const uploadResponse = await fetch(getApiUrl('api/upload_special_food_image.php'), {
-                method: 'POST',
-                body: uploadForm,
-                cache: 'no-store'
-            });
-
-            if (!uploadResponse.ok) {
-                throw new Error(`Image upload failed: HTTP ${uploadResponse.status}`);
-            }
-
-            const uploadPayload = await uploadResponse.json();
-            if (!uploadPayload || uploadPayload.success !== true || !uploadPayload.url) {
-                const details = uploadPayload?.details ? ` (${uploadPayload.details})` : '';
-                throw new Error(`Image upload failed: ${uploadPayload?.error || 'No URL returned'}${details}`);
-            }
-
-            imageUrl = normalizeImageUrl(String(uploadPayload.url || ''));
-            selectedSpecialFoodImageData = imageUrl;
-            selectedSpecialFoodImageFile = null;
-        } catch (error) {
-            console.error('Unable to upload special food image', error);
-            window.alert(`Special food image upload failed. ${error?.message || ''}`);
-            inventoryEditLock = false;
-            startInventoryAutoRefresh();
-            return;
-        }
+    if (category === 'specials' && selectedSpecialFoodImageData) {
+        imageUrl = normalizeImageUrl(selectedSpecialFoodImageData);
+        selectedSpecialFoodImageFile = null;
     }
 
     if (existingItem) {
