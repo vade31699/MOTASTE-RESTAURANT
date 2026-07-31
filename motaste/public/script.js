@@ -6883,14 +6883,7 @@ async function confirmOrder() {
 function showMenuCategory(categoryId) {
     // Prevent background refreshes from forcing the menu overlay open
     // (also covers checkout/payment screens, not just suppressMenuOverlay)
-    if (isUserInCheckoutOrPayment()) {
-        if (orderCheckoutScreen && !orderCheckoutScreen.classList.contains('hidden')) {
-            closeCheckoutScreenCompletely();
-        }
-        if (orderPaymentScreen && !orderPaymentScreen.classList.contains('hidden')) {
-            closePaymentScreen();
-        }
-    }
+    if (isUserInCheckoutOrPayment()) return;
     loadCustomMenuData();
     syncMenuPricesWithInventory();
 
@@ -6903,10 +6896,6 @@ function showMenuCategory(categoryId) {
     if (menuOverlayCategories) {
         menuOverlayCategories.hidden = false;
         renderMenuOverlayCategories(resolvedCategoryId);
-    }
-    if (menuOverlay) {
-        menuOverlay.classList.remove('hidden');
-        menuOverlay.setAttribute('aria-hidden', 'false');
     }
     menuItemsList.innerHTML = category.items.map((item) => {
         const isOutOfStock = isItemOutOfStock(item.name);
@@ -7009,13 +6998,6 @@ function closeCartModal() {
     closeCartAddOnScreen();
     cartModal.classList.add('hidden');
     cartModal.setAttribute('aria-hidden', 'true');
-
-    if (orderCheckoutScreen && !orderCheckoutScreen.classList.contains('hidden')) {
-        closeCheckoutScreenCompletely();
-        if (currentMenuCategoryId) {
-            showMenuCategory(currentMenuCategoryId);
-        }
-    }
 }
 
 if (openMenuBtn) {
