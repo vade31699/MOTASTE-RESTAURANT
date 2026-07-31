@@ -4746,6 +4746,8 @@ async function loadCustomMenuData() {
                     syncMenuPricesWithInventory();
                     renderSpecialFoods();
                     renderInventoryManagement();
+                    hydrateWalkInDraftItemsFromSpecialFoods();
+                    renderWalkInOrderBuilder();
                     if (currentMenuCategoryId) {
                         showMenuCategory(currentMenuCategoryId);
                     }
@@ -4763,6 +4765,8 @@ async function loadCustomMenuData() {
                 syncMenuPricesWithInventory();
                 renderSpecialFoods();
                 renderInventoryManagement();
+                hydrateWalkInDraftItemsFromSpecialFoods();
+                renderWalkInOrderBuilder();
                 if (currentMenuCategoryId) {
                     showMenuCategory(currentMenuCategoryId);
                 }
@@ -4776,6 +4780,8 @@ async function loadCustomMenuData() {
                 syncMenuPricesWithInventory();
                 renderSpecialFoods();
                 renderInventoryManagement();
+                hydrateWalkInDraftItemsFromSpecialFoods();
+                renderWalkInOrderBuilder();
                 if (currentMenuCategoryId) {
                     showMenuCategory(currentMenuCategoryId);
                 }
@@ -6272,11 +6278,29 @@ function toggleWalkInDraftItemComponents(index) {
     renderWalkInOrderBuilder();
 }
 
+function hydrateWalkInDraftItemsFromSpecialFoods() {
+    walkInDraftItems.forEach((item) => {
+        if (!item || !item.name) return;
+        const specialComponents = getSpecialFoodComponentsByName(item.name);
+        if (!specialComponents.length) return;
+
+        if (!Array.isArray(item.baseComponents) || !item.baseComponents.length) {
+            item.baseComponents = normalizeSpecialComponents(specialComponents);
+        }
+        if (!Array.isArray(item.components) || !item.components.length) {
+            item.components = buildInitialCartComponents(specialComponents, Number(item.quantity) || 0);
+            item.componentsMode = 'total';
+            item.componentsOpen = specialComponents.length > 0;
+        }
+    });
+}
+
 function getWalkInDraftTotal() {
     return walkInDraftItems.reduce((sum, item) => sum + getCartItemLineTotal(item), 0);
 }
 
 function renderWalkInOrderBuilder() {
+    hydrateWalkInDraftItemsFromSpecialFoods();
     if (walkInItemSelect) {
         const previousSelection = walkInItemSelect.value;
         const availableItems = (inventoryData || [])

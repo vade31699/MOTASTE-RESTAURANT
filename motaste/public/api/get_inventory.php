@@ -38,6 +38,7 @@ try {
             'status' => $row->status ?: ($stock > 0 ? 'In stock' : 'Out of stock'),
             'category' => $row->category ?: 'specials',
             'description' => trim((string)($row->description ?? '')),
+            'image' => trim((string)($row->image ?? '')),
         ];
     }
 
