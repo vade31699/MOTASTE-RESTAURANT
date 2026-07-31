@@ -3147,6 +3147,7 @@ let cartItems = [];
 let menuSelectionQuantities = {};
 let pendingOrders = [];
 let completedOrders = [];
+let completedOrdersSyncInFlight = false;
 let inventoryData = [];
 let currentMenuCategoryId = null;
 let suppressMenuOverlay = false; // when true, prevent menu overlay from opening
