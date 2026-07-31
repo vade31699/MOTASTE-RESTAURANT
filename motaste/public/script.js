@@ -831,6 +831,7 @@ function setDashboardPanelState(isOpen) {
     }
     if (menuBtn) {
         menuBtn.classList.toggle('active', isOpen);
+        menuBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     }
     document.body.classList.toggle('dashboard-panel-open', isOpen);
 }

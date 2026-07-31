@@ -157,7 +157,7 @@ html, body {
 }
 
 .auth .menu-btn {
-    display: flex !important;
+    display: none !important;
 }
 
 body.dashboard-panel-open .menu-btn {
@@ -199,7 +199,7 @@ body.dashboard-panel-open .menu-btn {
     height: 100vh;
     max-height: 100vh;
     overflow-y: auto;
-    /* Dashboard always visible */
+    /* Dashboard always visible on desktop, slide in on smaller screens */
     opacity: 1;
     pointer-events: auto;
     transform: translateX(0);
@@ -209,7 +209,7 @@ body.dashboard-panel-open .menu-btn {
     border: none;
     border-radius: 0;
     box-shadow: none;
-    transition: none;
+    transition: transform 0.24s ease, opacity 0.24s ease, box-shadow 0.24s ease;
     z-index: 2100;
 }
 
@@ -292,6 +292,7 @@ body.dashboard-panel-open .menu-btn {
 }
 
 .dashboard-panel .panel-close {
+    display: none;
     position: absolute;
     top: 12px;
     right: 12px;
@@ -2023,7 +2024,6 @@ body.modal-open {
 
 
 
-}
 
 
 
@@ -4374,6 +4374,33 @@ body.modal-open {
 }
 
 @media (max-width: 900px) {
+    .auth .menu-btn {
+        display: flex !important;
+    }
+
+    .dashboard-panel {
+        transform: translateX(-100%);
+        opacity: 0;
+        pointer-events: none;
+        box-shadow: none;
+    }
+
+    .dashboard-panel.open {
+        transform: translateX(0);
+        opacity: 1;
+        pointer-events: auto;
+        box-shadow: 12px 0 32px rgba(0, 0, 0, 0.28);
+        z-index: 2200 !important;
+    }
+
+    .dashboard-panel .panel-close {
+        display: block;
+    }
+
+    body.dashboard-panel-open {
+        overflow: hidden;
+    }
+
     .dashboard-panel {
         width: min(88vw, 340px);
         padding: 72px 18px 20px 22px;
