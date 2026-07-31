@@ -1710,8 +1710,8 @@ body.modal-open {
     font-weight: 700;
     border-radius: 14px;
     cursor: pointer;
-    transition: background 0.18s ease;
-    transform: translateY(0);
+    transition: background 0.12s ease, color 0.12s ease;
+    will-change: background, color;
 }
 .menu-category-btn:hover,
 .menu-category-btn:focus {
@@ -2022,27 +2022,16 @@ body.modal-open {
 
 
 .menu-category-btn {
-
     padding:20px;
-
     border:none;
-
     border-radius:16px;
-
     font-size:18px;
-
     font-weight:700;
-
     color:rgb(0, 0, 0);
-
-
-    background:
-    linear-gradient(135deg,#ffffff,#f7f4f2);
-
-
+    background: linear-gradient(135deg,#ffffff,#f7f4f2);
     cursor:pointer;
-
-    transition:.3s;
+    transition: background 0.12s ease, color 0.12s ease;
+    will-change: background, color;
 
 }
 
@@ -2324,12 +2313,13 @@ body.modal-open {
     cursor: pointer;
     display: grid;
     place-items: center;
-    transition: background 0.2s ease, box-shadow 0.2s ease;
+    transition: background 0.12s ease;
+    will-change: background;
 }
 .menu-item-qty-btn:hover,
 .menu-item-qty-btn:focus-visible {
     background: #ff9800;
-    box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.3);
+    box-shadow: none;
 }
 .menu-item-qty {
     min-width: 24px;
