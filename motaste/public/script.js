@@ -6134,6 +6134,14 @@ function renderPendingOrders() {
             const maxAllowed = getMaxEditablePendingQuantity(order.id, item);
             const canIncrease = canCompleteOrders && (Number(item.quantity) || 0) < maxAllowed;
             const canDecrease = canCompleteOrders && (Number(item.quantity) || 0) > 0;
+            const componentLines = Array.isArray(item.components) ? item.components : [];
+            const componentsHtml = componentLines.length ? `
+                <ul class="pending-item-components">
+                    ${componentLines.map((component) => `
+                        <li>${component.name} × ${Number(component.quantity) || 0}</li>
+                    `).join('')}
+                </ul>
+            ` : '';
 
             return `
                 <li>
@@ -6145,6 +6153,7 @@ function renderPendingOrders() {
                             <button type="button" class="pending-item-qty-btn" data-action="increase" data-order-index="${index}" data-item-id="${item.id}"${canIncrease ? '' : ' disabled'}>+</button>
                         </div>
                     </div>
+                    ${componentsHtml}
                 </li>
             `;
         }).join('');

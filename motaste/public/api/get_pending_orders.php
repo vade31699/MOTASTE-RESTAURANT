@@ -58,6 +58,13 @@ try {
             ->where('order_id', $order->id)
             ->get()
             ->map(function ($it) {
+                $components = null;
+                try {
+                    $components = json_decode((string)($it->components ?? ''), true);
+                } catch (Throwable $e) {
+                    $components = null;
+                }
+
                 return [
                     'id' => (int)$it->id,
                     'order_id' => (int)$it->order_id,
@@ -66,6 +73,7 @@ try {
                     'price' => (float)($it->unit_price ?? 0),
                     'unit_price' => (float)($it->unit_price ?? 0),
                     'quantity' => (int)($it->quantity ?? 0),
+                    'components' => is_array($components) ? $components : [],
                 ];
             })
             ->values()
