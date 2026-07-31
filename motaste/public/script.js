@@ -4220,6 +4220,7 @@ async function loadCompletedOrdersFromServer(forceRefresh = false) {
 
         completedOrders = payload.orders.map((order) => ({
             ...order,
+            total: Number(order.total_amount ?? order.total ?? 0),
             timestamp: order.order_date ? Date.parse(order.order_date) || Date.now() : Date.now(),
             items: Array.isArray(order.items) ? order.items.map((item) => ({
                 ...item,

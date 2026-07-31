@@ -83,6 +83,7 @@ try {
             'order_type' => $order->order_type,
             'subtotal' => (float)($order->subtotal ?? 0),
             'total_amount' => (float)($order->total_amount ?? 0),
+            'total' => (float)($order->total_amount ?? $order->total ?? 0),
             'items' => $items,
         ];
     })->values()->all();
