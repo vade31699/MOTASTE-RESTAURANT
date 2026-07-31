@@ -1703,19 +1703,21 @@ body.modal-open {
 }
 .menu-category-btn {
     border: none;
-    background: #111;
+    background-color: #111;
     color: #fff;
     padding: 18px 16px;
     font-size: 0.95rem;
     font-weight: 700;
     border-radius: 14px;
     cursor: pointer;
-    transition: background 0.12s ease, color 0.12s ease;
-    will-change: background, color;
+    transition: background-color 0.12s ease, color 0.12s ease;
+    will-change: background-color, color;
+    outline: none;
 }
 .menu-category-btn:hover,
-.menu-category-btn:focus {
-    background: #ff9800;
+.menu-category-btn:focus-visible {
+    background-color: #ff9800;
+    color: #111;
 }
 .menu-category-screen {
     margin-top: 24px;
@@ -2021,29 +2023,6 @@ body.modal-open {
 
 
 
-.menu-category-btn {
-    padding:20px;
-    border:none;
-    border-radius:16px;
-    font-size:18px;
-    font-weight:700;
-    color:rgb(0, 0, 0);
-    background: linear-gradient(135deg,#ffffff,#f7f4f2);
-    cursor:pointer;
-    transition: background 0.12s ease, color 0.12s ease;
-    will-change: background, color;
-
-}
-
-
-
-.menu-category-btn:hover {
-
-    background:
-    linear-gradient(135deg,#fffffe,#ff9900);
-
-    color:#8a3d00;
-
 }
 
 
@@ -2306,19 +2285,20 @@ body.modal-open {
     height: 32px;
     border: none;
     border-radius: 50%;
-    background: #111;
+    background-color: #111;
     color: #fff;
     font-size: 18px;
     font-weight: 700;
     cursor: pointer;
     display: grid;
     place-items: center;
-    transition: background 0.12s ease;
-    will-change: background;
+    transition: background-color 0.12s ease;
+    will-change: background-color;
+    outline: none;
 }
 .menu-item-qty-btn:hover,
 .menu-item-qty-btn:focus-visible {
-    background: #ff9800;
+    background-color: #ff9800;
     box-shadow: none;
 }
 .menu-item-qty {
