@@ -5726,7 +5726,7 @@ function renderSpecialFoods() {
         return `
         <article class="special-food-card${isOutOfStock ? ' is-out-of-stock' : ''}" data-name="${item.name}">
             <button type="button" class="special-food-view-btn" data-name="${item.name}" aria-label="View ${item.name} details">
-                <img src="${imageSrc}" alt="${item.name}">
+                <img src="${imageSrc}" alt="${item.name}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='img1.jpg';">
                 <div class="special-food-image-meta">
                     <span class="special-food-image-name">${item.name}</span>
                 </div>

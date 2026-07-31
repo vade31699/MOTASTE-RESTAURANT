@@ -9,8 +9,6 @@ require __DIR__ . '/../../vendor/autoload.php';
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
-use Illuminate\Support\Facades\Storage;
-
 try {
     if (!isset($_FILES['image']) || !is_array($_FILES['image'])) {
         http_response_code(400);
@@ -38,23 +36,22 @@ try {
     }
 
     $fileName = 'special-food-' . time() . '-' . bin2hex(random_bytes(6)) . '.' . $extension;
-    $path = 'special_food_images/' . $fileName;
-    $contents = file_get_contents($file['tmp_name']);
-    if ($contents === false) {
-        throw new RuntimeException('Unable to read uploaded file contents');
+    $publicDirectory = realpath(dirname(__DIR__)) . DIRECTORY_SEPARATOR . 'special_food_images';
+    if (!is_dir($publicDirectory) && !mkdir($publicDirectory, 0755, true) && !is_dir($publicDirectory)) {
+        throw new RuntimeException('Unable to create public image directory');
     }
 
-    $stored = Storage::disk('public')->put($path, $contents, 'public');
-    if ($stored === false) {
-        throw new RuntimeException('Unable to save uploaded file to storage');
+    $destination = $publicDirectory . DIRECTORY_SEPARATOR . $fileName;
+    if (!move_uploaded_file($file['tmp_name'], $destination)) {
+        throw new RuntimeException('Unable to save uploaded file to public folder');
     }
 
-    $url = Storage::disk('public')->url($path);
+    $url = '/special_food_images/' . $fileName;
 
     echo json_encode([
         'success' => true,
         'url' => $url,
-        'path' => $path,
+        'path' => $destination,
     ]);
 } catch (Throwable $error) {
     http_response_code(500);
