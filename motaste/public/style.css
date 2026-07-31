@@ -1703,8 +1703,8 @@ body.modal-open {
 }
 .menu-category-btn {
     border: none;
-    background-color: #111;
-    color: #fff;
+    background-color: #f8f6f6;
+    color: #030303;
     padding: 18px 16px;
     font-size: 0.95rem;
     font-weight: 700;
