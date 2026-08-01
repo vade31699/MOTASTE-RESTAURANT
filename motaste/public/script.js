@@ -4016,7 +4016,7 @@ function getReviewPublishStatusLabel(status) {
     if ((status || '').toLowerCase() === 'published') {
         return 'Published';
     }
-    return 'Pending Approval';
+    return 'Pending';
 }
 
 function renderCustomerReviews() {
@@ -4049,7 +4049,6 @@ function renderStaffReviews() {
 
     staffReviewList.innerHTML = cachedStaffReviews.map((review) => {
         const status = (review.publish_status || 'pending').toLowerCase();
-        const showPublishButton = status !== 'published';
         const safeReviewText = escapeHtml(review.review_text);
         return `
             <article class="staff-review-card">
@@ -4057,7 +4056,6 @@ function renderStaffReviews() {
                 <p><strong class="review-stars">${renderStarRating(review.rating)}</strong></p>
                 <p class="review-comment">${safeReviewText}</p>
                 <p><span>${formatRealtimeDate(review.created_at_iso || review.created_at)}</span></p>
-                ${showPublishButton ? `<button type="button" class="staff-review-publish-btn" data-review-id="${review.id}">Publish Review</button>` : ''}
                 <button type="button" class="staff-review-delete-btn" data-review-id="${review.id}">Delete Review</button>
             </article>
         `;
@@ -4134,7 +4132,7 @@ if (customerReviewForm) {
 
             if (customerReviewForm) customerReviewForm.reset();
             if (reviewSubmitMessage) {
-                reviewSubmitMessage.textContent = payload.message || 'Review submitted. It will appear after staff approval.';
+                reviewSubmitMessage.textContent = payload.message || 'Review submitted. It will appear immediately.';
             }
             void loadReviewsFromServer(true);
             void loadOrderLogsFromServer(true);

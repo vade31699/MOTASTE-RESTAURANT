@@ -68,19 +68,12 @@ try {
         ->whereDate('reviewed_on', $today)
         ->count();
 
-    $publishedTodayCount = (int)DB::table('customer_reviews')
-        ->where('reviewer_key', $reviewerKey)
-        ->whereDate('reviewed_on', $today)
-        ->where('publish_status', 'published')
-        ->count();
-
-    // Base allowance is one review per day; each same-day published review unlocks one more.
-    $allowedSubmissionsToday = 1 + $publishedTodayCount;
+    $allowedSubmissionsToday = 1;
     if ($submittedTodayCount >= $allowedSubmissionsToday) {
         http_response_code(409);
         echo json_encode([
             'success' => false,
-            'error' => 'You have reached your review limit for today. Submit again after staff publishes your latest review, or try again tomorrow.'
+            'error' => 'You have reached your review limit for today. Submit again tomorrow.'
         ]);
         exit;
     }
@@ -90,8 +83,8 @@ try {
         'review_text' => $reviewText,
         'reviewer_key' => $reviewerKey,
         'reviewed_on' => $today,
-        'publish_status' => 'pending',
-        'published_at' => null,
+        'publish_status' => 'published',
+        'published_at' => now(),
         'created_at' => now(),
         'updated_at' => now(),
     ]);
@@ -99,15 +92,15 @@ try {
     DB::table('order_activity_logs')->insert([
         'order_id' => null,
         'order_number' => null,
-        'action' => 'review_submitted_pending',
+        'action' => 'review_submitted',
         'actor_role' => 'Customer',
         'actor_email' => null,
-        'summary' => 'Customer review submitted (pending publish)',
+        'summary' => 'Customer review submitted and published',
         'details' => json_encode([
             'review_id' => $reviewId,
             'rating' => $rating,
             'review_text' => $reviewText,
-            'publish_status' => 'pending',
+            'publish_status' => 'published',
             'submitted_at' => now()->toDateTimeString(),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         'created_at' => now(),
@@ -117,8 +110,8 @@ try {
     echo json_encode([
         'success' => true,
         'reviewId' => $reviewId,
-        'publishStatus' => 'pending',
-        'message' => 'Review submitted. It will appear after staff approval.'
+        'publishStatus' => 'published',
+        'message' => 'Review submitted and published. It will appear immediately.'
     ]);
 } catch (Throwable $error) {
     http_response_code(500);
