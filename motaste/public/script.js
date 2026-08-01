@@ -1988,6 +1988,33 @@ function applyBaseComponentsDeltaToCartItem(cartItem, dishQuantityDelta) {
     cartItem.components = normalizeCartComponents(cartItem.components);
 }
 
+function updateCartItemComponentsByRecipe(cartItem, recipeComponents, quantityDelta) {
+    if (!Array.isArray(recipeComponents) || !recipeComponents.length) return;
+    if (!Array.isArray(cartItem.components)) {
+        cartItem.components = [];
+    }
+
+    recipeComponents.forEach((recipeComponent) => {
+        const normalizedName = normalizeInventoryName(recipeComponent.name);
+        if (!normalizedName) return;
+
+        const perDishQty = Math.max(0, Number(recipeComponent.quantity) || 0);
+        if (perDishQty <= 0) return;
+
+        const changeBy = perDishQty * quantityDelta;
+        let component = cartItem.components.find((entry) => normalizeInventoryName(entry.name) === normalizedName);
+
+        if (!component) {
+            component = { name: recipeComponent.name, quantity: 0 };
+            cartItem.components.push(component);
+        }
+
+        component.quantity = Math.max(0, (Number(component.quantity) || 0) + changeBy);
+    });
+
+    cartItem.components = normalizeCartComponents(cartItem.components);
+}
+
 function getCartItemBaseComponents(item) {
     const fromCart = normalizeSpecialComponents(item && item.baseComponents);
     if (fromCart.length) return fromCart;
@@ -3707,26 +3734,35 @@ function getMaxEditablePendingComponentQuantity(orderId, item, componentName) {
     return Math.max(0, stock - reservedByOthers);
 }
 
-async function updatePendingOrderItemQuantity(orderId, itemId, quantity) {
+async function updatePendingOrderItemQuantity(orderId, itemId, quantity, components = null) {
     const actor = getCurrentStaffActor();
+
+    const payload = {
+        orderId,
+        itemId,
+        quantity,
+        actorRole: actor.role,
+        actorEmail: actor.email
+    };
+
+    if (Array.isArray(components)) {
+        payload.components = components.map((component) => ({
+            name: String(component.name || '').trim(),
+            quantity: Math.max(0, Number(component.quantity) || 0)
+        }));
+    }
 
     const response = await fetch(getApiUrl('api/update_pending_order_item.php'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-            orderId,
-            itemId,
-            quantity,
-            actorRole: actor.role,
-            actorEmail: actor.email
-        }),
+        body: JSON.stringify(payload),
         cache: 'no-store'
     });
 
-    const payload = await response.json();
-    if (!response.ok || !payload.success) {
+    const result = await response.json();
+    if (!response.ok || !result.success) {
         const maxAllowed = payload && Number.isFinite(Number(payload.maxAllowed)) ? Number(payload.maxAllowed) : null;
         const message = maxAllowed !== null
             ? `${payload.error || 'Unable to update order item'} (Max allowed: ${maxAllowed})`
@@ -3827,12 +3863,19 @@ async function changePendingOrderItemQuantity(orderIndex, itemId, direction) {
     // Optimistic UI update for faster response
     const previousTotal = Number(order.total) || 0;
     const previousQuantity = currentQuantity;
+    const specialRecipe = getSpecialFoodComponentsByName(item.name);
+    if (specialRecipe.length) {
+        updateCartItemComponentsByRecipe(item, specialRecipe, delta);
+    } else {
+        applyBaseComponentsDeltaToCartItem(item, delta);
+    }
+
     item.quantity = nextQuantity;
     order.total = previousTotal + (direction === 'increase' ? Number(item.price) || 0 : -(Number(item.price) || 0));
     renderPendingOrders();
 
     try {
-        await updatePendingOrderItemQuantity(order.id, item.id, nextQuantity);
+        await updatePendingOrderItemQuantity(order.id, item.id, nextQuantity, item.components);
     } catch (error) {
         console.error('Unable to edit pending order quantity', error);
         item.quantity = previousQuantity;
