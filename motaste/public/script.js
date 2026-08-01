@@ -2060,7 +2060,6 @@ function getCartPayableTotal() {
 
 function getOrderComponents(components) {
     return normalizeCartComponents(components)
-        .filter((component) => Math.max(0, Number(component.quantity) || 0) > 0)
         .map((component) => ({
             name: component.name,
             quantity: Math.max(0, Number(component.quantity) || 0)
