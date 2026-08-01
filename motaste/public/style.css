@@ -3706,6 +3706,48 @@ body.modal-open {
     cursor: not-allowed;
 }
 
+.pending-item-component-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.pending-item-component-row:first-child {
+    border-top: none;
+}
+
+.pending-item-component-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pending-item-component-btn {
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    background: #fff;
+    color: #111;
+    border-radius: 8px;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.pending-item-component-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.pending-item-component-qty {
+    min-width: 20px;
+    text-align: center;
+    font-weight: 700;
+}
+
 .order-notification-footer {
     display: flex;
     justify-content: space-between;

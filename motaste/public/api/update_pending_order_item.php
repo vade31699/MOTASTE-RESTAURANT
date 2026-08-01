@@ -22,19 +22,23 @@ function ensureOrderLogsTable(): void
 $input = json_decode(file_get_contents('php://input'), true);
 $orderId = isset($input['orderId']) ? (int) $input['orderId'] : 0;
 $itemId = isset($input['itemId']) ? (int) $input['itemId'] : 0;
-$quantity = isset($input['quantity']) ? (int) $input['quantity'] : 0;
+$quantity = isset($input['quantity']) ? (int) $input['quantity'] : null;
+$componentName = trim((string)($input['componentName'] ?? ''));
+$componentQuantity = array_key_exists('componentQuantity', $input) ? (int)$input['componentQuantity'] : null;
 $actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
 $actorEmail = trim((string)($input['actorEmail'] ?? ''));
-if ($orderId <= 0 || $itemId <= 0 || $quantity < 0) {
+$hasComponentUpdate = $componentName !== '' && $componentQuantity !== null;
+
+if ($orderId <= 0 || $itemId <= 0 || ($quantity === null && !$hasComponentUpdate) || ($quantity !== null && $quantity < 0) || ($hasComponentUpdate && $componentQuantity < 0)) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'orderId, itemId, and quantity are required']);
+    echo json_encode(['success' => false, 'error' => 'orderId, itemId, and quantity or component update are required']);
     exit;
 }
 
 try {
     ensureOrderLogsTable();
 
-    $result = DB::transaction(function () use ($orderId, $itemId, $quantity) {
+    $result = DB::transaction(function () use ($orderId, $itemId, $quantity, $componentName, $componentQuantity, $hasComponentUpdate) {
         $order = DB::table('orders')->where('id', $orderId)->lockForUpdate()->first();
         if (!$order) {
             return ['success' => false, 'status' => 404, 'error' => 'Order not found'];
@@ -55,9 +59,20 @@ try {
         }
 
         $previousQuantity = (int)($targetItem->quantity ?? 0);
+        $previousComponents = [];
+        $componentsJson = (string)($targetItem->components ?? '');
+        $currentComponents = [];
+        try {
+            $decoded = json_decode($componentsJson, true);
+            if (is_array($decoded)) {
+                $currentComponents = array_values($decoded);
+            }
+        } catch (Throwable $e) {
+            $currentComponents = [];
+        }
 
         $itemName = normalizeItemName((string) ($targetItem->notes ?? ''));
-        if ($quantity > 0 && $itemName !== '') {
+        if ($quantity !== null && $quantity > 0 && $itemName !== '') {
             $inventoryItem = null;
             $candidateInventory = DB::table('inventory_items')->select('id', 'stock', 'name')->get();
             foreach ($candidateInventory as $inventoryRow) {
@@ -96,25 +111,114 @@ try {
             }
         }
 
-        $lineTotal = 0.0;
+        $lineTotal = (float) ($targetItem->line_total ?? 0);
+        $unitPrice = (float) ($targetItem->unit_price ?? 0);
         $orderRemoved = false;
         $itemRemoved = false;
-        if ($quantity === 0) {
-            DB::table('order_items')
-                ->where('id', $itemId)
-                ->delete();
-            $itemRemoved = true;
-        } else {
-            $unitPrice = (float) ($targetItem->unit_price ?? 0);
-            $lineTotal = $unitPrice * $quantity;
+        $componentAction = null;
+
+        if ($hasComponentUpdate) {
+            $normalizedComponentName = normalizeItemName($componentName);
+            $existingComponentIndex = null;
+            $previousComponents = $currentComponents;
+            $componentUnitPrice = 0.0;
+            $inventoryComponent = DB::table('inventory_items')->select('price', 'name')->get();
+            foreach ($inventoryComponent as $inventoryRow) {
+                if (normalizeItemName((string)($inventoryRow->name ?? '')) === $normalizedComponentName) {
+                    $componentUnitPrice = (float)($inventoryRow->price ?? 0);
+                    $inventoryStock = max(0, (int)($inventoryRow->stock ?? 0));
+                    break;
+                }
+            }
+
+            $pendingRawComponents = DB::table('order_items as oi')
+                ->join('orders as o', 'o.id', '=', 'oi.order_id')
+                ->where('o.status', 'pending')
+                ->where('oi.id', '<>', $itemId)
+                ->select('oi.components')
+                ->get();
+
+            $reservedComponentQuantity = 0;
+            foreach ($pendingRawComponents as $pendingRow) {
+                $decodedComponents = [];
+                try {
+                    $decodedComponents = json_decode((string)($pendingRow->components ?? ''), true);
+                } catch (Throwable $e) {
+                    $decodedComponents = [];
+                }
+                if (!is_array($decodedComponents)) {
+                    continue;
+                }
+                foreach ($decodedComponents as $component) {
+                    if (normalizeItemName((string)($component['name'] ?? '')) === $normalizedComponentName) {
+                        $reservedComponentQuantity += max(0, (int)($component['quantity'] ?? 0));
+                    }
+                }
+            }
+
+            $previousComponentQuantity = 0;
+            if ($existingComponentIndex !== null) {
+                $previousComponentQuantity = max(0, (int)($currentComponents[$existingComponentIndex]['quantity'] ?? 0));
+            }
+
+            if (isset($inventoryStock) && $componentQuantity > max(0, $inventoryStock - $reservedComponentQuantity)) {
+                return [
+                    'success' => false,
+                    'status' => 409,
+                    'error' => 'Requested component quantity exceeds available stock',
+                    'maxAllowed' => max(0, $inventoryStock - $reservedComponentQuantity),
+                ];
+            }
+
+            $nextComponentQuantity = max(0, $componentQuantity);
+            if ($existingComponentIndex !== null) {
+                if ($nextComponentQuantity === 0) {
+                    array_splice($currentComponents, $existingComponentIndex, 1);
+                } else {
+                    $currentComponents[$existingComponentIndex]['quantity'] = $nextComponentQuantity;
+                }
+            } elseif ($nextComponentQuantity > 0) {
+                $currentComponents[] = [
+                    'name' => $componentName,
+                    'quantity' => $nextComponentQuantity,
+                ];
+            }
+
+            $lineTotal += ($nextComponentQuantity - $previousComponentQuantity) * $componentUnitPrice;
+            $lineTotal = max(0, $lineTotal);
+            if ($previousQuantity > 0) {
+                $unitPrice = $lineTotal / $previousQuantity;
+            }
+            $componentAction = 'component_quantity_updated';
 
             DB::table('order_items')
                 ->where('id', $itemId)
                 ->update([
-                    'quantity' => $quantity,
+                    'components' => json_encode($currentComponents, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    'unit_price' => $unitPrice,
                     'line_total' => $lineTotal,
                     'updated_at' => now(),
                 ]);
+        }
+
+        if ($quantity !== null) {
+            if ($quantity === 0) {
+                DB::table('order_items')
+                    ->where('id', $itemId)
+                    ->delete();
+                $itemRemoved = true;
+            } else {
+                $lineTotal = $unitPrice * $quantity;
+
+                DB::table('order_items')
+                    ->where('id', $itemId)
+                    ->update([
+                        'quantity' => $quantity,
+                        'line_total' => $lineTotal,
+                        'unit_price' => $unitPrice,
+                        'updated_at' => now(),
+                    ]);
+            }
         }
 
         $totals = DB::table('order_items')->where('order_id', $orderId)
@@ -152,6 +256,8 @@ try {
             $action = 'order_removed';
         } elseif ($itemRemoved) {
             $action = 'item_removed';
+        } elseif ($hasComponentUpdate) {
+            $action = 'component_quantity_updated';
         } elseif ($quantity > $previousQuantity) {
             $action = 'quantity_increased';
         } elseif ($quantity < $previousQuantity) {
@@ -191,6 +297,8 @@ try {
             'item' => $result['itemName'] ?? null,
             'previous_quantity' => $result['previousQuantity'] ?? null,
             'new_quantity' => $result['quantity'] ?? null,
+            'component_name' => $componentName !== '' ? $componentName : null,
+            'component_quantity' => $hasComponentUpdate ? $componentQuantity : null,
             'subtotal' => $result['subtotal'] ?? null,
             'event_time' => now()->toDateTimeString(),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
