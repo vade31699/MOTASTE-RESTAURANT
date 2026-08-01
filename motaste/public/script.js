@@ -1988,50 +1988,6 @@ function applyBaseComponentsDeltaToCartItem(cartItem, dishQuantityDelta) {
     cartItem.components = normalizeCartComponents(cartItem.components);
 }
 
-function addCartItemRecipeComponents(cartItem, recipeComponents) {
-    if (!Array.isArray(cartItem.components)) {
-        cartItem.components = [];
-    }
-
-    recipeComponents.forEach((recipeComponent) => {
-        const normalizedName = normalizeInventoryName(recipeComponent.name);
-        if (!normalizedName) return;
-
-        const addQty = Math.max(0, Number(recipeComponent.quantity) || 0);
-        if (addQty <= 0) return;
-
-        const existing = cartItem.components.find((entry) => normalizeInventoryName(entry.name) === normalizedName);
-        if (existing) {
-            existing.quantity = Math.max(0, (Number(existing.quantity) || 0) + addQty);
-        } else {
-            cartItem.components.push({ name: recipeComponent.name, quantity: addQty });
-        }
-    });
-
-    cartItem.components = normalizeCartComponents(cartItem.components);
-}
-
-function subtractCartItemRecipeComponents(cartItem, recipeComponents) {
-    if (!Array.isArray(cartItem.components)) {
-        cartItem.components = [];
-    }
-
-    recipeComponents.forEach((recipeComponent) => {
-        const normalizedName = normalizeInventoryName(recipeComponent.name);
-        if (!normalizedName) return;
-
-        const removeQty = Math.max(0, Number(recipeComponent.quantity) || 0);
-        if (removeQty <= 0) return;
-
-        const existing = cartItem.components.find((entry) => normalizeInventoryName(entry.name) === normalizedName);
-        if (existing) {
-            existing.quantity = Math.max(0, (Number(existing.quantity) || 0) - removeQty);
-        }
-    });
-
-    cartItem.components = normalizeCartComponents(cartItem.components);
-}
-
 function getCartItemBaseComponents(item) {
     const fromCart = normalizeSpecialComponents(item && item.baseComponents);
     if (fromCart.length) return fromCart;
@@ -3751,29 +3707,21 @@ function getMaxEditablePendingComponentQuantity(orderId, item, componentName) {
     return Math.max(0, stock - reservedByOthers);
 }
 
-async function updatePendingOrderItemQuantity(orderId, itemId, quantity, components = null) {
+async function updatePendingOrderItemQuantity(orderId, itemId, quantity) {
     const actor = getCurrentStaffActor();
-
-    const payload = {
-        orderId,
-        itemId,
-        quantity,
-        actorRole: actor.role,
-        actorEmail: actor.email
-    };
-    if (Array.isArray(components)) {
-        payload.components = components.map((component) => ({
-            name: String(component.name || '').trim(),
-            quantity: Math.max(0, Number(component.quantity) || 0)
-        }));
-    }
 
     const response = await fetch(getApiUrl('api/update_pending_order_item.php'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+            orderId,
+            itemId,
+            quantity,
+            actorRole: actor.role,
+            actorEmail: actor.email
+        }),
         cache: 'no-store'
     });
 
@@ -3879,25 +3827,12 @@ async function changePendingOrderItemQuantity(orderIndex, itemId, direction) {
     // Optimistic UI update for faster response
     const previousTotal = Number(order.total) || 0;
     const previousQuantity = currentQuantity;
-    const previousComponents = Array.isArray(item.components) ? JSON.parse(JSON.stringify(item.components)) : [];
-
-    const specialRecipe = getSpecialFoodComponentsByName(item.name);
-    if (specialRecipe.length) {
-        if (direction === 'increase') {
-            addCartItemRecipeComponents(item, specialRecipe);
-        } else if (direction === 'decrease') {
-            subtractCartItemRecipeComponents(item, specialRecipe);
-        }
-    } else if (nextQuantity >= 0) {
-        applyBaseComponentsDeltaToCartItem(item, delta);
-    }
-
     item.quantity = nextQuantity;
     order.total = previousTotal + (direction === 'increase' ? Number(item.price) || 0 : -(Number(item.price) || 0));
     renderPendingOrders();
 
     try {
-        await updatePendingOrderItemQuantity(order.id, item.id, nextQuantity, item.components, specialRecipe);
+        await updatePendingOrderItemQuantity(order.id, item.id, nextQuantity);
     } catch (error) {
         console.error('Unable to edit pending order quantity', error);
         item.quantity = previousQuantity;

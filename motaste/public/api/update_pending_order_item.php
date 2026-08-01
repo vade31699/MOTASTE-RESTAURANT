@@ -25,15 +25,11 @@ $itemId = isset($input['itemId']) ? (int) $input['itemId'] : 0;
 $quantity = isset($input['quantity']) ? (int) $input['quantity'] : null;
 $componentName = trim((string)($input['componentName'] ?? ''));
 $componentQuantity = array_key_exists('componentQuantity', $input) ? (int)$input['componentQuantity'] : null;
-$components = is_array($input['components'] ?? null) ? array_values($input['components']) : null;
-$recipeComponents = is_array($input['recipeComponents'] ?? null) ? array_values($input['recipeComponents']) : null;
 $actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
 $actorEmail = trim((string)($input['actorEmail'] ?? ''));
 $hasComponentUpdate = $componentName !== '' && $componentQuantity !== null;
-$hasComponentsPayload = is_array($components);
-$hasRecipePayload = is_array($recipeComponents);
 
-if ($orderId <= 0 || $itemId <= 0 || ($quantity === null && !$hasComponentUpdate && !$hasComponentsPayload && !$hasRecipePayload) || ($quantity !== null && $quantity < 0) || ($hasComponentUpdate && $componentQuantity < 0)) {
+if ($orderId <= 0 || $itemId <= 0 || ($quantity === null && !$hasComponentUpdate) || ($quantity !== null && $quantity < 0) || ($hasComponentUpdate && $componentQuantity < 0)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'orderId, itemId, and quantity or component update are required']);
     exit;
@@ -42,7 +38,7 @@ if ($orderId <= 0 || $itemId <= 0 || ($quantity === null && !$hasComponentUpdate
 try {
     ensureOrderLogsTable();
 
-    $result = DB::transaction(function () use ($orderId, $itemId, $quantity, $componentName, $componentQuantity, $components, $recipeComponents, $hasComponentUpdate, $hasComponentsPayload, $hasRecipePayload) {
+    $result = DB::transaction(function () use ($orderId, $itemId, $quantity, $componentName, $componentQuantity, $hasComponentUpdate) {
         $order = DB::table('orders')->where('id', $orderId)->lockForUpdate()->first();
         if (!$order) {
             return ['success' => false, 'status' => 404, 'error' => 'Order not found'];
@@ -212,94 +208,7 @@ try {
                     ->delete();
                 $itemRemoved = true;
             } else {
-                if ($hasComponentsPayload) {
-                    $sanitizedComponents = [];
-                    foreach ($components as $component) {
-                        if (!is_array($component)) {
-                            continue;
-                        }
-                        $name = trim((string)($component['name'] ?? ''));
-                        $qty = max(0, (int)($component['quantity'] ?? 0));
-                        if ($name === '') {
-                            continue;
-                        }
-                        $sanitizedComponents[] = ['name' => $name, 'quantity' => $qty];
-                    }
-                    $currentComponents = $sanitizedComponents;
-                } elseif ($quantity !== $previousQuantity && $previousQuantity > 0 && count($currentComponents) > 0) {
-                    $scaledComponents = [];
-                    foreach ($currentComponents as $component) {
-                        $name = trim((string)($component['name'] ?? ''));
-                        if ($name === '') {
-                            continue;
-                        }
-                        $prevQty = max(0, (int)($component['quantity'] ?? 0));
-                        $nextQty = (int) round($prevQty * $quantity / $previousQuantity);
-                        if ($nextQty > 0) {
-                            $scaledComponents[] = ['name' => $name, 'quantity' => $nextQty];
-                        }
-                    }
-                    $currentComponents = $scaledComponents;
-                }
-
-                if ($hasRecipePayload && $quantity !== $previousQuantity && $previousQuantity > 0) {
-                    $sanitizedRecipeComponents = [];
-                    foreach ($recipeComponents as $component) {
-                        if (!is_array($component)) {
-                            continue;
-                        }
-                        $name = trim((string)($component['name'] ?? ''));
-                        $qty = max(0, (int)($component['quantity'] ?? 0));
-                        if ($name === '' || $qty <= 0) {
-                            continue;
-                        }
-                        $sanitizedRecipeComponents[] = ['name' => $name, 'quantity' => $qty];
-                    }
-
-                    if (count($sanitizedRecipeComponents) > 0) {
-                        $recipeLookup = [];
-                        foreach ($sanitizedRecipeComponents as $component) {
-                            $recipeLookup[normalizeItemName($component['name'])] = $component['quantity'];
-                        }
-
-                        $removalCount = $previousQuantity - $quantity;
-                        foreach ($currentComponents as $key => $component) {
-                            $normalizedName = normalizeItemName((string)($component['name'] ?? ''));
-                            if ($normalizedName === '') {
-                                continue;
-                            }
-
-                            $baseQty = $recipeLookup[$normalizedName] ?? 0;
-                            $diff = max(0, (int)($component['quantity'] ?? 0) - ($baseQty * $removalCount));
-                            if ($diff > 0) {
-                                $currentComponents[$key]['quantity'] = $diff;
-                            } else {
-                                unset($currentComponents[$key]);
-                            }
-                        }
-                        $currentComponents = array_values($currentComponents);
-                    }
-                }
-
-                if (count($currentComponents) > 0) {
-                    $componentPrices = [];
-                    $inventoryRows = DB::table('inventory_items')->select('name', 'price')->get();
-                    foreach ($inventoryRows as $inventoryRow) {
-                        $componentPrices[normalizeItemName((string)($inventoryRow->name ?? ''))] = (float)($inventoryRow->price ?? 0);
-                    }
-
-                    $componentTotal = 0.0;
-                    foreach ($currentComponents as $component) {
-                        $key = normalizeItemName((string)($component['name'] ?? ''));
-                        $lineQty = max(0, (int)($component['quantity'] ?? 0));
-                        $componentTotal += $lineQty * ($componentPrices[$key] ?? 0.0);
-                    }
-
-                    $unitPrice = $quantity > 0 ? ($componentTotal / $quantity) : 0.0;
-                    $lineTotal = $componentTotal;
-                } else {
-                    $lineTotal = $unitPrice * $quantity;
-                }
+                $lineTotal = $unitPrice * $quantity;
 
                 DB::table('order_items')
                     ->where('id', $itemId)
@@ -307,7 +216,6 @@ try {
                         'quantity' => $quantity,
                         'line_total' => $lineTotal,
                         'unit_price' => $unitPrice,
-                        'components' => count($currentComponents) > 0 ? json_encode($currentComponents, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
                         'updated_at' => now(),
                     ]);
             }
