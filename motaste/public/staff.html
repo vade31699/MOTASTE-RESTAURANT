@@ -180,18 +180,6 @@
                 </div>
             </div>
 
-            <div id="overviewLowStockBox" class="overview-low-stock-box" hidden>
-                <div class="overview-notification-header">
-                    <h3>Low Stock Alert</h3>
-                    <p>Items under 20 stock need attention.</p>
-                </div>
-                <div id="overviewLowStockList" class="overview-low-stock-list"></div>
-                <div class="low-stock-actions">
-                    <button type="button" id="lowStockRemindLaterBtn" class="low-stock-action-btn secondary">Remind me later (30 mins)</button>
-                    <button type="button" id="lowStockContinueBtn" class="low-stock-action-btn primary">Continue</button>
-                </div>
-            </div>
-
             <div class="overview-inventory-box" hidden>
                 <div class="overview-inventory-header">
                     <h3>Inventory Real-Time List</h3>
@@ -202,11 +190,16 @@
         </div>
     </section>
 
-    <section id="sales" class="sales-section" hidden>
-        <h2>Sales</h2>
+    <div id="lowStockModalOverlay" class="modal-overlay" hidden aria-hidden="true">
+        <div class="modal-box low-stock-modal" role="dialog" aria-modal="true" aria-labelledby="lowStockModalTitle">
+            <button type="button" class="modal-close" id="lowStockModalCloseBtn" aria-label="Close low stock alert">×</button>
+            <h2 id="lowStockModalTitle">Low Stock Alert</h2>
+            <p>Some inventory items are below 20 stock. Tap the button below to expand the low-stock list.</p>
+            <button type="button" id="lowStockToggleListBtn" class="menu-place-order-btn">Show low-stock items</button>
+            <div id="lowStockItemDropdown" class="low-stock-dropdown" hidden></div>
+            <div class="low-stock-actions">
+                <button type="button" id="lowStockRemindLaterBtn" class="low-stock-action-btn secondary">Remind me later (30 mins)</button>
 
-        <div class="sales-analytics-placeholder">
-            <h3>Analytics</h3>
             <p>Sample sales analytics graph for daily, weekly, and monthly performance.</p>
             <div class="sales-analytics-select-wrapper">
                 <label for="analyticsSelect">View:</label>
