@@ -1844,6 +1844,7 @@ const walkInOrdersTabBtn = document.getElementById('walkInOrdersTabBtn');
 const pendingOrdersTabBtn = document.getElementById('pendingOrdersTabBtn');
 const walkInOrderPanel = document.getElementById('walkInOrderPanel');
 const pendingOrdersPanel = document.getElementById('pendingOrdersPanel');
+const walkInItemSearchInput = document.getElementById('walkInItemSearchInput');
 const walkInItemSelect = document.getElementById('walkInItemSelect');
 const walkInItemQtyInput = document.getElementById('walkInItemQtyInput');
 const walkInAddItemBtn = document.getElementById('walkInAddItemBtn');
@@ -5433,6 +5434,7 @@ function syncMenuPricesWithInventory() {
 
 let inventorySelectedCategory = 'all';
 let inventorySearchTerm = '';
+let walkInSearchTerm = '';
 
 // Helper: detect if user is currently in checkout/payment screens
 function isUserInCheckoutOrPayment() {
@@ -6403,12 +6405,15 @@ function renderWalkInOrderBuilder() {
     hydrateWalkInDraftItemsFromSpecialFoods();
     if (walkInItemSelect) {
         const previousSelection = walkInItemSelect.value;
+        const term = (walkInSearchTerm || '').trim().toLowerCase();
         const availableItems = (inventoryData || [])
             .filter((item) => getAvailablePendingStockForItem(item.name) > 0)
+            .filter((item) => !term || String(item.name || '').toLowerCase().includes(term))
             .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 
         if (!availableItems.length) {
-            walkInItemSelect.innerHTML = '<option value="">No available items</option>';
+            const noMatchingMessage = term ? 'No matching products' : 'No available items';
+            walkInItemSelect.innerHTML = `<option value="">${noMatchingMessage}</option>`;
             walkInItemSelect.disabled = true;
         } else {
             walkInItemSelect.disabled = false;
@@ -7866,6 +7871,13 @@ if (pendingOrdersList) {
 if (walkInOrdersTabBtn) {
     walkInOrdersTabBtn.addEventListener('click', () => {
         setOrdersTab('walk-in');
+        renderWalkInOrderBuilder();
+    });
+}
+
+if (walkInItemSearchInput) {
+    walkInItemSearchInput.addEventListener('input', (event) => {
+        walkInSearchTerm = String(event.target.value || '').trim();
         renderWalkInOrderBuilder();
     });
 }
