@@ -6091,7 +6091,7 @@ function addToCart(item, quantityToAdd = 1) {
             existing.baseComponents = normalizeSpecialComponents(specialComponents);
         }
         applyBaseComponentsDeltaToCartItem(existing, quantity);
-        existing.componentsOpen = Array.isArray(existing.components) && existing.components.length > 0;
+        existing.componentsOpen = false;
         existing.componentsMode = 'total';
         existing.quantity += quantity;
     } else {
@@ -6101,7 +6101,7 @@ function addToCart(item, quantityToAdd = 1) {
             baseComponents: normalizeSpecialComponents(specialComponents),
             components: buildInitialCartComponents(specialComponents, quantity),
             componentsMode: 'total',
-            componentsOpen: specialComponents.length > 0
+            componentsOpen: false
         });
     }
     saveCart();
@@ -6392,7 +6392,7 @@ function hydrateWalkInDraftItemsFromSpecialFoods() {
         if (!Array.isArray(item.components) || !item.components.length) {
             item.components = buildInitialCartComponents(specialComponents, Number(item.quantity) || 0);
             item.componentsMode = 'total';
-            item.componentsOpen = specialComponents.length > 0;
+            item.componentsOpen = false;
         }
     });
 }
