@@ -375,13 +375,10 @@
 
         <div id="walkInOrderPanel" class="walkin-order-panel" role="tabpanel" aria-labelledby="walkInOrdersTabBtn">
             <div class="walkin-order-builder">
-                <label class="inventory-search-field">
-                    <span>Search products</span>
-                    <input id="walkInItemSearchInput" type="search" placeholder="Search by product name">
-                </label>
                 <label>
                     Product
-                    <select id="walkInItemSelect"></select>
+                    <input id="walkInItemInput" list="walkInItemOptions" type="text" placeholder="Search or select a product">
+                    <datalist id="walkInItemOptions"></datalist>
                 </label>
                 <label>
                     Quantity

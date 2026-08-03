@@ -1844,8 +1844,8 @@ const walkInOrdersTabBtn = document.getElementById('walkInOrdersTabBtn');
 const pendingOrdersTabBtn = document.getElementById('pendingOrdersTabBtn');
 const walkInOrderPanel = document.getElementById('walkInOrderPanel');
 const pendingOrdersPanel = document.getElementById('pendingOrdersPanel');
-const walkInItemSearchInput = document.getElementById('walkInItemSearchInput');
-const walkInItemSelect = document.getElementById('walkInItemSelect');
+const walkInItemInput = document.getElementById('walkInItemInput');
+const walkInItemOptions = document.getElementById('walkInItemOptions');
 const walkInItemQtyInput = document.getElementById('walkInItemQtyInput');
 const walkInAddItemBtn = document.getElementById('walkInAddItemBtn');
 const walkInDraftList = document.getElementById('walkInDraftList');
@@ -6403,27 +6403,28 @@ function getWalkInDraftTotal() {
 
 function renderWalkInOrderBuilder() {
     hydrateWalkInDraftItemsFromSpecialFoods();
-    if (walkInItemSelect) {
-        const previousSelection = walkInItemSelect.value;
-        const term = (walkInSearchTerm || '').trim().toLowerCase();
+    if (walkInItemInput && walkInItemOptions) {
+        const previousSelection = walkInItemInput.value;
         const availableItems = (inventoryData || [])
             .filter((item) => getAvailablePendingStockForItem(item.name) > 0)
-            .filter((item) => !term || String(item.name || '').toLowerCase().includes(term))
             .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 
         if (!availableItems.length) {
-            const noMatchingMessage = term ? 'No matching products' : 'No available items';
-            walkInItemSelect.innerHTML = `<option value="">${noMatchingMessage}</option>`;
-            walkInItemSelect.disabled = true;
+            walkInItemInput.value = '';
+            walkInItemInput.placeholder = 'No available items';
+            walkInItemInput.disabled = true;
+            walkInItemOptions.innerHTML = '';
         } else {
-            walkInItemSelect.disabled = false;
-            walkInItemSelect.innerHTML = availableItems.map((item) => {
+            walkInItemInput.disabled = false;
+            walkInItemInput.placeholder = 'Search or select a product';
+            walkInItemOptions.innerHTML = availableItems.map((item) => {
                 const available = getAvailablePendingStockForItem(item.name);
-                return `<option value="${item.name}">${item.name} (${formatCurrency(item.price)} · stock ${available})</option>`;
+                const label = `${item.name} (${formatCurrency(item.price)} · stock ${available})`;
+                return `<option value="${escapeHtml(item.name)}">${escapeHtml(label)}</option>`;
             }).join('');
 
             const stillExists = availableItems.some((item) => item.name === previousSelection);
-            walkInItemSelect.value = stillExists ? previousSelection : availableItems[0].name;
+            walkInItemInput.value = stillExists ? previousSelection : availableItems[0].name;
         }
     }
 
@@ -6490,12 +6491,12 @@ function renderWalkInOrderBuilder() {
 }
 
 function addWalkInDraftItem() {
-    if (!walkInItemSelect || walkInItemSelect.disabled) {
+    if (!walkInItemInput || walkInItemInput.disabled) {
         setWalkInOrderMessage('No available inventory item for walk-in order.', true);
         return;
     }
 
-    const itemName = (walkInItemSelect.value || '').trim();
+    const itemName = (walkInItemInput.value || '').trim();
     const quantity = Math.max(1, Number(walkInItemQtyInput ? walkInItemQtyInput.value : 1) || 1);
     const inventoryItem = getInventoryItem(itemName);
 
@@ -7871,13 +7872,6 @@ if (pendingOrdersList) {
 if (walkInOrdersTabBtn) {
     walkInOrdersTabBtn.addEventListener('click', () => {
         setOrdersTab('walk-in');
-        renderWalkInOrderBuilder();
-    });
-}
-
-if (walkInItemSearchInput) {
-    walkInItemSearchInput.addEventListener('input', (event) => {
-        walkInSearchTerm = String(event.target.value || '').trim();
         renderWalkInOrderBuilder();
     });
 }
