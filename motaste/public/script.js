@@ -3172,11 +3172,10 @@ const paymentSuccessModal = document.getElementById('paymentSuccessModal');
 const paymentSuccessCloseBtn = document.getElementById('paymentSuccessCloseBtn');
 const liveClock = document.getElementById('liveClock');
 const lowStockAlertStorageKey = 'motasteLowStockRemindLaterUntil';
-const lowStockModalOverlay = document.getElementById('lowStockModalOverlay');
-const lowStockModalCloseBtn = document.getElementById('lowStockModalCloseBtn');
-const lowStockToggleListBtn = document.getElementById('lowStockToggleListBtn');
-const lowStockItemDropdown = document.getElementById('lowStockItemDropdown');
+const lowStockAlertBox = document.getElementById('overviewLowStockBox');
+const lowStockList = document.getElementById('overviewLowStockList');
 const lowStockRemindLaterBtn = document.getElementById('lowStockRemindLaterBtn');
+const lowStockContinueBtn = document.getElementById('lowStockContinueBtn');
 
 let cartItems = [];
 let menuSelectionQuantities = {};
@@ -5414,19 +5413,12 @@ function setLowStockReminderExpiry() {
 }
 
 function hideLowStockAlert() {
-    if (!lowStockModalOverlay) return;
-    lowStockModalOverlay.hidden = true;
-    lowStockModalOverlay.setAttribute('aria-hidden', 'true');
-}
-
-function showLowStockAlert() {
-    if (!lowStockModalOverlay) return;
-    lowStockModalOverlay.hidden = false;
-    lowStockModalOverlay.setAttribute('aria-hidden', 'false');
+    if (!lowStockAlertBox) return;
+    lowStockAlertBox.hidden = true;
 }
 
 function renderLowStockAlert() {
-    if (!lowStockModalOverlay || !lowStockItemDropdown) return;
+    if (!lowStockAlertBox || !lowStockList) return;
 
     const lowStockItems = getLowStockItems();
     if (!lowStockItems.length) {
@@ -5434,7 +5426,7 @@ function renderLowStockAlert() {
         return;
     }
 
-    lowStockItemDropdown.innerHTML = lowStockItems.map((item) => {
+    lowStockList.innerHTML = lowStockItems.map((item) => {
         const stockCount = Number(item.stock) || 0;
         return `
             <div class="low-stock-item">
@@ -5444,8 +5436,7 @@ function renderLowStockAlert() {
         `;
     }).join('');
 
-    lowStockItemDropdown.hidden = true;
-    showLowStockAlert();
+    lowStockAlertBox.hidden = false;
 }
 
 function shouldShowLowStockAlert() {
@@ -5465,21 +5456,15 @@ function showLowStockAlertIfNeeded() {
 }
 
 function initializeLowStockAlertHandlers() {
-    if (lowStockModalCloseBtn) {
-        lowStockModalCloseBtn.addEventListener('click', hideLowStockAlert);
-    }
-
-    if (lowStockToggleListBtn && lowStockItemDropdown) {
-        lowStockToggleListBtn.addEventListener('click', () => {
-            const isVisible = !lowStockItemDropdown.hidden;
-            lowStockItemDropdown.hidden = isVisible;
-            lowStockToggleListBtn.textContent = isVisible ? 'Show low-stock items' : 'Hide low-stock items';
-        });
-    }
-
     if (lowStockRemindLaterBtn) {
         lowStockRemindLaterBtn.addEventListener('click', () => {
             setLowStockReminderExpiry();
+            hideLowStockAlert();
+        });
+    }
+
+    if (lowStockContinueBtn) {
+        lowStockContinueBtn.addEventListener('click', () => {
             hideLowStockAlert();
         });
     }
