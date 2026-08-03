@@ -5448,6 +5448,12 @@ function shouldShowLowStockAlert() {
 }
 
 function showLowStockAlertIfNeeded() {
+    const activeSession = getLoggedInStaffSession();
+    if (!activeSession) {
+        hideLowStockAlert();
+        return;
+    }
+
     if (shouldShowLowStockAlert()) {
         renderLowStockAlert();
     } else {
