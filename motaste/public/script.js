@@ -7141,7 +7141,6 @@ function closePaymentScreen() {
     try { closeCartModal(); } catch (e) { }
     suppressMenuOverlay = false;
     try { document.body.classList.remove('suppress-menu'); } catch (e) { }
-    try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
     if (menuOverlayCategories) {
         menuOverlayCategories.hidden = false;
         renderMenuOverlayCategories(currentMenuCategoryId || '');
