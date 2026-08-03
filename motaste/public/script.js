@@ -6528,7 +6528,7 @@ function addWalkInDraftItem() {
                 existingDraftItem.components = buildInitialCartComponents(specialComponents, currentDraftQty);
             }
             applyBaseComponentsDeltaToCartItem(existingDraftItem, qtyToAdd);
-            existingDraftItem.componentsOpen = Array.isArray(existingDraftItem.components) && existingDraftItem.components.length > 0;
+            existingDraftItem.componentsOpen = false;
             existingDraftItem.componentsMode = 'total';
         }
         walkInDraftItems[existingIndex].quantity += qtyToAdd;
@@ -6543,7 +6543,7 @@ function addWalkInDraftItem() {
             draftItem.baseComponents = normalizeSpecialComponents(specialComponents);
             draftItem.components = buildInitialCartComponents(specialComponents, qtyToAdd);
             draftItem.componentsMode = 'total';
-            draftItem.componentsOpen = specialComponents.length > 0;
+            draftItem.componentsOpen = false;
         }
 
         walkInDraftItems.push(draftItem);
@@ -6553,7 +6553,7 @@ function addWalkInDraftItem() {
         walkInItemQtyInput.value = '1';
     }
 
-    if (quantity > qtyToAdd) {
+    if (qtyToAdd < quantity) {
         setWalkInOrderMessage(`Only ${qtyToAdd} item(s) were added due to stock limits.`, true);
     } else {
         setWalkInOrderMessage(`${inventoryItem.name} added to walk-in order.`);
