@@ -1783,6 +1783,8 @@ const inventoryDescriptionInput = document.getElementById('inventoryDescriptionI
 const inventoryPriceInput = document.getElementById('inventoryPriceInput');
 const inventoryStockInput = document.getElementById('inventoryStockInput');
 const inventoryStatusInput = document.getElementById('inventoryStatusInput');
+const inventoryStockField = document.getElementById('inventoryStockField');
+const inventoryStatusField = document.getElementById('inventoryStatusField');
 const specialFoodImageField = document.getElementById('specialFoodImageField');
 const specialFoodImageInput = document.getElementById('specialFoodImageInput');
 const specialFoodImagePreviewWrap = document.getElementById('specialFoodImagePreviewWrap');
@@ -2024,6 +2026,104 @@ function getCartItemBaseComponents(item) {
     if (fromSpecialRecipe.length) return fromSpecialRecipe;
 
     return normalizeSpecialComponents(item && item.components);
+}
+
+function getCartItemComponentShortfalls(item) {
+    const shortfalls = [];
+    if (!item || !item.name) return shortfalls;
+    const dishQuantity = Math.max(0, Number(item.quantity) || 0);
+    if (dishQuantity <= 0) return shortfalls;
+
+    const baseComponents = getCartItemBaseComponents(item);
+    if (!baseComponents.length) return shortfalls;
+
+    const baseLookup = getComponentQuantityLookup(baseComponents);
+    const currentLookup = getComponentQuantityLookup(item.components);
+
+    Object.keys(baseLookup).forEach((componentName) => {
+        const expectedTotal = baseLookup[componentName] * dishQuantity;
+        const currentQty = currentLookup[componentName] || 0;
+        if (currentQty < expectedTotal) {
+            shortfalls.push({
+                name: componentName,
+                expectedQty: expectedTotal,
+                currentQty
+            });
+        }
+    });
+
+    return shortfalls;
+}
+
+function getReservedComponentQuantityInCartExceptItem(componentName, excludedItem) {
+    const normalizedComponentName = normalizeInventoryName(componentName);
+    if (!normalizedComponentName) return 0;
+
+    return cartItems.reduce((sum, cartItem) => {
+        if (cartItem === excludedItem) return sum;
+        if (!Array.isArray(cartItem.components)) return sum;
+        const component = cartItem.components.find((entry) => normalizeInventoryName(entry.name) === normalizedComponentName);
+        if (!component) return sum;
+        return sum + Math.max(0, Number(component.quantity) || 0);
+    }, 0);
+}
+
+function getAvailableStockForCartComponentExcludingItem(componentName, excludedItem) {
+    const inventoryItem = getInventoryItem(componentName);
+    if (!inventoryItem) return 0;
+    const stock = Math.max(0, Number(inventoryItem.stock) || 0);
+    const reserved = getReservedComponentQuantityInCartExceptItem(componentName, excludedItem);
+    return Math.max(0, stock - reserved);
+}
+
+function removeCartItemsWithComponentShortfall() {
+    const initialCount = cartItems.length;
+    cartItems = cartItems.filter((item) => !getCartItemComponentShortfalls(item).length);
+    if (cartItems.length !== initialCount) {
+        saveCart();
+        updateCartDisplay();
+        if (menuOrderMessage) {
+            menuOrderMessage.textContent = 'Removed unavailable special food item(s) from the cart.';
+        }
+    }
+}
+
+function continueWithoutUnavailableComponents() {
+    let adjusted = false;
+    cartItems.forEach((item) => {
+        const shortfalls = getCartItemComponentShortfalls(item);
+        if (!shortfalls.length) return;
+
+        shortfalls.forEach((shortfall) => {
+            const currentQty = getCartItemComponentQuantity(item, shortfall.name);
+            const maxAvailable = getAvailableStockForCartComponentExcludingItem(shortfall.name, item);
+            if (currentQty > maxAvailable) {
+                setCartItemComponentQuantity(item, shortfall.name, maxAvailable);
+                adjusted = true;
+            }
+        });
+    });
+    if (adjusted) {
+        saveCart();
+        updateCartDisplay();
+        if (menuOrderMessage) {
+            menuOrderMessage.textContent = 'Unavailable components have been removed from the cart; total has been updated.';
+        }
+    }
+}
+
+function getCartShortfallComponents() {
+    const componentNames = new Set();
+    cartItems.forEach((item) => {
+        getCartItemComponentShortfalls(item).forEach((shortfall) => {
+            componentNames.add(shortfall.name);
+        });
+    });
+    return [...componentNames];
+}
+
+function getCartHasComponentShortfall() {
+    return cartItems.some((item) => getCartItemComponentShortfalls(item).length);
 }
 
 function getInventoryUnitPrice(itemName) {
@@ -4959,7 +5059,7 @@ function updateCartDisplay() {
     }
 
     let total = 0;
-    menuCartList.innerHTML = cartItems.map((item, index) => {
+    const cartItemViews = cartItems.map((item, index) => {
         const itemTotal = getCartItemLineTotal(item);
         total += itemTotal;
         const customizeOptions = getCartItemCustomizeOptions(item);
@@ -5003,10 +5103,24 @@ function updateCartDisplay() {
                     <button type="button" class="menu-cart-item-remove" data-index="${index}">Remove</button>
                 </div>
                 ${hasCustomizeOptions && customizeExpanded ? `<div class="menu-cart-components"><p class="menu-cart-components-title">Customize</p><ul class="menu-cart-component-list">${componentRows}</ul></div>` : ''}
+                ${getCartItemComponentShortfalls(item).length ? `<div class="menu-cart-item-warning">Out of stock components: ${getCartItemComponentShortfalls(item).map((shortfall) => `${escapeHtml(shortfall.name)} (${shortfall.currentQty}/${shortfall.expectedQty})`).join(', ')}</div>` : ''}
                 <div>${formatCurrency(itemTotal)}</div>
             </div>
         `;
-    }).join('');
+    });
+
+    const shortfallComponents = getCartShortfallComponents();
+    const shortfallActionsHtml = shortfallComponents.length ? `
+        <div class="menu-cart-shortfall-warning">
+            <p>One or more special food components are unavailable: ${shortfallComponents.map((name) => escapeHtml(name)).join(', ')}. Remove the unavailable special food(s) or continue with reduced price.</p>
+            <div class="menu-cart-warning-actions">
+                <button type="button" class="menu-cart-warning-btn remove-unavailable-special-foods-btn">Remove unavailable special food(s)</button>
+                <button type="button" class="menu-cart-warning-btn continue-without-stock-btn">Continue without unavailable components</button>
+            </div>
+        </div>
+    ` : '';
+
+    menuCartList.innerHTML = cartItemViews.join('') + shortfallActionsHtml;
 
     menuCartCount.textContent = `${totalItems} items`;
     menuCartTotal.textContent = formatCurrency(total);
@@ -5084,12 +5198,32 @@ function updateMenuSalesTotal() {
     menuSalesTotal.textContent = formatCurrency(total);
 }
 
+function isSpecialInventoryItem(name) {
+    return getSpecialFoodComponentsByName(name).length > 0;
+}
+
 function getAvailableStockForItem(name) {
     const inventoryItem = getInventoryItem(name);
     if (!inventoryItem) return Infinity;
 
+    if (isSpecialInventoryItem(name)) {
+        const baseComponents = getSpecialFoodComponentsByName(name);
+        if (!baseComponents.length) {
+            return 0;
+        }
+        return baseComponents.reduce((minAllowed, component) => {
+            const perDishQty = Math.max(0, Number(component.quantity) || 0);
+            if (perDishQty <= 0) return minAllowed;
+            return Math.min(minAllowed, Math.floor(getAvailableStockForCartComponent(component.name) / perDishQty));
+        }, Number.POSITIVE_INFINITY);
+    }
+
     const stock = Math.max(0, Number(inventoryItem.stock) || 0);
     return Math.max(0, stock - getCartQuantityForItem(name));
+}
+
+function isItemOutOfStock(itemName) {
+    return getAvailableStockForItem(itemName) <= 0;
 }
 
 function getReservedComponentQuantityInCart(componentName) {
@@ -5720,6 +5854,14 @@ async function saveInventoryItem(event) {
     const price = category === 'specials'
         ? getSpecialPriceFromComponents(specialComponents)
         : Number(inventoryPriceInput.value);
+
+    const stock = category === 'specials'
+        ? 0
+        : Number(inventoryStockInput.value);
+
+    const status = category === 'specials'
+        ? (specialComponents.length ? 'In stock' : 'Out of stock')
+        : stock <= 0 ? 'Out of stock' : inventoryStatusInput.value;
 
     if (!name || Number.isNaN(price) || Number.isNaN(stock)) {
         return;
@@ -7627,6 +7769,18 @@ if (menuCartList) {
             const index = Number(quantityButton.dataset.index);
             const change = quantityButton.dataset.action === 'increase' ? 1 : -1;
             adjustCartItemQuantity(index, change);
+            return;
+        }
+
+        const removeUnavailableButton = event.target.closest('.remove-unavailable-special-foods-btn');
+        if (removeUnavailableButton) {
+            removeCartItemsWithComponentShortfall();
+            return;
+        }
+
+        const continueWithoutStockButton = event.target.closest('.continue-without-stock-btn');
+        if (continueWithoutStockButton) {
+            continueWithoutUnavailableComponents();
             return;
         }
         const button = event.target.closest('.menu-cart-item-remove');
