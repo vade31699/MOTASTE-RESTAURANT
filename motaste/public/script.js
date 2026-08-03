@@ -6566,9 +6566,12 @@ function adjustWalkInDraftItem(index, direction) {
     if (index < 0 || index >= walkInDraftItems.length) return;
     const entry = walkInDraftItems[index];
     const currentQty = Number(entry.quantity) || 0;
+    let qtyDelta = 0;
 
     if (direction === 'decrease') {
-        entry.quantity = Math.max(1, currentQty - 1);
+        if (currentQty <= 1) return;
+        qtyDelta = -1;
+        entry.quantity = currentQty - 1;
     } else {
         const available = getAvailablePendingStockForItem(entry.name);
         if (currentQty >= available) {
@@ -6576,9 +6579,11 @@ function adjustWalkInDraftItem(index, direction) {
             renderWalkInOrderBuilder();
             return;
         }
+        qtyDelta = 1;
         entry.quantity = currentQty + 1;
     }
 
+    applyBaseComponentsDeltaToCartItem(entry, qtyDelta);
     renderWalkInOrderBuilder();
 }
 
