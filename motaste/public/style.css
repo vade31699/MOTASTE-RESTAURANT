@@ -531,6 +531,14 @@ body.dashboard-panel-open .menu-btn {
     display: flex;
 }
 
+#lowStockModalOverlay {
+    display: none;
+}
+
+#lowStockModalOverlay.active {
+    display: flex;
+}
+
 .modal-box {
     background: rgba(255, 255, 255, 0.45);
     backdrop-filter: blur(8px);
