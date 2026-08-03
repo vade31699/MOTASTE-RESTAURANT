@@ -1034,7 +1034,6 @@ document.addEventListener('DOMContentLoaded', () => {
         loginFields.hidden = false;
     }
     loadSavedCredentialsForLastLogin();
-    initializeLowStockAlertHandlers();
 });
 
 if (logoutBtn) {
@@ -1776,10 +1775,6 @@ const overviewMonthSelect = document.getElementById('overviewMonthSelect');
 const overviewOrderNotificationList = document.getElementById('overviewOrderNotificationList');
 const overviewOrderRevenue = document.getElementById('overviewOrderRevenue');
 const overviewInventoryList = document.getElementById('overviewInventoryList');
-const overviewLowStockBox = document.getElementById('overviewLowStockBox');
-const overviewLowStockList = document.getElementById('overviewLowStockList');
-const lowStockRemindBtn = document.getElementById('lowStockRemindBtn');
-const lowStockContinueBtn = document.getElementById('lowStockContinueBtn');
 const inventoryAdminPanel = document.getElementById('inventoryAdminPanel');
 const inventoryForm = document.getElementById('inventoryForm');
 const inventoryNameInput = document.getElementById('inventoryNameInput');
@@ -5383,55 +5378,6 @@ function renderOverviewInventory() {
 
     if (overviewBox) overviewBox.hidden = false;
     renderInventoryList(overviewInventoryList, inventoryData);
-    renderLowStockAlert();
-}
-
-function getLowStockItems() {
-    return (inventoryData || [])
-        .filter((item) => item && Number(item.stock) < 20)
-        .sort((a, b) => Number(a.stock) - Number(b.stock));
-}
-
-function shouldShowLowStockAlert() {
-    if (typeof window === 'undefined' || !window.localStorage) return true;
-    const remindAt = Number(window.localStorage.getItem('motasteLowStockRemindAt') || 0);
-    return Date.now() >= remindAt;
-}
-
-function renderLowStockAlert() {
-    if (!overviewLowStockBox || !overviewLowStockList) return;
-
-    const lowStockItems = getLowStockItems();
-    if (!lowStockItems.length || !shouldShowLowStockAlert()) {
-        overviewLowStockBox.hidden = true;
-        overviewLowStockList.innerHTML = '';
-        return;
-    }
-
-    overviewLowStockBox.hidden = false;
-    overviewLowStockList.innerHTML = lowStockItems.map((item) => `
-        <div class="overview-low-stock-item">
-            <span class="overview-low-stock-name">${escapeHtml(item.name)}</span>
-            <span class="overview-low-stock-count">${Number(item.stock)} left</span>
-        </div>
-    `).join('');
-}
-
-function initializeLowStockAlertHandlers() {
-    if (lowStockRemindBtn) {
-        lowStockRemindBtn.addEventListener('click', () => {
-            if (typeof window === 'undefined' || !window.localStorage) return;
-            const remindAt = Date.now() + 30 * 60 * 1000;
-            window.localStorage.setItem('motasteLowStockRemindAt', String(remindAt));
-            if (overviewLowStockBox) overviewLowStockBox.hidden = true;
-        });
-    }
-
-    if (lowStockContinueBtn) {
-        lowStockContinueBtn.addEventListener('click', () => {
-            if (overviewLowStockBox) overviewLowStockBox.hidden = true;
-        });
-    }
 }
 
 function syncMenuPricesWithInventory() {

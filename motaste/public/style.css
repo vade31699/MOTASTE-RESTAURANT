@@ -3669,79 +3669,12 @@ body.modal-open {
     color: #333;
 }
 
-    .overview-low-stock-box {
-        background: rgba(255,255,255,0.04);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 16px;
-        padding: 18px;
-        display: grid;
-        gap: 12px;
-        color: #fff;
-    }
-
-    .overview-low-stock-header {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
-
-    .overview-low-stock-list {
-        display: grid;
-        gap: 10px;
-        max-height: 180px;
-        overflow-y: auto;
-        padding-right: 4px;
-    }
-
-    .overview-low-stock-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        padding: 12px;
-        border-radius: 12px;
-        background: rgba(255,255,255,0.06);
-        border: 1px solid rgba(255,255,255,0.08);
-    }
-
-    .overview-low-stock-name {
-        font-weight: 600;
-    }
-
-    .overview-low-stock-count {
-        color: #ffd966;
-        font-size: 0.95rem;
-    }
-
-    .overview-low-stock-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        justify-content: flex-end;
-    }
-
-    .low-stock-remind-btn,
-    .low-stock-continue-btn {
-        border: 1px solid rgba(255,255,255,0.16);
-        background: rgba(255,255,255,0.08);
-        color: #fff;
-        padding: 10px 14px;
-        border-radius: 10px;
-        cursor: pointer;
-        transition: background 0.15s ease, transform 0.15s ease;
-    }
-
-    .low-stock-remind-btn:hover,
-    .low-stock-continue-btn:hover {
-        background: rgba(255,255,255,0.14);
-        transform: translateY(-1px);
-    }
-
-    .low-stock-continue-btn {
-        background: #fff;
-        color: #111;
-    }
-
+.pending-item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
 .pending-item-qty-controls {
