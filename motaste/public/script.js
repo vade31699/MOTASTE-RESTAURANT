@@ -5254,8 +5254,12 @@ function clampCartToInventory() {
             return items;
         }
 
-        const stock = Math.max(0, Number(inventoryItem.stock) || 0);
-        const nextQuantity = Math.min(Math.max(0, Number(item.quantity) || 0), stock);
+        const isSpecialItem = getSpecialFoodComponentsByName(item.name).length > 0;
+        const currentQuantity = Math.max(0, Number(item.quantity) || 0);
+        const nextQuantity = isSpecialItem
+            ? currentQuantity
+            : Math.min(currentQuantity, Math.max(0, Number(inventoryItem.stock) || 0));
+
         if (nextQuantity <= 0) {
             changed = true;
             return items;
