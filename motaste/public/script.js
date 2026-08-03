@@ -21,11 +21,6 @@ const staffSessionStorageKey = 'motasteStaffSession';
 const staffActiveSectionStorageKey = 'motasteStaffActiveSection';
 const staffAccountsStorageKey = 'motasteStaffAccounts';
 const lastLoginRoleStorageKey = 'motasteLastLoginRole';
-const lowStockReminderStorageKey = 'motasteLowStockReminderUntil';
-const overviewLowStockBox = document.getElementById('overviewLowStockBox');
-const overviewLowStockList = document.getElementById('overviewLowStockList');
-const lowStockRemindBtn = document.getElementById('lowStockRemindBtn');
-const lowStockContinueBtn = document.getElementById('lowStockContinueBtn');
 let inventoryRefreshTimer = null;
 let inventoryRefreshVersion = 0;
 let inventorySyncInFlight = false;
@@ -1039,7 +1034,6 @@ document.addEventListener('DOMContentLoaded', () => {
         loginFields.hidden = false;
     }
     loadSavedCredentialsForLastLogin();
-    initializeLowStockReminderHandlers();
 });
 
 if (logoutBtn) {
@@ -5384,7 +5378,6 @@ function renderOverviewInventory() {
 
     if (overviewBox) overviewBox.hidden = false;
     renderInventoryList(overviewInventoryList, inventoryData);
-    renderLowStockReminder();
 }
 
 function syncMenuPricesWithInventory() {
@@ -5964,69 +5957,6 @@ async function commitInlineInventoryEdit(card) {
     startInventoryAutoRefresh();
     void initializeInventoryData(true);
     void loadOrderLogsFromServer(true);
-}
-
-function getLowStockItems() {
-    return (inventoryData || [])
-        .filter((item) => item && item.category !== 'specials' && !blockedProductNames.has(normalizeInventoryName(item.name)))
-        .filter((item) => Number(item.stock) < 20)
-        .sort((a, b) => Number(a.stock) - Number(b.stock));
-}
-
-function getLowStockReminderUntil() {
-    if (typeof window === 'undefined' || !window.localStorage) return 0;
-    const value = window.localStorage.getItem(lowStockReminderStorageKey);
-    return Number(value) || 0;
-}
-
-function setLowStockReminderUntil(timestamp) {
-    if (typeof window === 'undefined' || !window.localStorage) return;
-    window.localStorage.setItem(lowStockReminderStorageKey, String(Number(timestamp) || 0));
-}
-
-function shouldShowLowStockReminder() {
-    return Date.now() >= getLowStockReminderUntil();
-}
-
-function renderLowStockReminder() {
-    if (!overviewLowStockBox || !overviewLowStockList) return;
-
-    const lowStockItems = getLowStockItems();
-    const canShow = lowStockItems.length > 0 && shouldShowLowStockReminder();
-
-    if (!canShow) {
-        overviewLowStockBox.hidden = true;
-        overviewLowStockList.innerHTML = '';
-        return;
-    }
-
-    overviewLowStockBox.hidden = false;
-    overviewLowStockList.innerHTML = lowStockItems.map((item) => `
-        <div class="overview-low-stock-item">
-            <span class="overview-low-stock-name">${escapeHtml(item.name)}</span>
-            <span class="overview-low-stock-count">${Number(item.stock)} left</span>
-        </div>
-    `).join('');
-}
-
-function hideLowStockReminder() {
-    if (!overviewLowStockBox) return;
-    overviewLowStockBox.hidden = true;
-}
-
-function initializeLowStockReminderHandlers() {
-    if (lowStockRemindBtn) {
-        lowStockRemindBtn.addEventListener('click', () => {
-            const remindUntil = Date.now() + 30 * 60 * 1000;
-            setLowStockReminderUntil(remindUntil);
-            hideLowStockReminder();
-        });
-    }
-    if (lowStockContinueBtn) {
-        lowStockContinueBtn.addEventListener('click', () => {
-            hideLowStockReminder();
-        });
-    }
 }
 
 function renderOverviewAnalytics() {
