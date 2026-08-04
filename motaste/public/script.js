@@ -1198,13 +1198,20 @@ const accountManagementSection = document.getElementById('account-management');
 const highlightsSection = document.getElementById('highlights');
 const credentialsSection = document.getElementById('credentials');
 const accountForm = document.getElementById('accountForm');
+const accountEditPanel = document.getElementById('accountEditPanel');
+const accountEditForm = document.getElementById('accountEditForm');
 const toggleAccountFormBtn = document.getElementById('toggleAccountFormBtn');
 const cancelAccountFormBtn = document.getElementById('cancelAccountFormBtn');
+const cancelAccountEditBtn = document.getElementById('cancelAccountEditBtn');
 const accountList = document.getElementById('accountList');
 const accountNameInput = document.getElementById('accountName');
 const accountRoleInput = document.getElementById('accountRole');
 const accountEmailInput = document.getElementById('accountEmail');
 const accountPasswordInput = document.getElementById('accountPassword');
+const editAccountNameInput = document.getElementById('editAccountName');
+const editAccountRoleInput = document.getElementById('editAccountRole');
+const editAccountEmailInput = document.getElementById('editAccountEmail');
+const editAccountPasswordInput = document.getElementById('editAccountPassword');
 const highlightsForm = document.getElementById('highlightsForm');
 const highlightsImagesInput = document.getElementById('highlightsImagesInput');
 const highlightsMessage = document.getElementById('highlightsMessage');
@@ -1244,19 +1251,27 @@ function renderAccounts() {
     });
 }
 
-function resetAccountForm() {
-    if (accountForm) {
-        accountForm.reset();
+function hideAccountEditPanel() {
+    if (accountEditPanel) {
+        accountEditPanel.hidden = true;
+    }
+    if (accountEditForm) {
+        accountEditForm.reset();
     }
     accountEditIndex = null;
 }
 
-function toggleAccountForm(showForm) {
-    if (!accountForm) return;
-    accountForm.hidden = !showForm;
-    if (!showForm) {
-        resetAccountForm();
+function resetAccountForm() {
+    if (accountForm) {
+        accountForm.reset();
     }
+    if (accountEditForm) {
+        accountEditForm.reset();
+    }
+    if (accountEditPanel) {
+        accountEditPanel.hidden = true;
+    }
+    accountEditIndex = null;
 }
 
 function setCredentialsMessage(message, isError = false) {
@@ -2669,7 +2684,10 @@ if (toggleAccountFormBtn) {
             alert('Only the admin can manage accounts.');
             return;
         }
-        toggleAccountForm(true);
+        hideAccountEditPanel();
+        if (accountForm) {
+            accountForm.hidden = false;
+        }
         if (accountNameInput) {
             accountNameInput.focus();
         }
@@ -2678,7 +2696,16 @@ if (toggleAccountFormBtn) {
 
 if (cancelAccountFormBtn) {
     cancelAccountFormBtn.addEventListener('click', () => {
-        toggleAccountForm(false);
+        if (accountForm) {
+            accountForm.hidden = true;
+        }
+        accountForm.reset();
+    });
+}
+
+if (cancelAccountEditBtn) {
+    cancelAccountEditBtn.addEventListener('click', () => {
+        hideAccountEditPanel();
     });
 }
 
@@ -2773,11 +2800,109 @@ if (accountForm) {
         }
 
         renderAccounts();
-        toggleAccountForm(false);
+        if (accountForm) {
+            accountForm.hidden = true;
+        }
         if (invitePayload && invitePayload.delivered === false) {
             alert(invitePayload.error || 'Invite email was not delivered. Check Laravel SMTP settings and try again.');
         } else {
             alert('Invite email sent. The staff account can login after confirming the email verification code.');
+        }
+    });
+}
+
+if (accountEditForm) {
+    accountEditForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        if (!document.body.classList.contains('auth') || !(selectedRoleInput && selectedRoleInput.value === 'Admin')) {
+            alert('Only the admin can manage accounts.');
+            return;
+        }
+
+        if (accountEditIndex === null) {
+            hideAccountEditPanel();
+            return;
+        }
+
+        const account = {
+            name: editAccountNameInput ? editAccountNameInput.value.trim() : '',
+            role: editAccountRoleInput ? editAccountRoleInput.value : '',
+            email: editAccountEmailInput ? editAccountEmailInput.value.trim().toLowerCase() : '',
+            password: editAccountPasswordInput ? editAccountPasswordInput.value : '',
+            inviteConfirmed: false
+        };
+
+        if (!account.name || !account.role || !account.email || !account.password) {
+            return;
+        }
+
+        if (account.role !== 'Cashier' && account.role !== 'Inventory Manager') {
+            alert('Only Cashier and Inventory Manager accounts can be managed here.');
+            return;
+        }
+
+        if (!isGmailAddress(account.email)) {
+            alert('Only Gmail addresses are allowed for cashier/inventory accounts.');
+            return;
+        }
+
+        const duplicateIndex = accounts.findIndex((entry, idx) => idx !== accountEditIndex && (entry.email || '').toLowerCase() === account.email);
+        if (duplicateIndex >= 0) {
+            alert('This email is already registered.');
+            return;
+        }
+
+        const previousAccount = accounts[accountEditIndex];
+        let invitePayload = null;
+        try {
+            invitePayload = await sendStaffInviteEmail(account);
+        } catch (error) {
+            alert(error.message || 'Unable to send invite email.');
+            return;
+        }
+
+        accounts[accountEditIndex] = account;
+        void logStaffActivity('account_updated', `${account.name} (${account.role})`, {
+            previous_name: previousAccount ? previousAccount.name : null,
+            previous_role: previousAccount ? previousAccount.role : null,
+            previous_email: previousAccount ? previousAccount.email : null,
+            password_changed: previousAccount ? previousAccount.password !== account.password : false,
+            invite_confirmation_reset: true,
+            next_name: account.name,
+            next_role: account.role,
+            next_email: account.email
+        });
+
+        void loadOrderLogsFromServer(true);
+
+        window.motasteStaffAccounts = accounts;
+        const syncResult = await saveStaffAccountsToServer();
+        if (!syncResult.success) {
+            alert(`Unable to save staff account to the server. ${syncResult.error || 'Please try again or contact support.'}`);
+            return;
+        }
+
+        const currentRole = selectedRoleInput ? selectedRoleInput.value : '';
+        const currentEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
+        if (currentRole === previousAccount.role && currentEmail === (previousAccount.email || '').trim().toLowerCase()) {
+            clearSavedCredentialsForRole(previousAccount.role);
+            if (selectedRoleInput) selectedRoleInput.value = account.role;
+            if (emailInput) emailInput.value = account.email;
+            if (passwordInput) passwordInput.value = account.password;
+            saveStaffSession(account.role, account.email, account.password, rememberCheckbox ? rememberCheckbox.checked : false);
+            if (rememberCheckbox && rememberCheckbox.checked) {
+                saveCredentialsForRole(account.role, account.email, account.password);
+            }
+            updateDashboardProfile();
+        }
+
+        renderAccounts();
+        hideAccountEditPanel();
+        if (invitePayload && invitePayload.delivered === false) {
+            alert(invitePayload.error || 'Invite email was not delivered. Check Laravel SMTP settings and try again.');
+        } else {
+            alert('Staff account updated. The staff member can login after confirming the email verification code.');
         }
     });
 }
@@ -2842,12 +2967,19 @@ if (accountList) {
                     return;
                 }
                 accountEditIndex = index;
-                if (accountNameInput) accountNameInput.value = selectedAccount.name;
-                if (accountRoleInput) accountRoleInput.value = selectedAccount.role;
-                if (accountEmailInput) accountEmailInput.value = selectedAccount.email;
-                if (accountPasswordInput) accountPasswordInput.value = selectedAccount.password;
-                toggleAccountForm(true);
-                if (accountNameInput) accountNameInput.focus();
+                if (accountEditPanel) {
+                    accountEditPanel.hidden = false;
+                }
+                if (editAccountNameInput) editAccountNameInput.value = selectedAccount.name;
+                if (editAccountRoleInput) editAccountRoleInput.value = selectedAccount.role;
+                if (editAccountEmailInput) editAccountEmailInput.value = selectedAccount.email;
+                if (editAccountPasswordInput) editAccountPasswordInput.value = selectedAccount.password;
+                if (accountForm) {
+                    accountForm.hidden = true;
+                }
+                if (editAccountNameInput) {
+                    editAccountNameInput.focus();
+                }
             }
         }
     });
