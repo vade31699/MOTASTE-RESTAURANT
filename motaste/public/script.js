@@ -2743,6 +2743,10 @@ if (accountForm) {
 
         const previousAccount = accountEditIndex !== null ? accounts[accountEditIndex] : null;
 
+        if (accountEditIndex !== null && previousAccount) {
+            account.inviteConfirmed = previousAccount.inviteConfirmed;
+        }
+
         let invitePayload = null;
         if (accountEditIndex === null) {
             try {
@@ -2855,6 +2859,7 @@ if (accountList) {
             }
 
             const previousAccount = accounts[index];
+            updatedAccount.inviteConfirmed = previousAccount ? previousAccount.inviteConfirmed : false;
 
             accounts[index] = updatedAccount;
             void logStaffActivity('account_updated', `${updatedAccount.name} (${updatedAccount.role})`, {
