@@ -4269,8 +4269,25 @@ function isQtyChangeAction(action) {
     return ['quantity_increased', 'quantity_decreased', 'quantity_updated', 'item_removed', 'order_removed'].includes(action);
 }
 
+function syncLogsDateFilterToToday() {
+    if (!logsDateFilter) return;
+
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const isoDate = `${year}-${month}-${day}`;
+
+    if (!logsDateFilter.value || logsDateFilter.value !== isoDate) {
+        logsDateFilter.value = isoDate;
+    }
+}
+
 function getSelectedLogsDateValue() {
     if (!logsDateFilter) return '';
+    if (!logsDateFilter.value) {
+        syncLogsDateFilterToToday();
+    }
     return (logsDateFilter.value || '').trim();
 }
 
@@ -4651,6 +4668,7 @@ if (logsCategoryFilter) {
 }
 
 if (logsDateFilter) {
+    syncLogsDateFilterToToday();
     logsDateFilter.addEventListener('change', () => {
         renderOrderLogs();
     });
@@ -6393,6 +6411,10 @@ function renderOverviewAnalytics() {
 
 function showDashboardSection(section) {
     setInventoryModalVisible(false);
+
+    if (section === logsSection && logsDateFilter) {
+        syncLogsDateFilterToToday();
+    }
 
     const sections = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, highlightsSection, credentialsSection];
     sections.forEach((el) => {
@@ -8217,6 +8239,7 @@ if (dashboardPanel) {
             updateAnalyticsView();
         } else if (href === '#logs') {
             if (!canAccessLogs()) return;
+            syncLogsDateFilterToToday();
             showDashboardSection(logsSection);
             void loadOrderLogsFromServer(true);
         } else if (href === '#account-management') {
