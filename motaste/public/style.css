@@ -628,33 +628,6 @@ body.dashboard-panel-open .menu-btn {
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 8px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.password-field-wrapper {
-    position: relative;
-}
-
-.password-field-wrapper input {
-    padding-right: 42px;
-}
-
-.password-toggle-btn {
-    position: absolute;
-    top: 50%;
-    right: 12px;
-    transform: translateY(-50%);
-    border: none;
-    background: transparent;
-    color: #666;
-    font-size: 16px;
-    cursor: pointer;
-    padding: 4px;
-}
-
-.password-toggle-btn:hover {
-    color: #111;
 }
 
 .modal-box button[type="submit"] {

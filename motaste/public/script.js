@@ -16,18 +16,6 @@ const dashboardUserName = document.getElementById('dashboardUserName');
 const dashboardUserEmail = document.getElementById('dashboardUserEmail');
 const staffForm = document.getElementById('staffLoginForm');
 const staffLoginPage = document.querySelector('.staff-login-page');
-const passwordToggleBtn = document.querySelector('[data-password-toggle]');
-
-if (passwordInput && passwordToggleBtn) {
-    passwordToggleBtn.addEventListener('click', () => {
-        const isPasswordHidden = passwordInput.type === 'password';
-        passwordInput.type = isPasswordHidden ? 'text' : 'password';
-        passwordToggleBtn.setAttribute('aria-label', isPasswordHidden ? 'Hide password' : 'Show password');
-        passwordToggleBtn.innerHTML = isPasswordHidden
-            ? '<i class="fa-solid fa-eye-slash" aria-hidden="true"></i>'
-            : '<i class="fa-solid fa-eye" aria-hidden="true"></i>';
-    });
-}
 const allowedRoles = ['Admin', 'Cashier', 'Inventory Manager'];
 const staffSessionStorageKey = 'motasteStaffSession';
 const staffActiveSectionStorageKey = 'motasteStaffActiveSection';
