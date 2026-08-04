@@ -1233,13 +1233,33 @@ function renderAccounts() {
     managedAccounts.forEach((account) => {
         const item = document.createElement('li');
         const inviteLabel = account.inviteConfirmed ? 'Confirmed' : 'Pending Email Confirmation';
-        item.innerHTML = `
-            <span>${account.name} — ${account.role} — ${account.email} — ${inviteLabel}</span>
-            <div>
-                <button type="button" class="edit-btn" data-index="${account._index}">Edit</button>
-                <button type="button" class="delete-btn" data-index="${account._index}">Delete</button>
-            </div>
-        `;
+
+        if (accountEditIndex === account._index) {
+            item.innerHTML = `
+                <div class="account-inline-editor">
+                    <input type="text" value="${escapeHtml(account.name)}" data-field="name" aria-label="Staff name">
+                    <select data-field="role" aria-label="Staff role">
+                        <option value="Cashier" ${account.role === 'Cashier' ? 'selected' : ''}>Cashier</option>
+                        <option value="Inventory Manager" ${account.role === 'Inventory Manager' ? 'selected' : ''}>Inventory Manager</option>
+                    </select>
+                    <input type="email" value="${escapeHtml(account.email)}" data-field="email" aria-label="Staff email">
+                    <input type="password" value="${escapeHtml(account.password)}" data-field="password" aria-label="Staff password">
+                    <div class="account-inline-actions">
+                        <button type="button" class="save-btn" data-index="${account._index}">Save</button>
+                        <button type="button" class="cancel-btn" data-index="${account._index}">Cancel</button>
+                    </div>
+                </div>
+            `;
+        } else {
+            item.innerHTML = `
+                <span>${escapeHtml(account.name)} — ${escapeHtml(account.role)} — ${escapeHtml(account.email)} — ${escapeHtml(inviteLabel)}</span>
+                <div>
+                    <button type="button" class="edit-btn" data-index="${account._index}">Edit</button>
+                    <button type="button" class="delete-btn" data-index="${account._index}">Delete</button>
+                </div>
+            `;
+        }
+
         accountList.appendChild(item);
     });
 }
@@ -2669,6 +2689,8 @@ if (toggleAccountFormBtn) {
             alert('Only the admin can manage accounts.');
             return;
         }
+        accountEditIndex = null;
+        renderAccounts();
         toggleAccountForm(true);
         if (accountNameInput) {
             accountNameInput.focus();
@@ -2788,6 +2810,98 @@ if (accountList) {
         if (!button) return;
 
         const index = Number(button.dataset.index);
+
+        if (button.classList.contains('cancel-btn')) {
+            accountEditIndex = null;
+            renderAccounts();
+            return;
+        }
+
+        if (button.classList.contains('save-btn')) {
+            const row = button.closest('.account-inline-editor');
+            if (!row || Number.isNaN(index)) return;
+
+            const updatedAccount = {
+                name: (row.querySelector('[data-field="name"]')?.value || '').trim(),
+                role: row.querySelector('[data-field="role"]')?.value || '',
+                email: (row.querySelector('[data-field="email"]')?.value || '').trim().toLowerCase(),
+                password: row.querySelector('[data-field="password"]')?.value || '',
+                inviteConfirmed: false
+            };
+
+            if (!updatedAccount.name || !updatedAccount.role || !updatedAccount.email || !updatedAccount.password) {
+                alert('Please complete all staff account fields.');
+                return;
+            }
+
+            if (updatedAccount.role !== 'Cashier' && updatedAccount.role !== 'Inventory Manager') {
+                alert('Only Cashier and Inventory Manager accounts can be managed here.');
+                return;
+            }
+
+            if (!isGmailAddress(updatedAccount.email)) {
+                alert('Only Gmail addresses are allowed for cashier/inventory accounts.');
+                return;
+            }
+
+            const duplicateIndex = accounts.findIndex((entry, idx) => idx !== index && (entry.email || '').toLowerCase() === updatedAccount.email);
+            if (duplicateIndex >= 0) {
+                alert('This email is already registered.');
+                return;
+            }
+
+            const previousAccount = accounts[index];
+            let invitePayload = null;
+            try {
+                invitePayload = await sendStaffInviteEmail(updatedAccount);
+            } catch (error) {
+                alert(error.message || 'Unable to send invite email.');
+                return;
+            }
+
+            accounts[index] = updatedAccount;
+            void logStaffActivity('account_updated', `${updatedAccount.name} (${updatedAccount.role})`, {
+                previous_name: previousAccount ? previousAccount.name : null,
+                previous_role: previousAccount ? previousAccount.role : null,
+                previous_email: previousAccount ? previousAccount.email : null,
+                password_changed: previousAccount ? previousAccount.password !== updatedAccount.password : false,
+                invite_confirmation_reset: true,
+                next_name: updatedAccount.name,
+                next_role: updatedAccount.role,
+                next_email: updatedAccount.email
+            });
+
+            window.motasteStaffAccounts = accounts;
+            const syncResult = await saveStaffAccountsToServer();
+            if (!syncResult.success) {
+                alert(`Unable to save staff account to the server. ${syncResult.error || 'Please try again or contact support.'}`);
+                return;
+            }
+
+            const currentRole = selectedRoleInput ? selectedRoleInput.value : '';
+            const currentEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
+            if (previousAccount && currentRole === previousAccount.role && currentEmail === (previousAccount.email || '').trim().toLowerCase()) {
+                clearSavedCredentialsForRole(previousAccount.role);
+                if (selectedRoleInput) selectedRoleInput.value = updatedAccount.role;
+                if (emailInput) emailInput.value = updatedAccount.email;
+                if (passwordInput) passwordInput.value = updatedAccount.password;
+                saveStaffSession(updatedAccount.role, updatedAccount.email, updatedAccount.password, rememberCheckbox ? rememberCheckbox.checked : false);
+                if (rememberCheckbox && rememberCheckbox.checked) {
+                    saveCredentialsForRole(updatedAccount.role, updatedAccount.email, updatedAccount.password);
+                }
+                updateDashboardProfile();
+            }
+
+            accountEditIndex = null;
+            renderAccounts();
+            if (invitePayload && invitePayload.delivered === false) {
+                alert(invitePayload.error || 'Invite email was not delivered. Check Laravel SMTP settings and try again.');
+            } else {
+                alert('Staff account updated. The staff member can login after confirming the email verification code.');
+            }
+            return;
+        }
+
         if (button.classList.contains('delete-btn')) {
             const removedAccount = accounts[index];
             if (removedAccount && removedAccount.role === 'Admin') {
@@ -2842,12 +2956,10 @@ if (accountList) {
                     return;
                 }
                 accountEditIndex = index;
-                if (accountNameInput) accountNameInput.value = selectedAccount.name;
-                if (accountRoleInput) accountRoleInput.value = selectedAccount.role;
-                if (accountEmailInput) accountEmailInput.value = selectedAccount.email;
-                if (accountPasswordInput) accountPasswordInput.value = selectedAccount.password;
-                toggleAccountForm(true);
-                if (accountNameInput) accountNameInput.focus();
+                if (accountForm) {
+                    accountForm.hidden = true;
+                }
+                renderAccounts();
             }
         }
     });

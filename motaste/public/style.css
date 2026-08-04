@@ -350,6 +350,45 @@ body.dashboard-panel-open .menu-btn {
     color: #111;
 }
 
+.account-inline-editor {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(120px, 1.2fr) minmax(140px, 1fr) minmax(170px, 1.5fr) minmax(120px, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.account-inline-editor input,
+.account-inline-editor select {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}
+
+.account-inline-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.account-inline-actions button {
+    padding: 8px 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.account-inline-actions .save-btn {
+    background: #111;
+    color: #fff;
+}
+
+.account-inline-actions .cancel-btn {
+    background: #f3f3f3;
+    color: #111;
+}
+
 .account-list {
     list-style: none;
     padding: 0;
