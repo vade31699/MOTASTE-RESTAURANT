@@ -1198,6 +1198,8 @@ const accountManagementSection = document.getElementById('account-management');
 const highlightsSection = document.getElementById('highlights');
 const credentialsSection = document.getElementById('credentials');
 const accountForm = document.getElementById('accountForm');
+const toggleAccountFormBtn = document.getElementById('toggleAccountFormBtn');
+const cancelAccountFormBtn = document.getElementById('cancelAccountFormBtn');
 const accountList = document.getElementById('accountList');
 const accountNameInput = document.getElementById('accountName');
 const accountRoleInput = document.getElementById('accountRole');
@@ -1247,6 +1249,14 @@ function resetAccountForm() {
         accountForm.reset();
     }
     accountEditIndex = null;
+}
+
+function toggleAccountForm(showForm) {
+    if (!accountForm) return;
+    accountForm.hidden = !showForm;
+    if (!showForm) {
+        resetAccountForm();
+    }
 }
 
 function setCredentialsMessage(message, isError = false) {
@@ -2653,6 +2663,25 @@ salesTabBtns.forEach((btn) => {
     });
 });
 
+if (toggleAccountFormBtn) {
+    toggleAccountFormBtn.addEventListener('click', () => {
+        if (!document.body.classList.contains('auth') || !(selectedRoleInput && selectedRoleInput.value === 'Admin')) {
+            alert('Only the admin can manage accounts.');
+            return;
+        }
+        toggleAccountForm(true);
+        if (accountNameInput) {
+            accountNameInput.focus();
+        }
+    });
+}
+
+if (cancelAccountFormBtn) {
+    cancelAccountFormBtn.addEventListener('click', () => {
+        toggleAccountForm(false);
+    });
+}
+
 if (accountForm) {
     accountForm.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -2744,7 +2773,7 @@ if (accountForm) {
         }
 
         renderAccounts();
-        resetAccountForm();
+        toggleAccountForm(false);
         if (invitePayload && invitePayload.delivered === false) {
             alert(invitePayload.error || 'Invite email was not delivered. Check Laravel SMTP settings and try again.');
         } else {
@@ -2817,6 +2846,8 @@ if (accountList) {
                 if (accountRoleInput) accountRoleInput.value = selectedAccount.role;
                 if (accountEmailInput) accountEmailInput.value = selectedAccount.email;
                 if (accountPasswordInput) accountPasswordInput.value = selectedAccount.password;
+                toggleAccountForm(true);
+                if (accountNameInput) accountNameInput.focus();
             }
         }
     });
@@ -2858,6 +2889,7 @@ if (socialLoginButtons && socialLoginButtons.length) {
 
 loadStaffAccountsFromStorage();
 renderAccounts();
+toggleAccountForm(false);
 if (isStaffPage) {
     void ensureCsrfToken();
     // Ensure dashboard is open by default for staff pages

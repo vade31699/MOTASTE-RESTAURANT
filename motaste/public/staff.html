@@ -454,7 +454,9 @@
         <h2>Account Management</h2>
         <p>Manage cashier and inventory accounts below. Staff invites are Gmail-only and require email confirmation before first login.</p>
 
-        <form id="accountForm" class="account-form">
+        <button type="button" id="toggleAccountFormBtn" class="add-staff-btn">Add Staff Account</button>
+
+        <form id="accountForm" class="account-form" hidden>
             <input type="text" id="accountName" placeholder="Full Name" required>
             <select id="accountRole" required>
                 <option value="">Select role</option>
@@ -464,6 +466,7 @@
             <input type="email" id="accountEmail" placeholder="Gmail only (example@gmail.com)" required>
             <input type="password" id="accountPassword" placeholder="Password set by Admin" required>
             <button type="submit">Save Account</button>
+            <button type="button" id="cancelAccountFormBtn" class="secondary-btn">Cancel</button>
         </form>
 
         <ul id="accountList" class="account-list"></ul>

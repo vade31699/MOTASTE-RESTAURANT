@@ -330,18 +330,24 @@ body.dashboard-panel-open .menu-btn {
     margin: 16px 0;
 }
 
-.account-form input,
-.account-form select,
-.account-form button {
-    padding: 10px;
+.add-staff-btn,
+.account-form button,
+.secondary-btn {
+    padding: 10px 14px;
     border-radius: 8px;
     border: 1px solid #ccc;
+    cursor: pointer;
 }
 
+.add-staff-btn,
 .account-form button {
     background: #111;
     color: #fff;
-    cursor: pointer;
+}
+
+.secondary-btn {
+    background: #f3f3f3;
+    color: #111;
 }
 
 .account-list {
