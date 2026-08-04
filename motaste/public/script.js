@@ -7,6 +7,7 @@ const selectedRoleInput = document.getElementById('selectedRole');
 const modalTitle = document.getElementById('modalTitle');
 const emailInput = document.getElementById('email');
 const passwordInput = document.getElementById('password');
+const passwordToggleBtn = document.querySelector('[data-password-toggle]');
 const rememberCheckbox = document.getElementById('rememberCredentials');
 const logoutBtn = document.getElementById('logoutBtn');
 const menuBtn = document.getElementById('menuBtn');
@@ -16,6 +17,17 @@ const dashboardUserName = document.getElementById('dashboardUserName');
 const dashboardUserEmail = document.getElementById('dashboardUserEmail');
 const staffForm = document.getElementById('staffLoginForm');
 const staffLoginPage = document.querySelector('.staff-login-page');
+
+if (passwordInput && passwordToggleBtn) {
+    passwordToggleBtn.addEventListener('click', () => {
+        const isHidden = passwordInput.type === 'password';
+        passwordInput.type = isHidden ? 'text' : 'password';
+        passwordToggleBtn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+        passwordToggleBtn.innerHTML = isHidden
+            ? '<i class="fa-solid fa-eye-slash" aria-hidden="true"></i>'
+            : '<i class="fa-solid fa-eye" aria-hidden="true"></i>';
+    });
+}
 const allowedRoles = ['Admin', 'Cashier', 'Inventory Manager'];
 const staffSessionStorageKey = 'motasteStaffSession';
 const staffActiveSectionStorageKey = 'motasteStaffActiveSection';
