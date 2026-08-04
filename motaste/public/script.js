@@ -1212,12 +1212,20 @@ const highlightsList = document.getElementById('highlightsList');
 const highlightsStorageKey = 'motasteHighlightsSlides';
 const highlightsMaxImages = 15;
 const credentialsForm = document.getElementById('credentialsForm');
+const toggleCredentialsFormBtn = document.getElementById('toggleCredentialsFormBtn');
+const passwordCredentialsForm = document.getElementById('passwordCredentialsForm');
+const togglePasswordFormBtn = document.getElementById('togglePasswordFormBtn');
 const adminCurrentEmailInput = document.getElementById('adminCurrentEmail');
 const adminCurrentPasswordInput = document.getElementById('adminCurrentPassword');
 const adminNewEmailInput = document.getElementById('adminNewEmail');
 const adminNewPasswordInput = document.getElementById('adminNewPassword');
 const adminChangeCodeInput = document.getElementById('adminChangeCode');
+const adminPasswordCurrentEmailInput = document.getElementById('adminPasswordCurrentEmail');
+const adminPasswordCurrentPasswordInput = document.getElementById('adminPasswordCurrentPassword');
+const adminPasswordNewPasswordInput = document.getElementById('adminPasswordNewPassword');
+const adminPasswordChangeCodeInput = document.getElementById('adminPasswordChangeCode');
 const requestCredentialsChangeBtn = document.getElementById('requestCredentialsChangeBtn');
+const requestPasswordChangeBtn = document.getElementById('requestPasswordChangeBtn');
 const credentialsMessage = document.getElementById('credentialsMessage');
 let accountEditIndex = null;
 
@@ -1293,29 +1301,47 @@ async function loadAdminCredentials() {
         const payload = await response.json();
         if (!payload || payload.success !== true || !payload.credentials) {
             adminCurrentEmailInput.value = adminDefaultEmail;
+            if (adminPasswordCurrentEmailInput) adminPasswordCurrentEmailInput.value = adminDefaultEmail;
             return;
         }
 
-        adminCurrentEmailInput.value = payload.credentials.email || adminDefaultEmail;
+        const adminEmail = payload.credentials.email || adminDefaultEmail;
+        adminCurrentEmailInput.value = adminEmail;
+        if (adminPasswordCurrentEmailInput) adminPasswordCurrentEmailInput.value = adminEmail;
     } catch (error) {
         adminCurrentEmailInput.value = adminDefaultEmail;
+        if (adminPasswordCurrentEmailInput) adminPasswordCurrentEmailInput.value = adminDefaultEmail;
         console.error('Unable to load admin credentials', error);
     }
 }
 
-async function requestAdminCredentialsChange() {
-    if (!adminCurrentEmailInput || !adminCurrentPasswordInput || !adminNewEmailInput || !adminNewPasswordInput) return;
+async function requestAdminCredentialsChange({
+    currentEmailInput = adminCurrentEmailInput,
+    currentPasswordInput = adminCurrentPasswordInput,
+    newEmailInput = adminNewEmailInput,
+    newPasswordInput = adminNewPasswordInput,
+    shouldRequireEmail = true
+} = {}) {
+    if (!currentEmailInput || !currentPasswordInput) return;
 
-    const currentEmail = adminCurrentEmailInput.value.trim().toLowerCase();
-    const currentPassword = adminCurrentPasswordInput.value;
-    const nextEmail = adminNewEmailInput.value.trim().toLowerCase();
-    const nextPassword = adminNewPasswordInput.value;
+    const currentEmail = currentEmailInput.value.trim().toLowerCase();
+    const currentPassword = currentPasswordInput.value;
+    const nextEmail = newEmailInput ? newEmailInput.value.trim().toLowerCase() : '';
+    const nextPassword = newPasswordInput ? newPasswordInput.value : '';
 
-    if (!currentEmail || !currentPassword || !nextEmail || !nextPassword) {
-        setCredentialsMessage('Please complete all credentials fields.', true);
+    if (!currentEmail || !currentPassword) {
+        setCredentialsMessage('Current email and current password are required.', true);
         return;
     }
-    if (!isGmailAddress(nextEmail)) {
+
+    const emailChangeRequested = shouldRequireEmail && nextEmail !== '';
+    const passwordChangeRequested = !shouldRequireEmail && nextPassword !== '';
+    if (!emailChangeRequested && !passwordChangeRequested) {
+        setCredentialsMessage('Please complete the new email or password field before requesting the code.', true);
+        return;
+    }
+
+    if (emailChangeRequested && !isGmailAddress(nextEmail)) {
         setCredentialsMessage('Admin email must be a Gmail address.', true);
         return;
     }
@@ -1331,8 +1357,8 @@ async function requestAdminCredentialsChange() {
             body: JSON.stringify({
                 currentEmail,
                 currentPassword,
-                newEmail: nextEmail,
-                newPassword: nextPassword
+                newEmail: shouldRequireEmail ? nextEmail : currentEmail,
+                newPassword: shouldRequireEmail ? nextPassword : nextPassword
             }),
             cache: 'no-store'
         });
@@ -1353,13 +1379,21 @@ async function requestAdminCredentialsChange() {
     }
 }
 
-async function confirmAdminCredentialsChange(event) {
+async function confirmAdminCredentialsChange(event, formType = 'email') {
     if (event && event.preventDefault) event.preventDefault();
-    if (!adminCurrentEmailInput || !adminCurrentPasswordInput || !adminChangeCodeInput) return;
 
-    const currentEmail = adminCurrentEmailInput.value.trim().toLowerCase();
-    const currentPassword = adminCurrentPasswordInput.value;
-    const code = adminChangeCodeInput.value.trim();
+    const isEmailForm = formType === 'email';
+    const currentEmailInput = isEmailForm ? adminCurrentEmailInput : adminPasswordCurrentEmailInput;
+    const currentPasswordInput = isEmailForm ? adminCurrentPasswordInput : adminPasswordCurrentPasswordInput;
+    const codeInput = isEmailForm ? adminChangeCodeInput : adminPasswordChangeCodeInput;
+    const nextEmailInput = isEmailForm ? adminNewEmailInput : null;
+    const nextPasswordInput = isEmailForm ? adminNewPasswordInput : adminPasswordNewPasswordInput;
+
+    if (!currentEmailInput || !currentPasswordInput || !codeInput) return;
+
+    const currentEmail = currentEmailInput.value.trim().toLowerCase();
+    const currentPassword = currentPasswordInput.value;
+    const code = codeInput.value.trim();
     if (!currentEmail || !currentPassword || !code) {
         setCredentialsMessage('Current email, current password, and verification code are required.', true);
         return;
@@ -1387,8 +1421,8 @@ async function confirmAdminCredentialsChange(event) {
             renderAccounts();
         }
 
-        const nextEmail = adminNewEmailInput ? adminNewEmailInput.value.trim().toLowerCase() : '';
-        const nextPassword = adminNewPasswordInput ? adminNewPasswordInput.value : '';
+        const nextEmail = nextEmailInput ? nextEmailInput.value.trim().toLowerCase() : currentEmail;
+        const nextPassword = nextPasswordInput ? nextPasswordInput.value : '';
         if (nextEmail && nextPassword) {
             if (selectedRoleInput) {
                 selectedRoleInput.value = 'Admin';
@@ -1411,12 +1445,19 @@ async function confirmAdminCredentialsChange(event) {
         restoreStaffSession();
         await loadAdminCredentials();
 
-        if (credentialsForm) {
+        if (isEmailForm && credentialsForm) {
             credentialsForm.reset();
+        }
+        if (!isEmailForm && passwordCredentialsForm) {
+            passwordCredentialsForm.reset();
         }
         if (adminCurrentEmailInput) {
             const admin = accounts.find((account) => account.role === 'Admin');
             adminCurrentEmailInput.value = admin ? admin.email : currentEmail;
+        }
+        if (adminPasswordCurrentEmailInput) {
+            const admin = accounts.find((account) => account.role === 'Admin');
+            adminPasswordCurrentEmailInput.value = admin ? admin.email : currentEmail;
         }
         setCredentialsMessage('Admin credentials updated successfully.');
     } catch (error) {
@@ -2963,13 +3004,71 @@ if (accountList) {
     });
 }
 
+if (toggleCredentialsFormBtn) {
+    toggleCredentialsFormBtn.addEventListener('click', () => {
+        if (!canAccessCredentials()) {
+            setCredentialsMessage('Only admin can change credentials.', true);
+            return;
+        }
+        if (passwordCredentialsForm) {
+            passwordCredentialsForm.hidden = true;
+        }
+        if (credentialsForm) {
+            credentialsForm.hidden = !credentialsForm.hidden;
+            if (!credentialsForm.hidden) {
+                if (adminCurrentPasswordInput) adminCurrentPasswordInput.focus();
+            }
+        }
+    });
+}
+
+if (togglePasswordFormBtn) {
+    togglePasswordFormBtn.addEventListener('click', () => {
+        if (!canAccessCredentials()) {
+            setCredentialsMessage('Only admin can change credentials.', true);
+            return;
+        }
+        if (credentialsForm) {
+            credentialsForm.hidden = true;
+        }
+        if (passwordCredentialsForm) {
+            passwordCredentialsForm.hidden = !passwordCredentialsForm.hidden;
+            if (!passwordCredentialsForm.hidden) {
+                if (adminPasswordCurrentPasswordInput) adminPasswordCurrentPasswordInput.focus();
+            }
+        }
+    });
+}
+
 if (requestCredentialsChangeBtn) {
     requestCredentialsChangeBtn.addEventListener('click', () => {
         if (!canAccessCredentials()) {
             setCredentialsMessage('Only admin can change credentials.', true);
             return;
         }
-        void requestAdminCredentialsChange();
+        void requestAdminCredentialsChange({
+            currentEmailInput: adminCurrentEmailInput,
+            currentPasswordInput: adminCurrentPasswordInput,
+            newEmailInput: adminNewEmailInput,
+            newPasswordInput: adminNewPasswordInput,
+            shouldRequireEmail: true
+        });
+    });
+}
+
+if (requestPasswordChangeBtn) {
+    requestPasswordChangeBtn.addEventListener('click', () => {
+        if (!canAccessCredentials()) {
+            setCredentialsMessage('Only admin can change credentials.', true);
+            return;
+        }
+        void requestAdminCredentialsChange({
+            currentEmailInput: adminPasswordCurrentEmailInput,
+            currentPasswordInput: adminPasswordCurrentPasswordInput,
+            newEmailInput: null,
+            newPasswordInput: adminPasswordNewPasswordInput,
+            shouldRequireEmail: false
+        });
     });
 }
 
@@ -2980,7 +3079,18 @@ if (credentialsForm) {
             setCredentialsMessage('Only admin can change credentials.', true);
             return;
         }
-        void confirmAdminCredentialsChange(event);
+        void confirmAdminCredentialsChange(event, 'email');
+    });
+}
+
+if (passwordCredentialsForm) {
+    passwordCredentialsForm.addEventListener('submit', (event) => {
+        if (!canAccessCredentials()) {
+            event.preventDefault();
+            setCredentialsMessage('Only admin can change credentials.', true);
+            return;
+        }
+        void confirmAdminCredentialsChange(event, 'password');
     });
 }
 

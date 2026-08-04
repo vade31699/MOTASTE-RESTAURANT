@@ -65,13 +65,17 @@ try {
 
     $newEmail = strtolower(trim((string)$token->pending_email));
     $newPassword = (string)$token->pending_password;
-    $newPasswordHash = password_hash($newPassword, PASSWORD_DEFAULT);
+    $update = ['updated_at' => now()];
 
-    DB::table('staff')->where('id', $adminRow->id)->update([
-        'email' => $newEmail,
-        'password_hash' => $newPasswordHash,
-        'updated_at' => now(),
-    ]);
+    if ($newEmail !== '' && $newEmail !== strtolower(trim((string)$adminRow->email))) {
+        $update['email'] = $newEmail;
+    }
+
+    if ($newPassword !== '') {
+        $update['password_hash'] = password_hash($newPassword, PASSWORD_DEFAULT);
+    }
+
+    DB::table('staff')->where('id', $adminRow->id)->update($update);
 
     DB::table('admin_credential_change_tokens')->where('id', $token->id)->delete();
 

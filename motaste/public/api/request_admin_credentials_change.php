@@ -22,13 +22,19 @@ $newPassword = (string)($input['newPassword'] ?? '');
 
 validateCsrfOrExit();
 
-if ($currentEmail === '' || $currentPassword === '' || $newEmail === '' || $newPassword === '') {
+if ($currentEmail === '' || $currentPassword === '') {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'All fields are required']);
+    echo json_encode(['success' => false, 'error' => 'Current email and password are required']);
     exit;
 }
 
-if (!preg_match('/@gmail\.com$/', $newEmail)) {
+if ($newEmail === '' && $newPassword === '') {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'A new email or password is required']);
+    exit;
+}
+
+if ($newEmail !== '' && !preg_match('/@gmail\.com$/', $newEmail)) {
     http_response_code(422);
     echo json_encode(['success' => false, 'error' => 'Admin email must be a Gmail address']);
     exit;
@@ -48,6 +54,8 @@ try {
     $code = generateVerificationCode(6);
     $codeHash = hash('sha256', $code);
     $expiresAt = now()->addMinutes(10);
+    $pendingEmail = $newEmail !== '' ? $newEmail : $currentEmail;
+    $pendingPassword = $newPassword;
 
     DB::table('admin_credential_change_tokens')
         ->where('current_email', $currentEmail)
@@ -56,8 +64,8 @@ try {
     DB::table('admin_credential_change_tokens')->insert([
         'current_email' => $currentEmail,
         'code_hash' => $codeHash,
-        'pending_email' => $newEmail,
-        'pending_password' => $newPassword,
+        'pending_email' => $pendingEmail,
+        'pending_password' => $pendingPassword,
         'expires_at' => $expiresAt,
         'created_at' => now(),
         'updated_at' => now(),

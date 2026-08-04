@@ -489,7 +489,9 @@
         <h2>Credentials</h2>
         <p>Admin-only settings for main Gmail and password. Changes require email verification code before applying.</p>
 
-        <form id="credentialsForm" class="account-form">
+        <button type="button" id="toggleCredentialsFormBtn" class="add-staff-btn">CHANGE ADMIN EMAIL</button>
+
+        <form id="credentialsForm" class="account-form" hidden>
             <input type="email" id="adminCurrentEmail" placeholder="Current admin Gmail" readonly>
             <input type="password" id="adminCurrentPassword" placeholder="Current admin password" required>
             <input type="email" id="adminNewEmail" placeholder="New admin Gmail" required>
@@ -497,6 +499,17 @@
             <button type="button" id="requestCredentialsChangeBtn">Send Verification Code</button>
             <input type="text" id="adminChangeCode" placeholder="Enter verification code" maxlength="8">
             <button type="submit" id="confirmCredentialsChangeBtn">Verify and Apply</button>
+        </form>
+
+        <button type="button" id="togglePasswordFormBtn" class="add-staff-btn" style="margin-top: 12px;">CHANGE ADMIN PASSWORD</button>
+
+        <form id="passwordCredentialsForm" class="account-form" hidden>
+            <input type="email" id="adminPasswordCurrentEmail" placeholder="Current admin Gmail" readonly>
+            <input type="password" id="adminPasswordCurrentPassword" placeholder="Current admin password" required>
+            <input type="password" id="adminPasswordNewPassword" placeholder="New admin password" required>
+            <button type="button" id="requestPasswordChangeBtn">Send Verification Code</button>
+            <input type="text" id="adminPasswordChangeCode" placeholder="Enter verification code" maxlength="8">
+            <button type="submit" id="confirmPasswordChangeBtn">Verify and Apply</button>
         </form>
         <p id="credentialsMessage" class="menu-order-message" aria-live="polite"></p>
     </section>
