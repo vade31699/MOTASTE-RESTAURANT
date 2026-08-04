@@ -330,6 +330,19 @@ body.dashboard-panel-open .menu-btn {
     margin: 16px 0;
 }
 
+#credentials .account-form,
+#passwordCredentialsForm {
+    width: 100%;
+}
+
+#credentials .account-form input,
+#credentials .account-form button,
+#passwordCredentialsForm input,
+#passwordCredentialsForm button {
+    width: 100%;
+    box-sizing: border-box;
+}
+
 .add-staff-btn,
 .account-form button,
 .secondary-btn {
@@ -532,12 +545,12 @@ body.dashboard-panel-open .menu-btn {
 }
 
 .staff-login-page {
+    position: absolute;
+    inset: 0;
     min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    display: grid;
+    place-items: center;
     padding: 20px;
-    position: relative;
     z-index: 0;
 }
 
@@ -4640,6 +4653,21 @@ body.modal-open {
 }
 
 @media (max-width: 760px) {
+    #credentials .account-form,
+    #passwordCredentialsForm,
+    .account-form,
+    .inventory-form-grid,
+    .inventory-inline-editor {
+        grid-template-columns: 1fr;
+    }
+
+    #credentials .account-form button,
+    #passwordCredentialsForm button,
+    #togglePasswordFormBtn,
+    #toggleCredentialsFormBtn {
+        width: 100%;
+    }
+
     .staff-login-page {
         min-height: 100vh;
         padding: 16px;

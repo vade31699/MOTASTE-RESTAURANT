@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=20260727">
+    <link rel="stylesheet" href="./style.css?v=20260727">
     <title>Staff Login - MOTASTE</title>
     <style>
         html,
@@ -15,15 +15,15 @@
         }
 
         .staff-login-page {
-            position: relative;
+            position: absolute;
+            inset: 0;
             z-index: 0;
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            display: grid;
+            place-items: center;
             padding: 20px;
             background-color: transparent;
-            overflow: visible;
+            overflow: hidden;
         }
 
         .login-dark-overlay {
@@ -520,7 +520,7 @@
     </section>
 
     <div class="login-dark-overlay" aria-hidden="true"></div>
-    <img src="frontimg/logo-removebg-preview.png" alt="MOTASTE logo" class="bg-logo">
+    <img src="./frontimg/logo-removebg-preview.png" alt="MOTASTE logo" class="bg-logo">
     <div class="staff-login-page">
         <div class="modal-box staff-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
             <h2 id="modalTitle">Staff Login</h2>
@@ -562,7 +562,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260731"></script>
-    <script src="staff-auth.js?v=20260731"></script>
+    <script src="./script.js?v=20260731"></script>
+    <script src="./staff-auth.js?v=20260731"></script>
 </body>
 </html>
