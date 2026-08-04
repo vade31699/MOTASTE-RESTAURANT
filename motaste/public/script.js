@@ -2744,11 +2744,13 @@ if (accountForm) {
         const previousAccount = accountEditIndex !== null ? accounts[accountEditIndex] : null;
 
         let invitePayload = null;
-        try {
-            invitePayload = await sendStaffInviteEmail(account);
-        } catch (error) {
-            alert(error.message || 'Unable to send invite email.');
-            return;
+        if (accountEditIndex === null) {
+            try {
+                invitePayload = await sendStaffInviteEmail(account);
+            } catch (error) {
+                alert(error.message || 'Unable to send invite email.');
+                return;
+            }
         }
 
         if (accountEditIndex !== null) {
@@ -2796,7 +2798,9 @@ if (accountForm) {
 
         renderAccounts();
         toggleAccountForm(false);
-        if (invitePayload && invitePayload.delivered === false) {
+        if (accountEditIndex !== null) {
+            alert('Staff account updated successfully.');
+        } else if (invitePayload && invitePayload.delivered === false) {
             alert(invitePayload.error || 'Invite email was not delivered. Check Laravel SMTP settings and try again.');
         } else {
             alert('Invite email sent. The staff account can login after confirming the email verification code.');
@@ -2851,13 +2855,6 @@ if (accountList) {
             }
 
             const previousAccount = accounts[index];
-            let invitePayload = null;
-            try {
-                invitePayload = await sendStaffInviteEmail(updatedAccount);
-            } catch (error) {
-                alert(error.message || 'Unable to send invite email.');
-                return;
-            }
 
             accounts[index] = updatedAccount;
             void logStaffActivity('account_updated', `${updatedAccount.name} (${updatedAccount.role})`, {
@@ -2894,11 +2891,7 @@ if (accountList) {
 
             accountEditIndex = null;
             renderAccounts();
-            if (invitePayload && invitePayload.delivered === false) {
-                alert(invitePayload.error || 'Invite email was not delivered. Check Laravel SMTP settings and try again.');
-            } else {
-                alert('Staff account updated. The staff member can login after confirming the email verification code.');
-            }
+            alert('Staff account updated successfully.');
             return;
         }
 
