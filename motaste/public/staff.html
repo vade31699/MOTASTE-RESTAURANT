@@ -438,14 +438,23 @@
         </div>
         <h3 class="review-history-title">Review Logs History</h3>
         <div id="logsFilterBar" class="logs-filter-bar" role="group" aria-label="Log filters">
-            <button type="button" class="logs-filter-btn active" data-log-filter="all">All</button>
-            <button type="button" class="logs-filter-btn" data-log-filter="today">Today</button>
-            <button type="button" class="logs-filter-btn" data-log-filter="qty">Qty Changes</button>
-            <button type="button" class="logs-filter-btn" data-log-filter="completed">Completed</button>
-            <button type="button" class="logs-filter-btn" data-log-filter="stock">Stock Only</button>
-            <button type="button" class="logs-filter-btn" data-log-filter="inventory">Inventory</button>
-            <button type="button" class="logs-filter-btn" data-log-filter="accounts">Accounts</button>
-            <button type="button" class="logs-filter-btn" data-log-filter="reviews">Reviews</button>
+            <label class="logs-filter-select-wrap" for="logsCategoryFilter">
+                <span class="sr-only">Select log category</span>
+                <select id="logsCategoryFilter" class="logs-category-filter">
+                    <option value="all">All</option>
+                    <option value="today">Today</option>
+                    <option value="qty">Qty Changes</option>
+                    <option value="completed">Completed</option>
+                    <option value="stock">Stock Only</option>
+                    <option value="inventory">Inventory</option>
+                    <option value="accounts">Accounts</option>
+                    <option value="reviews">Reviews</option>
+                </select>
+            </label>
+            <label class="logs-date-filter-wrap" for="logsDateFilter">
+                <span class="sr-only">Choose log date</span>
+                <input id="logsDateFilter" class="logs-date-filter" type="date">
+            </label>
         </div>
         <div id="logsList" class="order-logs-list"></div>
     </section>

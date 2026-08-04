@@ -1971,6 +1971,8 @@ const walkInPlaceOrderBtn = document.getElementById('walkInPlaceOrderBtn');
 const walkInOrderMessage = document.getElementById('walkInOrderMessage');
 const logsSection = document.getElementById('logs');
 const logsFilterBar = document.getElementById('logsFilterBar');
+const logsCategoryFilter = document.getElementById('logsCategoryFilter');
+const logsDateFilter = document.getElementById('logsDateFilter');
 const logsList = document.getElementById('logsList');
 const staffReviewList = document.getElementById('staffReviewList');
 const customerReviewForm = document.getElementById('customerReviewForm');
@@ -4267,36 +4269,47 @@ function isQtyChangeAction(action) {
     return ['quantity_increased', 'quantity_decreased', 'quantity_updated', 'item_removed', 'order_removed'].includes(action);
 }
 
+function getSelectedLogsDateValue() {
+    if (!logsDateFilter) return '';
+    return (logsDateFilter.value || '').trim();
+}
+
+function matchesSelectedLogDate(log) {
+    const selectedDate = getSelectedLogsDateValue();
+    if (!selectedDate) return true;
+
+    const logDate = new Date(parseServerDateToMs(log.created_at_iso || log.created_at));
+    if (Number.isNaN(logDate.getTime())) return false;
+
+    const localDate = new Date(logDate.getTime() - (logDate.getTimezoneOffset() * 60000));
+    const localIso = localDate.toISOString().slice(0, 10);
+    return localIso === selectedDate;
+}
+
 function getFilteredOrderLogs() {
+    let filtered = orderActivityLogs;
+
     if (activeOrderLogFilter === 'today') {
-        return orderActivityLogs.filter((log) => isLogFromToday(log));
+        filtered = filtered.filter((log) => isLogFromToday(log));
+    } else if (activeOrderLogFilter === 'qty') {
+        filtered = filtered.filter((log) => isQtyChangeAction(log.action));
+    } else if (activeOrderLogFilter === 'completed') {
+        filtered = filtered.filter((log) => log.action === 'order_completed');
+    } else if (activeOrderLogFilter === 'stock') {
+        filtered = filtered.filter((log) => log.action === 'inventory_stock_changed');
+    } else if (activeOrderLogFilter === 'inventory') {
+        filtered = filtered.filter((log) => String(log.action || '').startsWith('inventory_'));
+    } else if (activeOrderLogFilter === 'accounts') {
+        filtered = filtered.filter((log) => String(log.action || '').startsWith('account_'));
+    } else if (activeOrderLogFilter === 'reviews') {
+        filtered = filtered.filter((log) => String(log.action || '').startsWith('review_'));
     }
 
-    if (activeOrderLogFilter === 'qty') {
-        return orderActivityLogs.filter((log) => isQtyChangeAction(log.action));
+    if (getSelectedLogsDateValue()) {
+        filtered = filtered.filter((log) => matchesSelectedLogDate(log));
     }
 
-    if (activeOrderLogFilter === 'completed') {
-        return orderActivityLogs.filter((log) => log.action === 'order_completed');
-    }
-
-    if (activeOrderLogFilter === 'stock') {
-        return orderActivityLogs.filter((log) => log.action === 'inventory_stock_changed');
-    }
-
-    if (activeOrderLogFilter === 'inventory') {
-        return orderActivityLogs.filter((log) => String(log.action || '').startsWith('inventory_'));
-    }
-
-    if (activeOrderLogFilter === 'accounts') {
-        return orderActivityLogs.filter((log) => String(log.action || '').startsWith('account_'));
-    }
-
-    if (activeOrderLogFilter === 'reviews') {
-        return orderActivityLogs.filter((log) => String(log.action || '').startsWith('review_'));
-    }
-
-    return orderActivityLogs;
+    return filtered;
 }
 
 function getLogFilterCounts() {
@@ -4314,18 +4327,9 @@ function getLogFilterCounts() {
 }
 
 function updateLogsFilterState() {
-    if (!logsFilterBar) return;
-
-    const counts = getLogFilterCounts();
-    const buttons = Array.from(logsFilterBar.querySelectorAll('.logs-filter-btn'));
-    buttons.forEach((button) => {
-        const filterKey = (button.dataset.logFilter || 'all').trim();
-        const baseLabel = logsFilterLabelMap[filterKey] || (button.textContent || '').replace(/\s*\(\d+\)\s*$/, '').trim();
-        const countValue = Number(counts[filterKey] || 0);
-
-        button.classList.toggle('active', filterKey === activeOrderLogFilter);
-        button.textContent = `${baseLabel} (${countValue})`;
-    });
+    if (!logsCategoryFilter) return;
+    const selectedValue = logsFilterLabelMap[activeOrderLogFilter] ? activeOrderLogFilter : 'all';
+    logsCategoryFilter.value = selectedValue;
 }
 
 function renderOrderLogs() {
@@ -4636,15 +4640,18 @@ if (staffReviewList) {
     });
 }
 
-if (logsFilterBar) {
-    logsFilterBar.addEventListener('click', (event) => {
-        const button = event.target.closest('.logs-filter-btn');
-        if (!button) return;
-
-        const filter = (button.dataset.logFilter || 'all').trim();
-        if (!filter || filter === activeOrderLogFilter) return;
+if (logsCategoryFilter) {
+    logsCategoryFilter.addEventListener('change', (event) => {
+        const filter = (event.target.value || 'all').trim();
+        if (!filter) return;
 
         activeOrderLogFilter = filter;
+        renderOrderLogs();
+    });
+}
+
+if (logsDateFilter) {
+    logsDateFilter.addEventListener('change', () => {
         renderOrderLogs();
     });
 }

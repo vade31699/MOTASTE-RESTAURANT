@@ -2930,84 +2930,40 @@ body.modal-open {
     margin-top: 12px;
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    align-items: center;
+    gap: 10px;
 }
-.logs-filter-btn {
-    border: 1px solid rgba(255, 255, 255, 0.28);
+.logs-filter-select-wrap,
+.logs-date-filter-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+.logs-category-filter,
+.logs-date-filter {
+    appearance: none;
+    border: 1px solid rgba(255, 255, 255, 0.22);
     background: rgba(255, 255, 255, 0.06);
     color: #fff;
-    border-radius: 999px;
-    padding: 8px 14px;
-    font-weight: 700;
+    border-radius: 10px;
+    padding: 9px 16px;
+    min-height: 42px;
+    font-size: 0.95rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease;
 }
-.logs-filter-btn[data-log-filter="all"] {
-    border-color: rgba(255, 255, 255, 0.4);
+.logs-date-filter {
+    min-width: 180px;
+    cursor: pointer;
 }
-.logs-filter-btn[data-log-filter="today"] {
-    border-color: rgba(255, 193, 7, 0.7);
-    color: #ffe082;
-}
-.logs-filter-btn[data-log-filter="qty"] {
-    border-color: rgba(76, 175, 80, 0.72);
-    color: #c8e6c9;
-}
-.logs-filter-btn[data-log-filter="completed"] {
-    border-color: rgba(3, 218, 198, 0.72);
-    color: #b2dfdb;
-}
-.logs-filter-btn[data-log-filter="stock"] {
-    border-color: rgba(255, 152, 0, 0.78);
-    color: #ffd7a1;
-}
-.logs-filter-btn[data-log-filter="inventory"] {
-    border-color: rgba(156, 39, 176, 0.72);
-    color: #e1bee7;
-}
-.logs-filter-btn[data-log-filter="accounts"] {
-    border-color: rgba(33, 150, 243, 0.75);
-    color: #bbdefb;
-}
-.logs-filter-btn[data-log-filter="reviews"] {
-    border-color: rgba(255, 87, 34, 0.75);
-    color: #ffccbc;
-}
-.logs-filter-btn:hover {
-    border-color: rgba(255, 152, 0, 0.75);
-}
-.logs-filter-btn.active {
-    background: #ff9800;
-    border-color: #ff9800;
+.logs-category-filter option,
+.logs-date-filter {
     color: #111;
 }
-.logs-filter-btn.active[data-log-filter="today"] {
-    background: #ffd54f;
-    border-color: #ffd54f;
-}
-.logs-filter-btn.active[data-log-filter="qty"] {
-    background: #66bb6a;
-    border-color: #66bb6a;
-}
-.logs-filter-btn.active[data-log-filter="completed"] {
-    background: #26c6da;
-    border-color: #26c6da;
-}
-.logs-filter-btn.active[data-log-filter="stock"] {
-    background: #ffa726;
-    border-color: #ffa726;
-}
-.logs-filter-btn.active[data-log-filter="inventory"] {
-    background: #ba68c8;
-    border-color: #ba68c8;
-}
-.logs-filter-btn.active[data-log-filter="accounts"] {
-    background: #64b5f6;
-    border-color: #64b5f6;
-}
-.logs-filter-btn.active[data-log-filter="reviews"] {
-    background: #ff8a65;
-    border-color: #ff8a65;
+.logs-category-filter:focus,
+.logs-date-filter:focus {
+    outline: 2px solid rgba(255, 152, 0, 0.7);
+    outline-offset: 2px;
 }
 .order-log-card {
     background: rgba(255, 255, 255, 0.04);
