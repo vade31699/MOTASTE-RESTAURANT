@@ -532,7 +532,7 @@ body.dashboard-panel-open .menu-btn {
 }
 
 .staff-login-page {
-    min-height: calc(100vh - 100px);
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -4641,9 +4641,9 @@ body.modal-open {
 
 @media (max-width: 760px) {
     .staff-login-page {
-        min-height: auto;
+        min-height: 100vh;
         padding: 16px;
-        align-items: flex-start;
+        align-items: center;
     }
 
     .staff-box,
