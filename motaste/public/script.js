@@ -743,6 +743,29 @@ function findStaffAccountByCredentials(email, password) {
     return staffAccounts.find((account) => account.email.toLowerCase() === normalizedEmail && account.password === password) || null;
 }
 
+function syncSelectedRoleWithTypedEmail(email) {
+    if (!selectedRoleInput) {
+        return;
+    }
+
+    const normalizedEmail = (email || '').trim().toLowerCase();
+    if (!normalizedEmail) {
+        selectedRoleInput.value = '';
+        return;
+    }
+
+    const matchingAccount = getCurrentStaffAccounts().find((account) => account.email.toLowerCase() === normalizedEmail);
+    if (matchingAccount) {
+        selectedRoleInput.value = matchingAccount.role;
+        return;
+    }
+
+    const currentRole = (selectedRoleInput.value || '').trim();
+    if (currentRole && !allowedRoles.includes(currentRole)) {
+        selectedRoleInput.value = '';
+    }
+}
+
 function updateDashboardProfile() {
     const role = (selectedRoleInput && selectedRoleInput.value) ? selectedRoleInput.value : 'Account';
     const email = (emailInput && emailInput.value) ? emailInput.value.trim() : 'No account selected';
@@ -945,6 +968,12 @@ async function authenticateStaffAccount(email, password, role = '') {
 function attachStaffLoginHandler() {
     if (!staffForm) return;
 
+    if (emailInput) {
+        emailInput.addEventListener('input', () => {
+            syncSelectedRoleWithTypedEmail(emailInput.value);
+        });
+    }
+
     staffForm.addEventListener('submit', async function (event) {
         if (!staffForm.checkValidity()) {
             staffForm.reportValidity();
@@ -953,10 +982,12 @@ function attachStaffLoginHandler() {
 
         event.preventDefault();
 
-        const role = selectedRoleInput && selectedRoleInput.value
-            ? selectedRoleInput.value
-            : '';
         const email = emailInput ? emailInput.value.trim() : '';
+        syncSelectedRoleWithTypedEmail(email);
+
+        const role = selectedRoleInput && selectedRoleInput.value
+            ? selectedRoleInput.value.trim()
+            : '';
         const password = passwordInput ? passwordInput.value : '';
         const remember = rememberCheckbox ? rememberCheckbox.checked : false;
 
