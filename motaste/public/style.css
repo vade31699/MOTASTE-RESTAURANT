@@ -46,10 +46,6 @@ html, body {
     z-index: 1000;
 }
 
-.live-clock{
-    color: red;
-}
-
 .top-nav {
     display: flex;
     align-items: center;
@@ -2711,7 +2707,7 @@ body.modal-open {
 .checkout-clock,
 .live-clock {
     font-size: 0.95rem;
-    color: #333;
+    color: #caff0a;
     margin-top: 8px;
 }
 .order-payment-screen {
