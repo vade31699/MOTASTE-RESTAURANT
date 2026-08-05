@@ -321,7 +321,7 @@ async function ensureCsrfToken() {
     if (csrfToken) return csrfToken;
 
     try {
-        const response = await fetch(getApiUrl(`api/get_csrf_token.php?_=${Date.now()}`), { cache: 'no-store' });
+        const response = await fetch(getApiUrl(`api/get_csrf_token.php?_=${Date.now()}`), { cache: 'no-store', credentials: 'same-origin' });
         if (!response.ok) return '';
         const payload = await response.json().catch(() => ({}));
         csrfToken = String(payload.csrfToken || '').trim();
@@ -946,6 +946,7 @@ async function authenticateStaffAccount(email, password, role = '') {
     try {
         const response = await fetch(getApiUrl('api/authenticate_staff.php'), {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json'
             },
@@ -953,22 +954,23 @@ async function authenticateStaffAccount(email, password, role = '') {
             cache: 'no-store'
         });
 
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || !payload.success) {
-            return null;
-        }
+        const headers = await withCsrfHeaders({
+            'Content-Type': 'application/json'
+        });
 
-        return payload;
-    } catch (error) {
-        console.error('Staff authentication failed', error);
-        return null;
-    }
-}
-
-function attachStaffLoginHandler() {
-    if (!staffForm) return;
-
-    if (emailInput) {
+        await fetch(getApiUrl('api/notify_staff_session.php'), {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers,
+            body: JSON.stringify({
+                event: eventName,
+                role: actorRole,
+                email: actorEmail,
+                occurredAt: new Date().toISOString(),
+                userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : ''
+            }),
+            cache: 'no-store'
+        });
         emailInput.addEventListener('input', () => {
             syncSelectedRoleWithTypedEmail(emailInput.value);
         });
@@ -1086,6 +1088,16 @@ if (logoutBtn) {
         const actorRole = selectedRoleInput ? selectedRoleInput.value.trim() : '';
         const actorEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
         void notifyStaffSessionEvent('logout', actorRole, actorEmail);
+
+        // Clear server-side session as well
+        (async () => {
+            try {
+                const headers = await withCsrfHeaders();
+                await fetch(getApiUrl('api/staff_logout.php'), { method: 'POST', credentials: 'same-origin', headers, cache: 'no-store' });
+            } catch (e) {
+                console.debug('staff_logout failed', e);
+            }
+        })();
 
         if (selectedRoleInput) {
             selectedRoleInput.value = '';
@@ -8447,7 +8459,7 @@ async function fetchOverviewMetrics() {
         // Staff login count (server-side approximation)
         let staffCount = 0;
         try {
-            const r = await fetch(getApiUrl(`api/get_staff_active_count.php?_=${Date.now()}`), { cache: 'no-store' });
+            const r = await fetch(getApiUrl(`api/get_staff_active_count.php?_=${Date.now()}`), { cache: 'no-store', credentials: 'same-origin' });
             if (r.ok) {
                 const p = await r.json().catch(() => ({}));
                 staffCount = Number(p.count || 0);
@@ -8461,7 +8473,7 @@ async function fetchOverviewMetrics() {
 
         // Completed orders: use existing endpoint and split by order_type
         try {
-            const r2 = await fetch(getApiUrl(`api/get_completed_orders.php?_=${Date.now()}`), { cache: 'no-store' });
+            const r2 = await fetch(getApiUrl(`api/get_completed_orders.php?_=${Date.now()}`), { cache: 'no-store', credentials: 'same-origin' });
             if (r2.ok) {
                 const payload = await r2.json().catch(() => ({}));
                 const orders = Array.isArray(payload.orders) ? payload.orders : [];

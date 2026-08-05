@@ -10,11 +10,28 @@ $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 try {
-    // Heuristic: count sessions that appear to contain staff data in the payload.
-    // The sessions payload format varies by session driver; use a case-insensitive search for the
-    // substring "staff" which is used by some server-side session payloads.
+    // Prefer explicit tracking via `staff_sessions` table (created by notify_staff_session).
+    if (Schema::hasTable('staff_sessions')) {
+        // Clean up stale sessions older than the configured timeout (minutes)
+        $timeoutMinutes = 15; // configurable timeout for inactivity
+        try {
+            DB::table('staff_sessions')
+                ->where('is_active', true)
+                ->where('last_seen', '<', DB::raw("(NOW() - INTERVAL '{$timeoutMinutes} minutes')"))
+                ->update(['is_active' => false, 'last_action' => 'expired', 'updated_at' => now()]);
+        } catch (Throwable $__cleanupError) {
+            // ignore cleanup errors
+        }
+
+        $count = DB::table('staff_sessions')->where('is_active', true)->count();
+        echo json_encode(['success' => true, 'count' => (int)$count]);
+        exit;
+    }
+
+    // Fallback heuristic: search sessions payload for the "staff" substring.
     $count = DB::table('sessions')
         ->whereRaw('LOWER(payload) LIKE ?', ['%staff%'])
         ->count();

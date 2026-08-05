@@ -9,6 +9,10 @@ require __DIR__ . '/../../vendor/autoload.php';
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
+
 require_once __DIR__ . '/_email_auth_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
 
@@ -55,6 +59,34 @@ try {
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => 'Unable to send notification email', 'details' => $emailResult['error'] ?? 'Unknown mail error']);
         exit;
+    }
+
+    // Track active staff sessions in `staff_sessions` table for accurate counts.
+    try {
+        if (!Schema::hasTable('staff_sessions')) {
+            Schema::create('staff_sessions', function (Blueprint $table) {
+                $table->bigIncrements('id');
+                $table->string('email')->index();
+                $table->string('role', 64)->nullable()->index();
+                $table->boolean('is_active')->default(false)->index();
+                $table->string('last_action', 16)->nullable();
+                $table->timestamp('last_seen')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        DB::table('staff_sessions')->updateOrInsert(
+            ['email' => $email, 'role' => $role],
+            [
+                'is_active' => $event === 'login' ? true : false,
+                'last_action' => $event,
+                'last_seen' => now(),
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+    } catch (Throwable $e) {
+        error_log('staff_sessions tracking failed: ' . $e->getMessage());
     }
 
     echo json_encode(['success' => true]);
