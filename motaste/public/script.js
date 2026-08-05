@@ -8444,20 +8444,21 @@ updateAccountManagementAccess();
 // Overview metrics: fetch counts for staff logins and completed orders
 async function fetchOverviewMetrics() {
     try {
-        // Staff login count (server-side approximation)
-        let staffCount = 0;
+        // Pending orders count
+        let pendingCount = 0;
         try {
-            const r = await fetch(getApiUrl(`api/get_staff_active_count.php?_=${Date.now()}`), { cache: 'no-store' });
+            const r = await fetch(getApiUrl(`api/get_pending_orders.php?_=${Date.now()}`), { cache: 'no-store', credentials: 'same-origin' });
             if (r.ok) {
                 const p = await r.json().catch(() => ({}));
-                staffCount = Number(p.count || 0);
+                const orders = Array.isArray(p.orders) ? p.orders : [];
+                pendingCount = orders.length;
             }
         } catch (e) {
-            console.debug('Unable to load staff active count', e);
+            console.debug('Unable to load pending orders count', e);
         }
 
-        const staffEl = document.getElementById('staffLoginCount');
-        if (staffEl) staffEl.textContent = String(staffCount);
+        const pendingEl = document.getElementById('pendingOrdersCount');
+        if (pendingEl) pendingEl.textContent = String(pendingCount);
 
         // Completed orders: use existing endpoint and split by order_type
         try {
