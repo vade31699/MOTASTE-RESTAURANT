@@ -92,6 +92,16 @@
         @media (max-width: 1400px){ .bg-logo{ width: 115vmin; } }
         @media (max-width: 900px){ .bg-logo{ width: 110vmin; } }
         @media (max-width: 420px){ .bg-logo{ width: 100vmin; } }
+        /* Notification badge pulse animation */
+        .notif-badge-pulse {
+            animation: notif-pulse 1s ease-in-out 0s 3 both;
+        }
+
+        @keyframes notif-pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68, 0.7); }
+            50% { transform: scale(1.18); box-shadow: 0 0 8px 6px rgba(239,68,68, 0.12); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68, 0); }
+        }
     </style>
 </head>
 <body>
@@ -190,8 +200,9 @@
             </div>
 
             <div class="overview-order-notification-box">
-                <div class="overview-notification-header">
-                    <h3>Order Notifications</h3>
+                <div class="overview-notification-header" style="display:flex;align-items:center;gap:8px;">
+                    <h3 style="margin:0">Order Notifications</h3>
+                    <span id="overviewOrderBadge" aria-hidden="true" style="display:none;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;background:#ef4444;color:#fff;font-size:12px;font-weight:700;">0</span>
                 </div>
                 <div id="overviewOrderNotificationList" class="order-notification-list"></div>
                 <div class="order-notification-footer">

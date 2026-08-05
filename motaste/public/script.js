@@ -3872,7 +3872,7 @@ function startCustomerOrderStatusPolling() {
 
 async function loadPendingOrdersFromServer() {
     try {
-        const response = await fetch(getApiUrl('api/get_pending_orders.php'), { cache: 'no-store' });
+        const response = await fetch(getApiUrl('api/get_pending_orders.php'), { cache: 'no-store', credentials: 'same-origin' });
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
@@ -4687,7 +4687,7 @@ async function loadCompletedOrdersFromServer(forceRefresh = false) {
     completedOrdersSyncInFlight = true;
 
     try {
-        const response = await fetch(getApiUrl(`api/get_completed_orders.php?_=${Date.now()}`), { cache: 'no-store' });
+        const response = await fetch(getApiUrl(`api/get_completed_orders.php?_=${Date.now()}`), { cache: 'no-store', credentials: 'same-origin' });
         if (!response.ok) return false;
 
         const payload = await response.json();
@@ -8267,6 +8267,10 @@ if (dashboardPanel) {
 
 if (overviewOrderNotificationList) {
     overviewOrderNotificationList.addEventListener('click', async (event) => {
+        // clicking the notification list marks notifications as seen
+        unseenPendingCount = 0;
+        updateOverviewBadge();
+
         if (!canManageOrders()) return;
         const button = event.target.closest('.order-complete-btn');
         if (!button) return;
@@ -8443,6 +8447,38 @@ updateAccountManagementAccess();
 
 // Real-time order events via Server-Sent Events
 let orderEventsSource = null;
+let pendingOrderAudio = null;
+let unseenPendingCount = 0;
+function updateOverviewBadge() {
+    const badge = document.getElementById('overviewOrderBadge');
+    if (!badge) return;
+    if (unseenPendingCount > 0) {
+        badge.style.display = 'inline-flex';
+        badge.textContent = String(unseenPendingCount > 99 ? '99+' : unseenPendingCount);
+        // trigger pulse
+        badge.classList.remove('notif-badge-pulse');
+        // force reflow to restart animation
+        void badge.offsetWidth;
+        badge.classList.add('notif-badge-pulse');
+    } else {
+        badge.style.display = 'none';
+        badge.classList.remove('notif-badge-pulse');
+    }
+}
+
+function playPendingOrderSound() {
+    try {
+        // create ephemeral audio so it plays once
+        pendingOrderAudio = new Audio(getApiUrl('order_aud_notif.mp3'));
+        pendingOrderAudio.preload = 'auto';
+        pendingOrderAudio.loop = false;
+        pendingOrderAudio.volume = 1;
+        const p = pendingOrderAudio.play();
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch (e) {
+        console.debug('pending order audio failed', e);
+    }
+}
 function initOrderEvents() {
     if (typeof EventSource === 'undefined') {
         console.debug('EventSource not supported; falling back to polling');
@@ -8458,37 +8494,36 @@ function initOrderEvents() {
         const url = getApiUrl('api/order_events.php');
         orderEventsSource = new EventSource(url, { withCredentials: true });
 
+        let lastOrderSyncAt = 0;
+        const ORDER_SYNC_DEBOUNCE_MS = 800;
         orderEventsSource.addEventListener('order_created', (ev) => {
             try {
-                const payload = JSON.parse(ev.data || '{}');
-                // increment pending orders
-                const pendingEl = document.getElementById('pendingOrdersCount');
-                if (pendingEl) pendingEl.textContent = String((Number(pendingEl.textContent || 0) || 0) + 1);
-            } catch (e) { console.debug('order_created parse error', e); }
+                const now = Date.now();
+                if (now - lastOrderSyncAt > ORDER_SYNC_DEBOUNCE_MS) {
+                    lastOrderSyncAt = now;
+                    // reload pending orders to get full order details and update notifications
+                    void loadPendingOrdersFromServer();
+                    // visual + audible alert for new order
+                    unseenPendingCount = (unseenPendingCount || 0) + 1;
+                    updateOverviewBadge();
+                    playPendingOrderSound();
+                } else {
+                    // schedule a short delayed sync
+                    window.setTimeout(() => void loadPendingOrdersFromServer(), ORDER_SYNC_DEBOUNCE_MS);
+                }
+            } catch (e) { console.debug('order_created handler error', e); }
         });
 
         orderEventsSource.addEventListener('order_completed', (ev) => {
             try {
-                const payload = JSON.parse(ev.data || '{}');
-                const pendingEl = document.getElementById('pendingOrdersCount');
-                if (pendingEl) {
-                    const cur = Math.max(0, (Number(pendingEl.textContent || 0) || 0) - 1);
-                    pendingEl.textContent = String(cur);
-                }
-
-                const totalEl = document.getElementById('ordersCompletedCount');
-                const walkinEl = document.getElementById('walkinCompletedCount');
-                const onlineEl = document.getElementById('onlineCompletedCount');
-
-                if (totalEl) totalEl.textContent = String((Number(totalEl.textContent || 0) || 0) + 1);
-
-                const otype = String(payload.order_type || (payload.payload && payload.payload.order_type) || '').toLowerCase();
-                if (otype.includes('walk')) {
-                    if (walkinEl) walkinEl.textContent = String((Number(walkinEl.textContent || 0) || 0) + 1);
+                const now = Date.now();
+                if (now - lastOrderSyncAt > ORDER_SYNC_DEBOUNCE_MS) {
+                    lastOrderSyncAt = now;
+                    void Promise.all([loadPendingOrdersFromServer(), loadCompletedOrdersFromServer()]);
                 } else {
-                    if (onlineEl) onlineEl.textContent = String((Number(onlineEl.textContent || 0) || 0) + 1);
+                    window.setTimeout(() => void Promise.all([loadPendingOrdersFromServer(), loadCompletedOrdersFromServer()]), ORDER_SYNC_DEBOUNCE_MS);
                 }
-            } catch (e) { console.debug('order_completed parse error', e); }
+            } catch (e) { console.debug('order_completed handler error', e); }
         });
 
         orderEventsSource.onerror = (err) => {
