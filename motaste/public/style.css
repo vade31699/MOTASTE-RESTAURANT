@@ -3922,7 +3922,6 @@ body.modal-open {
     -webkit-backdrop-filter: blur(6px);
     border: 1px solid rgba(255,255,255,0.04);
     border-radius: 16px;
-    padding: 18px;
     color: #111;
 }
 
