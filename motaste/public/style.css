@@ -46,6 +46,10 @@ html, body {
     z-index: 1000;
 }
 
+.live-clock{
+    color: red;
+}
+
 .top-nav {
     display: flex;
     align-items: center;
