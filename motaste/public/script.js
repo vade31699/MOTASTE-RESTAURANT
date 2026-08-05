@@ -6864,7 +6864,7 @@ function renderWalkInOrderBuilder() {
     if (!walkInDraftList) return;
 
     if (!walkInDraftItems.length) {
-        walkInDraftList.innerHTML = '<p class="menu-cart-empty">No walk-in items yet. Add products to build the order.</p>';
+        walkInDraftList.innerHTML = '<p class="menu-cart-empty">No walk-in items yet.';
         return;
     }
 
