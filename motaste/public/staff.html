@@ -130,6 +130,31 @@
 
     <section id="overview" class="overview-section" hidden>
         <h2>Overview</h2>
+        <div class="overview-metrics-row" style="display:flex;gap:12px;margin:12px 0 18px;flex-wrap:wrap;">
+            <div class="metric-card" id="metricStaffLogin" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
+                <div style="font-size:13px;color:#666;margin-bottom:6px;">Staff Login</div>
+                <div id="staffLoginCount" style="font-size:28px;font-weight:700;color:#4b5563;">0</div>
+                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Currently logged in staff</div>
+            </div>
+
+            <div class="metric-card" id="metricOrdersCompleted" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
+                <div style="font-size:13px;color:#666;margin-bottom:6px;">Orders Completed</div>
+                <div id="ordersCompletedCount" style="font-size:28px;font-weight:700;color:#16a34a;">0</div>
+                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Total completed orders (latest 500)</div>
+            </div>
+
+            <div class="metric-card" id="metricWalkinCompleted" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
+                <div style="font-size:13px;color:#666;margin-bottom:6px;">Walk-in Orders Completed</div>
+                <div id="walkinCompletedCount" style="font-size:28px;font-weight:700;color:#f59e0b;">0</div>
+                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Completed walk-in orders</div>
+            </div>
+
+            <div class="metric-card" id="metricOnlineCompleted" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
+                <div style="font-size:13px;color:#666;margin-bottom:6px;">Online Orders Completed</div>
+                <div id="onlineCompletedCount" style="font-size:28px;font-weight:700;color:#6366f1;">0</div>
+                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Completed online orders</div>
+            </div>
+        </div>
         <div class="overview-grid">
             <div class="sales-analytics-placeholder overview-analytics-panel">
                 <h3>Sales Analysis</h3>

@@ -8440,3 +8440,53 @@ window.addEventListener('focus', () => {
 initOrders();
 restoreStaffSession();
 updateAccountManagementAccess();
+
+// Overview metrics: fetch counts for staff logins and completed orders
+async function fetchOverviewMetrics() {
+    try {
+        // Staff login count (server-side approximation)
+        let staffCount = 0;
+        try {
+            const r = await fetch(getApiUrl(`api/get_staff_active_count.php?_=${Date.now()}`), { cache: 'no-store' });
+            if (r.ok) {
+                const p = await r.json().catch(() => ({}));
+                staffCount = Number(p.count || 0);
+            }
+        } catch (e) {
+            console.debug('Unable to load staff active count', e);
+        }
+
+        const staffEl = document.getElementById('staffLoginCount');
+        if (staffEl) staffEl.textContent = String(staffCount);
+
+        // Completed orders: use existing endpoint and split by order_type
+        try {
+            const r2 = await fetch(getApiUrl(`api/get_completed_orders.php?_=${Date.now()}`), { cache: 'no-store' });
+            if (r2.ok) {
+                const payload = await r2.json().catch(() => ({}));
+                const orders = Array.isArray(payload.orders) ? payload.orders : [];
+                const total = orders.length;
+                const walkin = orders.filter((o) => String(o.order_type || '').toLowerCase().includes('walk')).length;
+                const online = Math.max(0, total - walkin);
+
+                const totalEl = document.getElementById('ordersCompletedCount');
+                const walkinEl = document.getElementById('walkinCompletedCount');
+                const onlineEl = document.getElementById('onlineCompletedCount');
+
+                if (totalEl) totalEl.textContent = String(total);
+                if (walkinEl) walkinEl.textContent = String(walkin);
+                if (onlineEl) onlineEl.textContent = String(online);
+            }
+        } catch (e) {
+            console.debug('Unable to load completed orders for metrics', e);
+        }
+    } catch (error) {
+        console.error('fetchOverviewMetrics error', error);
+    }
+}
+
+// Initial fetch + periodic refresh
+document.addEventListener('DOMContentLoaded', () => {
+    void fetchOverviewMetrics();
+    setInterval(() => void fetchOverviewMetrics(), 15000);
+});
