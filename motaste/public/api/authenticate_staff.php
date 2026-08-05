@@ -52,6 +52,15 @@ try {
         }
     }
 
+    // Persist a server-side session so subsequent server endpoints can recognize the staff user.
+    if (session_status() === PHP_SESSION_NONE) session_start();
+    $_SESSION['staff'] = [
+        'role' => $role,
+        'email' => strtolower(trim((string)($staffRow->email ?? ''))),
+        'name' => trim((string)($staffRow->full_name ?? '')),
+        'logged_in_at' => now()->toDateTimeString()
+    ];
+
     echo json_encode([
         'success' => true,
         'role' => $role,
