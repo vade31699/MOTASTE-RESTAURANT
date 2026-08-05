@@ -10,6 +10,8 @@ $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
 
 $input = json_decode(file_get_contents('php://input'), true);
 if (!$input) {
@@ -73,6 +75,34 @@ try {
             ]);
 
             $insertedItems++;
+        }
+
+        // Insert lightweight event record for real-time clients
+        try {
+            if (!Schema::hasTable('order_events')) {
+                Schema::create('order_events', function (Blueprint $table) {
+                    $table->bigIncrements('id');
+                    $table->unsignedBigInteger('order_id')->nullable()->index();
+                    $table->string('order_number')->nullable()->index();
+                    $table->string('event_type', 64)->index();
+                    $table->string('order_type', 64)->nullable()->index();
+                    $table->text('payload')->nullable();
+                    $table->timestamps();
+                });
+            }
+
+            DB::table('order_events')->insert([
+                'order_id' => $orderId,
+                'order_number' => $orderNumber,
+                'event_type' => 'order_created',
+                'order_type' => $orderType,
+                'payload' => json_encode(['items' => $items], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } catch (Throwable $__e) {
+            // don't fail order creation for event logging errors
+            error_log('order_events insert failed: ' . $__e->getMessage());
         }
     });
 

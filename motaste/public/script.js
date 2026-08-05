@@ -8441,6 +8441,74 @@ initOrders();
 restoreStaffSession();
 updateAccountManagementAccess();
 
+// Real-time order events via Server-Sent Events
+let orderEventsSource = null;
+function initOrderEvents() {
+    if (typeof EventSource === 'undefined') {
+        console.debug('EventSource not supported; falling back to polling');
+        return;
+    }
+
+    try {
+        if (orderEventsSource) {
+            try { orderEventsSource.close(); } catch (e) {}
+            orderEventsSource = null;
+        }
+
+        const url = getApiUrl('api/order_events.php');
+        orderEventsSource = new EventSource(url, { withCredentials: true });
+
+        orderEventsSource.addEventListener('order_created', (ev) => {
+            try {
+                const payload = JSON.parse(ev.data || '{}');
+                // increment pending orders
+                const pendingEl = document.getElementById('pendingOrdersCount');
+                if (pendingEl) pendingEl.textContent = String((Number(pendingEl.textContent || 0) || 0) + 1);
+            } catch (e) { console.debug('order_created parse error', e); }
+        });
+
+        orderEventsSource.addEventListener('order_completed', (ev) => {
+            try {
+                const payload = JSON.parse(ev.data || '{}');
+                const pendingEl = document.getElementById('pendingOrdersCount');
+                if (pendingEl) {
+                    const cur = Math.max(0, (Number(pendingEl.textContent || 0) || 0) - 1);
+                    pendingEl.textContent = String(cur);
+                }
+
+                const totalEl = document.getElementById('ordersCompletedCount');
+                const walkinEl = document.getElementById('walkinCompletedCount');
+                const onlineEl = document.getElementById('onlineCompletedCount');
+
+                if (totalEl) totalEl.textContent = String((Number(totalEl.textContent || 0) || 0) + 1);
+
+                const otype = String(payload.order_type || (payload.payload && payload.payload.order_type) || '').toLowerCase();
+                if (otype.includes('walk')) {
+                    if (walkinEl) walkinEl.textContent = String((Number(walkinEl.textContent || 0) || 0) + 1);
+                } else {
+                    if (onlineEl) onlineEl.textContent = String((Number(onlineEl.textContent || 0) || 0) + 1);
+                }
+            } catch (e) { console.debug('order_completed parse error', e); }
+        });
+
+        orderEventsSource.onerror = (err) => {
+            console.debug('Order events SSE error', err);
+            // EventSource will reconnect automatically; fallback if closed
+            if (orderEventsSource && orderEventsSource.readyState === EventSource.CLOSED) {
+                orderEventsSource.close();
+                orderEventsSource = null;
+                // fallback: ensure polling still runs
+            }
+        };
+    } catch (error) {
+        console.error('Unable to initialize order events', error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initOrderEvents();
+});
+
 // Overview metrics: fetch counts for staff logins and completed orders
 async function fetchOverviewMetrics() {
     try {

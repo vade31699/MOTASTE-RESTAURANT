@@ -12,6 +12,8 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_helpers.php';
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
 
 function ensureOrderLogsTable(): void
 {
@@ -124,6 +126,34 @@ try {
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        // insert order event for real-time clients
+        try {
+            if (!Schema::hasTable('order_events')) {
+                Schema::create('order_events', function (Blueprint $table) {
+                    $table->bigIncrements('id');
+                    $table->unsignedBigInteger('order_id')->nullable()->index();
+                    $table->string('order_number')->nullable()->index();
+                    $table->string('event_type', 64)->index();
+                    $table->string('order_type', 64)->nullable()->index();
+                    $table->text('payload')->nullable();
+                    $table->timestamps();
+                });
+            }
+
+            $orderRow = DB::table('orders')->where('id', $orderId)->first();
+            $orderType = $orderRow ? ($orderRow->order_type ?? '') : '';
+            DB::table('order_events')->insert([
+                'order_id' => $orderId,
+                'order_number' => $result['orderNumber'] ?? null,
+                'event_type' => 'order_completed',
+                'order_type' => $orderType,
+                'payload' => json_encode(['summary' => $result['summary'] ?? null], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } catch (Throwable $__e) {
+            error_log('order_events insert failed: ' . $__e->getMessage());
+        }
     }
 
     echo json_encode([
