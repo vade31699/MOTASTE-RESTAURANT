@@ -821,13 +821,71 @@ body.dashboard-panel-open .menu-btn {
 }
 
 /* ABOUT SECTION */
+.about-section {
+    width: 100%;
+    min-height: 100vh;
+    padding: 80px 5%;
+    background: #fff3e0;
+    display: flex;
+    align-items: center;
+}
 
 
+.about-container {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 50px;
+    align-items: center;
+}
+
+
+/* IMAGE */
+
+.about-image img {
+    width: 100%;
+    height: 500px;
+    object-fit: cover;
+    border-radius: 25px;
+
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
 
 
 /* CONTENT */
 
+.about-content {
+    background: rgba(255,255,255,0.45);
+    backdrop-filter: blur(15px);
+    padding: 40px;
+    border-radius: 30px;
 
+    border: 1px solid rgba(255,255,255,0.5);
+
+    color: #8a3d00;
+}
+
+
+.about-tag {
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    color: #d26900;
+}
+
+
+.about-content h2 {
+    font-size: 42px;
+    margin: 15px 0;
+    line-height: 1.2;
+}
+
+
+.about-content p {
+    font-size: 17px;
+    line-height: 1.7;
+    color: #5c3500;
+}
 
 
 /* FEATURES */
@@ -5332,7 +5390,8 @@ body.site-home #about {
     display: flex;
     flex-direction: row;
     align-items: center;
-     color: #8a3d00;
+    background: #F9FAFB;
+    color: #FFFFFF;
 }
 /* Shared section container rhythm (matches menu / map / highlights) */
 body.site-home .about-container,
