@@ -12,6 +12,9 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 use Illuminate\Support\Facades\DB;
 
 require_once __DIR__ . '/csrf_guard.php';
+require_once __DIR__ . '/_review_log_helpers.php';
+// Provides resolveClientIpAddress() used for the anonymous reviewer key fallback.
+require_once __DIR__ . '/_device_auth_helpers.php';
 
 function ensureReviewTables(): void
 {
@@ -89,22 +92,19 @@ try {
         'updated_at' => now(),
     ]);
 
-    DB::table('order_activity_logs')->insert([
-        'order_id' => null,
-        'order_number' => null,
+    writeReviewActivityLog([
+        'review_id' => $reviewId,
         'action' => 'review_submitted',
         'actor_role' => 'Customer',
         'actor_email' => null,
         'summary' => 'Customer review submitted and published',
-        'details' => json_encode([
+        'details' => [
             'review_id' => $reviewId,
             'rating' => $rating,
             'review_text' => $reviewText,
             'publish_status' => 'published',
             'submitted_at' => now()->toDateTimeString(),
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-        'created_at' => now(),
-        'updated_at' => now(),
+        ],
     ]);
 
     echo json_encode([

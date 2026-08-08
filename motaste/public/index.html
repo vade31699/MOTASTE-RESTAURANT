@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260807e">
+    <link rel="stylesheet" href="style.css?v=20260808a">
     <title>Motaste Restaurant — Crafted Silog</title>
 </head>
 <body class="site-home">
@@ -389,6 +389,14 @@
         </div>
         <div class="customer-reviews-panel">
             <h3>Customer Reviews</h3>
+            <div class="review-filter-bar" role="group" aria-label="Filter reviews by star rating">
+                <button type="button" class="review-filter-btn is-active" data-review-rating="0">All</button>
+                <button type="button" class="review-filter-btn" data-review-rating="5">5 ★</button>
+                <button type="button" class="review-filter-btn" data-review-rating="4">4 ★</button>
+                <button type="button" class="review-filter-btn" data-review-rating="3">3 ★</button>
+                <button type="button" class="review-filter-btn" data-review-rating="2">2 ★</button>
+                <button type="button" class="review-filter-btn" data-review-rating="1">1 ★</button>
+            </div>
             <div id="customerReviewsList" class="customer-reviews-list"></div>
         </div>
     </section>
@@ -444,6 +452,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260807d"></script>
+    <script src="script.js?v=20260808a"></script>
 </body>
 </html>

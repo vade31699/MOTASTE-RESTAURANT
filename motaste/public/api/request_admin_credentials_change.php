@@ -40,6 +40,13 @@ if ($newEmail !== '' && !preg_match('/@gmail\.com$/', $newEmail)) {
     exit;
 }
 
+// Admin password policy: minimum 8 characters, no upper length limit.
+if ($newPassword !== '' && mb_strlen($newPassword) < 8) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Admin password must be at least 8 characters']);
+    exit;
+}
+
 try {
     // Validate current admin credentials against the staff table
     $adminRow = DB::table('staff')->whereRaw('LOWER(email) = ?', [$currentEmail])->first();
