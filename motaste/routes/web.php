@@ -10,19 +10,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-    $indexPath = base_path('../index.html');
-
-    if (file_exists($indexPath)) {
-        return response(File::get($indexPath), 200)->header('Content-Type', 'text/html');
-    }
-
-    return view('welcome');
+    return response()->file(public_path('index.html'));
 });
 
 Route::get('/staff', function () {

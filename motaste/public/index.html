@@ -6,15 +6,18 @@
     <base href="/">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Allura&display=swap" rel="stylesheet">
-    <title>MOTASTE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=20260807e">
+    <title>Motaste Restaurant — Crafted Silog</title>
 </head>
-<body>
-    <div class="top-bar">
-        <h1>MOTASTE RESTAURANT</h1>
+<body class="site-home">
+    <header class="top-bar" id="siteHeader">
+        <a href="#home" class="brand-logo" aria-label="MoTaste Restaurant — back to top">
+            <span class="brand-monogram">MT<span class="brand-dot"></span></span>
+            <span class="brand-wordmark">Motaste</span>
+        </a>
         <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle navigation menu" aria-expanded="false">
             <span></span>
             <span></span>
@@ -27,83 +30,60 @@
             <a href="#about">About Us</a>
             <a href="#contact">Contact</a>
         </nav>
-    </div>
+    </header>
 
-    <!-- Front Banner -->
-<section class="front-section">
-    
-    <img src="frontnii.jpg" alt="Welcome Banner">
-     <a href="#about" class="about-btn">About Us</a>
-    
-</section>
-
-   
+    <!-- Hero Banner -->
+    <section class="front-section" id="home">
+        <img src="hero.jpg"  class="hero-bg">
+        <div class="hero-overlay" aria-hidden="true"></div>
+        <div class="hero-content">
+            <p class="hero-kicker">SILOG · GARLIC RICE · BATCHOY</p>
+            <h1 class="hero-title">MOTASTE.<br><span>Crafted Silog.</span></h1>
+            <p class="hero-sub">Warm garlic rice, golden egg, and sizzling viands — served fresh from our kitchen to your table.</p>
+            <div class="hero-actions">
+                <a href="#about" class="about-btn">About Us</a>
+                <a href="#menu" class="hero-ghost-btn">View Menu</a>
+            </div>
+        </div>
+    </section>
 
     <section class="special-foods-section special-foods-visible" aria-labelledby="specialFoodsTitle">
         <div class="special-foods-heading">
             <h1 id="specialFoodsTitle">Special Foods</h1>
-            
         </div>
         <div class="special-foods-list" id="specialFoodsList"></div>
     </section>
 
-  <section class="info-section menu-section" id="menu">
-
-    <div class="menu-container">
-
-        <!-- LEFT: MENU CATEGORIES -->
-        <div class="menu-left">
-
-            <h2>Other Foods</h2>
-
-            <p>Discover a variety of flavorful dishes prepared just for you. Select your preferred meals and add them to your order with ease.</p>
-
-            <div class="menu-categories" id="menuCategories">
-                <button class="menu-category-btn" data-category="batchoy">
-                    BATCHOY
-                </button>
-
-                <button class="menu-category-btn" data-category="silog">
-                    SILOG
-                </button>
-
-                <button class="menu-category-btn" data-category="friedChicken">
-                    FRIED CHICKEN
-                </button>
-
-                <button class="menu-category-btn" data-category="breakfast">
-                    BREAKFAST
-                </button>
-
-                <button class="menu-category-btn" data-category="drinks">
-                    DRINKS
-                </button>
-
-                <button type="button" id="menuAddOnQuickBtn" class="menu-category-btn" data-category="addons">
-                    ADD ON
-                </button>
+    <section class="info-section menu-section" id="menu">
+        <div class="menu-container">
+            <!-- LEFT: MENU CATEGORIES -->
+            <div class="menu-left">
+                <h2>Other Foods</h2>
+                <p>Discover a variety of flavorful dishes prepared just for you. Select your preferred meals and add them to your order with ease.</p>
+                <div class="menu-categories" id="menuCategories">
+                    <button class="menu-category-btn" data-category="batchoy">BATCHOY</button>
+                    <button class="menu-category-btn" data-category="silog">SILOG</button>
+                    <button class="menu-category-btn" data-category="friedChicken">FRIED CHICKEN</button>
+                    <button class="menu-category-btn" data-category="breakfast">BREAKFAST</button>
+                    <button class="menu-category-btn" data-category="drinks">DRINKS</button>
+                    <button type="button" id="menuAddOnQuickBtn" class="menu-category-btn" data-category="addons">ADD ON</button>
+                </div>
             </div>
-            
-
-        </div>
-  <!-- RIGHT IMAGE -->
-        <div class="menu-image">
-            <img src="designmenu.jpg" alt="Menu Design" class="menu-design">
-        </div>
-
-        <!-- RIGHT: CART -->
-        <div class="menu-right">
-            <div class="menu-total-panel">
-                <button type="button" id="menuCartButton" class="menu-cart-button" aria-label="Open cart">
-                    <i class="fa-solid fa-cart-shopping"></i>
-                    <span id="menuTopCartCount">0</span>
-                </button>
+            <!-- RIGHT IMAGE -->
+            <div class="menu-image">
+                <img src="designmenu.jpg" alt="Menu Design" class="menu-design">
+            </div>
+            <!-- RIGHT: CART -->
+            <div class="menu-right">
+                <div class="menu-total-panel">
+                    <button type="button" id="menuCartButton" class="menu-cart-button" aria-label="Open cart">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                        <span id="menuTopCartCount">0</span>
+                    </button>
+                </div>
             </div>
         </div>
-
-    </div>
-
-</section>
+    </section>
 
     <section class="menu-cart-section cart-modal hidden" id="cart" aria-labelledby="cartTitle" aria-hidden="true">
         <div class="menu-cart-section-heading">
@@ -194,7 +174,6 @@
             </div>
             <div class="menu-overlay-categories" id="menuOverlayCategories"></div>
             <div class="menu-overlay-actions-panel">
-               
                 <div class="menu-action-panel">
                     <button type="button" id="menuAddToCartBtn" class="menu-place-order-btn">Add to cart</button>
                     <button type="button" id="menuPurchaseNowBtn" class="menu-place-order-btn menu-place-order-primary">Purchase now</button>
@@ -205,7 +184,7 @@
                     <div class="menu-items-panel">
                         <div class="menu-items-list" id="menuItemsList"></div>
                     </div>
-             </div>
+                </div>
             </div>
             <div class="order-checkout-screen hidden" id="orderCheckoutScreen" aria-hidden="true">
                 <div class="order-checkout-header">
@@ -258,205 +237,202 @@
             </div>
         </div>
     </div>
-    
 
     <section id="about" class="about-section">
-    <div class="about-container">
-
-        <div class="about-image">
-            <img src="designmenu.jpg" alt="MoTaste Restaurant">
+        <div class="about-container">
+            <div class="about-image">
+                <img src="picforabout.jpg" alt="MoTaste Restaurant">
+            </div>
+            <div class="about-content">
+                <span class="about-tag">ABOUT US</span>
+                <h2>
+                    Bringing Delicious Moments<br>
+                    To Your Table
+                </h2>
+                <p>
+                    Welcome to MoTaste Restaurant, where great food meets a warm and
+                    unforgettable dining experience. We serve freshly prepared meals
+                    made with quality ingredients and a passion for creating flavors
+                    that everyone can enjoy.
+                </p>
+                <p>
+                    From casual family meals to special celebrations, our goal is to
+                    provide delicious dishes, friendly service, and a comfortable
+                    atmosphere where every guest feels at home.
+                </p>
+                <div class="about-features">
+                    <div class="feature-box">
+                        <h3>🍽 Fresh Food</h3>
+                        <p>Prepared with quality ingredients every day.</p>
+                    </div>
+                    <div class="feature-box">
+                        <h3>👨‍🍳 Quality Service</h3>
+                        <p>Making every visit a memorable experience.</p>
+                    </div>
+                </div>
+                <a href="#menu" class="about-btn">
+                    Explore Our Menu
+                </a>
+            </div>
         </div>
+    </section>
 
-        <div class="about-content">
-            <span class="about-tag">ABOUT US</span>
+    <section class="highlights-section">
+        <div class="highlights-heading">
+            <h2>Highlights</h2>
+            <p>Moments from our kitchen and dining room.</p>
+        </div>
+        <div class="slideshow" aria-label="Highlights slideshow">
+            <div class="slides"></div>
+            <div class="slide-dots" id="slideDots" aria-hidden="false"></div>
+        </div>
+    </section>
 
-            <h2>
-                Bringing Delicious Moments<br>
-                To Your Table
-            </h2>
-
-            <p>
-                Welcome to MoTaste Restaurant, where great food meets a warm and
-                unforgettable dining experience. We serve freshly prepared meals
-                made with quality ingredients and a passion for creating flavors
-                that everyone can enjoy.
-            </p>
-
-            <p>
-                From casual family meals to special celebrations, our goal is to
-                provide delicious dishes, friendly service, and a comfortable
-                atmosphere where every guest feels at home.
-            </p>
-
-            <div class="about-features">
-
-                <div class="feature-box">
-                    <h3>🍽 Fresh Food</h3>
-                    <p>Prepared with quality ingredients every day.</p>
+    <section id="contact" class="contact-section">
+        <div class="contact-container">
+            <!-- Contact Information -->
+            <div class="contact-info">
+                <span class="contact-tag">CONTACT US</span>
+                <h2>
+                    We'd Love To<br>
+                    Hear From You
+                </h2>
+                <p>
+                    Have questions, suggestions, or want to make a reservation?
+                    Feel free to reach out. Our team is always ready to assist you.
+                </p>
+                <div class="contact-details">
+                    <div class="contact-box">
+                        <div class="contact-icon">
+                            📍
+                        </div>
+                        <div>
+                            <h3>Location</h3>
+                            <p>
+                                MoTaste Restaurant<br>
+                                Your Address Here
+                            </p>
+                        </div>
+                    </div>
+                    <div class="contact-box">
+                        <div class="contact-icon">
+                            📞
+                        </div>
+                        <div>
+                            <h3>Phone</h3>
+                            <p>
+                                +63 9XX XXX XXXX
+                            </p>
+                        </div>
+                    </div>
+                    <div class="contact-box">
+                        <div class="contact-icon">
+                            ✉️
+                        </div>
+                        <div>
+                            <h3>Email</h3>
+                            <p>
+                                motaste@gmail.com
+                            </p>
+                        </div>
+                    </div>
                 </div>
-
-                <div class="feature-box">
-                    <h3>👨‍🍳 Quality Service</h3>
-                    <p>Making every visit a memorable experience.</p>
-                </div>
-
             </div>
 
-            <a href="#menu" class="about-btn">
-                Explore Our Menu
-            </a>
-
-        </div>
-
-    </div>
-</section>
- <div class="slideshow" id="home">
-        <div class="slides"></div>
-        <div class="slide-dots" id="slideDots" aria-hidden="false"></div>
-    </div>
-
-
-   <section id="contact" class="contact-section">
-
-    <div class="contact-container">
-
-        <!-- Contact Information -->
-        <div class="contact-info">
-
-            <span class="contact-tag">CONTACT US</span>
-
-            <h2>
-                We'd Love To<br>
-                Hear From You
-            </h2>
-
-            <p>
-                Have questions, suggestions, or want to make a reservation?
-                Feel free to reach out. Our team is always ready to assist you.
-            </p>
-
-
-            <div class="contact-details">
-
-                <div class="contact-box">
-                    <div class="contact-icon">
-                        📍
+            <!-- Contact Form -->
+            <div class="contact-form">
+                <h3>
+                    Leave Us A Review
+                </h3>
+                <form id="customerReviewForm">
+                    <div class="input-group review-rating-group">
+                        <label for="reviewRating">Rating</label>
+                        <select id="reviewRating" required>
+                            <option value="">Select rating</option>
+                            <option value="5">★★★★★ (5)</option>
+                            <option value="4">★★★★☆ (4)</option>
+                            <option value="3">★★★☆☆ (3)</option>
+                            <option value="2">★★☆☆☆ (2)</option>
+                            <option value="1">★☆☆☆☆ (1)</option>
+                        </select>
                     </div>
-
-                    <div>
-                        <h3>Location</h3>
-                        <p>
-                            MoTaste Restaurant<br>
-                            Your Address Here
-                        </p>
+                    <div class="input-group">
+                        <textarea
+                        id="reviewMessage"
+                        rows="5"
+                        placeholder="Share your dining experience" required></textarea>
                     </div>
-                </div>
-
-
-                <div class="contact-box">
-
-                    <div class="contact-icon">
-                        📞
-                    </div>
-
-                    <div>
-                        <h3>Phone</h3>
-                        <p>
-                            +63 9XX XXX XXXX
-                        </p>
-                    </div>
-
-                </div>
-
-
-                <div class="contact-box">
-
-                    <div class="contact-icon">
-                        ✉️
-                    </div>
-
-                    <div>
-                        <h3>Email</h3>
-                        <p>
-                            motaste@gmail.com
-                        </p>
-                    </div>
-
-                </div>
-
-
+                    <button type="submit">
+                        Send Review
+                    </button>
+                    <p class="review-submit-note">One review per day. Reviews are posted immediately.</p>
+                    <p id="reviewSubmitMessage" class="review-submit-message" aria-live="polite"></p>
+                </form>
             </div>
-
         </div>
-
-
-
-        <!-- Contact Form -->
-
-        <div class="contact-form">
-
-            <h3>
-                Leave Us A Review
-            </h3>
-
-            <form id="customerReviewForm">
-                <div class="input-group review-rating-group">
-                    <label for="reviewRating">Rating</label>
-                    <select id="reviewRating" required>
-                        <option value="">Select rating</option>
-                        <option value="5">★★★★★ (5)</option>
-                        <option value="4">★★★★☆ (4)</option>
-                        <option value="3">★★★☆☆ (3)</option>
-                        <option value="2">★★☆☆☆ (2)</option>
-                        <option value="1">★☆☆☆☆ (1)</option>
-                    </select>
-                </div>
-                <div class="input-group">
-
-                    <textarea 
-                    id="reviewMessage"
-                    rows="5" 
-                    placeholder="Share your dining experience" required></textarea>
-
-                </div>
-
-
-                <button type="submit">
-                    Submit Review
-                </button>
-
-                <p class="review-submit-note">One review per day. Reviews are posted immediately.</p>
-
-                <p id="reviewSubmitMessage" class="review-submit-message" aria-live="polite"></p>
-
-
-            </form>
-
-
-        </div>
-
-
-    </div>
-
-
-</section>
+    </section>
 
     <section class="map-section">
-        <h2>Our Location</h2>
-        <div class="map-wrapper">
-            <iframe
-                src="https://maps.google.com/maps?q=11.2957587,123.7315946&z=15&output=embed"
-                allowfullscreen=""
-                loading="lazy"
-                referrerpolicy="no-referrer-when-downgrade"
-                title="MOTASTE Location Map">
-            </iframe>
+        <div class="map-inner">
+            <h2>Our Location</h2>
+            <div class="map-wrapper">
+                <iframe
+                    src="https://maps.google.com/maps?q=11.2957587,123.7315946&z=15&output=embed"
+                    allowfullscreen=""
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    title="MOTASTE Location Map">
+                </iframe>
+            </div>
         </div>
         <div class="customer-reviews-panel">
             <h3>Customer Reviews</h3>
             <div id="customerReviewsList" class="customer-reviews-list"></div>
         </div>
     </section>
+
+    <footer class="site-footer" id="siteFooter" aria-label="Site footer">
+        <div class="footer-top">
+            <div class="footer-brand">
+                <a href="#home" class="footer-logo" aria-label="MoTaste Restaurant — back to top">
+                    <span class="brand-monogram">MT<span class="brand-dot"></span></span>
+                    <span class="footer-brand-name">Motaste Restaurant</span>
+                </a>
+                <p class="footer-tagline">Warm garlic rice, golden eggs, and sizzling viands — crafted with passion in every plate.</p>
+                <div class="footer-social">
+                    <a href="#" aria-label="MoTaste on Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+                    <a href="#" aria-label="MoTaste on Instagram"><i class="fa-brands fa-instagram"></i></a>
+                    <a href="#" aria-label="MoTaste on Twitter / X"><i class="fa-brands fa-x-twitter"></i></a>
+                </div>
+            </div>
+
+            <nav class="footer-col" aria-label="Footer quick links">
+                <h4>Quick Links</h4>
+                <a href="#home">Home</a>
+                <a href="#menu">Menu</a>
+                <a href="#about">About Us</a>
+                <a href="#contact">Contact</a>
+            </nav>
+
+            <div class="footer-col">
+                <h4>Get In Touch</h4>
+                <p><i class="fa-solid fa-location-dot" aria-hidden="true"></i> MoTaste Restaurant<br>Your Address Here</p>
+                <p><i class="fa-solid fa-phone" aria-hidden="true"></i> +63 9XX XXX XXXX</p>
+                <p><i class="fa-solid fa-envelope" aria-hidden="true"></i> motaste@gmail.com</p>
+            </div>
+
+            <div class="footer-col">
+                <h4>Opening Hours</h4>
+                <p><i class="fa-regular fa-clock" aria-hidden="true"></i> Monday – Friday<br>7:00 AM – 8:00 PM</p>
+                <p><i class="fa-regular fa-clock" aria-hidden="true"></i> Saturday – Sunday<br>8:00 AM – 9:00 PM</p>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <p>© <span id="footerYear">2026</span> Motaste Restaurant. All rights reserved.</p>
+            <p class="footer-made-with">Crafted with <span aria-hidden="true">♥</span> in Cebu</p>
+        </div>
+    </footer>
 
     <div class="payment-success-modal hidden" id="paymentSuccessModal" role="dialog" aria-modal="true" aria-labelledby="paymentSuccessTitle" aria-hidden="true">
         <div class="payment-success-card">
@@ -466,6 +442,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260726"></script>
+    <script src="script.js?v=20260807d"></script>
 </body>
 </html>

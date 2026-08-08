@@ -7894,6 +7894,14 @@ if (mobileMenuToggle && topNav) {
         });
     });
 
+    // Close the full-screen mobile overlay when tapping its background
+    topNav.addEventListener('click', (event) => {
+        if (event.target === topNav) {
+            topNav.classList.remove('open');
+            mobileMenuToggle.setAttribute('aria-expanded', 'false');
+        }
+    });
+
     window.addEventListener('resize', () => {
         if (window.innerWidth > 760) {
             topNav.classList.remove('open');
@@ -8593,4 +8601,28 @@ async function fetchOverviewMetrics() {
 document.addEventListener('DOMContentLoaded', () => {
     void fetchOverviewMetrics();
     setInterval(() => void fetchOverviewMetrics(), 15000);
-});
+});// ============================================================
+// Home page polish — sticky header scrolled state + footer year
+// ============================================================
+(function homePagePolish() {
+    // Header: strengthen background once the page is scrolled
+    const siteHeader = document.getElementById('siteHeader');
+    if (siteHeader) {
+        const updateHeaderState = () => {
+            siteHeader.classList.toggle('scrolled', window.scrollY > 24);
+        };
+        updateHeaderState();
+        window.addEventListener('scroll', updateHeaderState, { passive: true });
+    }
+
+    // Footer: keep the copyright year current
+    const footerYearEl = document.getElementById('footerYear');
+    if (footerYearEl) {
+        footerYearEl.textContent = String(new Date().getFullYear());
+    }
+
+    // Footer social links are placeholders — don't let the '#' jump the page
+    document.querySelectorAll('.footer-social a').forEach((link) => {
+        link.addEventListener('click', (event) => event.preventDefault());
+    });
+})();
