@@ -7113,12 +7113,41 @@ body.site-home .feature-box:hover {
     box-shadow: 0 18px 38px rgba(120, 38, 0, 0.35);
 }
 
-/* ---------- 5. ABOUT IMAGE — keep it compact so the content card
-   on the right stays fully visible next to it ---------- */
+/* ---------- 5. ABOUT IMAGE — show the full photo, never cropped ---------- */
 body.site-home .about-image img {
     width: 100%;
-    height: clamp(240px, 28vw, 360px);
-    object-fit: cover;
-    object-position: center;
+    height: auto;
+    display: block;
+    object-fit: contain;
+}
+
+/* ---------- 6. ABOUT LEFT COLUMN — image with the feature boxes
+   (Fresh Food / Quality Service) stacked underneath it ---------- */
+body.site-home .about-left {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    min-width: 0;
+}
+
+body.site-home .about-left .about-features {
+    margin: 0;
+}
+
+body.site-home .about-left .feature-box {
+    background: rgba(255, 255, 255, 0.55);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+}
+
+/* ---------- 7. ABOUT CONTENT — frosted glassmorphism white card ---------- */
+body.site-home .about-content {
+    background: rgba(255, 255, 255, 0.68);
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
+    backdrop-filter: blur(22px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    box-shadow:
+        0 24px 60px rgba(120, 38, 0, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
