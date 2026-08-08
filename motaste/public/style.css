@@ -5406,7 +5406,7 @@ body.site-home .contact-container {
 }
 
 body.site-home .about-content {
-    background: rgba(255, 255, 255, 0.72);
+    background: rgba(255, 255, 255);
     -webkit-backdrop-filter: blur(16px);
     backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.85);
@@ -5435,7 +5435,7 @@ body.site-home .about-content p {
 }
 
 body.site-home .feature-box {
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255);
     border: 1px solid rgba(17, 24, 39, 0.06);
     border-radius: 18px;
     transition: transform 0.25s ease, box-shadow 0.25s ease;
