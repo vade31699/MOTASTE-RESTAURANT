@@ -5408,7 +5408,6 @@ body.site-home .contact-container {
 body.site-home .about-content {
     background: rgba(255, 255, 255);
     -webkit-backdrop-filter: blur(16px);
-    backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.85);
     box-shadow: 0 22px 54px rgba(17, 24, 39, 0.10);
     border-radius: 28px;
