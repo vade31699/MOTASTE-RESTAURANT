@@ -534,17 +534,6 @@ body.dashboard-panel-open .menu-btn {
     background: #e68900;
 }
 
-.bg-logo {
-    position: fixed;
-    inset: 0;
-    width: 100vw;
-    height: 100vh;
-    object-fit: cover;
-    z-index: -1;
-    pointer-events: none;
-    opacity: 0.14;
-}
-
 .staff-login-page {
     position: absolute;
     inset: 0;
@@ -7341,55 +7330,11 @@ body.staff-app .staff-header-brand .brand-wordmark {
     color: var(--staff-text);
 }
 
-body.staff-app .staff-header-welcome {
-    display: grid;
-    gap: 1px;
-    min-width: 0;
-}
-
-body.staff-app .staff-header-welcome .staff-welcome-hello {
-    font-size: 0.7rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--staff-muted);
-}
-
-body.staff-app .staff-header-welcome strong {
-    font-size: 0.98rem;
-    font-weight: 700;
-    color: var(--staff-text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
 body.staff-app .staff-header-actions {
     margin-left: auto;
     display: flex;
     align-items: center;
     gap: 10px;
-}
-
-body.staff-app .staff-header-icon-btn {
-    display: grid;
-    place-items: center;
-    width: 40px;
-    height: 40px;
-    border: 1px solid var(--staff-border);
-    border-radius: 12px;
-    background: var(--staff-surface);
-    color: var(--staff-text);
-    font-size: 15px;
-    cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
-}
-
-body.staff-app .staff-header-icon-btn:hover,
-body.staff-app .staff-header-icon-btn:focus-visible {
-    background: var(--staff-accent-soft);
-    border-color: var(--staff-accent);
-    color: var(--staff-accent-2);
-    transform: translateY(-1px);
 }
 
 body.staff-app .staff-header-avatar {
@@ -8414,7 +8359,6 @@ body.staff-app .login-dark-overlay {
         gap: 8px;
     }
 
-    body.staff-app .staff-header-icon-btn,
     body.staff-app .staff-header-avatar {
         width: 36px;
         height: 36px;
@@ -8456,14 +8400,6 @@ body.staff-app .login-dark-overlay {
 }
 
 @media (max-width: 560px) {
-    body.staff-app .staff-header-welcome .staff-welcome-hello {
-        display: none;
-    }
-
-    body.staff-app .staff-header-welcome strong {
-        max-width: 150px;
-    }
-
     body.staff-app .metric-card {
         flex: 1 1 100% !important;
     }

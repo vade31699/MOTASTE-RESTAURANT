@@ -37,19 +37,6 @@
             pointer-events: none;
         }
 
-        .bg-logo {
-            position: fixed;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            width: min(120vmin, 120vh);
-            height: auto;
-            pointer-events: none;
-            z-index: -1;
-            opacity: 0.06;
-            filter: none;
-        }
-
         .staff-box,
         .modal-box {
             position: relative;
@@ -92,9 +79,6 @@
         .social-login-facebook { color: #1877f2; }
         .social-login-tiktok { color: #f5f5f5; }
 
-        @media (max-width: 1400px){ .bg-logo{ width: 115vmin; } }
-        @media (max-width: 900px){ .bg-logo{ width: 110vmin; } }
-        @media (max-width: 420px){ .bg-logo{ width: 100vmin; } }
         /* Notification badge pulse animation */
         .notif-badge-pulse {
             animation: notif-pulse 1s ease-in-out 0s 3 both;
@@ -120,14 +104,7 @@
                 <span class="brand-monogram" aria-hidden="true">MT<span class="brand-dot"></span></span>
                 <span class="brand-wordmark">Motaste</span>
             </div>
-            <div class="staff-header-welcome">
-                <span class="staff-welcome-hello">Welcome back</span>
-                <strong id="staffHeaderUserName">Account</strong>
-            </div>
             <div class="staff-header-actions">
-                <button type="button" id="staffHeaderSearchBtn" class="staff-header-icon-btn" aria-label="Search inventory">
-                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-                </button>
                 <div class="staff-header-avatar" aria-hidden="true">
                     <i class="fa-solid fa-user"></i>
                 </div>
@@ -645,7 +622,6 @@
     </div>
 
     <div class="login-dark-overlay" aria-hidden="true"></div>
-    <img src="./frontimg/logo-removebg-preview.png" alt="MOTASTE logo" class="bg-logo">
     <div class="staff-login-page">
         <div class="modal-box staff-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
             <h2 id="modalTitle">Staff Login</h2>
@@ -685,6 +661,7 @@
                 </div>
             </form>
         </div>
+    </div>
     </div>
 
     <script src="./script.js?v=20260808a"></script>

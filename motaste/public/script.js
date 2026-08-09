@@ -15,8 +15,6 @@ const dashboardPanel = document.getElementById('dashboardPanel');
 const closePanelBtn = document.getElementById('closePanelBtn');
 const dashboardUserName = document.getElementById('dashboardUserName');
 const dashboardUserEmail = document.getElementById('dashboardUserEmail');
-const staffHeaderUserName = document.getElementById('staffHeaderUserName');
-const staffHeaderSearchBtn = document.getElementById('staffHeaderSearchBtn');
 const staffForm = document.getElementById('staffLoginForm');
 const staffLoginPage = document.querySelector('.staff-login-page');
 
@@ -780,10 +778,6 @@ function updateDashboardProfile() {
     if (dashboardUserEmail) {
         dashboardUserEmail.textContent = email;
     }
-
-    if (staffHeaderUserName) {
-        staffHeaderUserName.textContent = role;
-    }
 }
 
 function getCurrentStaffActor() {
@@ -1452,22 +1446,6 @@ if (menuBtn) {
     menuBtn.addEventListener('click', () => {
         const isOpen = dashboardPanel && dashboardPanel.classList.contains('open');
         setDashboardPanelState(!isOpen);
-    });
-}
-
-if (staffHeaderSearchBtn) {
-    staffHeaderSearchBtn.addEventListener('click', () => {
-        if (!canAccessInventory()) return;
-        if (inventorySection && inventorySection.hidden) {
-            showDashboardSection(inventorySection);
-        }
-        window.setTimeout(() => {
-            const searchInput = document.getElementById('inventorySearchInput');
-            if (searchInput) {
-                searchInput.focus();
-                searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }, 250);
     });
 }
 
