@@ -7265,12 +7265,12 @@ body.staff-app ::-webkit-scrollbar-thumb:hover {
 
 /* ---------- Header / top bar ---------- */
 body.staff-app.auth .top-bar.login-top-bar {
+    /* NOTE: no backdrop-filter here — it would create a containing block for
+       fixed descendants and break the dashboard panel / modals' position:fixed. */
     position: sticky;
     top: 0;
     z-index: 1500;
     background: rgba(20, 21, 25, 0.72);
-    -webkit-backdrop-filter: blur(18px) saturate(1.4);
-    backdrop-filter: blur(18px) saturate(1.4);
     border-bottom: 1px solid var(--staff-border-soft);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
     padding: 10px 24px;
