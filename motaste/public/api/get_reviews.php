@@ -19,10 +19,14 @@ try {
     DB::statement("UPDATE customer_reviews SET reviewed_on = COALESCE(reviewed_on, DATE(created_at), CURRENT_DATE) WHERE reviewed_on IS NULL");
 
     $scope = strtolower(trim((string)($_GET['scope'] ?? 'public')));
+    $ratingFilter = (int)($_GET['rating'] ?? 0);
 
     $query = DB::table('customer_reviews');
     if ($scope !== 'staff') {
         $query->where('publish_status', 'published');
+    }
+    if ($ratingFilter >= 1 && $ratingFilter <= 5) {
+        $query->where('rating', $ratingFilter);
     }
 
     $reviews = $query

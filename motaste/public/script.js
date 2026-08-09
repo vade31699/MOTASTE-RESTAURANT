@@ -44,6 +44,7 @@ let orderLogsRefreshTimer = null;
 let orderLogsSyncInFlight = false;
 let reviewRefreshTimer = null;
 let orderActivityLogs = [];
+let reviewActivityLogs = [];
 let activeOrderLogFilter = 'all';
 let pendingOrdersRefreshTimer = null;
 const blockedProductNames = new Set(['softdrinks']);
@@ -942,14 +943,56 @@ roleButtons.forEach((button) => {
     button.addEventListener('click', () => selectRole(button.dataset.role));
 });
 
-async function authenticateStaffAccount(email, password, role = '') {
+const DEVICE_TOKEN_STORAGE_KEY = 'motaste_device_token';
+
+function getOrCreateDeviceToken() {
+    try {
+        let token = localStorage.getItem(DEVICE_TOKEN_STORAGE_KEY);
+        if (!token) {
+            token = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                ? crypto.randomUUID()
+                : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            localStorage.setItem(DEVICE_TOKEN_STORAGE_KEY, token);
+        }
+        return token;
+    } catch (error) {
+        return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+}
+
+async function authenticateStaffAccount(email, password, role = '', deviceToken = '') {
     try {
         const response = await fetch(getApiUrl('api/authenticate_staff.php'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ email, password, role }),
+            body: JSON.stringify({ email, password, role, deviceToken }),
+            cache: 'no-store'
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        // A 2xx response with needsDeviceVerification=true is a valid state:
+        // credentials were correct but the device must be confirmed first.
+        if (!response.ok) {
+            return null;
+        }
+
+        return payload;
+    } catch (error) {
+        console.error('Staff authentication failed', error);
+        return null;
+    }
+}
+
+async function verifyDeviceLogin(email, password, code, deviceToken) {
+    try {
+        const response = await fetch(getApiUrl('api/verify_device_login.php'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password, code, deviceToken }),
             cache: 'no-store'
         });
 
@@ -960,7 +1003,7 @@ async function authenticateStaffAccount(email, password, role = '') {
 
         return payload;
     } catch (error) {
-        console.error('Staff authentication failed', error);
+        console.error('Device verification failed', error);
         return null;
     }
 }
@@ -991,8 +1034,39 @@ function attachStaffLoginHandler() {
         const password = passwordInput ? passwordInput.value : '';
         const remember = rememberCheckbox ? rememberCheckbox.checked : false;
 
-        const authResult = await authenticateStaffAccount(email, password, role);
-        if (!authResult || !allowedRoles.includes(authResult.role)) {
+        const deviceToken = getOrCreateDeviceToken();
+        let authResult = await authenticateStaffAccount(email, password, role, deviceToken);
+        if (!authResult) {
+            setAuthButtonsVisible(false);
+            if (modalTitle) {
+                modalTitle.textContent = 'Invalid credentials';
+            }
+            return;
+        }
+
+        // Unrecognized device: the account must confirm the emailed code first.
+        if (authResult.needsDeviceVerification) {
+            const code = typeof window !== 'undefined' ? window.prompt(
+                'New device detected. Enter the 6-digit verification code sent to your email:'
+            ) : '';
+            if (!code) {
+                if (modalTitle) {
+                    modalTitle.textContent = 'Device verification required';
+                }
+                return;
+            }
+
+            authResult = await verifyDeviceLogin(email, password, code, deviceToken);
+            if (!authResult) {
+                if (modalTitle) {
+                    modalTitle.textContent = 'Invalid or expired verification code';
+                }
+                return;
+            }
+        }
+
+        // Only a genuinely successful auth (or a device-verified one) proceeds.
+        if (!authResult.success || !allowedRoles.includes(authResult.role)) {
             setAuthButtonsVisible(false);
             if (modalTitle) {
                 modalTitle.textContent = 'Invalid credentials';
@@ -1343,6 +1417,12 @@ async function requestAdminCredentialsChange({
 
     if (emailChangeRequested && !isGmailAddress(nextEmail)) {
         setCredentialsMessage('Admin email must be a Gmail address.', true);
+        return;
+    }
+
+    // Admin password policy: minimum 8 characters, no upper length limit.
+    if (nextPassword !== '' && nextPassword.length < 8) {
+        setCredentialsMessage('Admin password must be at least 8 characters.', true);
         return;
     }
 
@@ -1996,6 +2076,7 @@ let selectedSpecialFoodImageData = '';
 let selectedSpecialFoodImageFile = null;
 let cachedReviews = [];
 let cachedStaffReviews = [];
+let activeReviewRatingFilter = 0;
 let activeProductDetailItem = null;
 let productDetailQuantity = 1;
 let selectedSpecialComponents = [];
@@ -4304,7 +4385,13 @@ function matchesSelectedLogDate(log) {
 }
 
 function getFilteredOrderLogs() {
-    let filtered = orderActivityLogs;
+    // Review-specific events now live in their own container; the 'reviews'
+    // filter reads from that dedicated source while every other filter
+    // continues to read from the order activity logs.
+    const baseLogs = activeOrderLogFilter === 'reviews'
+        ? (Array.isArray(reviewActivityLogs) ? reviewActivityLogs : [])
+        : (Array.isArray(orderActivityLogs) ? orderActivityLogs : []);
+    let filtered = baseLogs;
 
     if (activeOrderLogFilter === 'today') {
         filtered = filtered.filter((log) => isLogFromToday(log));
@@ -4318,8 +4405,6 @@ function getFilteredOrderLogs() {
         filtered = filtered.filter((log) => String(log.action || '').startsWith('inventory_'));
     } else if (activeOrderLogFilter === 'accounts') {
         filtered = filtered.filter((log) => String(log.action || '').startsWith('account_'));
-    } else if (activeOrderLogFilter === 'reviews') {
-        filtered = filtered.filter((log) => String(log.action || '').startsWith('review_'));
     }
 
     if (getSelectedLogsDateValue()) {
@@ -4331,15 +4416,16 @@ function getFilteredOrderLogs() {
 
 function getLogFilterCounts() {
     const allLogs = Array.isArray(orderActivityLogs) ? orderActivityLogs : [];
+    const reviewLogs = Array.isArray(reviewActivityLogs) ? reviewActivityLogs : [];
     return {
-        all: allLogs.length,
-        today: allLogs.filter((log) => isLogFromToday(log)).length,
+        all: allLogs.length + reviewLogs.length,
+        today: allLogs.filter((log) => isLogFromToday(log)).length + reviewLogs.filter((log) => isLogFromToday(log)).length,
         qty: allLogs.filter((log) => isQtyChangeAction(log.action)).length,
         completed: allLogs.filter((log) => log.action === 'order_completed').length,
         stock: allLogs.filter((log) => log.action === 'inventory_stock_changed').length,
         inventory: allLogs.filter((log) => String(log.action || '').startsWith('inventory_')).length,
         accounts: allLogs.filter((log) => String(log.action || '').startsWith('account_')).length,
-        reviews: allLogs.filter((log) => String(log.action || '').startsWith('review_')).length
+        reviews: reviewLogs.length
     };
 }
 
@@ -4442,17 +4528,24 @@ async function loadOrderLogsFromServer(forceRefresh = false) {
 
     orderLogsSyncInFlight = true;
     try {
-        const response = await fetch(getApiUrl(`api/get_order_logs.php?_=${Date.now()}`), { cache: 'no-store' });
-        if (!response.ok) return false;
+        const [logsResponse, reviewLogsResponse] = await Promise.all([
+            fetch(getApiUrl(`api/get_order_logs.php?_=${Date.now()}`), { cache: 'no-store' }),
+            fetch(getApiUrl(`api/get_review_logs.php?_=${Date.now()}`), { cache: 'no-store' })
+        ]);
+        if (!logsResponse.ok || !reviewLogsResponse.ok) return false;
 
-        const payload = await response.json();
-        if (!payload || payload.success !== true) return false;
+        const [logsPayload, reviewLogsPayload] = await Promise.all([
+            logsResponse.json(),
+            reviewLogsResponse.json()
+        ]);
+        if (!logsPayload || logsPayload.success !== true || !reviewLogsPayload || reviewLogsPayload.success !== true) return false;
 
-        orderActivityLogs = Array.isArray(payload.logs) ? payload.logs : [];
+        orderActivityLogs = Array.isArray(logsPayload.logs) ? logsPayload.logs : [];
+        reviewActivityLogs = Array.isArray(reviewLogsPayload.logs) ? reviewLogsPayload.logs : [];
         renderOrderLogs();
         return true;
     } catch (error) {
-        console.error('Unable to load order activity logs', error);
+        console.error('Unable to load activity logs', error);
         return false;
     } finally {
         orderLogsSyncInFlight = false;
@@ -4491,15 +4584,27 @@ function getReviewPublishStatusLabel(status) {
     return 'Pending';
 }
 
+function getFilteredReviewsByRating(reviews) {
+    const filter = Number(activeReviewRatingFilter) || 0;
+    if (filter < 1 || filter > 5) return reviews;
+    return reviews.filter((review) => Number(review.rating) === filter);
+}
+
+function getReviewFilterEmptyMessage(rating) {
+    if (!rating) return 'No reviews yet. Be the first to leave one.';
+    return `No ${rating}-star reviews yet.`;
+}
+
 function renderCustomerReviews() {
     if (!customerReviewsList) return;
 
-    if (!cachedReviews.length) {
-        customerReviewsList.innerHTML = '<p class="menu-cart-empty">No reviews yet. Be the first to leave one.</p>';
+    const filteredReviews = getFilteredReviewsByRating(cachedReviews);
+    if (!filteredReviews.length) {
+        customerReviewsList.innerHTML = `<p class="menu-cart-empty">${getReviewFilterEmptyMessage(activeReviewRatingFilter)}</p>`;
         return;
     }
 
-    customerReviewsList.innerHTML = cachedReviews.map((review) => {
+    customerReviewsList.innerHTML = filteredReviews.map((review) => {
         const safeReviewText = escapeHtml(review.review_text);
         return `
             <article class="customer-review-card">
@@ -4514,12 +4619,13 @@ function renderCustomerReviews() {
 function renderStaffReviews() {
     if (!staffReviewList) return;
 
-    if (!cachedStaffReviews.length) {
-        staffReviewList.innerHTML = '<p class="menu-cart-empty">No reviews yet.</p>';
+    const filteredReviews = getFilteredReviewsByRating(cachedStaffReviews);
+    if (!filteredReviews.length) {
+        staffReviewList.innerHTML = `<p class="menu-cart-empty">${getReviewFilterEmptyMessage(activeReviewRatingFilter)}</p>`;
         return;
     }
 
-    staffReviewList.innerHTML = cachedStaffReviews.map((review) => {
+    staffReviewList.innerHTML = filteredReviews.map((review) => {
         const status = (review.publish_status || 'pending').toLowerCase();
         const safeReviewText = escapeHtml(review.review_text);
         return `
@@ -4572,6 +4678,18 @@ function startReviewRefresh() {
         void loadReviewsFromServer(true);
     }, 10000);
 }
+
+// Star-rating filter buttons (All / 1-5 stars) shared by public + staff views.
+document.querySelectorAll('.review-filter-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+        activeReviewRatingFilter = Number(button.dataset.reviewRating) || 0;
+        document.querySelectorAll('.review-filter-btn').forEach((btn) => {
+            btn.classList.toggle('is-active', btn === button);
+        });
+        renderCustomerReviews();
+        renderStaffReviews();
+    });
+});
 
 if (customerReviewForm) {
     customerReviewForm.addEventListener('submit', async (event) => {
@@ -7894,6 +8012,14 @@ if (mobileMenuToggle && topNav) {
         });
     });
 
+    // Close the full-screen mobile overlay when tapping its background
+    topNav.addEventListener('click', (event) => {
+        if (event.target === topNav) {
+            topNav.classList.remove('open');
+            mobileMenuToggle.setAttribute('aria-expanded', 'false');
+        }
+    });
+
     window.addEventListener('resize', () => {
         if (window.innerWidth > 760) {
             topNav.classList.remove('open');
@@ -8593,4 +8719,28 @@ async function fetchOverviewMetrics() {
 document.addEventListener('DOMContentLoaded', () => {
     void fetchOverviewMetrics();
     setInterval(() => void fetchOverviewMetrics(), 15000);
-});
+});// ============================================================
+// Home page polish — sticky header scrolled state + footer year
+// ============================================================
+(function homePagePolish() {
+    // Header: strengthen background once the page is scrolled
+    const siteHeader = document.getElementById('siteHeader');
+    if (siteHeader) {
+        const updateHeaderState = () => {
+            siteHeader.classList.toggle('scrolled', window.scrollY > 24);
+        };
+        updateHeaderState();
+        window.addEventListener('scroll', updateHeaderState, { passive: true });
+    }
+
+    // Footer: keep the copyright year current
+    const footerYearEl = document.getElementById('footerYear');
+    if (footerYearEl) {
+        footerYearEl.textContent = String(new Date().getFullYear());
+    }
+
+    // Footer social links are placeholders — don't let the '#' jump the page
+    document.querySelectorAll('.footer-social a').forEach((link) => {
+        link.addEventListener('click', (event) => event.preventDefault());
+    });
+})();

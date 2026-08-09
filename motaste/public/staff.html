@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link rel="stylesheet" href="./style.css?v=20260727">
+    <link rel="stylesheet" href="./style.css?v=20260808a">
     <title>Staff Login - MOTASTE</title>
     <style>
         html,
@@ -461,6 +461,14 @@
         <div class="review-management" id="reviewManagement">
             <h3>Reviews</h3>
             <p>Customer reviews across devices. Publish approved reviews or delete inappropriate ones.</p>
+            <div class="review-filter-bar" role="group" aria-label="Filter reviews by star rating">
+                <button type="button" class="review-filter-btn is-active" data-review-rating="0">All</button>
+                <button type="button" class="review-filter-btn" data-review-rating="5">5 ★</button>
+                <button type="button" class="review-filter-btn" data-review-rating="4">4 ★</button>
+                <button type="button" class="review-filter-btn" data-review-rating="3">3 ★</button>
+                <button type="button" class="review-filter-btn" data-review-rating="2">2 ★</button>
+                <button type="button" class="review-filter-btn" data-review-rating="1">1 ★</button>
+            </div>
             <div id="staffReviewList" class="staff-review-list"></div>
         </div>
         <h3 class="review-history-title">Review Logs History</h3>
@@ -531,7 +539,7 @@
             <input type="email" id="adminCurrentEmail" placeholder="Current admin Gmail" readonly>
             <input type="password" id="adminCurrentPassword" placeholder="Current admin password" required>
             <input type="email" id="adminNewEmail" placeholder="New admin Gmail" required>
-            <input type="password" id="adminNewPassword" placeholder="New admin password" required>
+            <input type="password" id="adminNewPassword" placeholder="New admin password (min 8 characters)" minlength="8" required>
             <button type="button" id="requestCredentialsChangeBtn">Send Verification Code</button>
             <input type="text" id="adminChangeCode" placeholder="Enter verification code" maxlength="8">
             <button type="submit" id="confirmCredentialsChangeBtn">Verify and Apply</button>
@@ -542,7 +550,7 @@
         <form id="passwordCredentialsForm" class="account-form" hidden>
             <input type="email" id="adminPasswordCurrentEmail" placeholder="Current admin Gmail" readonly>
             <input type="password" id="adminPasswordCurrentPassword" placeholder="Current admin password" required>
-            <input type="password" id="adminPasswordNewPassword" placeholder="New admin password" required>
+            <input type="password" id="adminPasswordNewPassword" placeholder="New admin password (min 8 characters)" minlength="8" required>
             <button type="button" id="requestPasswordChangeBtn">Send Verification Code</button>
             <input type="text" id="adminPasswordChangeCode" placeholder="Enter verification code" maxlength="8">
             <button type="submit" id="confirmPasswordChangeBtn">Verify and Apply</button>
@@ -593,7 +601,7 @@
         </div>
     </div>
 
-    <script src="./script.js?v=20260731"></script>
+    <script src="./script.js?v=20260808a"></script>
     <script src="./staff-auth.js?v=20260731"></script>
 </body>
 </html>

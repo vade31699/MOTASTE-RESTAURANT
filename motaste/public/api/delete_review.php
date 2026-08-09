@@ -12,6 +12,7 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 use Illuminate\Support\Facades\DB;
 
 require_once __DIR__ . '/csrf_guard.php';
+require_once __DIR__ . '/_review_log_helpers.php';
 
 function ensureReviewTables(): void
 {
@@ -46,22 +47,19 @@ try {
 
     DB::table('customer_reviews')->where('id', $reviewId)->delete();
 
-    DB::table('order_activity_logs')->insert([
-        'order_id' => null,
-        'order_number' => null,
+    writeReviewActivityLog([
+        'review_id' => $reviewId,
         'action' => 'review_deleted',
         'actor_role' => $actorRole !== '' ? $actorRole : 'Staff',
         'actor_email' => $actorEmail !== '' ? $actorEmail : null,
         'summary' => 'Review deleted',
-        'details' => json_encode([
+        'details' => [
             'review_id' => $reviewId,
             'rating' => (int)($review->rating ?? 0),
             'review_text' => (string)($review->review_text ?? ''),
             'reviewer_key' => $reviewerKey,
             'deleted_at' => now()->toDateTimeString(),
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-        'created_at' => now(),
-        'updated_at' => now(),
+        ],
     ]);
 
     echo json_encode(['success' => true]);

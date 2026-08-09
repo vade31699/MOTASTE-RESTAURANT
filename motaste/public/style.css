@@ -107,7 +107,7 @@ html, body {
     background: linear-gradient(
         135deg,
         #322a2a,
-        #e8e8d7,
+        #e8e3d7,
         #1c1a0d
     );
     background-clip: text;
@@ -4884,3 +4884,2314 @@ body.modal-open {
         font-size: 14px;
     }
 }
+
+
+/* ============================================================
+   HOME PAGE REDESIGN — "MoTaste · Crafted Silog" design system
+   Scoped under body.site-home so staff pages are unaffected.
+   Palette: Porcelain #F9FAFB · Ink #111827 · Sunburst #FF6B00
+            Peach #FFD8B5 · Slate Teal #2A4D53 · Glass white
+   ============================================================ */
+
+html:has(body.site-home) {
+    scroll-behavior: smooth;
+}
+
+body.site-home {
+    background: #F9FAFB;
+    color: #111827;
+    font-family: "Inter", "Segoe UI", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+body.site-home h1,
+body.site-home h2,
+body.site-home h3,
+body.site-home h4,
+body.site-home .brand-wordmark {
+    font-family: "Montserrat", "Segoe UI", Arial, sans-serif;
+}
+
+body.site-home section[id] {
+    scroll-margin-top: 96px;
+}
+
+/* ---------- A. HEADER / NAV — floating frosted glass ---------- */
+body.site-home .top-bar {
+    position: sticky;
+    top: 14px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    width: auto;
+    margin: 14px 22px 0;
+    padding: 12px 20px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.75);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(17, 24, 39, 0.07);
+    box-shadow: 0 10px 34px rgba(17, 24, 39, 0.09);
+    color: #111827;
+    transition: box-shadow 0.3s ease, background 0.3s ease;
+}
+
+body.site-home .top-bar.scrolled {
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 14px 40px rgba(17, 24, 39, 0.13);
+}
+
+/* Monogram logo: dark chip + orange dot */
+body.site-home .brand-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    flex: 0 0 auto;
+}
+
+body.site-home .brand-monogram {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    background: #111827;
+    color: #fff;
+    font-family: "Montserrat", sans-serif;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    box-shadow: 0 6px 16px rgba(17, 24, 39, 0.22);
+}
+
+body.site-home .brand-dot {
+    position: absolute;
+    right: 9px;
+    bottom: 9px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #FF6B00;
+    box-shadow: 0 0 0 2.5px rgba(255, 255, 255, 0.9), 0 0 10px rgba(255, 107, 0, 0.85);
+}
+
+body.site-home .brand-wordmark {
+    font-size: 21px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #111827;
+    text-transform: uppercase;
+}
+
+body.site-home .top-nav {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-left: auto;
+    flex: 1;
+}
+
+body.site-home .top-nav a {
+    position: relative;
+    color: #111827;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 10px 16px;
+    border-radius: 999px;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+body.site-home .top-nav a::after {
+    content: "";
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 5px;
+    height: 2.5px;
+    border-radius: 2px;
+    background: #FF6B00;
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform 0.25s ease;
+}
+
+body.site-home .top-nav a:hover,
+body.site-home .top-nav a:focus-visible {
+    background: rgba(255, 216, 181, 0.45);
+    outline: none;
+}
+
+body.site-home .top-nav a:hover::after {
+    transform: scaleX(1);
+}
+
+body.site-home .live-clock {
+    color: #2A4D53;
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin-top: 0;
+}
+
+/* ---------- B. HERO SECTION ---------- */
+body.site-home .front-section {
+    position: relative;
+    height: min(88vh, 820px);
+    min-height: 560px;
+    margin: 0;
+    overflow: hidden;
+}
+
+body.site-home .front-section .hero-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+body.site-home .hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(249, 250, 251, 0.94) 0%, rgba(249, 250, 251, 0.72) 34%, rgba(249, 250, 251, 0.15) 68%, rgba(249, 250, 251, 0) 100%);
+}
+
+body.site-home .hero-content {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    max-width: 680px;
+    padding: 0 clamp(24px, 6vw, 96px);
+    z-index: 2;
+}
+
+body.site-home .hero-kicker {
+    margin: 0 0 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: "Montserrat", sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: #2A4D53;
+}
+
+body.site-home .hero-kicker::before {
+    content: "";
+    width: 34px;
+    height: 2px;
+    border-radius: 2px;
+    background: #FF6B00;
+}
+
+body.site-home .hero-title {
+    margin: 0;
+    font-size: clamp(2.6rem, 6.4vw, 4.8rem);
+    font-weight: 800;
+    line-height: 1.04;
+    letter-spacing: -0.02em;
+    color: #111827;
+}
+
+body.site-home .hero-title span {
+    color: #FF6B00;
+}
+
+body.site-home .hero-sub {
+    margin: 22px 0 0;
+    max-width: 460px;
+    font-size: clamp(1rem, 1.6vw, 1.15rem);
+    line-height: 1.65;
+    color: #4B5563;
+}
+
+body.site-home .hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 32px;
+    flex-wrap: wrap;
+}
+
+body.site-home .about-btn {
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px 34px;
+    background: #FF6B00;
+    color: #fff;
+    text-decoration: none;
+    font-size: 1rem;
+    font-weight: 700;
+    font-family: "Montserrat", sans-serif;
+    letter-spacing: 0.02em;
+    border-radius: 999px;
+    border: none;
+    box-shadow: 0 14px 30px rgba(255, 107, 0, 0.32);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+
+body.site-home .about-btn:hover {
+    background: #F05A00;
+    transform: translateY(-3px);
+    box-shadow: 0 20px 42px rgba(255, 107, 0, 0.42), 0 0 0 8px rgba(255, 216, 181, 0.35);
+}
+
+body.site-home .hero-ghost-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 30px;
+    background: rgba(255, 255, 255, 0.6);
+    color: #111827;
+    text-decoration: none;
+    font-size: 1rem;
+    font-weight: 600;
+    border: 1.5px solid rgba(17, 24, 39, 0.28);
+    border-radius: 999px;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    transition: background 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+}
+
+body.site-home .hero-ghost-btn:hover {
+    background: #FFD8B5;
+    border-color: #FF6B00;
+    transform: translateY(-3px);
+}
+
+/* ---------- C. SPECIAL FOODS ---------- */
+body.site-home .special-foods-section {
+    display: grid;
+    gap: 22px;
+}
+
+body.site-home .special-foods-visible {
+    position: relative;
+    z-index: 5;
+    margin: -56px 24px 0;
+    padding: 42px clamp(18px, 4vw, 56px);
+    border-radius: 30px;
+    background: rgba(255, 255, 255, 0.72);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 24px 60px rgba(17, 24, 39, 0.10);
+}
+
+body.site-home .special-foods-heading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-align: center;
+}
+
+body.site-home .special-foods-heading h1 {
+    font-family: "Montserrat", sans-serif;
+    font-size: clamp(1.9rem, 4vw, 2.7rem);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: #111827;
+    margin: 0;
+}
+
+body.site-home .special-foods-heading::after {
+    content: "";
+    width: 56px;
+    height: 4px;
+    border-radius: 4px;
+    background: #FF6B00;
+}
+
+body.site-home .special-foods-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+    gap: 18px;
+    margin-top: 8px;
+}
+
+body.site-home .special-food-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    box-shadow: 0 10px 26px rgba(17, 24, 39, 0.07);
+    transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+}
+
+body.site-home .special-food-card:hover {
+    transform: translateY(-8px);
+    border-color: rgba(255, 107, 0, 0.55);
+    box-shadow: 0 26px 52px rgba(255, 216, 181, 0.65), 0 10px 26px rgba(17, 24, 39, 0.10);
+}
+
+/* Signature (first) dish tile — glowing sunburst outline */
+body.site-home .special-food-card:first-child {
+    border: 2px solid rgba(255, 107, 0, 0.9);
+    box-shadow: 0 0 0 5px rgba(255, 107, 0, 0.16), 0 18px 44px rgba(255, 107, 0, 0.24);
+}
+
+body.site-home .special-food-card:first-child::after {
+    content: "Signature";
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 3;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: #FF6B00;
+    color: #fff;
+    font-family: "Montserrat", sans-serif;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    box-shadow: 0 6px 16px rgba(255, 107, 0, 0.4);
+}
+
+body.site-home .special-food-view-btn {
+    height: 62%;
+    background: #fff;
+}
+
+body.site-home .special-food-view-btn img {
+    border-radius: 19px 19px 0 0;
+}
+
+body.site-home .special-food-image-meta {
+    padding: 10px 12px;
+    background: linear-gradient(180deg, rgba(17, 24, 39, 0) 0%, rgba(17, 24, 39, 0.72) 60%, rgba(17, 24, 39, 0.88) 100%);
+}
+
+body.site-home .special-food-image-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+body.site-home .special-food-details {
+    padding: 12px 14px 14px;
+    gap: 6px;
+    background: #fff;
+    border-radius: 0 0 20px 20px;
+}
+
+body.site-home .special-food-description {
+    color: #4B5563;
+    font-family: "Inter", sans-serif;
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+
+body.site-home .special-food-details-price {
+    color: #FF6B00;
+    font-size: 0.98rem;
+    font-weight: 800;
+}
+
+body.site-home .special-food-card.is-out-of-stock {
+    opacity: 0.8;
+    filter: grayscale(0.25);
+}
+
+/* ---------- MENU SECTION (light glass) ---------- */
+body.site-home .menu-section {
+    background: rgba(255, 255, 255, 0.68);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    box-shadow: 0 24px 60px rgba(17, 24, 39, 0.08);
+    color: #111827;
+}
+
+body.site-home .menu-container {
+    color: #111827;
+}
+
+body.site-home .menu-left h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-weight: 800;
+    color: #111827;
+}
+
+body.site-home .menu-left p {
+    color: #4B5563;
+    line-height: 1.7;
+}
+
+body.site-home .menu-category-btn {
+    background: #F3F4F6;
+    color: #111827;
+    border: 1px solid rgba(17, 24, 39, 0.07);
+    border-radius: 16px;
+    padding: 18px 16px;
+    font-family: "Montserrat", sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+body.site-home .menu-category-btn:hover,
+body.site-home .menu-category-btn:focus-visible {
+    background: #FF6B00;
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(255, 107, 0, 0.32);
+}
+
+body.site-home .menu-design {
+    border-radius: 22px;
+    box-shadow: 0 18px 44px rgba(17, 24, 39, 0.14);
+}
+
+body.site-home .menu-image {
+    max-width: 620px;
+}
+
+/* Cart FAB — sunburst orange */
+body.site-home #menuCartButton.menu-cart-button {
+    background: linear-gradient(145deg, #FF8A3D, #FF6B00);
+    box-shadow: 0 18px 42px rgba(255, 107, 0, 0.5);
+}
+
+body.site-home #menuCartButton.menu-cart-button:hover {
+    box-shadow: 0 26px 60px rgba(255, 107, 0, 0.65), 0 0 0 10px rgba(255, 216, 181, 0.4);
+}
+
+body.site-home #menuTopCartCount {
+    background: #111827;
+    color: #FFD8B5;
+}
+
+/* ---------- ABOUT ---------- */
+body.site-home .about-section,
+body.site-home #about {
+    width: 100%;
+    min-height: 0;
+    padding: 96px clamp(18px, 5vw, 64px);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    background: #FF5400;
+    color: #FFFFFF;
+}
+/* Shared section container rhythm (matches menu / map / highlights) */
+body.site-home .about-container,
+body.site-home .contact-container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(32px, 4vw, 56px);
+    align-items: center;
+}
+
+body.site-home .about-content {
+    background: rgba(255, 255, 255);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 22px 54px rgba(17, 24, 39, 0.10);
+    border-radius: 28px;
+    padding: clamp(28px, 4vw, 48px);
+    color: #111827;
+}
+
+body.site-home .about-tag {
+    color: #FF6B00;
+    font-family: "Montserrat", sans-serif;
+}
+
+body.site-home .about-content h2 {
+    color: #111827;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    font-size: clamp(2rem, 4vw, 2.6rem);
+    line-height: 1.2;
+    margin: 15px 0;
+}
+
+body.site-home .about-content p {
+    color: #4B5563;
+}
+
+body.site-home .feature-box {
+    background: rgba(255, 255, 255);
+    border: 1px solid rgba(17, 24, 39, 0.06);
+    border-radius: 18px;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+body.site-home .feature-box:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 34px rgba(255, 216, 181, 0.6);
+}
+
+body.site-home .feature-box h3 {
+    color: #111827;
+}
+
+body.site-home .feature-box p {
+    color: #4B5563;
+}
+
+body.site-home .about-image img {
+    border-radius: 28px;
+    box-shadow: 0 26px 60px rgba(17, 24, 39, 0.18);
+}
+
+/* ---------- D. HIGHLIGHTS / SLIDESHOW ---------- */
+body.site-home .highlights-section {
+    padding: 90px clamp(18px, 5vw, 64px) 30px;
+    text-align: center;
+}
+
+body.site-home .highlights-heading h2 {
+    margin: 0 0 8px;
+    font-size: clamp(1.8rem, 3.6vw, 2.5rem);
+    font-weight: 800;
+    color: #111827;
+}
+
+body.site-home .highlights-heading p {
+    margin: 0 auto 26px;
+    max-width: 480px;
+    color: #4B5563;
+}
+
+body.site-home .slideshow {
+    position: relative;
+    max-width: 960px;
+    width: min(100%, 960px);
+    min-width: 0;
+    margin: 0 auto;
+    padding: 14px;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.65);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 24px 60px rgba(17, 24, 39, 0.12);
+    overflow: hidden;
+}
+
+body.site-home .slideshow .slides {
+    position: relative;
+    height: 440px;
+    border-radius: 18px;
+    overflow: hidden;
+}
+
+body.site-home .slideshow img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.55s ease-in-out, transform 6s ease;
+    cursor: default;
+    pointer-events: none;
+    border-radius: 18px;
+}
+
+body.site-home .slideshow img.active {
+    opacity: 1;
+    cursor: zoom-in;
+    pointer-events: auto;
+    transform: scale(1.04);
+}
+
+body.site-home .slide-dots {
+    position: absolute;
+    bottom: 26px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 9px;
+    z-index: 2;
+}
+
+body.site-home .slide-dots button {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    border: none;
+    background: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    transition: background 0.25s ease, width 0.25s ease;
+}
+
+body.site-home .slide-dots button.active {
+    background: #FF6B00;
+    width: 28px;
+}
+
+body.site-home .slideshow-empty {
+    height: 100%;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    padding: 24px;
+    color: #4B5563;
+    background: #fff;
+    border-radius: 18px;
+    font-weight: 600;
+}
+
+/* ---------- E. CUSTOMER REVIEWS ---------- */
+body.site-home .map-section {
+    background: transparent;
+    margin: 0;
+    padding: 60px clamp(18px, 5vw, 64px) 90px;
+    border-radius: 0;
+    box-shadow: none;
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    gap: 26px;
+    align-items: start;
+}
+
+body.site-home .map-inner {
+    background: rgba(255, 255, 255, 0.7);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    border-radius: 24px;
+    padding: 26px;
+    box-shadow: 0 22px 54px rgba(17, 24, 39, 0.09);
+}
+
+body.site-home .map-inner h2 {
+    margin: 0 0 16px;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #111827;
+}
+
+body.site-home .map-wrapper {
+    margin: 0;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(17, 24, 39, 0.08), 0 12px 30px rgba(17, 24, 39, 0.10);
+}
+
+body.site-home .map-wrapper iframe {
+    min-height: 380px;
+    filter: saturate(0.92);
+}
+
+body.site-home .customer-reviews-panel {
+    margin: 0;
+    background: rgba(255, 255, 255, 0.7);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    border-radius: 24px;
+    padding: 26px;
+    box-shadow: 0 22px 54px rgba(17, 24, 39, 0.09);
+}
+
+body.site-home .customer-reviews-panel h3 {
+    margin: 0 0 16px;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #111827;
+}
+
+body.site-home .customer-reviews-list {
+    display: grid;
+    gap: 14px;
+}
+
+body.site-home .customer-review-card {
+    position: relative;
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    border-radius: 18px;
+    padding: 18px 18px 16px 70px;
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 10px 26px rgba(17, 24, 39, 0.06);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+body.site-home .customer-review-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 38px rgba(255, 216, 181, 0.6);
+}
+
+body.site-home .customer-review-card::before {
+    content: "❝";
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #111827;
+    color: #FF6B00;
+    font-size: 18px;
+    line-height: 1;
+}
+
+body.site-home .customer-review-card p,
+body.site-home .customer-review-card strong,
+body.site-home .customer-review-card span {
+    margin: 0;
+    color: #374151;
+}
+
+body.site-home .review-stars {
+    color: #FF6B00 !important;
+    font-size: 1.05rem;
+    letter-spacing: 0.06em;
+    line-height: 1.25;
+}
+
+body.site-home .review-comment {
+    color: #1F2937;
+    line-height: 1.55;
+    font-size: 0.95rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+body.site-home .customer-review-card p:last-child span {
+    color: #9CA3AF;
+    font-size: 0.78rem;
+    display: inline-block;
+    margin-top: 8px;
+    border-top: 1px dashed rgba(255, 107, 0, 0.35);
+    padding-top: 8px;
+}
+
+/* ---------- F. CONTACT ---------- */
+body.site-home .contact-section,
+body.site-home #contact {
+    width: 100%;
+    min-height: 0;
+    padding: 96px clamp(18px, 5vw, 64px);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    background: #F9FAFB;
+    background-image: radial-gradient(ellipse at 88% 12%, rgba(255, 216, 181, 0.45), transparent 55%);
+    color: #111827;
+}
+
+body.site-home .contact-info h2 {
+    color: #111827;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    font-size: clamp(2rem, 4vw, 2.6rem);
+    line-height: 1.2;
+    margin: 15px 0;
+}
+
+body.site-home .contact-tag {
+    color: #FF6B00;
+    font-family: "Montserrat", sans-serif;
+}
+
+body.site-home .contact-info p {
+    color: #4B5563;
+}
+
+body.site-home .contact-box {
+    background: rgba(255, 255, 255, 0.72);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 12px 30px rgba(17, 24, 39, 0.07);
+    border-radius: 18px;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+body.site-home .contact-box:hover {
+    transform: translateX(6px);
+    box-shadow: 0 16px 36px rgba(255, 216, 181, 0.55);
+}
+
+body.site-home .contact-icon {
+    background: #111827;
+    color: #FF6B00;
+    font-size: 20px;
+    box-shadow: 0 8px 18px rgba(17, 24, 39, 0.22);
+}
+
+body.site-home .contact-box h3 {
+    color: #111827;
+    font-weight: 700;
+}
+
+body.site-home .contact-box p {
+    color: #4B5563;
+}
+
+body.site-home .contact-form {
+    background: rgba(255, 255, 255, 0.75);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 26px 64px rgba(17, 24, 39, 0.12);
+    border-radius: 28px;
+    padding: clamp(28px, 4vw, 48px);
+}
+
+body.site-home .contact-form h3 {
+    color: #111827;
+    font-size: 1.6rem;
+    font-weight: 800;
+}
+
+body.site-home .input-group select,
+body.site-home .input-group textarea {
+    width: 100%;
+    padding: 15px 18px;
+    border: 1.5px solid transparent;
+    outline: none;
+    border-radius: 14px;
+    background: #F3F4F6;
+    color: #111827;
+    font-family: "Inter", sans-serif;
+    font-size: 0.95rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+body.site-home .input-group textarea {
+    resize: none;
+}
+
+body.site-home .input-group select:focus,
+body.site-home .input-group textarea:focus {
+    border-color: #FF6B00;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(255, 107, 0, 0.16);
+}
+
+body.site-home .input-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #111827;
+}
+
+body.site-home .contact-form button[type="submit"] {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 999px;
+    background: #FF6B00;
+    color: #fff;
+    font-family: "Montserrat", sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 14px 30px rgba(255, 107, 0, 0.32);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+
+body.site-home .contact-form button[type="submit"]:hover {
+    background: #F05A00;
+    transform: translateY(-3px);
+    box-shadow: 0 20px 42px rgba(255, 107, 0, 0.44), 0 0 0 8px rgba(255, 216, 181, 0.35);
+}
+
+body.site-home .review-submit-note {
+    text-align: center;
+    color: #9CA3AF;
+    font-size: 0.8rem;
+    margin-top: 14px;
+}
+
+body.site-home .review-submit-message {
+    text-align: center;
+    font-weight: 600;
+    margin-top: 10px;
+}
+
+/* ---------- OVERLAYS & MODALS (glass) ---------- */
+body.site-home .menu-overlay {
+    background: rgba(17, 24, 39, 0.48);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+}
+
+body.site-home .menu-overlay-panel,
+body.site-home .cart-modal .menu-cart-panel {
+    background: rgba(255, 255, 255, 0.88);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 30px 80px rgba(17, 24, 39, 0.22);
+    border-radius: 24px;
+}
+
+body.site-home .menu-overlay-categories .menu-category-btn.active {
+    background: #FF6B00;
+    border-color: #FF6B00;
+}
+
+body.site-home .menu-place-order-btn {
+    background: #FF6B00;
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    font-family: "Montserrat", sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 13px 20px;
+    cursor: pointer;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
+}
+
+body.site-home .menu-place-order-btn:hover:not(:disabled) {
+    background: #F05A00;
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px rgba(255, 107, 0, 0.4);
+}
+
+body.site-home .menu-place-order-btn:disabled {
+    background: #E5E7EB;
+    color: #9CA3AF;
+    cursor: not-allowed;
+}
+
+body.site-home .checkout-option-btn.active,
+body.site-home .checkout-option-btn:hover {
+    background: #FF6B00;
+    border-color: #FF6B00;
+    color: #fff;
+}
+
+body.site-home .menu-cart-empty {
+    color: #6B7280;
+}
+
+body.site-home .menu-cart-item {
+    background: #F9FAFB;
+    border: 1px solid rgba(17, 24, 39, 0.06);
+}
+
+body.site-home .cart-addon-total {
+    background: #FFF3EA;
+    border-color: rgba(255, 107, 0, 0.28);
+    color: #8A3A00;
+}
+
+body.site-home .cart-addon-total strong {
+    color: #FF6B00;
+}
+
+body.site-home .product-detail-card,
+body.site-home .payment-success-card {
+    background: rgba(255, 255, 255, 0.92);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    border-radius: 26px;
+    box-shadow: 0 30px 80px rgba(17, 24, 39, 0.24);
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 900px) {
+    body.site-home .top-bar {
+        margin: 10px 12px 0;
+        padding: 10px 16px;
+        border-radius: 18px;
+    }
+
+    body.site-home .brand-wordmark {
+        font-size: 17px;
+    }
+
+    body.site-home .brand-monogram {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        font-size: 15px;
+    }
+
+    body.site-home .brand-dot {
+        right: 7px;
+        bottom: 7px;
+    }
+
+    body.site-home .mobile-menu-toggle {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 4.5px;
+        width: 42px;
+        height: 42px;
+        min-width: 42px;
+        border: none;
+        border-radius: 12px;
+        background: #FF6B00;
+        cursor: pointer;
+        padding: 0 11px;
+        margin-left: auto;
+        box-shadow: 0 8px 20px rgba(255, 107, 0, 0.35);
+    }
+
+    body.site-home .mobile-menu-toggle span {
+        display: block;
+        width: 100%;
+        height: 2.5px;
+        background: #fff;
+        border-radius: 3px;
+        transition: transform 0.25s ease, opacity 0.25s ease;
+    }
+
+    body.site-home .mobile-menu-toggle[aria-expanded="true"] span:nth-child(1) {
+        transform: translateY(7px) rotate(45deg);
+    }
+
+    body.site-home .mobile-menu-toggle[aria-expanded="true"] span:nth-child(2) {
+        opacity: 0;
+    }
+
+    body.site-home .mobile-menu-toggle[aria-expanded="true"] span:nth-child(3) {
+        transform: translateY(-7px) rotate(-45deg);
+    }
+
+    body.site-home .top-nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin: 0;
+        padding: 80px 24px;
+        border-radius: 0;
+        background: rgba(255, 255, 255, 0.92);
+        -webkit-backdrop-filter: blur(22px);
+        backdrop-filter: blur(22px);
+        z-index: 1900;
+    }
+
+    body.site-home .top-nav.open {
+        display: flex;
+    }
+
+    body.site-home .top-nav a {
+        width: 100%;
+        max-width: 340px;
+        text-align: center;
+        font-size: 1.35rem;
+        font-weight: 700;
+        padding: 16px;
+        border-radius: 16px;
+        background: transparent;
+    }
+
+    body.site-home .top-nav a:hover {
+        background: rgba(255, 216, 181, 0.55);
+    }
+
+    body.site-home .top-nav a::after {
+        left: 40%;
+        right: 40%;
+        bottom: 10px;
+    }
+
+    body.site-home .live-clock {
+        display: none;
+    }
+
+    body.site-home .front-section {
+        height: 84vh;
+        min-height: 520px;
+    }
+
+    body.site-home .hero-content {
+        max-width: 540px;
+    }
+
+    body.site-home .special-foods-visible {
+        margin: -40px 14px 0;
+        padding: 32px 18px;
+    }
+
+    body.site-home .slideshow .slides {
+        height: 320px;
+    }
+
+    body.site-home .map-section {
+        grid-template-columns: 1fr;
+        padding: 48px 16px 64px;
+    }
+
+    body.site-home .map-wrapper iframe {
+        min-height: 300px;
+    }
+
+    body.site-home .about-section,
+    body.site-home #about,
+    body.site-home .contact-section,
+    body.site-home #contact {
+        padding: 64px 16px;
+    }
+
+    body.site-home .about-container,
+    body.site-home .contact-container {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+}
+
+@media (max-width: 560px) {
+    body.site-home .top-bar {
+        top: 8px;
+    }
+
+    body.site-home .front-section {
+        height: 78vh;
+        min-height: 480px;
+    }
+
+    body.site-home .hero-actions {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    body.site-home .hero-ghost-btn,
+    body.site-home .about-btn {
+        width: 100%;
+    }
+
+    body.site-home .special-foods-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    body.site-home .special-food-card {
+        border-radius: 16px;
+    }
+
+    body.site-home .special-food-details {
+        padding: 10px 12px 12px;
+    }
+
+    body.site-home .special-food-card:first-child::after {
+        top: 8px;
+        right: 8px;
+        font-size: 0.58rem;
+        padding: 4px 9px;
+    }
+
+    body.site-home .about-content,
+    body.site-home .contact-form {
+        padding: 24px;
+    }
+
+    body.site-home .slideshow .slides {
+        height: 240px;
+    }
+
+    body.site-home .customer-review-card {
+        padding-left: 66px;
+    }
+}
+
+@media (max-width: 400px) {
+    body.site-home .special-foods-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Keep the header (with the animated close icon) above the mobile overlay menu */
+body.site-home .top-bar:has(.top-nav.open) {
+    z-index: 2100;
+}
+
+/* Hide the Signature badge when the featured dish is out of stock */
+body.site-home .special-food-card.is-out-of-stock:first-child::after {
+    display: none;
+}
+/* ============================================================
+   HOME PAGE REFINEMENT v2 — "Crafted Silog" polish pass
+   Deepens the palette with dark/ember orange (#C2410C, #9A3412)
+   + burnt shadows, fixes hero/specials separation, adds a
+   firmly-stuck nav, floating cart glow, compact contact, and
+   a detailed footer. All rules stay scoped to body.site-home.
+   ============================================================ */
+
+/* ---------- 1. STICKY NAV — firmly fixed to the top ---------- */
+body.site-home .top-bar {
+    position: sticky;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 12px clamp(18px, 4vw, 48px);
+    border-radius: 0 0 20px 20px;
+    background: rgba(255, 255, 255, 0.9);
+    -webkit-backdrop-filter: blur(20px) saturate(1.5);
+    backdrop-filter: blur(20px) saturate(1.5);
+    border: none;
+    border-bottom: 1px solid rgba(17, 24, 39, 0.09);
+    box-shadow: 0 10px 30px rgba(17, 24, 39, 0.08);
+    transition: background 0.3s ease, box-shadow 0.3s ease, border-radius 0.3s ease;
+}
+
+body.site-home .top-bar.scrolled {
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 16px 40px rgba(17, 24, 39, 0.14), 0 1px 0 rgba(255, 107, 0, 0.25);
+    border-bottom-color: rgba(194, 65, 12, 0.22);
+}
+
+body.site-home .top-nav a:focus-visible,
+body.site-home .mobile-menu-toggle:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.45);
+}
+
+body.site-home section[id] {
+    scroll-margin-top: 88px;
+}
+
+/* ---------- 2. HERO — self-contained, full-bleed banner ---------- */
+body.site-home .front-section {
+    position: relative;
+    height: min(92vh, 860px);
+    min-height: 620px;
+    margin: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+body.site-home .hero-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 28%;
+    display: block;
+}
+
+/* Light porcelain overlay — keeps the left side bright for dark, readable text
+   while letting the food imagery show through on the right */
+body.site-home .hero-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background:
+        linear-gradient(100deg, rgba(249, 250, 251, 0.96) 0%, rgba(249, 250, 251, 0.86) 36%, rgba(249, 250, 251, 0.3) 68%, rgba(249, 250, 251, 0) 100%),
+        radial-gradient(ellipse at 15% 90%, rgba(255, 216, 181, 0.6), transparent 55%);
+}
+
+body.site-home .hero-content {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    z-index: 2;
+    width: min(100%, 600px);
+    margin-left: clamp(20px, 6vw, 110px);
+    padding: clamp(26px, 3.6vw, 44px) clamp(22px, 3.2vw, 42px);
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.6);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 28px 60px rgba(17, 24, 39, 0.14);
+    animation: heroCardIn 0.8s ease both;
+}
+
+@keyframes heroCardIn {
+    from { opacity: 0; transform: translateY(26px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+body.site-home .hero-kicker {
+    color: #C2410C;
+}
+
+body.site-home .hero-kicker::before {
+    background: linear-gradient(90deg, #FF6B00, #C2410C);
+}
+
+body.site-home .hero-title {
+    color: #111827;
+    text-wrap: balance;
+    font-size: clamp(2.4rem, 5.4vw, 4.3rem);
+}
+
+body.site-home .hero-title span {
+    color: #FF6B00;
+}
+
+body.site-home .hero-sub {
+    color: #4B5563;
+    font-size: clamp(0.98rem, 1.4vw, 1.08rem);
+}
+
+body.site-home .hero-actions .about-btn {
+    background: linear-gradient(135deg, #FF6B00 0%, #C2410C 100%);
+    box-shadow: 0 14px 30px rgba(194, 65, 12, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.4) inset;
+}
+
+body.site-home .hero-actions .about-btn:hover {
+    background: linear-gradient(135deg, #FF7A1A 0%, #D2480F 100%);
+    box-shadow: 0 20px 42px rgba(194, 65, 12, 0.45), 0 0 0 8px rgba(255, 216, 181, 0.5);
+}
+
+body.site-home .hero-actions .hero-ghost-btn {
+    color: #111827;
+    background: rgba(255, 255, 255, 0.65);
+    border: 1.5px solid rgba(17, 24, 39, 0.22);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+}
+
+body.site-home .hero-actions .hero-ghost-btn:hover {
+    background: #FFD8B5;
+    border-color: #FF6B00;
+}
+
+/* ---------- 3. SPECIAL FOODS — cleanly separated below hero ---------- */
+body.site-home .special-foods-visible {
+    margin: clamp(48px, 6vw, 76px) 24px 0;
+    background: rgba(255, 255, 255, 0.84);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 28px 64px rgba(154, 52, 18, 0.1), 0 24px 60px rgba(17, 24, 39, 0.08);
+}
+
+body.site-home .special-foods-heading::after {
+    background: linear-gradient(90deg, #FF6B00, #C2410C);
+    box-shadow: 0 2px 10px rgba(255, 107, 0, 0.5);
+}
+
+body.site-home .special-food-card {
+    transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+}
+
+body.site-home .special-food-card:hover {
+    border-color: rgba(194, 65, 12, 0.65);
+    box-shadow: 0 26px 52px rgba(154, 52, 18, 0.24), 0 10px 26px rgba(17, 24, 39, 0.1);
+}
+
+/* Signature tile — ember orange ring + deep glow */
+body.site-home .special-food-card:first-child {
+    border: 2px solid #C2410C;
+    box-shadow: 0 0 0 5px rgba(194, 65, 12, 0.16), 0 18px 44px rgba(154, 52, 18, 0.3);
+}
+
+body.site-home .special-food-card:first-child::after {
+    background: linear-gradient(135deg, #FF7A1A, #C2410C);
+    box-shadow: 0 6px 16px rgba(194, 65, 12, 0.5);
+}
+
+/* ---------- 4. FLOATING CART — ember FAB with soft ping ---------- */
+body.site-home #menuCartButton.menu-cart-button {
+    width: 62px !important;
+    height: 62px !important;
+    right: 22px !important;
+    bottom: 22px !important;
+    z-index: 1600;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    background: linear-gradient(145deg, #FF8A3D 0%, #FF6B00 45%, #C2410C 100%);
+    box-shadow: 0 14px 34px rgba(194, 65, 12, 0.55), 0 0 26px rgba(255, 107, 0, 0.35);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+body.site-home #menuCartButton.menu-cart-button::after {
+    content: "";
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 107, 0, 0.5);
+    animation: cartPing 2.6s ease-out infinite;
+    pointer-events: none;
+}
+
+@keyframes cartPing {
+    0% { transform: scale(0.8); opacity: 0.7; }
+    70%, 100% { transform: scale(1.4); opacity: 0; }
+}
+
+body.site-home #menuCartButton.menu-cart-button:hover {
+    background: linear-gradient(145deg, #FF9A55, #D2480F);
+    transform: translateY(-3px) scale(1.06);
+    box-shadow: 0 22px 50px rgba(154, 52, 18, 0.65), 0 0 0 10px rgba(255, 216, 181, 0.28);
+}
+
+body.site-home #menuTopCartCount {
+    background: #1C1917;
+    color: #FFD8B5;
+    border: 2px solid #fff;
+}
+
+/* ---------- 5. OTHER FOODS — overflow-proof + balanced ---------- */
+body.site-home .menu-section {
+    overflow: hidden;
+}
+
+body.site-home .menu-left,
+body.site-home .menu-image,
+body.site-home .menu-right {
+    min-width: 0;
+}
+
+body.site-home .menu-container {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    align-items: stretch;
+}
+
+body.site-home .menu-image {
+    align-self: center;
+}
+
+/* Keep the menu poster uncropped (contain), capped to a tidy height */
+body.site-home .menu-image .menu-design {
+    height: auto;
+    max-height: 560px;
+    object-fit: contain;
+}
+
+body.site-home .menu-category-btn {
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    text-wrap: balance;
+    overflow-wrap: break-word;
+    min-width: 0;
+}
+
+body.site-home .menu-category-btn:hover,
+body.site-home .menu-category-btn:focus-visible {
+    background: linear-gradient(135deg, #FF6B00, #C2410C);
+    box-shadow: 0 12px 26px rgba(194, 65, 12, 0.35);
+}
+
+/* ---------- 6. CONTACT — compact, streamlined ---------- */
+body.site-home .contact-section,
+body.site-home #contact {
+    padding: 72px clamp(18px, 5vw, 64px);
+}
+
+body.site-home .contact-info h2 {
+    font-size: clamp(1.6rem, 3vw, 2.1rem);
+    margin: 10px 0 12px;
+}
+
+body.site-home .contact-info > p {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 0 0 22px;
+}
+
+body.site-home .contact-details {
+    margin-top: 0;
+    display: grid;
+    gap: 12px;
+}
+
+body.site-home .contact-box {
+    gap: 14px;
+    margin-bottom: 0;
+    padding: 13px 16px;
+    border-radius: 16px;
+}
+
+body.site-home .contact-box:hover {
+    border-color: rgba(194, 65, 12, 0.35);
+    box-shadow: 0 16px 36px rgba(154, 52, 18, 0.16);
+}
+
+body.site-home .contact-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 17px;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #1C1917, #111827);
+    box-shadow: 0 8px 18px rgba(17, 24, 39, 0.28), 0 0 0 3px rgba(255, 107, 0, 0.12);
+}
+
+body.site-home .contact-box h3 {
+    font-size: 0.95rem;
+}
+
+body.site-home .contact-box p {
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+body.site-home .contact-form {
+    padding: clamp(22px, 3vw, 32px);
+    border-radius: 22px;
+    box-shadow: 0 20px 48px rgba(154, 52, 18, 0.14), 0 26px 64px rgba(17, 24, 39, 0.1);
+}
+
+body.site-home .contact-form h3 {
+    font-size: 1.25rem;
+    margin: 0 0 18px;
+}
+
+body.site-home .input-group {
+    margin-bottom: 14px;
+}
+
+body.site-home .input-group label {
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+}
+
+body.site-home .input-group select,
+body.site-home .input-group textarea {
+    padding: 11px 14px;
+    font-size: 0.9rem;
+    border-radius: 12px;
+    border: 1.5px solid rgba(17, 24, 39, 0.1);
+}
+
+body.site-home .input-group textarea {
+    min-height: 96px;
+}
+
+body.site-home .input-group select:focus,
+body.site-home .input-group textarea:focus {
+    border-color: #C2410C;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(194, 65, 12, 0.18);
+}
+
+body.site-home .contact-form button[type="submit"] {
+    padding: 12px 18px;
+    font-size: 0.88rem;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #FF6B00, #C2410C);
+}
+
+body.site-home .contact-form button[type="submit"]:hover {
+    background: linear-gradient(135deg, #FF7A1A, #D2480F);
+    box-shadow: 0 20px 42px rgba(194, 65, 12, 0.5), 0 0 0 8px rgba(255, 216, 181, 0.3);
+}
+
+body.site-home .review-submit-note {
+    font-size: 0.75rem;
+    margin-top: 12px;
+}
+
+/* Map + reviews — compact */
+body.site-home .map-section {
+    padding: 40px clamp(18px, 5vw, 64px) 72px;
+    gap: 20px;
+}
+
+body.site-home .map-inner,
+body.site-home .customer-reviews-panel {
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: 0 18px 44px rgba(154, 52, 18, 0.1), 0 22px 54px rgba(17, 24, 39, 0.08);
+}
+
+body.site-home .map-inner h2,
+body.site-home .customer-reviews-panel h3 {
+    font-size: 1.2rem;
+    margin: 0 0 12px;
+}
+
+body.site-home .map-wrapper {
+    border-radius: 14px;
+    box-shadow: 0 0 0 1px rgba(17, 24, 39, 0.08), 0 12px 30px rgba(154, 52, 18, 0.16);
+}
+
+body.site-home .map-wrapper iframe {
+    min-height: 300px;
+}
+
+/* ---------- 7. DARK ORANGE AESTHETIC — depth across the page ---------- */
+body.site-home {
+    background-color: #F9FAFB;
+    background-image:
+        radial-gradient(circle at 8% 24%, rgba(255, 216, 181, 0.5), transparent 32%),
+        radial-gradient(circle at 92% 10%, rgba(194, 65, 12, 0.06), transparent 26%),
+        radial-gradient(circle at 72% 92%, rgba(255, 107, 0, 0.05), transparent 30%);
+    background-attachment: scroll;
+}
+
+/* Fixed background textures are a known mobile repaint/jank source — desktop only */
+@media (min-width: 901px) {
+    body.site-home {
+        background-attachment: fixed;
+    }
+}
+
+body.site-home .about-section,
+body.site-home #about,
+body.site-home .contact-section,
+body.site-home #contact {
+    background-image:
+        radial-gradient(ellipse at 12% 20%, rgba(255, 216, 181, 0.4), transparent 55%),
+        radial-gradient(ellipse at 88% 80%, rgba(194, 65, 12, 0.1), transparent 50%);
+}
+
+body.site-home .about-tag,
+body.site-home .contact-tag {
+    color: #C2410C;
+    letter-spacing: 0.22em;
+}
+
+body.site-home .feature-box {
+    border: 1px solid rgba(17, 24, 39, 0.06);
+    box-shadow: 0 8px 20px rgba(17, 24, 39, 0.05);
+}
+
+body.site-home .feature-box:hover {
+    border-color: rgba(194, 65, 12, 0.4);
+    box-shadow: 0 18px 38px rgba(154, 52, 18, 0.2);
+}
+
+body.site-home .about-content,
+body.site-home .map-inner,
+body.site-home .customer-reviews-panel,
+body.site-home .slideshow {
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 24px 60px rgba(154, 52, 18, 0.1), 0 22px 54px rgba(17, 24, 39, 0.08);
+}
+
+body.site-home .customer-review-card {
+    border-left: 3px solid transparent;
+}
+
+body.site-home .customer-review-card:hover {
+    border-left-color: #C2410C;
+    box-shadow: 0 18px 38px rgba(154, 52, 18, 0.18);
+}
+
+body.site-home .customer-review-card::before {
+    background: linear-gradient(135deg, #1C1917, #111827);
+    box-shadow: 0 8px 18px rgba(17, 24, 39, 0.3);
+}
+
+body.site-home .slide-dots button.active {
+    background: #C2410C;
+    box-shadow: 0 2px 10px rgba(255, 107, 0, 0.6);
+}
+
+body.site-home .highlights-heading h2 {
+    text-wrap: balance;
+}
+
+/* Primary CTA only gets the ember gradient; secondary actions keep their dark hierarchy */
+body.site-home .menu-place-order-btn {
+    background: linear-gradient(135deg, #FF6B00, #C2410C);
+}
+
+body.site-home .menu-place-order-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #FF7A1A, #D2480F);
+    box-shadow: 0 14px 30px rgba(194, 65, 12, 0.45);
+}
+
+/* ---------- 8. FOOTER — detailed brand footer ---------- */
+body.site-home .site-footer {
+    position: relative;
+    margin-top: 8px;
+    padding: 64px clamp(18px, 5vw, 64px) 0;
+    background: #14100D;
+    color: #D1D5DB;
+    border-top: 4px solid transparent;
+    border-image: linear-gradient(90deg, #FF6B00, #C2410C, #FF8A3D, #FF6B00) 1;
+    overflow: hidden;
+}
+
+body.site-home .site-footer::before {
+    content: "";
+    position: absolute;
+    top: -140px;
+    right: -80px;
+    width: 360px;
+    height: 360px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 107, 0, 0.18), transparent 65%);
+    pointer-events: none;
+}
+
+body.site-home .site-footer::after {
+    content: "";
+    position: absolute;
+    bottom: -160px;
+    left: -100px;
+    width: 340px;
+    height: 340px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(194, 65, 12, 0.14), transparent 65%);
+    pointer-events: none;
+}
+
+body.site-home .footer-top {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1.1fr 1.1fr;
+    gap: clamp(28px, 4vw, 48px);
+}
+
+body.site-home .footer-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    margin-bottom: 16px;
+}
+
+body.site-home .footer-brand-name {
+    font-family: "Montserrat", sans-serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #ffffff;
+}
+
+body.site-home .footer-tagline {
+    max-width: 320px;
+    margin: 0 0 20px;
+    color: #9CA3AF;
+    font-size: 0.92rem;
+    line-height: 1.65;
+}
+
+body.site-home .footer-social {
+    display: flex;
+    gap: 10px;
+}
+
+body.site-home .footer-social a {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #F3F4F6;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: transform 0.25s ease, background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+}
+
+body.site-home .footer-social a:hover {
+    background: linear-gradient(135deg, #FF6B00, #C2410C);
+    color: #fff;
+    transform: translateY(-3px);
+    box-shadow: 0 12px 26px rgba(255, 107, 0, 0.35);
+}
+
+body.site-home .footer-col h4 {
+    margin: 0 0 18px;
+    padding-bottom: 12px;
+    position: relative;
+    color: #ffffff;
+    font-family: "Montserrat", sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+body.site-home .footer-col h4::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 34px;
+    height: 3px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #FF6B00, #C2410C);
+}
+
+body.site-home .footer-col a {
+    display: block;
+    padding: 6px 0;
+    color: #9CA3AF;
+    text-decoration: none;
+    font-size: 0.92rem;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+body.site-home .footer-col a:hover {
+    color: #FF8A3D;
+    transform: translateX(4px);
+}
+
+body.site-home .footer-col p {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0 0 12px;
+    color: #9CA3AF;
+    font-size: 0.92rem;
+    line-height: 1.6;
+}
+
+body.site-home .footer-col p i {
+    width: 16px;
+    margin-top: 4px;
+    flex-shrink: 0;
+    text-align: center;
+    color: #FF6B00;
+}
+
+body.site-home .footer-bottom {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 44px auto 0;
+    padding: 20px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+body.site-home .footer-bottom p {
+    margin: 0;
+    color: #6B7280;
+    font-size: 0.85rem;
+}
+
+body.site-home .footer-made-with span {
+    color: #FF6B00;
+}
+
+/* ---------- 9. RESPONSIVE — tablets & phones ---------- */
+@media (max-width: 900px) {
+    body.site-home .top-bar {
+        padding: 10px 16px;
+        border-radius: 0 0 16px 16px;
+    }
+
+    body.site-home .hero-content {
+        width: calc(100% - 32px);
+        max-width: 460px;
+        margin-left: 16px;
+        margin-right: 16px;
+    }
+
+    body.site-home .special-foods-visible {
+        margin: 40px 14px 0;
+        padding: 30px 18px;
+    }
+
+    body.site-home .menu-container {
+        grid-template-columns: 1fr;
+    }
+
+    body.site-home .menu-image {
+        max-height: 240px;
+        align-self: auto;
+    }
+
+    body.site-home .menu-image .menu-design {
+        min-height: 0;
+        height: auto;
+        max-height: 240px;
+    }
+
+    body.site-home .footer-top {
+        grid-template-columns: 1fr 1fr;
+        gap: 36px;
+    }
+
+    body.site-home .footer-brand {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 560px) {
+    body.site-home .front-section {
+        height: 84vh;
+        min-height: 540px;
+        align-items: center;
+        padding-bottom: 0;
+    }
+
+    body.site-home .hero-content {
+        width: calc(100% - 24px);
+        max-width: none;
+        margin: 0 12px;
+        padding: 24px 20px;
+        border-radius: 22px;
+    }
+
+    body.site-home .hero-kicker {
+        font-size: 0.68rem;
+        letter-spacing: 0.22em;
+        margin-bottom: 14px;
+    }
+
+    body.site-home .hero-title {
+        font-size: clamp(2rem, 9.5vw, 2.7rem);
+        line-height: 1.08;
+    }
+
+    body.site-home .hero-sub {
+        margin-top: 14px;
+        font-size: 0.92rem;
+        line-height: 1.55;
+    }
+
+    body.site-home .hero-actions {
+        margin-top: 22px;
+        gap: 10px;
+    }
+
+    body.site-home .hero-actions .about-btn,
+    body.site-home .hero-actions .hero-ghost-btn {
+        padding: 13px 22px;
+        font-size: 0.9rem;
+    }
+
+    body.site-home .menu-section {
+        padding: 18px 14px;
+    }
+
+    body.site-home .menu-category-btn {
+        padding: 13px 10px;
+        font-size: 0.76rem;
+        border-radius: 13px;
+    }
+
+    body.site-home .contact-section,
+    body.site-home #contact,
+    body.site-home .about-section,
+    body.site-home #about {
+        padding: 52px 14px;
+    }
+
+    body.site-home .contact-form {
+        padding: 22px 18px;
+        border-radius: 18px;
+    }
+
+    body.site-home .contact-box {
+        padding: 12px 14px;
+    }
+
+    body.site-home .contact-icon {
+        width: 38px;
+        height: 38px;
+        font-size: 15px;
+    }
+
+    body.site-home .map-section {
+        padding: 28px 14px 56px;
+    }
+
+    body.site-home .map-wrapper iframe {
+        min-height: 240px;
+    }
+
+    body.site-home .site-footer {
+        padding: 48px 18px 0;
+    }
+
+    body.site-home .footer-top {
+        grid-template-columns: 1fr;
+        gap: 30px;
+    }
+
+    body.site-home .footer-bottom {
+        margin-top: 30px;
+        justify-content: center;
+        text-align: center;
+    }
+}
+
+/* FAB stays clear of the footer links on very small screens */
+@media (max-width: 400px) {
+    body.site-home #menuCartButton.menu-cart-button {
+        width: 56px !important;
+        height: 56px !important;
+        right: 14px !important;
+        bottom: 14px !important;
+    }
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    body.site-home .hero-content {
+        animation: none;
+    }
+
+    body.site-home #menuCartButton.menu-cart-button::after {
+        animation: none;
+    }
+}
+
+/* ---------- 10. CONTAINING-BLOCK FIX (critical) ----------
+   backdrop-filter creates a containing block for position:fixed
+   descendants, which anchors the floating cart FAB to the menu
+   section and shrinks the mobile nav overlay to the header box.
+   We neutralise it on those ancestors and compensate with a
+   slightly more opaque background so the glass look is kept. */
+body.site-home .top-bar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: rgba(255, 255, 255, 0.94);
+}
+
+body.site-home .top-bar.scrolled {
+    background: rgba(255, 255, 255, 0.98);
+}
+
+body.site-home .menu-section {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: rgba(255, 255, 255, 0.82);
+}
+/* ============================================================
+   v3 — user-requested adjustments
+   1) Nav: firmly sticky at the very top + glassy orange look.
+      The blur lives on a ::before child so the fixed mobile
+      menu / floating cart keep the viewport as containing
+      block (backdrop-filter on .top-bar itself would re-break
+      the containing-block fix).
+   2) Footer: 2-column grid on phones.
+   3) Hero: no overlay gradient, no card shadow, no backdrop
+      blur — hero.jpg stays fully crisp and unblurred.
+   ============================================================ */
+
+/* ---------- 1. GLASSY ORANGE STICKY NAV ---------- */
+body.site-home .top-bar {
+    position: sticky;
+    top: 0;
+    z-index: 1200;
+    width: 100%;
+    margin: 0;
+    border-radius: 0 0 20px 20px;
+    background: rgba(255, 107, 0, 0.72);
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+    box-shadow: 0 10px 30px rgba(194, 65, 12, 0.28);
+}
+
+/* Glass blur on a child pseudo-element keeps position:fixed
+   descendants (mobile menu overlay, cart FAB) anchored to the
+   viewport instead of the header. */
+body.site-home .top-bar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(255, 122, 26, 0.62), rgba(194, 65, 12, 0.74));
+    -webkit-backdrop-filter: blur(16px) saturate(1.5);
+    backdrop-filter: blur(16px) saturate(1.5);
+}
+
+body.site-home .top-bar.scrolled {
+    background: rgba(255, 107, 0, 0.9);
+    box-shadow: 0 16px 40px rgba(194, 65, 12, 0.4);
+}
+
+/* White text + accents for readability on the orange glass */
+body.site-home .brand-wordmark {
+    color: #ffffff;
+}
+
+body.site-home .top-nav a {
+    color: #ffffff;
+}
+
+body.site-home .top-nav a::after {
+    background: #ffffff;
+}
+
+body.site-home .top-nav a:hover,
+body.site-home .top-nav a:focus-visible {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+body.site-home .live-clock {
+    color: #ffffff;
+}
+
+@media (max-width: 900px) {
+    body.site-home .mobile-menu-toggle {
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 8px 20px rgba(194, 65, 12, 0.3);
+    }
+
+    body.site-home .mobile-menu-toggle span {
+        background: #FF6B00;
+    }
+
+    /* Keep the animated X visible: orange bars on the white pill button */
+    body.site-home .mobile-menu-toggle[aria-expanded="true"] span {
+        background: #FF6B00;
+    }
+
+    /* The full-screen mobile menu is a light glass panel, so switch the
+       nav links (white on desktop orange glass) back to dark ink here. */
+    body.site-home .top-nav a {
+        color: #111827;
+    }
+
+    body.site-home .top-nav a::after {
+        background: #C2410C;
+    }
+
+    body.site-home .top-nav a:hover,
+    body.site-home .top-nav a:focus-visible {
+        background: rgba(255, 107, 0, 0.12);
+    }
+}
+
+/* ---------- 2. FOOTER — 2 columns on phones ---------- */
+@media (max-width: 560px) {
+    body.site-home .footer-top {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 32px 22px;
+    }
+}
+
+/* ---------- 3. HERO — keep hero.jpg crisp, no overlay/shadow ---------- */
+body.site-home .hero-overlay {
+    display: none;
+}
+
+body.site-home .hero-content {
+    background: rgba(255, 255, 255, 0.85);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+/* ---------- 4. ABOUT — warm brand-orange section ---------- */
+body.site-home .about-section,
+body.site-home #about {
+    background: linear-gradient(135deg, #FF8A3D 0%, #FF6B00 48%, #E65100 100%);
+}
+
+body.site-home .about-image img {
+    box-shadow: 0 26px 60px rgba(120, 38, 0, 0.35);
+}
+
+body.site-home .about-tag {
+    color: #FF6B00;
+}
+
+body.site-home .feature-box:hover {
+    box-shadow: 0 18px 38px rgba(120, 38, 0, 0.35);
+}
+
+/* ---------- 5. ABOUT IMAGE — show the full photo, never cropped ---------- */
+body.site-home .about-image img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+}
+
+/* ---------- 6. ABOUT LEFT COLUMN — image with the feature boxes
+   (Fresh Food / Quality Service) stacked underneath it ---------- */
+body.site-home .about-left {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    min-width: 0;
+}
+
+body.site-home .about-left .about-features {
+    margin: 0;
+}
+
+body.site-home .about-left .feature-box {
+    background: rgba(255, 255, 255, 0.55);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+}
+
+/* ---------- 7. ABOUT CONTENT — frosted glassmorphism white card ---------- */
+body.site-home .about-content {
+    background: rgba(255, 255, 255, 0.68);
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
+    backdrop-filter: blur(22px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    box-shadow:
+        0 24px 60px rgba(120, 38, 0, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+
+/* ============================================================
+   REVIEW STAR-RATING FILTER BUTTONS (public + staff pages)
+   ============================================================ */
+.review-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 14px 0 18px;
+}
+
+.review-filter-btn {
+    appearance: none;
+    border: 1.5px solid rgba(17, 24, 39, 0.14);
+    background: #fff;
+    color: #374151;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 8px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.review-filter-btn:hover {
+    border-color: #FF6B00;
+    color: #FF6B00;
+    transform: translateY(-1px);
+}
+
+.review-filter-btn:focus-visible {
+    outline: 3px solid rgba(255, 107, 0, 0.35);
+    outline-offset: 2px;
+}
+
+.review-filter-btn.is-active {
+    background: #FF6B00;
+    border-color: #FF6B00;
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(255, 107, 0, 0.35);
+}
+
