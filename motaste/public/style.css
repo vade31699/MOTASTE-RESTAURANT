@@ -7264,10 +7264,6 @@ body.staff-app ::-webkit-scrollbar-thumb:hover {
 }
 
 /* ---------- Header / top bar ---------- */
-body.staff-app:not(.auth) .staff-header {
-    display: none;
-}
-
 body.staff-app.auth .top-bar.login-top-bar {
     position: sticky;
     top: 0;
@@ -7278,76 +7274,6 @@ body.staff-app.auth .top-bar.login-top-bar {
     border-bottom: 1px solid var(--staff-border-soft);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
     padding: 10px 24px;
-}
-
-body.staff-app .staff-header {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    width: 100%;
-}
-
-body.staff-app .staff-header-brand {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    flex: 0 0 auto;
-    text-decoration: none;
-}
-
-body.staff-app .staff-header-brand .brand-monogram {
-    position: relative;
-    display: grid;
-    place-items: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, var(--staff-accent-strong), var(--staff-accent));
-    color: #fff;
-    font-family: "Montserrat", sans-serif;
-    font-size: 15px;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-    box-shadow: 0 8px 20px rgba(124, 58, 237, 0.4);
-}
-
-body.staff-app .staff-header-brand .brand-dot {
-    position: absolute;
-    right: 7px;
-    bottom: 7px;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--staff-gold);
-    box-shadow: 0 0 0 2px rgba(20, 21, 25, 0.9), 0 0 10px rgba(246, 199, 0, 0.8);
-}
-
-body.staff-app .staff-header-brand .brand-wordmark {
-    font-size: 17px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--staff-text);
-}
-
-body.staff-app .staff-header-actions {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-body.staff-app .staff-header-avatar {
-    display: grid;
-    place-items: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--staff-accent-strong), var(--staff-accent));
-    color: #fff;
-    font-size: 15px;
-    border: 2px solid rgba(255, 255, 255, 0.35);
-    box-shadow: 0 8px 20px rgba(124, 58, 237, 0.4);
 }
 
 /* ---------- Dashboard panel (slide-out drawer) ---------- */
@@ -7362,6 +7288,7 @@ body.staff-app .dashboard-panel {
 
 body.staff-app .dashboard-panel h3 {
     color: var(--staff-text);
+    text-align: center;
 }
 
 body.staff-app .dashboard-profile {
@@ -7384,6 +7311,7 @@ body.staff-app .dashboard-profile-avatar {
 body.staff-app .dashboard-panel a {
     color: var(--staff-muted);
     border-radius: 10px;
+    text-align: center;
     transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
 }
 
@@ -7396,7 +7324,7 @@ body.staff-app .dashboard-panel a.active {
     background: var(--staff-accent-soft);
     color: #fff;
     font-weight: 700;
-    box-shadow: inset 3px 0 0 var(--staff-accent), 0 0 0 1px rgba(139, 92, 246, 0.25);
+    box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.35);
 }
 
 body.staff-app .dashboard-panel .panel-close {
@@ -7418,6 +7346,9 @@ body.staff-app .logout-btn {
     background: var(--staff-surface-2);
     color: var(--staff-text);
     border: 1px solid var(--staff-border);
+    display: block;
+    width: 100%;
+    text-align: center;
 }
 
 body.staff-app .logout-btn:hover {
@@ -8345,24 +8276,6 @@ body.staff-app .login-dark-overlay {
     body.staff-app.auth .top-bar.login-top-bar {
         padding: 10px 16px 10px 60px;
         z-index: 1000;
-    }
-
-    body.staff-app .staff-header {
-        gap: 10px;
-    }
-
-    body.staff-app .staff-header-brand .brand-wordmark {
-        display: none;
-    }
-
-    body.staff-app .staff-header-actions {
-        gap: 8px;
-    }
-
-    body.staff-app .staff-header-avatar {
-        width: 36px;
-        height: 36px;
-        font-size: 14px;
     }
 
     body.staff-app .overview-section,
