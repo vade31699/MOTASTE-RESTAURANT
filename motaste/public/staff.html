@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link rel="stylesheet" href="./style.css?v=20260808a">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css?v=20260809a">
     <title>Staff Login - MOTASTE</title>
     <style>
         html,
@@ -104,13 +107,32 @@
         }
     </style>
 </head>
-<body>
+<body class="staff-app">
     <div class="top-bar login-top-bar">
         <button type="button" id="menuBtn" class="menu-btn" aria-label="Open dashboard menu" aria-expanded="false" hidden>
             <span></span>
             <span></span>
             <span></span>
         </button>
+
+        <div class="staff-header" id="staffHeader">
+            <div class="staff-header-brand">
+                <span class="brand-monogram" aria-hidden="true">MT<span class="brand-dot"></span></span>
+                <span class="brand-wordmark">Motaste</span>
+            </div>
+            <div class="staff-header-welcome">
+                <span class="staff-welcome-hello">Welcome back</span>
+                <strong id="staffHeaderUserName">Account</strong>
+            </div>
+            <div class="staff-header-actions">
+                <button type="button" id="staffHeaderSearchBtn" class="staff-header-icon-btn" aria-label="Search inventory">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                </button>
+                <div class="staff-header-avatar" aria-hidden="true">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+            </div>
+        </div>
      
     <div id="dashboardPanel" class="dashboard-panel" aria-label="Dashboard menu">
         <button type="button" id="closePanelBtn" class="panel-close" aria-label="Close dashboard menu">×</button>
@@ -463,11 +485,11 @@
             <p>Customer reviews across devices. Publish approved reviews or delete inappropriate ones.</p>
             <div class="review-filter-bar" role="group" aria-label="Filter reviews by star rating">
                 <button type="button" class="review-filter-btn is-active" data-review-rating="0">All</button>
-                <button type="button" class="review-filter-btn" data-review-rating="5">5 ★</button>
-                <button type="button" class="review-filter-btn" data-review-rating="4">4 ★</button>
-                <button type="button" class="review-filter-btn" data-review-rating="3">3 ★</button>
-                <button type="button" class="review-filter-btn" data-review-rating="2">2 ★</button>
-                <button type="button" class="review-filter-btn" data-review-rating="1">1 ★</button>
+                <button type="button" class="review-filter-btn" data-review-rating="1">1 Star</button>
+                <button type="button" class="review-filter-btn" data-review-rating="2">2 Star</button>
+                <button type="button" class="review-filter-btn" data-review-rating="3">3 Star</button>
+                <button type="button" class="review-filter-btn" data-review-rating="4">4 Star</button>
+                <button type="button" class="review-filter-btn" data-review-rating="5">5 Star</button>
             </div>
             <div id="staffReviewList" class="staff-review-list"></div>
         </div>
@@ -536,27 +558,91 @@
         <button type="button" id="toggleCredentialsFormBtn" class="add-staff-btn">CHANGE ADMIN EMAIL</button>
 
         <form id="credentialsForm" class="account-form" hidden>
-            <input type="email" id="adminCurrentEmail" placeholder="Current admin Gmail" readonly>
-            <input type="password" id="adminCurrentPassword" placeholder="Current admin password" required>
-            <input type="email" id="adminNewEmail" placeholder="New admin Gmail" required>
-            <input type="password" id="adminNewPassword" placeholder="New admin password (min 8 characters)" minlength="8" required>
+            <div class="floating-field">
+                <input type="email" id="adminCurrentEmail" placeholder=" " readonly autocomplete="off">
+                <label for="adminCurrentEmail">Current admin Gmail</label>
+            </div>
+            <div class="floating-field">
+                <input type="password" id="adminCurrentPassword" placeholder=" " required autocomplete="current-password">
+                <label for="adminCurrentPassword">Current admin password</label>
+            </div>
+            <div class="floating-field">
+                <input type="email" id="adminNewEmail" placeholder=" " required autocomplete="off">
+                <label for="adminNewEmail">New admin Gmail</label>
+            </div>
+            <div class="floating-field">
+                <input type="password" id="adminNewPassword" placeholder=" " minlength="8" required autocomplete="new-password">
+                <label for="adminNewPassword">New admin password</label>
+                <small class="field-helper">Password must be a minimum of 8 characters. There is no maximum length restriction.</small>
+            </div>
             <button type="button" id="requestCredentialsChangeBtn">Send Verification Code</button>
-            <input type="text" id="adminChangeCode" placeholder="Enter verification code" maxlength="8">
+            <div class="floating-field">
+                <input type="text" id="adminChangeCode" placeholder=" " maxlength="8" inputmode="numeric" autocomplete="one-time-code">
+                <label for="adminChangeCode">Verification code</label>
+            </div>
             <button type="submit" id="confirmCredentialsChangeBtn">Verify and Apply</button>
         </form>
 
         <button type="button" id="togglePasswordFormBtn" class="add-staff-btn" style="margin-top: 12px;">CHANGE ADMIN PASSWORD</button>
 
         <form id="passwordCredentialsForm" class="account-form" hidden>
-            <input type="email" id="adminPasswordCurrentEmail" placeholder="Current admin Gmail" readonly>
-            <input type="password" id="adminPasswordCurrentPassword" placeholder="Current admin password" required>
-            <input type="password" id="adminPasswordNewPassword" placeholder="New admin password (min 8 characters)" minlength="8" required>
+            <div class="floating-field">
+                <input type="email" id="adminPasswordCurrentEmail" placeholder=" " readonly autocomplete="off">
+                <label for="adminPasswordCurrentEmail">Current admin Gmail</label>
+            </div>
+            <div class="floating-field">
+                <input type="password" id="adminPasswordCurrentPassword" placeholder=" " required autocomplete="current-password">
+                <label for="adminPasswordCurrentPassword">Current admin password</label>
+            </div>
+            <div class="floating-field">
+                <input type="password" id="adminPasswordNewPassword" placeholder=" " minlength="8" required autocomplete="new-password">
+                <label for="adminPasswordNewPassword">New admin password</label>
+                <small class="field-helper">Password must be a minimum of 8 characters. There is no maximum length restriction.</small>
+            </div>
             <button type="button" id="requestPasswordChangeBtn">Send Verification Code</button>
-            <input type="text" id="adminPasswordChangeCode" placeholder="Enter verification code" maxlength="8">
+            <div class="floating-field">
+                <input type="text" id="adminPasswordChangeCode" placeholder=" " maxlength="8" inputmode="numeric" autocomplete="one-time-code">
+                <label for="adminPasswordChangeCode">Verification code</label>
+            </div>
             <button type="submit" id="confirmPasswordChangeBtn">Verify and Apply</button>
         </form>
+
+        <div class="trusted-devices-card" id="trustedDevicesCard">
+            <div class="trusted-devices-header">
+                <h3>Trusted Devices</h3>
+                <p>Devices that can sign in without a verification code. Revoke any you no longer use.</p>
+            </div>
+            <div id="trustedDevicesList" class="trusted-devices-list"></div>
+            <p id="trustedDevicesMessage" class="menu-order-message" aria-live="polite"></p>
+        </div>
+
         <p id="credentialsMessage" class="menu-order-message" aria-live="polite"></p>
     </section>
+
+    <div id="deviceVerifyModal" class="modal-overlay" hidden aria-hidden="true">
+        <div class="modal-box device-verify-modal" role="dialog" aria-modal="true" aria-labelledby="deviceVerifyTitle">
+            <button type="button" class="modal-close" id="deviceVerifyCloseBtn" aria-label="Close verification prompt">×</button>
+            <div class="device-verify-step" id="deviceVerifyConfirmStep">
+                <h2 id="deviceVerifyTitle">New login detected</h2>
+                <p id="deviceVerifyText">Send a confirmation code to your email to continue?</p>
+                <div class="device-verify-actions">
+                    <button type="button" id="deviceVerifyCancelBtn" class="secondary-btn">Cancel</button>
+                    <button type="button" id="deviceVerifySendBtn" class="menu-place-order-btn">Send Code</button>
+                </div>
+            </div>
+            <div class="device-verify-step" id="deviceVerifyCodeStep" hidden>
+                <h2>Enter verification code</h2>
+                <p>We emailed a 6-digit code to your email. Enter it below.</p>
+                <label for="deviceVerifyCodeInput">Verification code</label>
+                <input type="text" id="deviceVerifyCodeInput" inputmode="numeric" maxlength="8" placeholder="6-digit code" autocomplete="one-time-code">
+                <div class="device-verify-actions">
+                    <button type="button" id="deviceVerifyBackBtn" class="secondary-btn">Cancel</button>
+                    <button type="button" id="deviceVerifySubmitBtn" class="menu-place-order-btn">Verify</button>
+                </div>
+                <p id="deviceVerifyMessage" class="menu-order-message" aria-live="polite"></p>
+            </div>
+        </div>
+    </div>
 
     <div class="login-dark-overlay" aria-hidden="true"></div>
     <img src="./frontimg/logo-removebg-preview.png" alt="MOTASTE logo" class="bg-logo">

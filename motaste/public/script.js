@@ -15,6 +15,8 @@ const dashboardPanel = document.getElementById('dashboardPanel');
 const closePanelBtn = document.getElementById('closePanelBtn');
 const dashboardUserName = document.getElementById('dashboardUserName');
 const dashboardUserEmail = document.getElementById('dashboardUserEmail');
+const staffHeaderUserName = document.getElementById('staffHeaderUserName');
+const staffHeaderSearchBtn = document.getElementById('staffHeaderSearchBtn');
 const staffForm = document.getElementById('staffLoginForm');
 const staffLoginPage = document.querySelector('.staff-login-page');
 
@@ -778,6 +780,10 @@ function updateDashboardProfile() {
     if (dashboardUserEmail) {
         dashboardUserEmail.textContent = email;
     }
+
+    if (staffHeaderUserName) {
+        staffHeaderUserName.textContent = role;
+    }
 }
 
 function getCurrentStaffActor() {
@@ -1008,6 +1014,200 @@ async function verifyDeviceLogin(email, password, code, deviceToken) {
     }
 }
 
+/* ---- Device verification modal (replaces native prompt) ---- */
+const deviceVerifyModal = document.getElementById('deviceVerifyModal');
+const deviceVerifyConfirmStep = document.getElementById('deviceVerifyConfirmStep');
+const deviceVerifyCodeStep = document.getElementById('deviceVerifyCodeStep');
+const deviceVerifyTitle = document.getElementById('deviceVerifyTitle');
+const deviceVerifyText = document.getElementById('deviceVerifyText');
+const deviceVerifyCancelBtn = document.getElementById('deviceVerifyCancelBtn');
+const deviceVerifySendBtn = document.getElementById('deviceVerifySendBtn');
+const deviceVerifyBackBtn = document.getElementById('deviceVerifyBackBtn');
+const deviceVerifySubmitBtn = document.getElementById('deviceVerifySubmitBtn');
+const deviceVerifyCloseBtn = document.getElementById('deviceVerifyCloseBtn');
+const deviceVerifyCodeInput = document.getElementById('deviceVerifyCodeInput');
+const deviceVerifyMessage = document.getElementById('deviceVerifyMessage');
+
+let deviceVerifyResolver = null;
+
+function openDeviceVerifyModal() {
+    if (!deviceVerifyModal) return;
+    deviceVerifyModal.hidden = false;
+    deviceVerifyModal.classList.add('active');
+    deviceVerifyModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeDeviceVerifyModal() {
+    if (!deviceVerifyModal) return;
+    deviceVerifyModal.hidden = true;
+    deviceVerifyModal.classList.remove('active');
+    deviceVerifyModal.setAttribute('aria-hidden', 'true');
+}
+
+function resetDeviceVerifyModal() {
+    if (deviceVerifyConfirmStep) deviceVerifyConfirmStep.hidden = false;
+    if (deviceVerifyCodeStep) deviceVerifyCodeStep.hidden = true;
+    if (deviceVerifyCodeInput) deviceVerifyCodeInput.value = '';
+    if (deviceVerifyMessage) deviceVerifyMessage.textContent = '';
+}
+
+function showDeviceVerifyCodeStep() {
+    if (deviceVerifyConfirmStep) deviceVerifyConfirmStep.hidden = true;
+    if (deviceVerifyCodeStep) deviceVerifyCodeStep.hidden = false;
+    if (deviceVerifyCodeInput) deviceVerifyCodeInput.focus();
+}
+
+/**
+ * Promise-based replacement for window.prompt() during device verification.
+ * Resolves with the entered code string, or null when the user cancels.
+ */
+function requestDeviceVerificationCode() {
+    if (!deviceVerifyModal) return Promise.resolve(null);
+    return new Promise((resolve) => {
+        deviceVerifyResolver = resolve;
+        resetDeviceVerifyModal();
+        openDeviceVerifyModal();
+    });
+}
+
+function resolveDeviceVerify(value) {
+    closeDeviceVerifyModal();
+    resetDeviceVerifyModal();
+    const resolve = deviceVerifyResolver;
+    deviceVerifyResolver = null;
+    if (resolve) resolve(value);
+}
+
+if (deviceVerifyCancelBtn) {
+    deviceVerifyCancelBtn.addEventListener('click', () => resolveDeviceVerify(null));
+}
+
+if (deviceVerifyCloseBtn) {
+    deviceVerifyCloseBtn.addEventListener('click', () => resolveDeviceVerify(null));
+}
+
+if (deviceVerifySendBtn) {
+    deviceVerifySendBtn.addEventListener('click', () => showDeviceVerifyCodeStep());
+}
+
+if (deviceVerifyBackBtn) {
+    deviceVerifyBackBtn.addEventListener('click', () => resolveDeviceVerify(null));
+}
+
+if (deviceVerifySubmitBtn) {
+    deviceVerifySubmitBtn.addEventListener('click', () => {
+        const code = deviceVerifyCodeInput ? deviceVerifyCodeInput.value.trim() : '';
+        if (!code) {
+            if (deviceVerifyMessage) deviceVerifyMessage.textContent = 'Enter the 6-digit code sent to your email.';
+            return;
+        }
+        resolveDeviceVerify(code);
+    });
+}
+
+if (deviceVerifyCodeInput) {
+    deviceVerifyCodeInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            if (deviceVerifySubmitBtn) deviceVerifySubmitBtn.click();
+        }
+    });
+}
+
+/* ---- Trusted devices management ---- */
+const trustedDevicesList = document.getElementById('trustedDevicesList');
+const trustedDevicesMessage = document.getElementById('trustedDevicesMessage');
+
+async function loadTrustedDevices() {
+    if (!trustedDevicesList) return;
+    const actor = getCurrentStaffActor();
+    if (!actor.email) return;
+
+    try {
+        const query = new URLSearchParams({
+            email: actor.email,
+            deviceToken: getOrCreateDeviceToken()
+        });
+        const response = await fetch(getApiUrl(`api/get_trusted_devices.php?${query.toString()}&_=${Date.now()}`), { cache: 'no-store' });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || 'Unable to load trusted devices');
+        }
+        renderTrustedDevices(Array.isArray(payload.devices) ? payload.devices : []);
+    } catch (error) {
+        console.error('Unable to load trusted devices', error);
+        if (trustedDevicesMessage) trustedDevicesMessage.textContent = error.message || 'Unable to load trusted devices.';
+    }
+}
+
+function renderTrustedDevices(devices) {
+    if (!trustedDevicesList) return;
+
+    if (!devices.length) {
+        trustedDevicesList.innerHTML = '<p class="trusted-devices-empty">No trusted devices yet. Your current device becomes trusted after you verify your login.</p>';
+        return;
+    }
+
+    trustedDevicesList.innerHTML = devices.map((device) => {
+        const label = escapeHtml(device.device_label || 'Unknown device');
+        const fingerprint = escapeHtml(device.fingerprint || '');
+        const lastSeen = device.last_seen_at ? formatRealtimeDate(device.last_seen_at) : 'Never';
+        const status = device.is_current
+            ? '<span class="trusted-device-status is-current">Current Device</span>'
+            : '<span class="trusted-device-status is-trusted">Trusted</span>';
+        const revokeBtn = device.is_current
+            ? ''
+            : `<button type="button" class="trusted-device-revoke" data-fingerprint="${fingerprint}">Revoke Trust</button>`;
+        return `
+            <div class="trusted-device-row">
+                <div class="trusted-device-icon" aria-hidden="true"><i class="fa-solid fa-laptop"></i></div>
+                <div class="trusted-device-meta">
+                    <strong>${label}</strong>
+                    <span>Last seen ${lastSeen}</span>
+                </div>
+                ${status}
+                ${revokeBtn}
+            </div>
+        `;
+    }).join('');
+}
+
+async function revokeTrustedDevice(fingerprint) {
+    const actor = getCurrentStaffActor();
+    if (!fingerprint || !actor.email) return;
+
+    try {
+        const headers = await withCsrfHeaders({
+            'Content-Type': 'application/json'
+        });
+
+        const response = await fetch(getApiUrl('api/revoke_trusted_device.php'), {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ email: actor.email, fingerprint, deviceToken: getOrCreateDeviceToken() }),
+            cache: 'no-store'
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || 'Unable to revoke device');
+        }
+
+        void loadTrustedDevices();
+    } catch (error) {
+        console.error('Unable to revoke trusted device', error);
+        if (trustedDevicesMessage) trustedDevicesMessage.textContent = error.message || 'Unable to revoke device.';
+    }
+}
+
+if (trustedDevicesList) {
+    trustedDevicesList.addEventListener('click', (event) => {
+        const button = event.target.closest('.trusted-device-revoke');
+        if (!button) return;
+        void revokeTrustedDevice(button.dataset.fingerprint || '');
+    });
+}
+
 function attachStaffLoginHandler() {
     if (!staffForm) return;
 
@@ -1046,9 +1246,7 @@ function attachStaffLoginHandler() {
 
         // Unrecognized device: the account must confirm the emailed code first.
         if (authResult.needsDeviceVerification) {
-            const code = typeof window !== 'undefined' ? window.prompt(
-                'New device detected. Enter the 6-digit verification code sent to your email:'
-            ) : '';
+            const code = await requestDeviceVerificationCode();
             if (!code) {
                 if (modalTitle) {
                     modalTitle.textContent = 'Device verification required';
@@ -1254,6 +1452,22 @@ if (menuBtn) {
     menuBtn.addEventListener('click', () => {
         const isOpen = dashboardPanel && dashboardPanel.classList.contains('open');
         setDashboardPanelState(!isOpen);
+    });
+}
+
+if (staffHeaderSearchBtn) {
+    staffHeaderSearchBtn.addEventListener('click', () => {
+        if (!canAccessInventory()) return;
+        if (inventorySection && inventorySection.hidden) {
+            showDashboardSection(inventorySection);
+        }
+        window.setTimeout(() => {
+            const searchInput = document.getElementById('inventorySearchInput');
+            if (searchInput) {
+                searchInput.focus();
+                searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 250);
     });
 }
 
@@ -1579,6 +1793,7 @@ if (credentialsLink && credentialsSection) {
         }
         showDashboardSection(credentialsSection);
         void loadAdminCredentials();
+        void loadTrustedDevices();
     });
 }
 
@@ -4616,6 +4831,16 @@ function renderCustomerReviews() {
     }).join('');
 }
 
+function getReviewerIdentity(reviewerKey) {
+    const key = String(reviewerKey || '');
+    if (!key) return { label: 'Customer', initials: 'C' };
+    const short = key.replace(/[^a-z0-9]/gi, '').slice(0, 4).toUpperCase();
+    return {
+        label: `Customer ${short}`,
+        initials: (short ? short[0] : 'C')
+    };
+}
+
 function renderStaffReviews() {
     if (!staffReviewList) return;
 
@@ -4628,12 +4853,19 @@ function renderStaffReviews() {
     staffReviewList.innerHTML = filteredReviews.map((review) => {
         const status = (review.publish_status || 'pending').toLowerCase();
         const safeReviewText = escapeHtml(review.review_text);
+        const identity = getReviewerIdentity(review.reviewer_key || review.id);
         return `
             <article class="staff-review-card">
-                <p><span class="review-status-badge ${status === 'published' ? 'is-published' : 'is-pending'}">${getReviewPublishStatusLabel(status)}</span></p>
+                <div class="staff-review-head">
+                    <span class="staff-review-avatar" aria-hidden="true">${identity.initials}</span>
+                    <div class="staff-review-who">
+                        <strong>${identity.label}</strong>
+                        <span>${formatRealtimeDate(review.created_at_iso || review.created_at)}</span>
+                    </div>
+                    <span class="review-status-badge ${status === 'published' ? 'is-published' : 'is-pending'}">${getReviewPublishStatusLabel(status)}</span>
+                </div>
                 <p><strong class="review-stars">${renderStarRating(review.rating)}</strong></p>
                 <p class="review-comment">${safeReviewText}</p>
-                <p><span>${formatRealtimeDate(review.created_at_iso || review.created_at)}</span></p>
                 <button type="button" class="staff-review-delete-btn" data-review-id="${review.id}">Delete Review</button>
             </article>
         `;
@@ -6539,6 +6771,10 @@ function showDashboardSection(section) {
         if (!el) return;
         el.hidden = el !== section;
     });
+
+    if (section === credentialsSection) {
+        void loadTrustedDevices();
+    }
 
     if (section && section.id) {
         saveActiveSection(section.id);
