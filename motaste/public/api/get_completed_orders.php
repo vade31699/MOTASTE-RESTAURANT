@@ -57,6 +57,8 @@ try {
             'payment_status' => $order->payment_status,
             'payment_method' => $order->payment_method,
             'order_type' => $order->order_type,
+            'customer_name' => $order->customer_name ?? null,
+            'delivery_address' => $order->delivery_address ?? null,
             'subtotal' => (float)($order->subtotal ?? 0),
             'total_amount' => (float)($order->total_amount ?? 0),
             'total' => (float)($order->total_amount ?? $order->total ?? 0),

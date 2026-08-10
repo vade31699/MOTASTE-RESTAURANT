@@ -28,6 +28,8 @@ if ($orderNumber === '') {
 $items = is_array($input['items'] ?? null) ? $input['items'] : [];
 $paymentMethod = trim((string)($input['paymentMethod'] ?? 'Cash'));
 $orderType = trim((string)($input['orderType'] ?? 'Dine In'));
+$customerName = trim((string)($input['customerName'] ?? ''));
+$deliveryAddress = trim((string)($input['deliveryAddress'] ?? ''));
 
 $subtotal = 0;
 foreach ($items as $it) {
@@ -36,12 +38,29 @@ foreach ($items as $it) {
 $total = $subtotal;
 
 try {
-    
-    
+    // Ensure customer detail columns exist (schema managed by migrations; this
+    // keeps order creation working even if migrations have not been run yet).
+    try {
+        if (!Schema::hasColumn('orders', 'customer_name')) {
+            Schema::table('orders', function (Blueprint $table) {
+                $table->string('customer_name', 191)->nullable()->after('order_type');
+            });
+        }
+        if (!Schema::hasColumn('orders', 'delivery_address')) {
+            Schema::table('orders', function (Blueprint $table) {
+                $table->text('delivery_address')->nullable()->after('customer_name');
+            });
+        }
+    } catch (Throwable $__schemaError) {
+        // Schema changes must never block order creation; the migration will
+        // apply the columns on deploy.
+        error_log('orders customer columns check failed: ' . $__schemaError->getMessage());
+    }
+
     $orderId = null;
     $insertedItems = 0;
 
-    DB::transaction(function () use (&$orderId, &$insertedItems, $orderNumber, $paymentMethod, $orderType, $subtotal, $total, $items) {
+    DB::transaction(function () use (&$orderId, &$insertedItems, $orderNumber, $paymentMethod, $orderType, $customerName, $deliveryAddress, $subtotal, $total, $items) {
         $now = now();
         $orderId = DB::table('orders')->insertGetId([
             'order_number' => $orderNumber,
@@ -50,6 +69,8 @@ try {
             'payment_status' => 'unpaid',
             'payment_method' => $paymentMethod,
             'order_type' => $orderType,
+            'customer_name' => $customerName !== '' ? $customerName : null,
+            'delivery_address' => $deliveryAddress !== '' ? $deliveryAddress : null,
             'subtotal' => $subtotal,
             'total_amount' => $total,
             'created_at' => $now,

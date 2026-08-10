@@ -6,6 +6,8 @@ header('Expires: 0');
 
 require __DIR__ . '/../../vendor/autoload.php';
 
+use Illuminate\Support\Facades\DB;
+
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
@@ -25,6 +27,32 @@ if (!in_array($event, ['login', 'logout'], true) || $role === '' || $email === '
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Invalid notification payload']);
     exit;
+}
+
+// ---- Account activity audit trail ---------------------------------------
+// Every staff login/logout is recorded with precise timestamps so admins can
+// review them under Logs > Account, regardless of whether the email
+// notification can be delivered.
+try {
+    $eventAt = $occurredAt !== '' ? $occurredAt : now()->toDateTimeString();
+    $actionName = $event === 'login' ? 'account_login' : 'account_logout';
+    DB::table('order_activity_logs')->insert([
+        'order_id' => null,
+        'order_number' => null,
+        'action' => $actionName,
+        'actor_role' => $role,
+        'actor_email' => $email,
+        'summary' => ($role === 'Admin' ? 'Administrator' : $role) . ($event === 'login' ? ' logged in' : ' logged out'),
+        'details' => json_encode([
+            'event' => $event,
+            'occurred_at' => $eventAt,
+            'user_agent' => $userAgent,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+} catch (Throwable $logError) {
+    // Auditing must never block the notification response.
 }
 
 if (!in_array($role, ['Cashier', 'Inventory Manager'], true)) {

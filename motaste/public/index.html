@@ -194,6 +194,17 @@
                 </div>
                 <div class="order-checkout-content">
                     <div class="order-checkout-section">
+                        <p class="checkout-label">Full Name</p>
+                        <input
+                            type="text"
+                            id="customerNameInput"
+                            class="checkout-text-input"
+                            placeholder="Enter your full name"
+                            autocomplete="name"
+                            maxlength="120"
+                        >
+                    </div>
+                    <div class="order-checkout-section">
                         <p class="checkout-label">Payment Method</p>
                         <div class="checkout-options" id="paymentMethodOptions">
                             <button type="button" class="checkout-option-btn active" data-payment="Cash">Cash</button>
@@ -205,13 +216,28 @@
                         <div class="checkout-options" id="orderTypeOptions">
                             <button type="button" class="checkout-option-btn active" data-order="Dine In">Dine In</button>
                             <button type="button" class="checkout-option-btn" data-order="Take Out">Take Out</button>
+                            <button type="button" class="checkout-option-btn" data-order="SakayKo Rider Pick-up">
+                                <i class="fa-solid fa-motorcycle" aria-hidden="true"></i> SakayKo Rider Pick-up
+                            </button>
                         </div>
+                    </div>
+                    <div class="order-checkout-section" id="deliveryAddressSection" hidden aria-hidden="true">
+                        <p class="checkout-label">Delivery Address</p>
+                        <textarea
+                            id="deliveryAddressInput"
+                            class="checkout-textarea"
+                            rows="3"
+                            maxlength="300"
+                            placeholder="Enter the complete delivery address (e.g. Barangay, Street, Landmark)"
+                        ></textarea>
+                        <small class="checkout-hint">A SakayKo rider will pick up your order and deliver it to this address.</small>
                     </div>
                     <div class="order-checkout-items" id="orderCheckoutItems"></div>
                     <div class="order-checkout-total">
                         <span>Total</span>
                         <strong id="orderCheckoutTotal">₱0</strong>
                     </div>
+                    <p id="checkoutMessage" class="menu-order-message" aria-live="polite"></p>
                     <div class="order-checkout-actions">
                         <button type="button" id="confirmOrderBtn" class="menu-place-order-btn">Confirm Order</button>
                     </div>
@@ -227,6 +253,9 @@
                         <p><strong>Order Number:</strong> <span id="orderPaymentNumber"></span></p>
                         <p><strong>Date &amp; Time:</strong> <span id="orderPaymentDatetime"></span></p>
                         <p><strong>Payment Method:</strong> <span id="orderPaymentMethod"></span></p>
+                        <p><strong>Order Type:</strong> <span id="orderPaymentOrderType"></span></p>
+                        <p><strong>Customer:</strong> <span id="orderPaymentCustomer"></span></p>
+                        <p id="orderPaymentAddressRow" hidden><strong>Delivery Address:</strong> <span id="orderPaymentAddress"></span></p>
                     </div>
                     <div class="payment-message" id="orderPaymentMessage"></div>
                     <div class="payment-qr-placeholder hidden" id="paymentQrPlaceholder">

@@ -230,9 +230,26 @@ function setPublicSectionsVisible(visible) {
 }
 
 async function enforceActiveSessionValidity() {
-    // Disabled automatic logout when credentials change or are removed.
-    // Previously this checked stored credentials and forced logout.
-    return;
+    // Sessions are terminated only by manual logout (or when the staff account
+    // no longer exists on the server). This also re-applies the authenticated
+    // UI after a refresh once the staff account snapshot has finished loading.
+    const session = getPersistedStaffSession();
+    if (!session) return;
+    if (getCurrentStaffAccounts().length === 0) return;
+
+    const { role, email } = session;
+    const accountStillExists = getCurrentStaffAccounts().some((account) =>
+        account.email.toLowerCase() === email.toLowerCase() && account.role === role
+    );
+    if (!accountStillExists) {
+        clearStaffSession();
+        forceLogoutCurrentStaffSession();
+        return;
+    }
+
+    if (typeof document !== 'undefined' && !document.body.classList.contains('auth')) {
+        restoreStaffSession();
+    }
 }
 
 async function saveStaffAccountsToServer() {
@@ -357,7 +374,6 @@ function isGmailAddress(email) {
 
 async function notifyStaffSessionEvent(eventName, actorRole, actorEmail) {
     if (!eventName || !actorRole || !actorEmail) return;
-    if (actorRole !== 'Cashier' && actorRole !== 'Inventory Manager') return;
 
     try {
         const headers = await withCsrfHeaders({
@@ -597,11 +613,6 @@ function saveStaffSession(role, email, password, remember) {
     }
 
     try {
-        if (!remember) {
-            clearStaffSession();
-            return;
-        }
-
         const session = {
             role: role ? role.trim() : '',
             email: email ? email.trim().toLowerCase() : '',
@@ -615,6 +626,8 @@ function saveStaffSession(role, email, password, remember) {
             return;
         }
 
+        // Sessions persist across refreshes and browser restarts so staff stay
+        // logged in. The session is only terminated by a manual logout.
         window.localStorage.setItem(staffSessionStorageKey, JSON.stringify(session));
         window.localStorage.setItem(lastLoginRoleStorageKey, session.role);
     } catch (error) {
@@ -650,10 +663,25 @@ function restoreStaffSession() {
     }
 
     const { role, email, password } = persistedSession;
-    if (!role || !email || !password || !allowedRoles.includes(role) || !isValidStaffLogin(role, email, password)) {
+    if (!role || !email || !password || !allowedRoles.includes(role)) {
         clearStaffSession();
         forceLogoutCurrentStaffSession();
         return false;
+    }
+
+    // Staff accounts load asynchronously from the server. If they have not
+    // arrived yet, restore the authenticated UI immediately and re-validate
+    // once the snapshot lands (see enforceActiveSessionValidity).
+    const accountsLoaded = getCurrentStaffAccounts().length > 0;
+    if (accountsLoaded) {
+        const accountStillExists = getCurrentStaffAccounts().some((account) =>
+            account.email.toLowerCase() === email.toLowerCase() && account.role === role
+        );
+        if (!accountStillExists) {
+            clearStaffSession();
+            forceLogoutCurrentStaffSession();
+            return false;
+        }
     }
 
     if (selectedRoleInput) {
@@ -1974,7 +2002,7 @@ function recalculateSalesAnalytics() {
     }));
 }
 
-function renderDetailChart(container, chartData, title) {
+function renderDetailChart(container, chartData, title, animate = true) {
     if (!container) return;
     if (!chartData || !chartData.length) {
         container.innerHTML = '<p class="menu-cart-empty">Waiting for live data...</p>';
@@ -2028,10 +2056,10 @@ function renderDetailChart(container, chartData, title) {
                     <text x="${margin.left - 12}" y="${tick.y + 4}" text-anchor="end" fill="#333" font-size="12">${tick.value}</text>
                 `).join('')}
             </g>
-            <path d="${pathD}" fill="none" stroke="#ff9800" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-            <g>
-                ${points.map((point) => `
-                    <circle cx="${point.x}" cy="${point.y}" r="5" fill="#ff9800" />
+            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#ff9800" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+            <g${animate ? ' class="sales-line-dots"' : ''}>
+                ${points.map((point, index) => `
+                    <circle cx="${point.x}" cy="${point.y}" r="5" fill="#ff9800"${animate ? ` style="animation-delay: ${(index * 0.04).toFixed(2)}s"` : ''} />
                     <text x="${point.x}" y="${point.y - 12}" text-anchor="middle" fill="#111" font-size="12" font-weight="700">${point.display}</text>
                 `).join('')}
             </g>
@@ -2098,7 +2126,7 @@ function updateMonthlySalesList() {
     renderSalesList(monthlySalesList, data, 'Month', 'Revenue');
 }
 
-function updateAnalyticsView() {
+function updateAnalyticsView(animate = true) {
     if (!analyticsSelect || !analyticsChart || !analyticsMonthWrapper || !analyticsMonthSelect) return;
 
     const view = analyticsSelect.value;
@@ -2110,16 +2138,16 @@ function updateAnalyticsView() {
     if (view === 'daily') {
         const month = analyticsMonthSelect.value;
         const monthData = monthlySalesByMonth[month] || monthlySalesByMonth.jan;
-        renderDetailChart(analyticsChart, monthData, `Daily Sales — ${analyticsMonthSelect.options[analyticsMonthSelect.selectedIndex].text}`);
+        renderDetailChart(analyticsChart, monthData, `Daily Sales — ${analyticsMonthSelect.options[analyticsMonthSelect.selectedIndex].text}`, animate);
         autoScrollChartToCurrentDay(analyticsChart, month, monthData.length);
         updateDailySalesList();
     } else if (view === 'weekly') {
         const month = analyticsMonthSelect.value;
         const monthData = weeklySalesByMonth[month] || weeklySalesByMonth.jan;
-        renderDetailChart(analyticsChart, monthData, `Weekly Sales — ${analyticsMonthSelect.options[analyticsMonthSelect.selectedIndex].text}`);
+        renderDetailChart(analyticsChart, monthData, `Weekly Sales — ${analyticsMonthSelect.options[analyticsMonthSelect.selectedIndex].text}`, animate);
         updateWeeklySalesList();
     } else {
-        renderAnalytics('monthly');
+        renderAnalytics('monthly', animate);
         updateMonthlySalesList();
     }
 }
@@ -2909,7 +2937,7 @@ if (overviewMonthSelect) {
 syncAnalyticsMonthSelectorsToCurrentMonth();
 updateAnalyticsView();
 
-function renderAnalytics(type) {
+function renderAnalytics(type, animate = true) {
     if (!analyticsChart || !analyticsData[type]) return;
     if (!analyticsData[type].items || !analyticsData[type].items.length) {
         analyticsChart.innerHTML = '<p class="menu-cart-empty">Waiting for live data...</p>';
@@ -2959,13 +2987,13 @@ function renderAnalytics(type) {
                     <text x="${margin.left - 12}" y="${tick.y + 4}" text-anchor="end" fill="#333" font-size="12">${tick.value}</text>
                 `).join('')}
             </g>
-            <g>
-                ${points.map((point) => `
-                    <circle cx="${point.x}" cy="${point.y}" r="5" fill="#ff9800" />
+            <g${animate ? ' class="sales-line-dots"' : ''}>
+                ${points.map((point, index) => `
+                    <circle cx="${point.x}" cy="${point.y}" r="5" fill="#ff9800"${animate ? ` style="animation-delay: ${(index * 0.05).toFixed(2)}s"` : ''} />
                     <text x="${point.x}" y="${point.y - 12}" text-anchor="middle" fill="#111" font-size="12" font-weight="700">${point.display}</text>
                 `).join('')}
             </g>
-            <path d="${pathD}" fill="none" stroke="#ff9800" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#ff9800" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
             <g>
                 ${points.map((point) => `
                     <text x="${point.x}" y="${margin.top + chartHeight + 22}" text-anchor="middle" fill="#333" font-size="12">${point.label}</text>
@@ -3729,13 +3757,21 @@ const orderCheckoutExitBtn = document.getElementById('orderCheckoutExitBtn');
 const confirmOrderBtn = document.getElementById('confirmOrderBtn');
 const paymentMethodOptions = document.getElementById('paymentMethodOptions');
 const orderTypeOptions = document.getElementById('orderTypeOptions');
+const customerNameInput = document.getElementById('customerNameInput');
+const deliveryAddressSection = document.getElementById('deliveryAddressSection');
+const deliveryAddressInput = document.getElementById('deliveryAddressInput');
 const orderCheckoutItems = document.getElementById('orderCheckoutItems');
 const orderCheckoutTotal = document.getElementById('orderCheckoutTotal');
+const checkoutMessage = document.getElementById('checkoutMessage');
 const orderPaymentScreen = document.getElementById('orderPaymentScreen');
 const paymentConfirmationBackBtn = document.getElementById('paymentConfirmationBackBtn');
 const orderPaymentNumber = document.getElementById('orderPaymentNumber');
 const orderPaymentDatetime = document.getElementById('orderPaymentDatetime');
 const orderPaymentMethod = document.getElementById('orderPaymentMethod');
+const orderPaymentOrderType = document.getElementById('orderPaymentOrderType');
+const orderPaymentCustomer = document.getElementById('orderPaymentCustomer');
+const orderPaymentAddressRow = document.getElementById('orderPaymentAddressRow');
+const orderPaymentAddress = document.getElementById('orderPaymentAddress');
 const orderPaymentMessage = document.getElementById('orderPaymentMessage');
 const paymentQrPlaceholder = document.getElementById('paymentQrPlaceholder');
 const orderPaymentCloseBtn = document.getElementById('orderPaymentCloseBtn');
@@ -4163,6 +4199,8 @@ async function loadPendingOrdersFromServer() {
                 total: Number(order.total_amount ?? order.total ?? 0),
                 paymentMethod: order.payment_method || order.paymentMethod || 'Cash',
                 orderType: order.order_type || order.orderType || 'Dine In',
+                customerName: order.customer_name || order.customerName || '',
+                deliveryAddress: order.delivery_address || order.deliveryAddress || '',
                 items: items.map((item) => ({
                     id: Number(item.id ?? 0),
                     name: item.notes || item.name || 'Menu item',
@@ -4203,7 +4241,9 @@ async function submitOrderToServer(order) {
                 orderNumber: order.orderNumber,
                 items: order.items,
                 paymentMethod: order.paymentMethod,
-                orderType: order.orderType
+                orderType: order.orderType,
+                customerName: order.customerName || '',
+                deliveryAddress: order.deliveryAddress || ''
             })
         });
 
@@ -4516,6 +4556,8 @@ function formatOrderLogAction(action) {
         account_created: 'Account created',
         account_updated: 'Account updated',
         account_deleted: 'Account deleted',
+        account_login: 'Staff login',
+        account_logout: 'Staff logout',
         review_submitted: 'Review submitted',
         review_submitted_pending: 'Review submitted (pending)',
         review_published: 'Review published',
@@ -4952,6 +4994,11 @@ if (staffReviewList) {
         const reviewId = Number(actionButton.dataset.reviewId || 0);
         if (!reviewId) return;
 
+        if (deleteButton && typeof window !== 'undefined' && window.confirm
+            && !window.confirm('Delete this review permanently? This action cannot be undone.')) {
+            return;
+        }
+
         const actor = getCurrentStaffActor();
         try {
             const endpoint = publishButton ? 'api/publish_review.php' : 'api/delete_review.php';
@@ -5033,8 +5080,11 @@ async function loadCompletedOrdersFromServer(forceRefresh = false) {
         completedOrders.sort((a, b) => b.timestamp - a.timestamp);
         saveCompletedOrders();
         recalculateSalesAnalytics();
-        updateAnalyticsView();
-        renderOverviewAnalytics();
+        // Background refreshes re-render the charts without replaying the
+        // left-to-right draw animation; the animation is reserved for when a
+        // staff member opens or switches to the Sales/Overview tab.
+        updateAnalyticsView(false);
+        renderOverviewAnalytics(false);
         return true;
     } catch (error) {
         console.error('Unable to load completed orders from server', error);
@@ -5970,19 +6020,42 @@ function renderOrderNotifications() {
     overviewOrderNotificationList.innerHTML = allOrders.map((order) => {
         const isCompleted = completedOrders.some((completed) => completed.id === order.id);
         const items = Array.isArray(order.items) ? order.items : [];
-        const orderItems = items.map((item) => `
-                <li>${item.name} x${item.quantity} — ${formatCurrency(item.price * item.quantity)}</li>
-            `).join('');
+        const customerName = String(order.customerName || order.customer_name || '').trim();
+        const deliveryAddress = String(order.deliveryAddress || order.delivery_address || '').trim();
+        const isSakayKo = isSakayKoOrderType(order.orderType);
+        const orderItems = items.map((item) => {
+            const componentLines = Array.isArray(item.components) && item.components.length
+                ? item.components.map((component) =>
+                    `<li class="order-notif-component">↳ ${escapeHtml(component.name)} × ${Number(component.quantity) || 0}</li>`
+                ).join('')
+                : '';
+            return `
+                <li class="order-notif-item">
+                    <span>${escapeHtml(item.name)} x${item.quantity}</span>
+                    <strong>${formatCurrency(item.price * item.quantity)}</strong>
+                    ${componentLines ? `<ul class="order-notif-components">${componentLines}</ul>` : ''}
+                </li>
+            `;
+        }).join('');
         return `
             <article class="order-notification-card ${isCompleted ? 'completed' : ''}">
-                <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                <div class="order-notif-top">
                     <h4>Order #${order.orderNumber}</h4>
-                    <span>${isCompleted ? 'Completed' : 'New'}</span>
+                    <span class="order-notif-badge ${isCompleted ? 'is-completed' : 'is-new'}">${isCompleted ? 'Completed' : 'New'}</span>
                 </div>
-                <p><strong>Submitted:</strong> ${formatRealtimeDate(order.timestamp)}</p>
-                <p><strong>Payment:</strong> ${order.paymentMethod}</p>
-                <ul>${orderItems}</ul>
-                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                <div class="order-notif-body">
+                    <div class="order-notif-customer">
+                        <p><strong>Customer:</strong> ${customerName ? escapeHtml(customerName) : '—'}</p>
+                        <p><strong>Order Type:</strong> ${escapeHtml(order.orderType || 'Dine In')}</p>
+                        ${isSakayKo ? `<p class="order-notif-address"><strong>Address:</strong> ${deliveryAddress ? escapeHtml(deliveryAddress) : '—'}</p>` : ''}
+                        <p><strong>Payment:</strong> ${escapeHtml(order.paymentMethod)}</p>
+                        <p><strong>Submitted:</strong> ${formatRealtimeDate(order.timestamp)}</p>
+                    </div>
+                    <div class="order-notif-items">
+                        <ul>${orderItems}</ul>
+                    </div>
+                </div>
+                <div class="order-notif-footer">
                     <strong>Total: ${formatCurrency(order.total)}</strong>
                     ${isCompleted || !canCompleteOrders ? '' : `<button type="button" class="order-complete-btn" data-order-id="${order.id}">Mark Complete</button>`}
                 </div>
@@ -6716,7 +6789,7 @@ async function commitInlineInventoryEdit(card) {
     void loadOrderLogsFromServer(true);
 }
 
-function renderOverviewAnalytics() {
+function renderOverviewAnalytics(animate = true) {
     if (!overviewAnalyticsSelect || !overviewAnalyticsChart || !overviewMonthSelect || !overviewMonthWrapper) return;
 
     const view = overviewAnalyticsSelect.value;
@@ -6725,15 +6798,15 @@ function renderOverviewAnalytics() {
     if (view === 'daily') {
         const month = overviewMonthSelect.value;
         const monthData = monthlySalesByMonth[month] || monthlySalesByMonth.jan;
-        renderDetailChart(overviewAnalyticsChart, monthData, `Daily Sales — ${overviewMonthSelect.options[overviewMonthSelect.selectedIndex]?.text || ''}`);
+        renderDetailChart(overviewAnalyticsChart, monthData, `Daily Sales — ${overviewMonthSelect.options[overviewMonthSelect.selectedIndex]?.text || ''}`, animate);
         autoScrollChartToCurrentDay(overviewAnalyticsChart, month, monthData.length);
     } else if (view === 'weekly') {
         const month = overviewMonthSelect.value;
         const monthData = weeklySalesByMonth[month] || weeklySalesByMonth.jan;
-        renderDetailChart(overviewAnalyticsChart, monthData, `Weekly Sales — ${overviewMonthSelect.options[overviewMonthSelect.selectedIndex]?.text || ''}`);
+        renderDetailChart(overviewAnalyticsChart, monthData, `Weekly Sales — ${overviewMonthSelect.options[overviewMonthSelect.selectedIndex]?.text || ''}`, animate);
     } else {
         const monthly = analyticsData.monthly.items;
-        renderDetailChart(overviewAnalyticsChart, monthly, 'Monthly Sales');
+        renderDetailChart(overviewAnalyticsChart, monthly, 'Monthly Sales', animate);
     }
 }
 
@@ -7030,11 +7103,19 @@ function renderPendingOrders() {
                 </li>
             `;
         }).join('');
+        const customerName = String(order.customerName || order.customer_name || '').trim();
+        const deliveryAddress = String(order.deliveryAddress || order.delivery_address || '').trim();
+        const isSakayKo = isSakayKoOrderType(order.orderType);
         return `
             <article class="pending-order-card">
-                <h4>Order #${order.orderNumber}</h4>
+                <div class="pending-order-top">
+                    <h4>Order #${order.orderNumber}</h4>
+                    <span class="pending-order-type">${escapeHtml(order.orderType || 'Dine In')}</span>
+                </div>
                 <p><strong>Submitted:</strong> ${formatRealtimeDate(order.timestamp)}</p>
-                <p><strong>Payment:</strong> ${order.paymentMethod}</p>
+                <p><strong>Payment:</strong> ${escapeHtml(order.paymentMethod)}</p>
+                ${customerName ? `<p><strong>Customer:</strong> ${escapeHtml(customerName)}</p>` : ''}
+                ${isSakayKo ? `<p class="order-notif-address"><strong>Address:</strong> ${deliveryAddress ? escapeHtml(deliveryAddress) : '—'}</p>` : ''}
                 <ul>${itemsHtml}</ul>
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
                     <strong>Total: ${formatCurrency(order.total)}</strong>
@@ -7414,9 +7495,31 @@ async function placeWalkInOrder() {
 
 let selectedPaymentMethod = 'Cash';
 let selectedOrderType = 'Dine In';
+let selectedCustomerName = '';
+let selectedDeliveryAddress = '';
 let cartAddOnDraftQuantities = {};
 let cartAddOnSearchQuery = '';
 let cartAddOnDataRefreshInFlight = null;
+
+const SAKAYKO_ORDER_TYPE = 'SakayKo Rider Pick-up';
+
+function isSakayKoOrderType(orderType) {
+    return String(orderType || '').trim().toLowerCase() === SAKAYKO_ORDER_TYPE.toLowerCase();
+}
+
+function syncDeliveryAddressFieldVisibility() {
+    if (!deliveryAddressSection || !deliveryAddressInput) return;
+    const isSakayKo = isSakayKoOrderType(selectedOrderType);
+    deliveryAddressSection.hidden = !isSakayKo;
+    deliveryAddressSection.setAttribute('aria-hidden', isSakayKo ? 'false' : 'true');
+    if (isSakayKo) {
+        deliveryAddressInput.setAttribute('required', '');
+    } else {
+        deliveryAddressInput.removeAttribute('required');
+        selectedDeliveryAddress = '';
+        deliveryAddressInput.value = '';
+    }
+}
 
 function resetCartAddOnDraft() {
     cartAddOnDraftQuantities = {};
@@ -7725,6 +7828,7 @@ function openCheckoutScreen() {
     menuCategoryScreen.classList.add('hidden');
     orderCheckoutScreen.classList.remove('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'false');
+    syncDeliveryAddressFieldVisibility();
     renderCheckoutSummary();
     setMenuOverlayMenuVisibility(false);
     // hide the top menu tab while on checkout/payment
@@ -7870,6 +7974,17 @@ function openPaymentScreen(order) {
     if (orderPaymentMethod) {
         orderPaymentMethod.textContent = order.paymentMethod;
     }
+    if (orderPaymentOrderType) {
+        orderPaymentOrderType.textContent = order.orderType || 'Dine In';
+    }
+    if (orderPaymentCustomer) {
+        orderPaymentCustomer.textContent = order.customerName || '—';
+    }
+    if (orderPaymentAddressRow && orderPaymentAddress) {
+        const hasAddress = isSakayKoOrderType(order.orderType) && order.deliveryAddress;
+        orderPaymentAddressRow.hidden = !hasAddress;
+        orderPaymentAddress.textContent = hasAddress ? order.deliveryAddress : '';
+    }
 
     if (selectedPaymentMethod === 'Cash') {
         if (orderPaymentMessage) {
@@ -7937,10 +8052,42 @@ async function confirmOrder() {
     const payableTotal = payableItems.reduce((sum, item) => sum + getCartItemLineTotal(item), 0);
 
     if (!payableItems.length || payableTotal <= 0) {
-        if (menuOrderMessage) {
+        if (checkoutMessage) {
+            checkoutMessage.textContent = 'Add at least one payable item before proceeding to payment.';
+            checkoutMessage.style.color = '#b00020';
+        } else if (menuOrderMessage) {
             menuOrderMessage.textContent = 'Add at least one payable item before proceeding to payment.';
         }
         return;
+    }
+
+    const setCheckoutMessage = (message) => {
+        if (checkoutMessage) {
+            checkoutMessage.textContent = message;
+            checkoutMessage.style.color = '#b00020';
+        } else if (menuOrderMessage) {
+            menuOrderMessage.textContent = message;
+        }
+    };
+
+    selectedCustomerName = customerNameInput ? customerNameInput.value.trim() : '';
+    if (!selectedCustomerName) {
+        if (customerNameInput) customerNameInput.focus();
+        setCheckoutMessage('Please enter your full name to continue with payment.');
+        return;
+    }
+
+    selectedDeliveryAddress = isSakayKoOrderType(selectedOrderType) && deliveryAddressInput
+        ? deliveryAddressInput.value.trim()
+        : '';
+    if (isSakayKoOrderType(selectedOrderType) && !selectedDeliveryAddress) {
+        if (deliveryAddressInput) deliveryAddressInput.focus();
+        setCheckoutMessage('Please enter the delivery address for the SakayKo rider pick-up.');
+        return;
+    }
+
+    if (checkoutMessage) {
+        checkoutMessage.textContent = '';
     }
 
     const order = {
@@ -7955,13 +8102,18 @@ async function confirmOrder() {
         })),
         total: payableTotal,
         paymentMethod: selectedPaymentMethod,
-        orderType: selectedOrderType
+        orderType: selectedOrderType,
+        customerName: selectedCustomerName,
+        deliveryAddress: selectedDeliveryAddress
     };
 
     const syncedOrder = await submitOrderToServer(order);
     console.debug('confirmOrder: submitOrderToServer returned', syncedOrder);
     if (!syncedOrder) {
-        if (menuOrderMessage) {
+        if (checkoutMessage) {
+            checkoutMessage.textContent = 'Unable to submit order to server. Please try again.';
+            checkoutMessage.style.color = '#b00020';
+        } else if (menuOrderMessage) {
             menuOrderMessage.textContent = 'Unable to submit order to server. Please try again.';
         }
         return;
@@ -8546,6 +8698,7 @@ if (orderTypeOptions) {
         if (!button) return;
         selectedOrderType = button.dataset.order || 'Dine In';
         selectCheckoutOption(orderTypeOptions, 'order', selectedOrderType);
+        syncDeliveryAddressFieldVisibility();
     });
 }
 
@@ -8847,6 +9000,7 @@ function initOrderEvents() {
                     unseenPendingCount = (unseenPendingCount || 0) + 1;
                     updateOverviewBadge();
                     playPendingOrderSound();
+                    void fetchOverviewMetrics();
                 } else {
                     // schedule a short delayed sync
                     window.setTimeout(() => void loadPendingOrdersFromServer(), ORDER_SYNC_DEBOUNCE_MS);
@@ -8860,6 +9014,7 @@ function initOrderEvents() {
                 if (now - lastOrderSyncAt > ORDER_SYNC_DEBOUNCE_MS) {
                     lastOrderSyncAt = now;
                     void Promise.all([loadPendingOrdersFromServer(), loadCompletedOrdersFromServer()]);
+                    void fetchOverviewMetrics();
                 } else {
                     window.setTimeout(() => void Promise.all([loadPendingOrdersFromServer(), loadCompletedOrdersFromServer()]), ORDER_SYNC_DEBOUNCE_MS);
                 }
