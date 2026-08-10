@@ -7495,7 +7495,7 @@ body.staff-app .dashboard-profile-avatar {
 body.staff-app .dashboard-panel a {
     color: var(--staff-muted);
     border-radius: 10px;
-    text-align: center;
+    text-align: left;
     display: flex;
     align-items: center;
     justify-content: center;
