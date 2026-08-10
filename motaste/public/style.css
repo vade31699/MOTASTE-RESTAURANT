@@ -7369,47 +7369,46 @@ body.site-home .about-content {
 }
 
 /* ============================================================
-   STAFF APP REDESIGN — dark charcoal + purple glass theme
+   STAFF APP REDESIGN — Professional Green · Light Theme
    Scoped under body.staff-app so the customer site is untouched.
-   Palette: Charcoal #141519 · Glass white · Violet #8B5CF6
-            Gold #F6C700 · Light gray #E8EAF0
+   Palette: Brand green #2BAE66 · Cream #FCF6F5 · White surfaces
+            Ink #1F2A24 · Muted slate #57655C · Gold #E2A00F
    ============================================================ */
 
 body.staff-app {
-    --staff-bg: #141519;
-    --staff-bg-2: #0e0f13;
-    --staff-surface: rgba(255, 255, 255, 0.055);
-    --staff-surface-2: rgba(255, 255, 255, 0.09);
-    --staff-border: rgba(255, 255, 255, 0.12);
-    --staff-border-soft: rgba(255, 255, 255, 0.08);
-    --staff-text: #e8eaf0;
-    --staff-muted: #9aa3b5;
-    --staff-faint: #6b7280;
-    --staff-accent: #8b5cf6;
-    --staff-accent-2: #a78bfa;
-    --staff-accent-soft: rgba(139, 92, 246, 0.16);
-    --staff-accent-strong: #7c3aed;
-    --staff-gold: #f6c700;
-    --staff-danger: #f87171;
-    --staff-success: #4ade80;
-    --staff-warn: #fbbf24;
+    --staff-bg: #FCF6F5;
+    --staff-bg-2: #F7F0EE;
+    --staff-surface: #FFFFFF;
+    --staff-surface-2: #FFFFFF;
+    --staff-surface-soft: #F1FAF5;
+    --staff-border: #E3EDE6;
+    --staff-border-soft: #EDF4EF;
+    --staff-text: #1F2A24;
+    --staff-muted: #57655C;
+    --staff-faint: #6E7D73;
+    --staff-accent: #2BAE66;
+    --staff-accent-2: #1E8F52;
+    --staff-accent-strong: #167A45;
+    --staff-accent-soft: rgba(43, 174, 102, 0.12);
+    --staff-accent-softer: rgba(43, 174, 102, 0.07);
+    --staff-gold: #E2A00F;
+    --staff-danger: #DC2626;
+    --staff-success: #16A34A;
+    --staff-warn: #D97706;
     --staff-radius: 16px;
+    --staff-shadow-sm: 0 2px 8px rgba(23, 87, 54, 0.06);
+    --staff-shadow-md: 0 10px 26px rgba(23, 87, 54, 0.09);
+    --staff-shadow-lg: 0 24px 54px rgba(23, 87, 54, 0.12);
 
     background-color: var(--staff-bg);
     color: var(--staff-text);
     font-family: "Inter", "Segoe UI", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     background-image:
-        radial-gradient(1000px 520px at 88% -10%, rgba(139, 92, 246, 0.14), transparent 60%),
-        radial-gradient(900px 480px at -8% 112%, rgba(124, 58, 237, 0.10), transparent 55%),
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
-    background-repeat: no-repeat, no-repeat, repeat;
-}
-
-@media (min-width: 901px) {
-    body.staff-app {
-        background-attachment: fixed, fixed, scroll;
-    }
+        radial-gradient(1100px 560px at 92% -12%, rgba(43, 174, 102, 0.10), transparent 62%),
+        radial-gradient(900px 520px at -6% 110%, rgba(43, 174, 102, 0.07), transparent 55%);
+    background-repeat: no-repeat, no-repeat;
+    background-attachment: fixed, fixed;
 }
 
 body.staff-app h1,
@@ -7432,18 +7431,18 @@ body.staff-app ::-webkit-scrollbar {
 }
 
 body.staff-app ::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(43, 174, 102, 0.06);
 }
 
 body.staff-app ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(43, 174, 102, 0.28);
     border-radius: 999px;
     border: 2px solid transparent;
     background-clip: padding-box;
 }
 
 body.staff-app ::-webkit-scrollbar-thumb:hover {
-    background: rgba(167, 139, 250, 0.5);
+    background: rgba(43, 174, 102, 0.5);
     background-clip: padding-box;
 }
 
@@ -7454,29 +7453,42 @@ body.staff-app.auth .top-bar.login-top-bar {
     position: sticky;
     top: 0;
     z-index: 1500;
-    background: rgba(20, 21, 25, 0.72);
-    border-bottom: 1px solid var(--staff-border-soft);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    background: rgba(255, 255, 255, 0.9);
+    border-bottom: 1px solid var(--staff-border);
+    box-shadow: 0 4px 18px rgba(23, 87, 54, 0.08);
     padding: 10px 24px;
 }
 
-/* ---------- Dashboard panel (slide-out drawer) ---------- */
+body.staff-app .menu-btn {
+    background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
+    box-shadow: 0 6px 16px rgba(43, 174, 102, 0.35);
+}
+
+body.staff-app .menu-btn:hover {
+    box-shadow: 0 10px 22px rgba(43, 174, 102, 0.45);
+}
+
+/* ---------- Dashboard panel (always-open sidebar) ---------- */
 body.staff-app .dashboard-panel {
-    background: linear-gradient(180deg, rgba(24, 25, 31, 0.92), rgba(14, 15, 19, 0.97));
-    -webkit-backdrop-filter: blur(22px) saturate(1.3);
-    backdrop-filter: blur(22px) saturate(1.3);
-    border-right: 1px solid var(--staff-border-soft);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(252, 246, 245, 0.98));
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    backdrop-filter: blur(20px) saturate(1.2);
+    border-right: 1px solid var(--staff-border);
     color: var(--staff-text);
-    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.35);
+    box-shadow: 8px 0 32px rgba(23, 87, 54, 0.10);
 }
 
 body.staff-app .dashboard-panel h3 {
-    color: var(--staff-text);
+    color: var(--staff-accent-strong);
     text-align: center;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
 }
 
 body.staff-app .dashboard-profile {
-    border-bottom-color: var(--staff-border-soft);
+    border-bottom-color: var(--staff-border);
 }
 
 body.staff-app .dashboard-profile-meta strong {
@@ -7488,24 +7500,28 @@ body.staff-app .dashboard-profile-meta span {
 }
 
 body.staff-app .dashboard-profile-avatar {
-    background: linear-gradient(135deg, var(--staff-accent-strong), var(--staff-accent));
-    box-shadow: 0 8px 20px rgba(124, 58, 237, 0.4);
+    background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
+    box-shadow: 0 8px 20px rgba(43, 174, 102, 0.35);
 }
 
 body.staff-app .dashboard-panel a {
     color: var(--staff-muted);
-    border-radius: 10px;
+    border-radius: 12px;
     text-align: left;
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 10px;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 11px 14px;
+    margin-bottom: 4px;
+    font-size: 0.92rem;
+    font-weight: 600;
     transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
 body.staff-app .dashboard-panel a i {
-    font-size: 16px;
-    width: 20px;
+    font-size: 17px;
+    width: 22px;
     text-align: center;
     color: var(--staff-accent);
     transition: color 0.16s ease, transform 0.16s ease;
@@ -7513,49 +7529,38 @@ body.staff-app .dashboard-panel a i {
 
 body.staff-app .dashboard-panel a:hover {
     transform: translateX(3px);
+    background: var(--staff-accent-softer);
+    color: var(--staff-text);
 }
 
 body.staff-app .dashboard-panel a:hover i {
-    color: var(--staff-text);
+    color: var(--staff-accent-2);
+    transform: scale(1.1);
+}
+
+body.staff-app .dashboard-panel a.active {
+    background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 8px 20px rgba(43, 174, 102, 0.35);
 }
 
 body.staff-app .dashboard-panel a.active i {
     color: #fff;
 }
 
-body.staff-app .logout-btn i {
-    font-size: 15px;
-}
-
-body.staff-app .dashboard-panel a:hover {
-    background: var(--staff-surface-2);
-    color: var(--staff-text);
-}
-
-body.staff-app .dashboard-panel a.active {
-    background: var(--staff-accent-soft);
-    color: #fff;
-    font-weight: 700;
-    box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.35);
-}
-
 body.staff-app .dashboard-panel .panel-close {
     color: var(--staff-muted);
-    background: var(--staff-surface-2);
+    background: var(--staff-accent-softer);
 }
 
 body.staff-app .dashboard-panel .panel-close:hover {
     color: #fff;
-    background: var(--staff-accent-soft);
-}
-
-body.staff-app .menu-btn {
-    background: linear-gradient(135deg, var(--staff-accent-strong), var(--staff-accent));
-    box-shadow: 0 8px 20px rgba(124, 58, 237, 0.4);
+    background: var(--staff-accent);
 }
 
 body.staff-app .logout-btn {
-    background: var(--staff-surface-2);
+    background: var(--staff-accent-softer);
     color: var(--staff-text);
     border: 1px solid var(--staff-border);
     display: flex;
@@ -7564,41 +7569,60 @@ body.staff-app .logout-btn {
     gap: 10px;
     width: 100%;
     text-align: center;
-    margin-top: 8px;
+    margin-top: 10px;
+    font-weight: 600;
+    border-radius: 12px;
+}
+
+body.staff-app .logout-btn i {
+    font-size: 15px;
+    color: var(--staff-danger);
 }
 
 body.staff-app .logout-btn:hover {
-    background: rgba(248, 113, 113, 0.18);
+    background: rgba(220, 38, 38, 0.1);
     color: var(--staff-danger);
-    border-color: rgba(248, 113, 113, 0.4);
+    border-color: rgba(220, 38, 38, 0.35);
 }
 
-/* ---------- Dashboard sections: frosted glass cards ---------- */
+/* ---------- Dashboard sections: white cards ---------- */
 body.staff-app .overview-section,
 body.staff-app .inventory-section,
 body.staff-app .orders-section,
 body.staff-app .sales-section,
 body.staff-app .account-management {
     background: var(--staff-surface);
-    -webkit-backdrop-filter: blur(18px) saturate(1.3);
-    backdrop-filter: blur(18px) saturate(1.3);
     border: 1px solid var(--staff-border);
     border-radius: 20px;
-    box-shadow: 0 22px 54px rgba(0, 0, 0, 0.35);
+    box-shadow: var(--staff-shadow-lg);
     color: var(--staff-text);
+    padding: 28px;
 }
 
 body.staff-app .overview-section > h2,
 body.staff-app .inventory-section > h2,
 body.staff-app .orders-section > h2,
 body.staff-app .sales-section > h2,
-body.staff-app .account-management > h2,
-body.staff-app .overview-section p,
-body.staff-app .inventory-section p,
-body.staff-app .orders-section p,
-body.staff-app .sales-section p,
-body.staff-app .account-management p {
+body.staff-app .account-management > h2 {
     color: var(--staff-text);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    position: relative;
+    padding-bottom: 14px;
+}
+
+body.staff-app .overview-section > h2::after,
+body.staff-app .inventory-section > h2::after,
+body.staff-app .orders-section > h2::after,
+body.staff-app .sales-section > h2::after,
+body.staff-app .account-management > h2::after {
+    content: "";
+    display: block;
+    width: 44px;
+    height: 4px;
+    margin-top: 8px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--staff-accent), var(--staff-accent-2));
 }
 
 body.staff-app .overview-section > p,
@@ -7609,23 +7633,44 @@ body.staff-app .account-management > p {
     color: var(--staff-muted);
 }
 
-/* Overview metric cards */
+/* ---------- Overview metric cards ---------- */
 body.staff-app .metric-card {
-    background: var(--staff-surface-2) !important;
+    background: var(--staff-surface) !important;
     border: 1px solid var(--staff-border) !important;
+    border-left: 4px solid var(--staff-accent) !important;
     border-radius: 14px !important;
-    padding: 16px !important;
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.25) !important;
+    padding: 18px 18px 16px !important;
+    box-shadow: var(--staff-shadow-sm) !important;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-/* Label + subtext rows (no id) get muted gray; count rows keep their semantic colors */
+body.staff-app .metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--staff-shadow-md) !important;
+}
+
 body.staff-app .metric-card > div:not([id]) {
     color: var(--staff-muted) !important;
+    font-size: 0.78rem !important;
+    font-weight: 700;
+    letter-spacing: 0.02em;
 }
 
 body.staff-app .metric-card div[id] {
     font-family: "Montserrat", sans-serif;
+    font-size: 1.9rem !important;
+    font-weight: 800 !important;
 }
+
+body.staff-app #metricPendingOrders { border-left-color: #DC2626 !important; }
+body.staff-app #metricOrdersCompleted { border-left-color: #16A34A !important; }
+body.staff-app #metricWalkinCompleted { border-left-color: #D97706 !important; }
+body.staff-app #metricOnlineCompleted { border-left-color: #4F46E5 !important; }
+
+body.staff-app #pendingOrdersCount { color: #DC2626 !important; }
+body.staff-app #ordersCompletedCount { color: #15803D !important; }
+body.staff-app #walkinCompletedCount { color: #B45309 !important; }
+body.staff-app #onlineCompletedCount { color: #4338CA !important; }
 
 body.staff-app .overview-grid {
     gap: 18px;
@@ -7647,23 +7692,81 @@ body.staff-app .overview-analytics-panel h3,
 body.staff-app .overview-order-notification-box h3,
 body.staff-app .overview-inventory-box h3 {
     color: var(--staff-text);
+    font-size: 1.1rem;
+    font-weight: 800;
+}
+
+body.staff-app .sales-analytics-placeholder p,
+body.staff-app .overview-analytics-panel p,
+body.staff-app .overview-order-notification-box p,
+body.staff-app .overview-inventory-box p {
+    color: var(--staff-muted);
+}
+
+body.staff-app .order-notification-footer {
+    border: 1px solid var(--staff-border) !important;
+    border-top: 1px solid var(--staff-border) !important;
 }
 
 body.staff-app .order-notification-footer span {
     color: var(--staff-muted);
+    font-weight: 600;
 }
 
 body.staff-app .order-notification-footer strong {
-    color: var(--staff-gold);
+    color: var(--staff-accent-strong);
+    font-weight: 800;
 }
 
-/* ---------- Sales tabs ---------- */
+/* Overview inventory list (light text on light cards) */
+body.staff-app .overview-inventory-box .inventory-list-panel th,
+body.staff-app .overview-inventory-box .inventory-list-panel td,
+body.staff-app .overview-inventory-box .inventory-list-panel p {
+    color: var(--staff-text);
+}
+
+/* ---------- Order notification cards (override dark base) ---------- */
+body.staff-app .order-notification-card {
+    background: #ffffff;
+    border: 1px solid var(--staff-border);
+    border-radius: 14px;
+    box-shadow: var(--staff-shadow-sm);
+    color: var(--staff-text);
+}
+
+body.staff-app .order-notification-card.completed {
+    background: #F7FAF8;
+    opacity: 1;
+}
+
+body.staff-app .order-notification-card h4,
+body.staff-app .order-notification-card p,
+body.staff-app .order-notification-card li,
+body.staff-app .order-notification-card span,
+body.staff-app .order-notification-card strong {
+    color: var(--staff-text);
+}
+
+body.staff-app .order-notif-customer strong {
+    color: var(--staff-accent-strong);
+}
+
+body.staff-app .order-notif-item strong {
+    color: var(--staff-text);
+}
+
+body.staff-app .order-notif-component {
+    color: var(--staff-faint) !important;
+}
+
+/* ---------- Sales tab container ---------- */
 body.staff-app .sales-tabs {
-    border-bottom-color: var(--staff-border-soft);
+    border-bottom: 1px solid var(--staff-border);
 }
 
 body.staff-app .sales-tab-btn {
     color: var(--staff-muted);
+    font-weight: 700;
 }
 
 body.staff-app .sales-tab-btn:hover {
@@ -7671,7 +7774,7 @@ body.staff-app .sales-tab-btn:hover {
 }
 
 body.staff-app .sales-tab-btn.active {
-    color: var(--staff-accent-2);
+    color: var(--staff-accent-strong);
     border-bottom-color: var(--staff-accent);
 }
 
@@ -7683,11 +7786,41 @@ body.staff-app .sales-detail-panel {
     color: var(--staff-text) !important;
 }
 
+/* Sales analytics chart: green line + dots + clean canvas (CSS overrides inline SVG colors) */
+body.staff-app .sales-analytics-chart,
+body.staff-app #overview .sales-analytics-chart {
+    background: linear-gradient(180deg, rgba(43, 174, 102, 0.05), rgba(43, 174, 102, 0.02));
+    border: 1px solid var(--staff-border);
+    border-radius: 14px;
+}
+
+body.staff-app .sales-analytics-chart svg rect {
+    fill: #ffffff;
+}
+
+/* The chart path/dots are the only <path>/<circle> elements in the SVG, so a
+   broad scoped override covers BOTH animated (.sales-line-path) and plain
+   (background-refresh) renders, replacing the inline orange stroke/fill. */
+body.staff-app .sales-analytics-chart path {
+    stroke: var(--staff-accent) !important;
+}
+
+body.staff-app .sales-analytics-chart circle {
+    fill: var(--staff-accent) !important;
+}
+
+body.staff-app .sales-analytics-select-wrapper,
+body.staff-app .nested-selector {
+    color: var(--staff-muted);
+    font-weight: 600;
+}
+
 /* ---------- Orders ---------- */
 body.staff-app .orders-tab-btn {
     background: var(--staff-surface-2);
     border: 1px solid var(--staff-border);
     color: var(--staff-muted);
+    font-weight: 600;
 }
 
 body.staff-app .orders-tab-btn:hover {
@@ -7696,18 +7829,25 @@ body.staff-app .orders-tab-btn:hover {
 }
 
 body.staff-app .orders-tab-btn.active {
-    background: var(--staff-accent-soft);
+    background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
     color: #fff;
-    border-color: var(--staff-accent);
-    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.3);
+    border-color: transparent;
+    box-shadow: 0 8px 18px rgba(43, 174, 102, 0.3);
 }
 
 body.staff-app .walkin-order-builder,
 body.staff-app .walkin-order-footer {
-    background: var(--staff-surface-2);
+    background: var(--staff-surface-soft);
     border: 1px solid var(--staff-border);
     border-radius: 14px;
-    padding: 14px;
+    padding: 16px;
+}
+
+body.staff-app .walkin-order-builder label,
+body.staff-app .walkin-order-footer label {
+    color: var(--staff-muted);
+    font-weight: 600;
+    font-size: 0.85rem;
 }
 
 body.staff-app .walkin-draft-item-card,
@@ -7715,12 +7855,14 @@ body.staff-app .pending-order-card {
     background: var(--staff-surface-2);
     border: 1px solid var(--staff-border);
     border-radius: 14px;
+    box-shadow: var(--staff-shadow-sm);
 }
 
 body.staff-app .walkin-draft-item-card p,
 body.staff-app .walkin-draft-item-card strong,
 body.staff-app .walkin-draft-component-name,
 body.staff-app .walkin-draft-components-title,
+body.staff-app .walkin-draft-total,
 body.staff-app .pending-order-card h4,
 body.staff-app .pending-order-card p,
 body.staff-app .pending-order-card li,
@@ -7731,6 +7873,53 @@ body.staff-app .pending-order-card strong {
 
 body.staff-app .pending-order-card ul {
     color: var(--staff-text);
+}
+
+body.staff-app .pending-order-type {
+    background: var(--staff-accent-soft);
+    color: var(--staff-accent-strong);
+    font-weight: 800;
+}
+
+/* Walk-in / pending action buttons */
+body.staff-app .walkin-draft-qty-btn {
+    background: var(--staff-accent-soft);
+    color: var(--staff-accent-strong);
+}
+
+body.staff-app .walkin-draft-remove-btn {
+    background: rgba(220, 38, 38, 0.1);
+    color: var(--staff-danger);
+}
+
+body.staff-app .walkin-draft-qty-btn:hover,
+body.staff-app .walkin-draft-remove-btn:hover {
+    filter: brightness(0.96);
+}
+
+body.staff-app .pending-item-qty-btn {
+    background: var(--staff-accent-soft);
+    color: var(--staff-accent-strong);
+    border: none;
+}
+
+body.staff-app .pending-item-component-btn {
+    background: var(--staff-accent-soft);
+    color: var(--staff-accent-strong);
+    border: none;
+}
+
+body.staff-app .order-complete-btn {
+    background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
+    color: #fff;
+    border: none;
+    font-weight: 700;
+    box-shadow: 0 6px 16px rgba(43, 174, 102, 0.3);
+}
+
+body.staff-app .order-complete-btn:hover {
+    filter: brightness(1.05);
+    transform: translateY(-1px);
 }
 
 /* ---------- Inventory ---------- */
@@ -7746,12 +7935,14 @@ body.staff-app .inventory-panel-header h3 {
 
 body.staff-app .inventory-search-field {
     color: var(--staff-text);
+    font-weight: 600;
 }
 
 body.staff-app .inventory-category-tab {
     background: var(--staff-surface-2);
     border: 1px solid var(--staff-border);
     color: var(--staff-muted);
+    font-weight: 600;
 }
 
 body.staff-app .inventory-category-tab:hover {
@@ -7760,16 +7951,17 @@ body.staff-app .inventory-category-tab:hover {
 }
 
 body.staff-app .inventory-category-tab.active {
-    background: var(--staff-accent-soft);
+    background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
     color: #fff;
-    border-color: var(--staff-accent);
-    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.3);
+    border-color: transparent;
+    box-shadow: 0 8px 18px rgba(43, 174, 102, 0.3);
 }
 
 body.staff-app .inventory-item-card {
     background: var(--staff-surface-2);
     border: 1px solid var(--staff-border);
     border-radius: 14px;
+    box-shadow: var(--staff-shadow-sm);
     color: var(--staff-text);
 }
 
@@ -7777,29 +7969,81 @@ body.staff-app .inventory-item-card h4,
 body.staff-app .inventory-item-card p,
 body.staff-app .inventory-item-card span,
 body.staff-app .inventory-item-card strong,
-body.staff-app .inventory-item-description {
+body.staff-app .inventory-item-description,
+body.staff-app .inventory-stock-line {
     color: var(--staff-text);
 }
 
 body.staff-app .inventory-item-category {
-    color: var(--staff-muted);
+    color: var(--staff-accent-strong);
+    background: var(--staff-accent-soft);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
 }
 
 body.staff-app .inventory-add-fab {
-    background: linear-gradient(135deg, var(--staff-accent-strong), var(--staff-accent));
+    background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
     color: #fff;
-    box-shadow: 0 10px 24px rgba(124, 58, 237, 0.45);
+    box-shadow: 0 10px 24px rgba(43, 174, 102, 0.4);
 }
 
 body.staff-app .inventory-add-fab:hover {
     transform: translateY(-2px) scale(1.03);
-    box-shadow: 0 16px 34px rgba(124, 58, 237, 0.55);
+    box-shadow: 0 16px 34px rgba(43, 174, 102, 0.5);
+}
+
+/* Inventory inline edit actions (base is orange — green/red for staff) */
+body.staff-app .inventory-edit-btn {
+    background: var(--staff-accent-soft);
+    color: var(--staff-accent-strong);
+    border: 1px solid rgba(43, 174, 102, 0.35);
+}
+
+body.staff-app .inventory-edit-btn:hover {
+    background: var(--staff-accent);
+    color: #fff;
+}
+
+body.staff-app .inventory-inline-save {
+    background: var(--staff-accent);
+    color: #fff;
+    border: none;
+}
+
+body.staff-app .inventory-inline-save:hover {
+    background: var(--staff-accent-2);
+}
+
+body.staff-app .inventory-inline-cancel {
+    background: var(--staff-surface-2);
+    color: var(--staff-text);
+    border: 1px solid var(--staff-border);
+}
+
+body.staff-app .inventory-inline-cancel:hover {
+    border-color: var(--staff-faint);
+}
+
+body.staff-app .inventory-card-delete-btn,
+body.staff-app .inventory-inline-delete {
+    background: rgba(220, 38, 38, 0.1);
+    color: var(--staff-danger);
+    border: 1px solid rgba(220, 38, 38, 0.3);
+}
+
+body.staff-app .inventory-card-delete-btn:hover,
+body.staff-app .inventory-inline-delete:hover {
+    background: var(--staff-danger);
+    color: #fff;
 }
 
 body.staff-app .inventory-modal-card {
-    background: rgba(26, 27, 33, 0.96);
+    background: #ffffff;
     border: 1px solid var(--staff-border);
     border-radius: 18px;
+    box-shadow: var(--staff-shadow-lg);
     color: var(--staff-text);
 }
 
@@ -7807,29 +8051,12 @@ body.staff-app .inventory-modal-header h3 {
     color: var(--staff-text);
 }
 
-body.staff-app .inventory-form label {
-    color: var(--staff-muted);
-}
-
-body.staff-app .inventory-form-grid input,
-body.staff-app .inventory-form-grid select,
-body.staff-app .inventory-form-grid textarea {
-    background: var(--staff-surface-2);
-    border: 1px solid var(--staff-border);
-    color: var(--staff-text);
-}
-
-body.staff-app .inventory-form-grid input:focus,
-body.staff-app .inventory-form-grid select:focus,
-body.staff-app .inventory-form-grid textarea:focus {
-    border-color: var(--staff-accent);
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
-    outline: none;
-}
-
+body.staff-app .inventory-form label,
 body.staff-app .special-customize-title,
 body.staff-app .special-customize-builder label {
     color: var(--staff-muted);
+    font-weight: 600;
+    font-size: 0.85rem;
 }
 
 /* ---------- Logs / review management ---------- */
@@ -7849,10 +8076,11 @@ body.staff-app .logs-filter-bar input {
 body.staff-app .logs-filter-bar select:focus,
 body.staff-app .logs-filter-bar input:focus {
     border-color: var(--staff-accent);
+    box-shadow: 0 0 0 3px rgba(43, 174, 102, 0.18);
     outline: none;
 }
 
-/* Review filter: segmented pill bar with purple active accent */
+/* Review filter: segmented pill bar with green active accent */
 body.staff-app .review-filter-bar {
     display: flex;
     flex-wrap: wrap;
@@ -7860,7 +8088,7 @@ body.staff-app .review-filter-bar {
     gap: 6px;
     padding: 5px;
     margin: 14px 0 18px;
-    background: var(--staff-surface-2);
+    background: var(--staff-surface-soft);
     border: 1px solid var(--staff-border);
     border-radius: 999px;
     width: fit-content;
@@ -7889,17 +8117,17 @@ body.staff-app .review-filter-btn:hover {
 }
 
 body.staff-app .review-filter-btn:focus-visible {
-    outline: 3px solid rgba(139, 92, 246, 0.4);
+    outline: 3px solid rgba(43, 174, 102, 0.4);
     outline-offset: 1px;
 }
 
 body.staff-app .review-filter-btn.is-active {
-    background: linear-gradient(135deg, var(--staff-accent-strong), var(--staff-accent));
+    background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
     color: #fff;
-    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+    box-shadow: 0 6px 16px rgba(43, 174, 102, 0.4);
 }
 
-/* Staff review cards: avatar, gold stars, timestamp, scrollable list */
+/* Staff review cards */
 body.staff-app .staff-review-list {
     display: grid;
     gap: 12px;
@@ -7916,14 +8144,14 @@ body.staff-app .staff-review-card {
     border-radius: 16px;
     padding: 16px;
     background: var(--staff-surface-2);
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+    box-shadow: var(--staff-shadow-sm);
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 body.staff-app .staff-review-card:hover {
     transform: translateY(-2px);
-    border-color: rgba(139, 92, 246, 0.45);
-    box-shadow: 0 18px 38px rgba(0, 0, 0, 0.3);
+    border-color: rgba(43, 174, 102, 0.45);
+    box-shadow: var(--staff-shadow-md);
 }
 
 body.staff-app .staff-review-head {
@@ -7939,12 +8167,12 @@ body.staff-app .staff-review-avatar {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--staff-accent-strong), var(--staff-accent));
+    background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
     color: #fff;
     font-size: 0.95rem;
     font-weight: 800;
     letter-spacing: 0.03em;
-    box-shadow: 0 6px 16px rgba(124, 58, 237, 0.35);
+    box-shadow: 0 6px 16px rgba(43, 174, 102, 0.3);
 }
 
 body.staff-app .staff-review-who {
@@ -7991,17 +8219,37 @@ body.staff-app .staff-review-card .review-comment {
 
 body.staff-app .staff-review-publish-btn {
     background: var(--staff-success);
-    color: #06230f;
+    color: #06230F;
+    border: none;
+    font-weight: 700;
 }
 
 body.staff-app .staff-review-delete-btn {
-    background: rgba(248, 113, 113, 0.9);
+    background: rgba(220, 38, 38, 0.9);
+    border: none;
+    font-weight: 700;
 }
 
-/* Order log cards */
+body.staff-app .staff-review-publish-btn:hover {
+    filter: brightness(1.06);
+}
+
+body.staff-app .staff-review-delete-btn:hover {
+    background: #B91C1C;
+}
+
+/* Order log cards (override dark base) */
 body.staff-app .order-log-card {
     background: var(--staff-surface-2);
     border: 1px solid var(--staff-border);
+    border-radius: 12px;
+    box-shadow: var(--staff-shadow-sm);
+}
+
+body.staff-app .order-log-card p,
+body.staff-app .order-log-card strong,
+body.staff-app .order-log-card span {
+    color: var(--staff-text);
 }
 
 body.staff-app .order-log-card .review-log-comment .review-log-comment-text {
@@ -8012,6 +8260,8 @@ body.staff-app .order-log-card .review-log-comment .review-log-comment-text {
 body.staff-app .account-list li {
     background: var(--staff-surface-2);
     border: 1px solid var(--staff-border);
+    border-radius: 12px;
+    box-shadow: var(--staff-shadow-sm);
     color: var(--staff-text);
 }
 
@@ -8029,12 +8279,14 @@ body.staff-app .account-inline-editor select {
 body.staff-app .account-inline-editor input:focus,
 body.staff-app .account-inline-editor select:focus {
     border-color: var(--staff-accent);
+    box-shadow: 0 0 0 3px rgba(43, 174, 102, 0.18);
     outline: none;
 }
 
 body.staff-app .account-inline-actions .save-btn {
     background: var(--staff-accent);
     color: #fff;
+    border: none;
 }
 
 body.staff-app .account-inline-actions .cancel-btn {
@@ -8045,14 +8297,14 @@ body.staff-app .account-inline-actions .cancel-btn {
 
 body.staff-app .account-list .edit-btn {
     background: var(--staff-accent-soft);
-    color: var(--staff-accent-2);
-    border: 1px solid rgba(139, 92, 246, 0.35);
+    color: var(--staff-accent-strong);
+    border: 1px solid rgba(43, 174, 102, 0.35);
 }
 
 body.staff-app .account-list .delete-btn {
-    background: rgba(248, 113, 113, 0.16);
+    background: rgba(220, 38, 38, 0.1);
     color: var(--staff-danger);
-    border: 1px solid rgba(248, 113, 113, 0.35);
+    border: 1px solid rgba(220, 38, 38, 0.35);
 }
 
 /* ---------- Credentials: floating labels + helper text ---------- */
@@ -8075,7 +8327,7 @@ body.staff-app .floating-field input {
 
 body.staff-app .floating-field input:focus {
     border-color: var(--staff-accent);
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+    box-shadow: 0 0 0 3px rgba(43, 174, 102, 0.18);
     background: var(--staff-surface-2);
     outline: none;
 }
@@ -8118,7 +8370,7 @@ body.staff-app .floating-field .field-helper {
 body.staff-app .trusted-devices-card {
     margin-top: 22px;
     padding: 18px;
-    background: var(--staff-surface);
+    background: var(--staff-surface-soft);
     border: 1px solid var(--staff-border);
     border-radius: 16px;
 }
@@ -8161,7 +8413,7 @@ body.staff-app .trusted-device-icon {
     height: 38px;
     border-radius: 12px;
     background: var(--staff-accent-soft);
-    color: var(--staff-accent-2);
+    color: var(--staff-accent-strong);
     font-size: 16px;
     flex-shrink: 0;
 }
@@ -8200,21 +8452,21 @@ body.staff-app .trusted-device-status {
 }
 
 body.staff-app .trusted-device-status.is-current {
-    background: rgba(74, 222, 128, 0.16);
+    background: rgba(22, 163, 74, 0.14);
     color: var(--staff-success);
-    border: 1px solid rgba(74, 222, 128, 0.3);
+    border: 1px solid rgba(22, 163, 74, 0.3);
 }
 
 body.staff-app .trusted-device-status.is-trusted {
     background: var(--staff-accent-soft);
-    color: var(--staff-accent-2);
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: var(--staff-accent-strong);
+    border: 1px solid rgba(43, 174, 102, 0.3);
 }
 
 body.staff-app .trusted-device-revoke {
     flex-shrink: 0;
-    border: 1px solid rgba(248, 113, 113, 0.4);
-    background: rgba(248, 113, 113, 0.12);
+    border: 1px solid rgba(220, 38, 38, 0.4);
+    background: rgba(220, 38, 38, 0.1);
     color: var(--staff-danger);
     border-radius: 9px;
     padding: 7px 12px;
@@ -8226,7 +8478,7 @@ body.staff-app .trusted-device-revoke {
 
 body.staff-app .trusted-device-revoke:hover {
     background: var(--staff-danger);
-    color: #2b0b0b;
+    color: #fff;
     border-color: var(--staff-danger);
 }
 
@@ -8237,13 +8489,11 @@ body.staff-app .trusted-devices-empty {
 
 /* ---------- Device verification modal ---------- */
 body.staff-app .device-verify-modal {
-    background: rgba(26, 27, 33, 0.92);
-    -webkit-backdrop-filter: blur(24px) saturate(1.4);
-    backdrop-filter: blur(24px) saturate(1.4);
+    background: #ffffff;
     border: 1px solid var(--staff-border);
     border-radius: 18px;
     color: var(--staff-text);
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--staff-shadow-lg);
 }
 
 body.staff-app .device-verify-modal h2 {
@@ -8276,7 +8526,7 @@ body.staff-app .device-verify-modal input[type="text"] {
 
 body.staff-app .device-verify-modal input[type="text"]:focus {
     border-color: var(--staff-accent);
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+    box-shadow: 0 0 0 3px rgba(43, 174, 102, 0.18);
     outline: none;
 }
 
@@ -8303,13 +8553,13 @@ body.staff-app .add-staff-btn,
 body.staff-app .account-form button,
 body.staff-app .menu-place-order-btn,
 body.staff-app .menu-open-btn {
-    background: linear-gradient(135deg, var(--staff-accent-strong), var(--staff-accent));
+    background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
     color: #fff;
     border: none;
     border-radius: 12px;
     font-weight: 700;
-    box-shadow: 0 10px 24px rgba(124, 58, 237, 0.35);
-    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    box-shadow: 0 8px 20px rgba(43, 174, 102, 0.3);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
 
 body.staff-app .add-staff-btn:hover,
@@ -8317,19 +8567,20 @@ body.staff-app .account-form button:hover,
 body.staff-app .menu-place-order-btn:hover,
 body.staff-app .menu-open-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 16px 34px rgba(124, 58, 237, 0.5);
-    background: linear-gradient(135deg, var(--staff-accent), var(--staff-accent-2));
+    box-shadow: 0 14px 30px rgba(43, 174, 102, 0.42);
+    filter: brightness(1.05);
 }
 
 body.staff-app .secondary-btn {
     background: var(--staff-surface-2);
     color: var(--staff-text);
     border: 1px solid var(--staff-border);
+    font-weight: 600;
 }
 
 body.staff-app .secondary-btn:hover {
     background: var(--staff-accent-soft);
-    color: #fff;
+    color: var(--staff-accent-strong);
     border-color: var(--staff-accent);
 }
 
@@ -8338,23 +8589,11 @@ body.staff-app .account-form {
 }
 
 body.staff-app .account-form input,
-body.staff-app .account-form select {
-    background: var(--staff-surface-2);
-    border: 1px solid var(--staff-border);
-    color: var(--staff-text);
-    border-radius: 12px;
-    padding: 12px 14px;
-    box-sizing: border-box;
-}
-
-body.staff-app .account-form input:focus,
-body.staff-app .account-form select:focus {
-    border-color: var(--staff-accent);
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
-    outline: none;
-}
-
+body.staff-app .account-form select,
 body.staff-app .inventory-search-field input,
+body.staff-app .inventory-form-grid input,
+body.staff-app .inventory-form-grid select,
+body.staff-app .inventory-form-grid textarea,
 body.staff-app .walkin-order-builder input,
 body.staff-app .walkin-order-builder select,
 body.staff-app .walkin-order-footer select,
@@ -8364,22 +8603,28 @@ body.staff-app .analytics-select {
     border: 1px solid var(--staff-border);
     color: var(--staff-text);
     border-radius: 12px;
+    padding: 12px 14px;
+    box-sizing: border-box;
 }
 
+body.staff-app .account-form input:focus,
+body.staff-app .account-form select:focus,
 body.staff-app .inventory-search-field input:focus,
+body.staff-app .inventory-form-grid input:focus,
+body.staff-app .inventory-form-grid select:focus,
+body.staff-app .inventory-form-grid textarea:focus,
 body.staff-app .walkin-order-builder input:focus,
 body.staff-app .walkin-order-builder select:focus,
 body.staff-app .walkin-order-footer select:focus,
 body.staff-app .nested-select:focus,
 body.staff-app .analytics-select:focus {
     border-color: var(--staff-accent);
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+    box-shadow: 0 0 0 3px rgba(43, 174, 102, 0.18);
     outline: none;
 }
 
-body.staff-app .sales-analytics-select-wrapper,
-body.staff-app .nested-selector {
-    color: var(--staff-muted);
+body.staff-app .modal-overlay {
+    background: rgba(30, 41, 39, 0.45);
 }
 
 /* Highlights */
@@ -8387,13 +8632,15 @@ body.staff-app .highlight-item-card {
     background: var(--staff-surface-2);
     border: 1px solid var(--staff-border);
     border-radius: 14px;
+    box-shadow: var(--staff-shadow-sm);
 }
 
 /* ---------- Low stock modal ---------- */
 body.staff-app .low-stock-modal {
-    background: rgba(26, 27, 33, 0.94);
+    background: #ffffff;
     border: 1px solid var(--staff-border);
     color: var(--staff-text);
+    box-shadow: var(--staff-shadow-lg);
 }
 
 body.staff-app .low-stock-modal h2,
@@ -8407,6 +8654,16 @@ body.staff-app .low-stock-dropdown {
     color: var(--staff-text);
 }
 
+body.staff-app .low-stock-item {
+    background: var(--staff-surface-soft);
+    border: 1px solid var(--staff-border);
+    color: var(--staff-text);
+}
+
+body.staff-app .low-stock-item strong {
+    color: var(--staff-warn);
+}
+
 body.staff-app .low-stock-action-btn.secondary {
     background: var(--staff-surface-2);
     color: var(--staff-text);
@@ -8418,49 +8675,72 @@ body.staff-app .modal-close {
 }
 
 body.staff-app .modal-close:hover {
-    color: var(--staff-text);
+    color: var(--staff-danger);
 }
 
 /* ---------- Login box (staff.html login card) ---------- */
 body.staff-app .staff-box {
-    background: rgba(26, 27, 33, 0.82);
-    -webkit-backdrop-filter: blur(24px) saturate(1.4);
-    backdrop-filter: blur(24px) saturate(1.4);
+    background: #ffffff;
     border: 1px solid var(--staff-border);
-    border-radius: 22px;
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    border-radius: 24px;
+    box-shadow: 0 30px 80px rgba(23, 87, 54, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.9);
     color: var(--staff-text);
+    padding: 34px 32px 30px;
 }
 
-body.staff-app .staff-box h2,
+body.staff-app .staff-box::before {
+    content: "\f2e7";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 16px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
+    color: #fff;
+    font-size: 22px;
+    box-shadow: 0 10px 24px rgba(43, 174, 102, 0.35);
+}
+
+body.staff-app .staff-box h2 {
+    color: var(--staff-accent-strong);
+    text-align: center;
+    font-weight: 800;
+}
+
 body.staff-app .staff-box label {
-    color: var(--staff-text);
+    color: var(--staff-muted);
+    font-weight: 600;
 }
 
 body.staff-app .staff-box input {
     background: var(--staff-surface-2);
     border: 1px solid var(--staff-border);
     color: var(--staff-text);
+    border-radius: 12px;
 }
 
 body.staff-app .staff-box input:focus {
     border-color: var(--staff-accent);
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+    box-shadow: 0 0 0 3px rgba(43, 174, 102, 0.18);
     outline: none;
 }
 
 body.staff-app .staff-box button[type="submit"] {
-    background: linear-gradient(135deg, var(--staff-accent-strong), var(--staff-accent));
+    background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
     color: #fff;
     border: none;
     border-radius: 12px;
     font-weight: 700;
-    box-shadow: 0 10px 24px rgba(124, 58, 237, 0.4);
+    box-shadow: 0 10px 24px rgba(43, 174, 102, 0.35);
 }
 
 body.staff-app .staff-box button[type="submit"]:hover {
     transform: translateY(-2px);
-    box-shadow: 0 16px 34px rgba(124, 58, 237, 0.55);
+    box-shadow: 0 16px 34px rgba(43, 174, 102, 0.45);
+    filter: brightness(1.05);
 }
 
 body.staff-app .remember-row label {
@@ -8475,8 +8755,36 @@ body.staff-app .password-toggle-btn:hover {
     color: var(--staff-accent-2);
 }
 
+/* Social login buttons — light card friendly */
+body.staff-app .social-login-btn {
+    border: 1px solid var(--staff-border) !important;
+    background: #ffffff !important;
+    color: var(--staff-muted) !important;
+}
+
+body.staff-app .social-login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--staff-shadow-md);
+    border-color: var(--staff-accent) !important;
+}
+
+body.staff-app .social-login-google {
+    color: #EA4335 !important;
+}
+
+body.staff-app .social-login-facebook {
+    color: #1877F2 !important;
+}
+
+body.staff-app .social-login-tiktok {
+    color: #111111 !important;
+}
+
 body.staff-app .login-dark-overlay {
-    background-color: rgba(0, 0, 0, 0.62);
+    background:
+        radial-gradient(1100px 560px at 85% -10%, rgba(43, 174, 102, 0.16), transparent 60%),
+        radial-gradient(900px 520px at -8% 112%, rgba(43, 174, 102, 0.1), transparent 55%),
+        rgba(252, 246, 245, 0.5);
 }
 
 /* ---------- Responsive (mobile-first) ---------- */
