@@ -8046,7 +8046,16 @@ function hidePaymentSuccessMessage() {
 
 async function confirmOrder() {
     if (!cartItems.length) return;
-    closeCartModal();
+    // Close the cart modal if it is still open — but do NOT use closeCartModal(),
+    // which cascades into closeCheckoutScreenCompletely() whenever the checkout
+    // screen is visible, jumping the customer back to the menu tab instead of the
+    // payment confirmation page. The checkout screen stays open until the order
+    // is submitted and the payment screen takes over.
+    closeCartAddOnScreen();
+    if (cartModal && !cartModal.classList.contains('hidden')) {
+        cartModal.classList.add('hidden');
+        cartModal.setAttribute('aria-hidden', 'true');
+    }
     console.debug('confirmOrder: started', { cartItemsLength: cartItems.length });
     const payableItems = getPayableCartItems();
     const payableTotal = payableItems.reduce((sum, item) => sum + getCartItemLineTotal(item), 0);
@@ -8107,9 +8116,18 @@ async function confirmOrder() {
         deliveryAddress: selectedDeliveryAddress
     };
 
+    if (confirmOrderBtn) {
+        confirmOrderBtn.disabled = true;
+        confirmOrderBtn.textContent = 'Placing order…';
+    }
+
     const syncedOrder = await submitOrderToServer(order);
     console.debug('confirmOrder: submitOrderToServer returned', syncedOrder);
     if (!syncedOrder) {
+        if (confirmOrderBtn) {
+            confirmOrderBtn.disabled = false;
+            confirmOrderBtn.textContent = 'Confirm Order';
+        }
         if (checkoutMessage) {
             checkoutMessage.textContent = 'Unable to submit order to server. Please try again.';
             checkoutMessage.style.color = '#b00020';
