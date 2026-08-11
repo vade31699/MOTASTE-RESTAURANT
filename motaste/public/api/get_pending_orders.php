@@ -73,6 +73,7 @@ try {
             'delivery_address' => $order->delivery_address ?? null,
             'prep_minutes' => isset($order->prep_minutes) ? (int)$order->prep_minutes : null,
             'prep_started_at' => $order->prep_started_at ?? null,
+            'prep_started_at_iso' => $order->prep_started_at ? Carbon::parse($order->prep_started_at)->toIso8601String() : null,
             'subtotal' => (float)($order->subtotal ?? 0),
             'total_amount' => (float)($order->total_amount ?? 0),
             'items' => $items,

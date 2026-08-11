@@ -4366,7 +4366,9 @@ async function pollCustomerOrderStatus() {
                 customerOrderStatuses.set(orderNumber, {
                     status,
                     prepMinutes: order.prep_minutes != null ? Number(order.prep_minutes) : null,
-                    prepStartedAt: order.prep_started_at || null,
+                    // Prefer the timezone-aware ISO variant; fall back to the raw
+                    // server string for older responses or cached payloads.
+                    prepStartedAt: order.prep_started_at_iso || order.prep_started_at || null,
                     orderType: order.order_type || ''
                 });
             }
@@ -4436,6 +4438,38 @@ function formatCountdownClock(totalSeconds) {
 }
 
 /**
+ * Parses a prep-timer timestamp for the countdown engine. The Laravel backend
+ * is configured with timezone UTC, so naive "YYYY-MM-DD HH:MM:SS" strings are
+ * interpreted as UTC. Timezone-aware ISO strings (the preferred format) are
+ * parsed by Date directly. Returns null when the value is unusable.
+ */
+function parsePrepTimestampToMs(value) {
+    if (value === null || value === undefined || value === '') return null;
+    if (typeof value === 'number') return value;
+
+    const raw = String(value).trim();
+    if (!raw) return null;
+
+    const matched = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+    if (matched) {
+        // No timezone marker -> the server wrote this in UTC.
+        return Date.UTC(
+            Number(matched[1]),
+            Number(matched[2]) - 1,
+            Number(matched[3]),
+            Number(matched[4] || 0),
+            Number(matched[5] || 0),
+            Number(matched[6] || 0)
+        );
+    }
+
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) return parsed.getTime();
+
+    return null;
+}
+
+/**
  * Shared countdown engine used by both the customer icon/popover and the
  * staff pending-order cards. Computes the live MM:SS clock and the remaining
  * fraction (1 = full time left, 0 = time is up) from the server's prep start
@@ -4444,11 +4478,10 @@ function formatCountdownClock(totalSeconds) {
  */
 function getPreparationCountdownDetails(prepStartedAt, prepMinutes) {
     const minutes = Math.max(0, Number(prepMinutes) || 0);
-    if (!minutes || !prepStartedAt) {
+    const startedMs = parsePrepTimestampToMs(prepStartedAt);
+    if (!minutes || startedMs === null) {
         return { clock: '', progress: 1 };
     }
-
-    const startedMs = parseServerDateToMs(prepStartedAt);
     const durationMs = minutes * 60 * 1000;
     const endMs = startedMs + durationMs;
     const remainingMs = endMs - Date.now();
@@ -4639,7 +4672,7 @@ async function loadPendingOrdersFromServer() {
                 customerName: order.customer_name || order.customerName || '',
                 deliveryAddress: order.delivery_address || order.deliveryAddress || '',
                 prepMinutes: order.prep_minutes != null ? Number(order.prep_minutes) : null,
-                prepStartedAt: order.prep_started_at || null,
+                prepStartedAt: order.prep_started_at_iso || order.prep_started_at || null,
                 items: items.map((item) => ({
                     id: Number(item.id ?? 0),
                     name: item.notes || item.name || 'Menu item',
