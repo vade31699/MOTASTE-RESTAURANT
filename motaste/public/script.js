@@ -180,7 +180,6 @@ async function loadStaffAccountsFromServer(forceRefresh = false) {
 
 function forceLogoutCurrentStaffSession() {
     clearStaffSession();
-    stopPendingOrderCountdownTicker();
     if (selectedRoleInput) selectedRoleInput.value = '';
     if (emailInput) emailInput.value = '';
     if (passwordInput) passwordInput.value = '';
@@ -1569,7 +1568,6 @@ if (logoutBtn) {
             window.clearInterval(orderStatusFloatTicker);
             orderStatusFloatTicker = null;
         }
-        stopPendingOrderCountdownTicker();
         if (inventoryRefreshTimer) {
             window.clearInterval(inventoryRefreshTimer);
             inventoryRefreshTimer = null;
@@ -3924,7 +3922,6 @@ let customerOrderStatusPoller = null;
 let customerOrderStatuses = new Map();
 let orderStatusFloatTicker = null;
 let orderStatusFloatOpen = false;
-let pendingOrderCountdownTicker = null;
 let orderCompleteScrollLockState = null;
 let orderNotificationAudioElement = null;
 let orderNotificationAudioListenersBound = false;
@@ -4434,33 +4431,6 @@ function startOrderStatusFloatTicker() {
         if (orderStatusFloat.hidden) return;
         renderOrderStatusFloat();
     }, 1000);
-}
-
-/**
- * Live preparation countdown for staff: every preparing order card shows the
- * exact remaining minutes/seconds (same timer the customer sees), refreshed
- * every second without re-rendering the whole list.
- */
-function renderPendingOrderCountdowns() {
-    document.querySelectorAll('.pending-order-countdown').forEach((el) => {
-        const started = el.dataset.started;
-        const minutes = Number(el.dataset.minutes || 0);
-        el.textContent = getPreparationCountdownText(started, minutes) || 'Almost ready!';
-    });
-}
-
-function startPendingOrderCountdownTicker() {
-    if (pendingOrderCountdownTicker || !isStaffPage) return;
-    pendingOrderCountdownTicker = window.setInterval(() => {
-        renderPendingOrderCountdowns();
-    }, 1000);
-}
-
-function stopPendingOrderCountdownTicker() {
-    if (pendingOrderCountdownTicker) {
-        window.clearInterval(pendingOrderCountdownTicker);
-        pendingOrderCountdownTicker = null;
-    }
 }
 
 function toggleOrderStatusPopover(forceOpen) {
@@ -6411,7 +6381,7 @@ function renderOrderNotifications() {
         const badgeLabel = isCompleted ? 'Completed' : (isPreparing ? 'Preparing' : 'New');
         const badgeClass = isCompleted ? 'is-completed' : (isPreparing ? 'is-preparing' : 'is-new');
         const prepLine = isPreparing
-            ? `<p class="order-notif-prep"><strong>Prep:</strong> <span class="pending-order-countdown" data-started="${escapeHtml(order.prepStartedAt || '')}" data-minutes="${Number(order.prepMinutes) || 0}">${getPreparationCountdownText(order.prepStartedAt, order.prepMinutes) || 'Almost ready!'}</span></p>`
+            ? `<p class="order-notif-prep"><strong>Prep:</strong> ~${Number(order.prepMinutes) || 0} min</p>`
             : '';
         return `
             <article class="order-notification-card ${isCompleted ? 'completed' : ''}">
@@ -7492,7 +7462,7 @@ function renderPendingOrders() {
                 <div class="pending-order-actions">
                     <div class="pending-order-total">
                         <strong>Total: ${formatCurrency(order.total)}</strong>
-                        ${isPreparing ? `<span class="pending-order-prep-status"><i class="fa-solid fa-fire-burner" aria-hidden="true"></i> Preparing · <span class="pending-order-countdown" data-started="${escapeHtml(order.prepStartedAt || '')}" data-minutes="${prepMinutesValue}">${getPreparationCountdownText(order.prepStartedAt, prepMinutesValue) || 'Almost ready!'}</span></span>` : ''}
+                        ${isPreparing ? `<span class="pending-order-prep-status"><i class="fa-solid fa-fire-burner" aria-hidden="true"></i> Preparing · ~${prepMinutesValue} min est.</span>` : ''}
                     </div>
                     <div class="pending-order-prep-row">
                         <label class="prep-minutes-field">
@@ -9376,10 +9346,6 @@ function initOrders() {
         void pollCustomerOrderStatus();
         startOrderStatusFloatTicker();
         renderOrderStatusFloat();
-    }
-
-    if (isStaffPage) {
-        startPendingOrderCountdownTicker();
     }
 }
 

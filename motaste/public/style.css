@@ -8874,12 +8874,7 @@ body.staff-app .login-dark-overlay {
 }
 
 .order-status-float {
-    /* Floating status icon: fixed beside the cart FAB so it follows the
-       customer while scrolling, exactly like the cart icon itself. */
-    position: fixed;
-    right: 96px;
-    bottom: 31px;
-    z-index: 1800;
+    position: relative;
     display: inline-flex;
     align-items: center;
 }
@@ -8937,10 +8932,7 @@ body.staff-app .login-dark-overlay {
 .order-status-popover {
     position: absolute;
     right: 0;
-    /* The float sits near the bottom edge of the viewport, so the popover
-       opens upward instead of below the visible screen. */
-    top: auto;
-    bottom: calc(100% + 10px);
+    top: calc(100% + 10px);
     width: 300px;
     max-width: 82vw;
     background: #111827;
@@ -9052,17 +9044,19 @@ body.staff-app .login-dark-overlay {
     color: #9ca3af;
 }
 
-.pending-order-countdown {
-    font-variant-numeric: tabular-nums;
-    font-weight: 800;
-}
-
 @media (max-width: 900px) {
-    /* Mobile cart FAB is 56px at right/bottom 14px — sit the status icon
-       directly beside it, vertically centred. */
     .order-status-float {
-        right: 84px;
-        bottom: 20px;
+        position: fixed;
+        right: 86px;
+        bottom: 24px;
+        z-index: 1800;
+    }
+
+    /* The float sits near the bottom edge on mobile, so the popover must open
+       upward instead of below the viewport. */
+    .order-status-popover {
+        top: auto;
+        bottom: calc(100% + 10px);
     }
 }
 
