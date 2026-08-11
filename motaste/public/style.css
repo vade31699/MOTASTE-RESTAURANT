@@ -9282,6 +9282,130 @@ body.staff-app .login-dark-overlay {
     border: 1px solid rgba(99, 102, 241, 0.5);
 }
 
+/* Overdue prep timer — red ring pulse until staff adds minutes or completes */
+.pending-order-card.is-overdue {
+    border: 1px solid rgba(239, 68, 68, 0.65);
+    animation: pending-order-overdue-pulse 1.6s ease-in-out infinite;
+}
+
+.pending-order-card.is-overdue .pending-order-countdown {
+    border-color: rgba(239, 68, 68, 0.55);
+    background: rgba(239, 68, 68, 0.08);
+    color: #dc2626;
+}
+
+.pending-order-card.is-overdue .pending-order-countdown-bar-fill {
+    background: #ef4444;
+}
+
+@keyframes pending-order-overdue-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.28), 0 8px 22px rgba(239, 68, 68, 0.14);
+    }
+    50% {
+        box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.42), 0 10px 26px rgba(239, 68, 68, 0.26);
+    }
+}
+
+/* ===== Overdue preparation alert modal ===== */
+.overdue-alert-modal {
+    width: min(480px, 100%);
+    background: rgba(17, 24, 39, 0.96);
+    color: #fff;
+    border: 1px solid rgba(239, 68, 68, 0.45);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+    text-align: center;
+}
+
+.overdue-alert-modal h2 {
+    margin: 0 0 8px;
+    color: #f87171;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.overdue-alert-modal h2 i {
+    animation: overdue-bell-ring 1s ease-in-out infinite;
+}
+
+@keyframes overdue-bell-ring {
+    0%, 100% { transform: rotate(0deg); }
+    20% { transform: rotate(12deg); }
+    40% { transform: rotate(-10deg); }
+    60% { transform: rotate(8deg); }
+    80% { transform: rotate(-5deg); }
+}
+
+.overdue-alert-modal p {
+    margin: 0;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.overdue-alert-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.overdue-alert-actions .prep-minutes-field {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.overdue-alert-actions .prep-minutes-input {
+    background: #1f2937;
+    border-color: rgba(255, 255, 255, 0.18);
+    color: #fff;
+}
+
+.overdue-alert-actions .overdue-add-minutes-btn {
+    background: #f59e0b;
+    color: #1f2937;
+}
+
+.overdue-alert-actions .overdue-complete-btn {
+    background: #10b981;
+    color: #fff;
+}
+
+.overdue-alert-actions button {
+    margin: 0;
+}
+
+.overdue-alert-modal .menu-order-message {
+    margin-top: 12px;
+}
+
+body.staff-app .overdue-alert-modal {
+    background: #ffffff;
+    border: 1px solid var(--staff-border);
+    color: var(--staff-text);
+    box-shadow: var(--staff-shadow-lg);
+}
+
+body.staff-app .overdue-alert-modal h2 {
+    color: var(--staff-danger);
+}
+
+body.staff-app .overdue-alert-modal p {
+    color: var(--staff-muted);
+}
+
+body.staff-app .overdue-alert-actions .prep-minutes-field {
+    color: var(--staff-muted);
+}
+
+body.staff-app .overdue-alert-actions .prep-minutes-input {
+    background: #ffffff;
+    border-color: var(--staff-border);
+    color: var(--staff-text);
+}
+
 .pending-order-card.is-highlighted {
     animation: pending-order-highlight 2.2s ease;
 }
@@ -9544,4 +9668,955 @@ body.staff-app .export-summary-item strong {
 #exportMessage.is-error {
     color: #dc2626;
     font-weight: 600;
+}
+
+/* ============ Accessibility: skip link ============ */
+.skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 9999;
+    background: #0d0f1c;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 0 0 12px 0;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.skip-link:focus {
+    left: 0;
+}
+
+/* ============ Language toggle ============ */
+.lang-toggle-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.lang-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+/* ============ Inventory badges ============ */
+.inventory-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.inventory-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 999px;
+}
+
+.badge-reorder {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge-hidden {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-cost {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+.inventory-item-card.is-hidden .inventory-item-main > strong {
+    opacity: 0.6;
+}
+
+/* ============ Reorder suggestions ============ */
+.reorder-suggestions-panel {
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    background: rgba(255, 251, 235, 0.6);
+    border-radius: 14px;
+    padding: 14px;
+    margin: 12px 0 16px;
+}
+
+body.staff-app .reorder-suggestions-panel {
+    background: rgba(255, 247, 225, 0.08);
+    border-color: var(--staff-accent);
+}
+
+.reorder-suggestions-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.reorder-suggestions-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: #92400e;
+}
+
+body.staff-app .reorder-suggestions-header h4 {
+    color: var(--staff-text);
+}
+
+.reorder-suggestions-hint {
+    font-size: 0.78rem;
+    color: #a16207;
+}
+
+body.staff-app .reorder-suggestions-hint {
+    color: var(--staff-muted);
+}
+
+.reorder-suggestions-list {
+    display: grid;
+    gap: 8px;
+}
+
+.reorder-suggestion-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: #fff;
+    border: 1px solid rgba(217, 119, 6, 0.2);
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+
+body.staff-app .reorder-suggestion-card {
+    background: var(--staff-surface);
+    border-color: var(--staff-border);
+    color: var(--staff-text);
+}
+
+.reorder-suggestion-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 180px;
+    flex: 1;
+}
+
+.reorder-suggestion-meta {
+    font-size: 0.78rem;
+    color: #a16207;
+}
+
+body.staff-app .reorder-suggestion-meta {
+    color: var(--staff-muted);
+}
+
+.reorder-suggestion-cost {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.reorder-suggestion-btn {
+    background: #d97706;
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.reorder-suggestion-btn:hover {
+    background: #b45309;
+    transform: translateY(-1px);
+}
+
+/* ============ Walk-in loyalty panel ============ */
+.walkin-loyalty-panel {
+    border: 1px dashed rgba(139, 92, 246, 0.4);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 14px;
+    background: rgba(139, 92, 246, 0.06);
+}
+
+body.staff-app .walkin-loyalty-panel {
+    background: rgba(139, 92, 246, 0.08);
+    border-color: var(--staff-accent);
+}
+
+.walkin-loyalty-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 10px;
+    font-weight: 700;
+    color: #6d28d9;
+}
+
+body.staff-app .walkin-loyalty-header {
+    color: var(--staff-text);
+}
+
+.walkin-loyalty-header small {
+    font-weight: 400;
+    font-size: 0.75rem;
+    color: #8b5cf6;
+}
+
+.walkin-loyalty-row {
+    display: flex;
+    gap: 8px;
+}
+
+.walkin-loyalty-row input {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    background: #fff;
+}
+
+body.staff-app .walkin-loyalty-row input {
+    background: var(--staff-surface);
+    color: var(--staff-text);
+    border-color: var(--staff-border);
+}
+
+.walkin-loyalty-result {
+    margin-top: 10px;
+    background: #f5f3ff;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+}
+
+body.staff-app .walkin-loyalty-result {
+    background: var(--staff-surface-2);
+    color: var(--staff-text);
+}
+
+.walkin-loyalty-result p {
+    margin: 2px 0;
+}
+
+.walkin-loyalty-points strong {
+    color: #7c3aed;
+}
+
+.walkin-loyalty-redeem-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.walkin-loyalty-redeem-row label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.78rem;
+    color: #6d28d9;
+    font-weight: 600;
+}
+
+body.staff-app .walkin-loyalty-redeem-row label {
+    color: var(--staff-muted);
+}
+
+.walkin-loyalty-redeem-row input {
+    width: 90px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.walkin-loyalty-discount-text {
+    font-weight: 700;
+    color: #059669;
+}
+
+/* ============ Order action buttons ============ */
+.order-cancel-btn,
+.order-print-btn {
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: transparent;
+    color: #64748b;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.order-cancel-btn:hover {
+    border-color: #ef4444;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.06);
+}
+
+.order-print-btn:hover {
+    border-color: #0891b2;
+    color: #0891b2;
+    background: rgba(8, 145, 178, 0.06);
+}
+
+.order-refund-btn {
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: transparent;
+    color: #64748b;
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.order-refund-btn:hover {
+    border-color: #d97706;
+    color: #d97706;
+    background: rgba(217, 119, 6, 0.06);
+}
+
+/* ============ Insights ============ */
+.insights-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.insights-toolbar h3 {
+    margin: 0;
+}
+
+.insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.insight-card {
+    background: #fff;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 14px;
+    padding: 16px;
+}
+
+body.staff-app .insight-card {
+    background: var(--staff-surface);
+    border-color: var(--staff-border);
+    color: var(--staff-text);
+}
+
+.insight-card h4 {
+    margin: 0 0 10px;
+    font-size: 0.95rem;
+    color: #1f2937;
+}
+
+body.staff-app .insight-card h4 {
+    color: var(--staff-text);
+}
+
+.insight-card-wide {
+    grid-column: 1 / -1;
+}
+
+.insights-hourly-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 120px;
+    overflow-x: auto;
+    padding-bottom: 18px;
+}
+
+.insights-hourly-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    min-width: 26px;
+}
+
+.insights-hourly-bar {
+    width: 16px;
+    background: linear-gradient(180deg, #6366f1, #8b5cf6);
+    border-radius: 4px 4px 0 0;
+    transition: height 0.4s ease;
+    min-height: 2px;
+}
+
+.insights-hourly-label {
+    font-size: 0.6rem;
+    color: #94a3b8;
+    margin-top: 4px;
+    transform: rotate(-45deg);
+    white-space: nowrap;
+}
+
+.insights-hourly-note {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin: 6px 0 0;
+}
+
+.insights-bestseller-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px
+/* ============ Accessibility: skip link ============ */
+.skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 9999;
+    background: #0d0f1c;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 0 0 12px 0;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.skip-link:focus {
+    left: 0;
+}
+
+/* ============ Language toggle ============ */
+.lang-toggle-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.lang-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+/* ============ Inventory badges ============ */
+.inventory-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.inventory-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 999px;
+}
+
+.badge-reorder {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge-hidden {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-cost {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+.inventory-item-card.is-hidden .inventory-item-main > strong {
+    opacity: 0.6;
+}
+
+/* ============ Reorder suggestions ============ */
+.reorder-suggestions-panel {
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    background: rgba(255, 251, 235, 0.6);
+    border-radius: 14px;
+    padding: 14px;
+    margin: 12px 0 16px;
+}
+
+body.staff-app .reorder-suggestions-panel {
+    background: rgba(255, 247, 225, 0.08);
+    border-color: var(--staff-accent);
+}
+
+.reorder-suggestions-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.reorder-suggestions-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: #92400e;
+}
+
+body.staff-app .reorder-suggestions-header h4 {
+    color: var(--staff-text);
+}
+
+.reorder-suggestions-hint {
+    font-size: 0.78rem;
+    color: #a16207;
+}
+
+body.staff-app .reorder-suggestions-hint {
+    color: var(--staff-muted);
+}
+
+.reorder-suggestions-list {
+    display: grid;
+    gap: 8px;
+}
+
+.reorder-suggestion-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: #fff;
+    border: 1px solid rgba(217, 119, 6, 0.2);
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+
+body.staff-app .reorder-suggestion-card {
+    background: var(--staff-surface);
+    border-color: var(--staff-border);
+    color: var(--staff-text);
+}
+
+.reorder-suggestion-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 180px;
+    flex: 1;
+}
+
+.reorder-suggestion-meta {
+    font-size: 0.78rem;
+    color: #a16207;
+}
+
+body.staff-app .reorder-suggestion-meta {
+    color: var(--staff-muted);
+}
+
+.reorder-suggestion-cost {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.reorder-suggestion-btn {
+    background: #d97706;
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.reorder-suggestion-btn:hover {
+    background: #b45309;
+    transform: translateY(-1px);
+}
+
+/* ============ Walk-in loyalty panel ============ */
+.walkin-loyalty-panel {
+    border: 1px dashed rgba(139, 92, 246, 0.4);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 14px;
+    background: rgba(139, 92, 246, 0.06);
+}
+
+body.staff-app .walkin-loyalty-panel {
+    background: rgba(139, 92, 246, 0.08);
+    border-color: var(--staff-accent);
+}
+
+.walkin-loyalty-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 10px;
+    font-weight: 700;
+    color: #6d28d9;
+}
+
+body.staff-app .walkin-loyalty-header {
+    color: var(--staff-text);
+}
+
+.walkin-loyalty-header small {
+    font-weight: 400;
+    font-size: 0.75rem;
+    color: #8b5cf6;
+}
+
+.walkin-loyalty-row {
+    display: flex;
+    gap: 8px;
+}
+
+.walkin-loyalty-row input {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    background: #fff;
+}
+
+body.staff-app .walkin-loyalty-row input {
+    background: var(--staff-surface);
+    color: var(--staff-text);
+    border-color: var(--staff-border);
+}
+
+.walkin-loyalty-result {
+    margin-top: 10px;
+    background: #f5f3ff;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+}
+
+body.staff-app .walkin-loyalty-result {
+    background: var(--staff-surface-2);
+    color: var(--staff-text);
+}
+
+.walkin-loyalty-result p {
+    margin: 2px 0;
+}
+
+.walkin-loyalty-points strong {
+    color: #7c3aed;
+}
+
+.walkin-loyalty-redeem-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.walkin-loyalty-redeem-row label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.78rem;
+    color: #6d28d9;
+    font-weight: 600;
+}
+
+body.staff-app .walkin-loyalty-redeem-row label {
+    color: var(--staff-muted);
+}
+
+.walkin-loyalty-redeem-row input {
+    width: 90px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.walkin-loyalty-discount-text {
+    font-weight: 700;
+    color: #059669;
+}
+
+/* ============ Order action buttons ============ */
+.order-cancel-btn,
+.order-print-btn {
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: transparent;
+    color: #64748b;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.order-cancel-btn:hover {
+    border-color: #ef4444;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.06);
+}
+
+.order-print-btn:hover {
+    border-color: #0891b2;
+    color: #0891b2;
+    background: rgba(8, 145, 178, 0.06);
+}
+
+.order-refund-btn {
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: transparent;
+    color: #64748b;
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.order-refund-btn:hover {
+    border-color: #d97706;
+    color: #d97706;
+    background: rgba(217, 119, 6, 0.06);
+}
+
+/* ============ Insights ============ */
+.insights-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.insights-toolbar h3 {
+    margin: 0;
+}
+
+.insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.insight-card {
+    background: #fff;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 14px;
+    padding: 16px;
+}
+
+body.staff-app .insight-card {
+    background: var(--staff-surface);
+    border-color: var(--staff-border);
+    color: var(--staff-text);
+}
+
+.insight-card h4 {
+    margin: 0 0 10px;
+    font-size: 0.95rem;
+    color: #1f2937;
+}
+
+body.staff-app .insight-card h4 {
+    color: var(--staff-text);
+}
+
+.insight-card-wide {
+    grid-column: 1 / -1;
+}
+
+.insights-hourly-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 120px;
+    overflow-x: auto;
+    padding-bottom: 18px;
+}
+
+.insights-hourly-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    min-width: 26px;
+}
+
+.insights-hourly-bar {
+    width: 16px;
+    background: linear-gradient(180deg, #6366f1, #8b5cf6);
+    border-radius: 4px 4px 0 0;
+    transition: height 0.4s ease;
+    min-height: 2px;
+}
+
+.insights-hourly-label {
+    font-size: 0.6rem;
+    color: #94a3b8;
+    margin-top: 4px;
+    transform: rotate(-45deg);
+    white-space: nowrap;
+}
+
+.insights-hourly-note {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin: 6px 0 0;
+}
+
+.insights-bestseller-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.insights-bestseller-row:last-child {
+    border-bottom: none;
+}
+
+.insights-bestseller-rank {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #e0e7ff;
+    color: #3730a3;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.insights-bestseller-name {
+    min-width: 0;
+    flex: 0 0 38%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.85rem;
+}
+
+.insights-bestseller-track {
+    flex: 1;
+    height: 8px;
+    background: rgba(148, 163, 184, 0.2);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.insights-bestseller-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #059669, #10b981);
+    border-radius: 999px;
+}
+
+.insights-bestseller-qty {
+    font-size: 0.85rem;
+    color: #1f2937;
+    min-width: 28px;
+    text-align: right;
+}
+
+.insights-compare-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.insights-compare-controls label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.insights-compare-controls select {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.insights-compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.insights-compare-table th,
+.insights-compare-table td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.insights-compare-table th {
+    text-transform: capitalize;
+    color: #64748b;
+}
+
+.insights-compare-table td.is-up {
+    color: #059669;
+    font-weight: 700;
+}
+
+.insights-compare-table td.is-down {
+    color: #dc2626;
+    font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .insights-hourly-bar,
+    .reorder-suggestion-btn,
+    .lang-toggle-btn,
+    .order-cancel-btn,
+    .order-print-btn,
+    .order-refund-btn {
+        transition: none;
+    }
 }

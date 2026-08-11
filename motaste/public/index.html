@@ -4,15 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <base href="/">
+    <meta name="description" content="Motaste Restaurant serves crafted silog, batchoy, fried chicken and more. Order online for dine-in, take-out, or rider pick-up delivery.">
+    <meta name="theme-color" content="#0d0f1c">
+    <meta property="og:type" content="restaurant">
+    <meta property="og:title" content="Motaste Restaurant — Crafted Silog">
+    <meta property="og:description" content="Order your favorite silog and Filipino dishes at Motaste. Dine-in, take-out, or SakayKo rider delivery.">
+    <meta property="og:site_name" content="Motaste Restaurant">
+    <meta property="og:locale" content="en_PH">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Motaste Restaurant — Crafted Silog">
+    <meta name="twitter:description" content="Order crafted silog, batchoy, fried chicken and more online at Motaste.">
+    <meta name="robots" content="index, follow">
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260812">
+    <link rel="stylesheet" href="style.css?v=20260814">
     <title>Motaste Restaurant — Crafted Silog</title>
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Restaurant",
+        "name": "Motaste Restaurant",
+        "servesCuisine": ["Filipino", "Silog", "Batchoy"],
+        "priceRange": "₱₱",
+        "acceptsReservations": "false",
+        "address": {
+            "@type": "PostalAddress",
+            "addressCountry": "PH"
+        },
+        "hasMenu": "#menu",
+        "potentialAction": {
+            "@type": "OrderAction",
+            "target": "#menu"
+        }
+    }
+    </script>
 </head>
 <body class="site-home">
+    <a href="#main" class="skip-link">Skip to content</a>
     <header class="top-bar" id="siteHeader">
         <a href="#home" class="brand-logo" aria-label="MoTaste Restaurant — back to top">
             <span class="brand-monogram">MT<span class="brand-dot"></span></span>
@@ -25,6 +59,7 @@
         </button>
         <div class="live-clock" id="liveClock" aria-live="polite"></div>
         <nav class="top-nav" id="topNav" aria-label="Primary">
+            <button type="button" id="langToggleBtn" class="lang-toggle-btn" aria-label="Switch language">EN</button>
             <a href="#home">Home</a>
             <a href="#menu">Menu</a>
             <a href="#about">About Us</a>
@@ -33,6 +68,7 @@
     </header>
 
     <!-- Hero Banner -->
+    <main id="main">
     <section class="front-section" id="home">
         <img src="hero.jpg"  class="hero-bg">
         <div class="hero-overlay" aria-hidden="true"></div>
@@ -225,6 +261,28 @@
                             placeholder="Enter your full name"
                             autocomplete="name"
                             maxlength="120"
+                        >
+                    </div>
+                    <div class="order-checkout-section">
+                        <p class="checkout-label">Mobile Number <small class="checkout-hint">(for loyalty points &amp; SMS/order updates)</small></p>
+                        <input
+                            type="tel"
+                            id="customerPhoneInput"
+                            class="checkout-text-input"
+                            placeholder="09XX XXX XXXX"
+                            autocomplete="tel"
+                            maxlength="20"
+                        >
+                    </div>
+                    <div class="order-checkout-section">
+                        <p class="checkout-label">Email <small class="checkout-hint">(optional — get an email when your order is ready)</small></p>
+                        <input
+                            type="email"
+                            id="customerEmailInput"
+                            class="checkout-text-input"
+                            placeholder="you@example.com"
+                            autocomplete="email"
+                            maxlength="191"
                         >
                     </div>
                     <div class="order-checkout-section">
@@ -495,6 +553,7 @@
             <p class="footer-made-with">Crafted with <span aria-hidden="true">♥</span> in Cebu</p>
         </div>
     </footer>
+    </main>
 
     <div class="payment-success-modal hidden" id="paymentSuccessModal" role="dialog" aria-modal="true" aria-labelledby="paymentSuccessTitle" aria-hidden="true">
         <div class="payment-success-card">
@@ -504,6 +563,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260812"></script>
+    <script src="script.js?v=20260814"></script>
 </body>
 </html>

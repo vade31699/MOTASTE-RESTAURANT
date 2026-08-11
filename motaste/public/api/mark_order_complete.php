@@ -8,6 +8,15 @@ require __DIR__ . '/../../vendor/autoload.php';
 
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+require_once __DIR__ . '/_staff_auth_helpers.php';
+if (!requireStaffAuth()) {
+    abortStaffAuthRequired();
+}
+
+require_once __DIR__ . '/csrf_guard.php';
+validateCsrfOrExit();
+
+
 
 require_once __DIR__ . '/_helpers.php';
 
@@ -154,6 +163,47 @@ try {
         } catch (Throwable $__e) {
             error_log('order_events insert failed: ' . $__e->getMessage());
         }
+    }
+
+    // Loyalty points, low-stock alerts, and the customer "order ready" email.
+    try {
+        require_once __DIR__ . '/_staff_auth_helpers.php';
+        require_once __DIR__ . '/_email_auth_helpers.php';
+
+        $customerRow = DB::table('orders')
+            ->where('id', $orderId)
+            ->first(['customer_phone', 'customer_name', 'customer_email', 'total_amount', 'order_number']);
+
+        if ($customerRow) {
+            $phone = trim((string)($customerRow->customer_phone ?? ''));
+            if ($phone !== '') {
+                awardLoyaltyPoints(
+                    $orderId,
+                    (string)($customerRow->order_number ?? $orderId),
+                    (float)($customerRow->total_amount ?? 0),
+                    $phone,
+                    (string)($customerRow->customer_name ?? '')
+                );
+            }
+
+            $customerEmail = trim((string)($customerRow->customer_email ?? ''));
+            if ($customerEmail !== '' && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+                $summaryText = (string)($result['summary'] ?? '');
+                sendSystemEmail(
+                    $customerEmail,
+                    'Your MOTASTE order is ready',
+                    'Hi ' . ((string)($customerRow->customer_name ?? '') !== '' ? (string)$customerRow->customer_name : 'there')
+                        . ",\n\nGood news — your order #" . (string)($customerRow->order_number ?? $orderId)
+                        . " is ready!\n\n" . ($summaryText !== '' ? 'Order: ' . $summaryText . "\n\n" : "")
+                        . 'Total: ₱' . number_format((float)($customerRow->total_amount ?? 0), 2)
+                        . "\n\nThank you for choosing MOTASTE!"
+                );
+            }
+        }
+
+        notifyLowStockAlerts();
+    } catch (Throwable $benefitError) {
+        error_log('order completion benefits failed: ' . $benefitError->getMessage());
     }
 
     echo json_encode([

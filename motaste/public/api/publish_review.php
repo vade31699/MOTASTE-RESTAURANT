@@ -8,6 +8,11 @@ require __DIR__ . '/../../vendor/autoload.php';
 
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+require_once __DIR__ . '/_staff_auth_helpers.php';
+if (!requireStaffAuth()) {
+    abortStaffAuthRequired();
+}
+
 
 use Illuminate\Support\Facades\DB;
 
@@ -18,6 +23,19 @@ function ensureReviewTables(): void
 {
     // Schema is managed by Laravel migrations.
     return;
+}
+
+validateCsrfOrExit();
+
+$input = json_decode(file_get_contents('php://input'), true);
+$reviewId = isset($input['reviewId']) ? (int)$input['reviewId'] : 0;
+$actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
+$actorEmail = trim((string)($input['actorEmail'] ?? ''));
+
+if ($reviewId <= 0) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'reviewId is required']);
+    exit;
 }
 
 try {

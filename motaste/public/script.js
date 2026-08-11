@@ -987,14 +987,16 @@ function getOrCreateDeviceToken() {
     }
 }
 
-async function authenticateStaffAccount(email, password, role = '', deviceToken = '') {
+async function authenticateStaffAccount(email, password, role = '', deviceToken = '', silentRefresh = false) {
     try {
+        const body = { email, password, role, deviceToken };
+        if (silentRefresh) body.silentRefresh = true;
         const response = await fetch(getApiUrl('api/authenticate_staff.php'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ email, password, role, deviceToken }),
+            body: JSON.stringify(body),
             cache: 'no-store'
         });
 
@@ -1032,6 +1034,37 @@ async function verifyDeviceLogin(email, password, code, deviceToken) {
     } catch (error) {
         console.error('Device verification failed', error);
         return null;
+    }
+}
+
+/**
+ * Re-establishes the server-side staff session on page load using the persisted
+ * credentials. The staff-only API gate (requireStaffAuth) needs the PHP session
+ * cookie; this self-heals it after browser restarts without touching the login
+ * history audit trail (silentRefresh). Trusted devices re-auth silently; device
+ * challenges and rate limits are left for the user to resolve at login.
+ */
+async function ensureStaffServerSession() {
+    const session = getPersistedStaffSession();
+    if (!session || !session.email || !session.password) return;
+
+    try {
+        const result = await authenticateStaffAccount(
+            session.email,
+            session.password,
+            session.role || '',
+            getOrCreateDeviceToken(),
+            true
+        );
+        if (!result) return;
+        if (result.success) return;
+        if (result.needsDeviceVerification || result.rateLimited) return;
+        if (result.error && /invalid credentials/i.test(result.error)) {
+            clearStaffSession();
+            forceLogoutCurrentStaffSession();
+        }
+    } catch (error) {
+        console.debug('Unable to refresh staff server session', error);
     }
 }
 
@@ -2296,6 +2329,198 @@ if (analyticsMonthSelect) {
     analyticsMonthSelect.addEventListener('change', updateAnalyticsView);
 }
 
+/* ================= Insights (hourly / best sellers / period compare / PDF) ================= */
+const insightsHourlyChart = document.getElementById('insightsHourlyChart');
+const insightsBestSellers = document.getElementById('insightsBestSellers');
+const insightsComparePeriodA = document.getElementById('insightsComparePeriodA');
+const insightsComparePeriodB = document.getElementById('insightsComparePeriodB');
+const insightsCompareBtn = document.getElementById('insightsCompareBtn');
+const insightsCompareResult = document.getElementById('insightsCompareResult');
+const insightsExportPdfBtn = document.getElementById('insightsExportPdfBtn');
+
+function getCompletedOrdersForInsights() {
+    return Array.isArray(completedOrders) ? completedOrders : [];
+}
+
+function parseOrderDateMs(order) {
+    if (order.order_date_iso) {
+        const ms = Date.parse(order.order_date_iso);
+        if (!Number.isNaN(ms)) return ms;
+    }
+    if (order.order_date) {
+        const ms = Date.parse(order.order_date);
+        if (!Number.isNaN(ms)) return ms;
+    }
+    return Number.isFinite(order.timestamp) ? order.timestamp : NaN;
+}
+
+function renderInsights() {
+    const orders = getCompletedOrdersForInsights();
+    renderInsightsHourlyChart(orders);
+    renderInsightsBestSellers(orders);
+    renderInsightsComparison();
+}
+
+function renderInsightsHourlyChart(orders) {
+    if (!insightsHourlyChart) return;
+    const hourly = new Array(24).fill(0);
+    orders.forEach((order) => {
+        const ms = parseOrderDateMs(order);
+        if (Number.isNaN(ms)) return;
+        const hour = new Date(ms).getHours();
+        if (hour >= 0 && hour <= 23) hourly[hour] += 1;
+    });
+    const max = Math.max(1, ...hourly);
+    insightsHourlyChart.innerHTML = `
+        <div class="insights-hourly-bars">
+            ${hourly.map((count, hour) => `
+                <div class="insights-hourly-col" title="${hour}:00 — ${count} order(s)">
+                    <div class="insights-hourly-bar" style="height:${Math.round((count / max) * 100)}%"></div>
+                    <span class="insights-hourly-label">${hour}:00</span>
+                </div>
+            `).join('')}
+        </div>
+        <p class="insights-hourly-note">Orders by hour of day (completed orders). Hover a bar for details.</p>
+    `;
+}
+
+function renderInsightsBestSellers(orders) {
+    if (!insightsBestSellers) return;
+    const units = new Map();
+    orders.forEach((order) => {
+        (Array.isArray(order.items) ? order.items : []).forEach((item) => {
+            const name = String(item.name || item.notes || '').trim();
+            if (!name) return;
+            units.set(name, (units.get(name) || 0) + (Number(item.quantity) || 0));
+        });
+    });
+    const ranked = [...units.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+    if (!ranked.length) {
+        insightsBestSellers.innerHTML = '<p class="menu-cart-empty">No completed orders yet.</p>';
+        return;
+    }
+    const max = ranked[0][1];
+    insightsBestSellers.innerHTML = ranked.map(([name, qty], index) => `
+        <div class="insights-bestseller-row">
+            <span class="insights-bestseller-rank">${index + 1}</span>
+            <span class="insights-bestseller-name">${escapeHtml(name)}</span>
+            <div class="insights-bestseller-track"><div class="insights-bestseller-fill" style="width:${Math.round((qty / max) * 100)}%"></div></div>
+            <strong class="insights-bestseller-qty">${qty}</strong>
+        </div>
+    `).join('');
+}
+
+function getInsightPeriodRange(periodKey, now = new Date()) {
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(startOfDay);
+    startOfWeek.setDate(startOfWeek.getDate() - ((startOfWeek.getDay() + 6) % 7));
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    switch (periodKey) {
+        case 'today': return [startOfDay, new Date(startOfDay.getTime() + 86400000)];
+        case 'yesterday': return [new Date(startOfDay.getTime() - 86400000), startOfDay];
+        case 'thisweek': return [startOfWeek, new Date(startOfWeek.getTime() + 7 * 86400000)];
+        case 'lastweek': return [new Date(startOfWeek.getTime() - 7 * 86400000), startOfWeek];
+        case 'thismonth': return [startOfMonth, new Date(now.getFullYear(), now.getMonth() + 1, 1)];
+        case 'lastmonth': return [new Date(now.getFullYear(), now.getMonth() - 1, 1), startOfMonth];
+        default: return [startOfDay, new Date(startOfDay.getTime() + 86400000)];
+    }
+}
+
+function summarizeOrdersForPeriod(orders, from, to) {
+    const filtered = orders.filter((order) => {
+        const ms = parseOrderDateMs(order);
+        return !Number.isNaN(ms) && ms >= from.getTime() && ms < to.getTime();
+    });
+    const revenue = filtered.reduce((sum, order) => sum + (Number(order.total_amount ?? order.total) || 0), 0);
+    let items = 0;
+    filtered.forEach((order) => {
+        (Array.isArray(order.items) ? order.items : []).forEach((item) => {
+            items += Number(item.quantity) || 0;
+        });
+    });
+    return { orders: filtered.length, revenue, items };
+}
+
+function renderInsightsComparison() {
+    if (!insightsCompareResult) return;
+    const orders = getCompletedOrdersForInsights();
+    const periodA = insightsComparePeriodA ? insightsComparePeriodA.value || 'today' : 'today';
+    const periodB = insightsComparePeriodB ? insightsComparePeriodB.value || 'yesterday' : 'yesterday';
+    const now = new Date();
+    const [aFrom, aTo] = getInsightPeriodRange(periodA, now);
+    const [bFrom, bTo] = getInsightPeriodRange(periodB, now);
+    const a = summarizeOrdersForPeriod(orders, aFrom, aTo);
+    const b = summarizeOrdersForPeriod(orders, bFrom, bTo);
+    const changePct = (current, previous) => {
+        if (!previous) return current > 0 ? 100 : 0;
+        return Math.round(((current - previous) / previous) * 100);
+    };
+    insightsCompareResult.innerHTML = `
+        <table class="insights-compare-table">
+            <thead>
+                <tr><th></th><th>${periodA}</th><th>${periodB}</th><th>Change</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Orders</td><td>${a.orders}</td><td>${b.orders}</td><td class="${changePct(a.orders, b.orders) >= 0 ? 'is-up' : 'is-down'}">${changePct(a.orders, b.orders) >= 0 ? '+' : ''}${changePct(a.orders, b.orders)}%</td></tr>
+                <tr><td>Revenue</td><td>${formatCurrency(a.revenue)}</td><td>${formatCurrency(b.revenue)}</td><td class="${changePct(a.revenue, b.revenue) >= 0 ? 'is-up' : 'is-down'}">${changePct(a.revenue, b.revenue) >= 0 ? '+' : ''}${changePct(a.revenue, b.revenue)}%</td></tr>
+                <tr><td>Items sold</td><td>${a.items}</td><td>${b.items}</td><td class="${changePct(a.items, b.items) >= 0 ? 'is-up' : 'is-down'}">${changePct(a.items, b.items) >= 0 ? '+' : ''}${changePct(a.items, b.items)}%</td></tr>
+            </tbody>
+        </table>
+    `;
+}
+
+function exportInsightsPdf() {
+    const orders = getCompletedOrdersForInsights();
+    const lines = [];
+    lines.push('MOTASTE — SALES INSIGHTS REPORT');
+    lines.push(`Generated: ${new Date().toLocaleString()}`);
+    lines.push(`Completed orders: ${orders.length}`);
+    lines.push('');
+
+    const hourly = new Array(24).fill(0);
+    const units = new Map();
+    let revenue = 0;
+    orders.forEach((order) => {
+        revenue += Number(order.total_amount ?? order.total) || 0;
+        const ms = parseOrderDateMs(order);
+        if (!Number.isNaN(ms)) hourly[new Date(ms).getHours()] += 1;
+        (Array.isArray(order.items) ? order.items : []).forEach((item) => {
+            const name = String(item.name || item.notes || '').trim();
+            if (name) units.set(name, (units.get(name) || 0) + (Number(item.quantity) || 0));
+        });
+    });
+
+    lines.push(`Total revenue: ${formatCurrency(revenue)}`);
+    lines.push('');
+    lines.push('--- Busiest hours ---');
+    hourly.forEach((count, hour) => {
+        if (count > 0) lines.push(`${String(hour).padStart(2, '0')}:00 — ${count} order(s)`);
+    });
+    lines.push('');
+    lines.push('--- Best sellers ---');
+    [...units.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15).forEach(([name, qty]) => {
+        lines.push(`${name}: ${qty}`);
+    });
+
+    const content = lines.join('\n');
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `MOTASTE-Insights-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+}
+
+if (insightsCompareBtn) {
+    insightsCompareBtn.addEventListener('click', renderInsightsComparison);
+}
+if (insightsExportPdfBtn) {
+    insightsExportPdfBtn.addEventListener('click', exportInsightsPdf);
+}
+
 const overviewLink = document.getElementById('overviewLink');
 const inventoryLink = document.getElementById('inventoryLink');
 const overviewSection = document.getElementById('overview');
@@ -2307,6 +2532,8 @@ const overviewMonthSelect = document.getElementById('overviewMonthSelect');
 const overviewOrderNotificationList = document.getElementById('overviewOrderNotificationList');
 const overviewOrderRevenue = document.getElementById('overviewOrderRevenue');
 const inventoryAdminPanel = document.getElementById('inventoryAdminPanel');
+const reorderSuggestionsPanel = document.getElementById('reorderSuggestionsPanel');
+const reorderSuggestionsList = document.getElementById('reorderSuggestionsList');
 const inventoryForm = document.getElementById('inventoryForm');
 const inventoryNameInput = document.getElementById('inventoryNameInput');
 const inventoryCategoryInput = document.getElementById('inventoryCategoryInput');
@@ -2314,6 +2541,9 @@ const inventoryDescriptionInput = document.getElementById('inventoryDescriptionI
 const inventoryPriceInput = document.getElementById('inventoryPriceInput');
 const inventoryStockInput = document.getElementById('inventoryStockInput');
 const inventoryStatusInput = document.getElementById('inventoryStatusInput');
+const inventoryUnitCostInput = document.getElementById('inventoryUnitCostInput');
+const inventoryReorderLevelInput = document.getElementById('inventoryReorderLevelInput');
+const inventoryAvailabilityInput = document.getElementById('inventoryAvailabilityInput');
 const specialFoodImageField = document.getElementById('specialFoodImageField');
 const specialFoodImageInput = document.getElementById('specialFoodImageInput');
 const specialFoodImagePreviewWrap = document.getElementById('specialFoodImagePreviewWrap');
@@ -2381,6 +2611,15 @@ const walkInItemQtyInput = document.getElementById('walkInItemQtyInput');
 const walkInAddItemBtn = document.getElementById('walkInAddItemBtn');
 const walkInDraftList = document.getElementById('walkInDraftList');
 const walkInPaymentMethodSelect = document.getElementById('walkInPaymentMethodSelect');
+const walkInLoyaltyPhoneInput = document.getElementById('walkInLoyaltyPhoneInput');
+const walkInLoyaltyLookupBtn = document.getElementById('walkInLoyaltyLookupBtn');
+const walkInLoyaltyResult = document.getElementById('walkInLoyaltyResult');
+const walkInLoyaltyRedeemRow = document.getElementById('walkInLoyaltyRedeemRow');
+const walkInLoyaltyRedeemInput = document.getElementById('walkInLoyaltyRedeemInput');
+const walkInLoyaltyDiscountText = document.getElementById('walkInLoyaltyDiscountText');
+let walkInLoyaltyAccount = null;
+let walkInLoyaltyDiscount = 0;
+let walkInLoyaltyRedeemedBlocks = 0;
 const walkInOrderTypeSelect = document.getElementById('walkInOrderTypeSelect');
 const walkInPlaceOrderBtn = document.getElementById('walkInPlaceOrderBtn');
 const walkInOrderMessage = document.getElementById('walkInOrderMessage');
@@ -3131,13 +3370,18 @@ if (salesLink && salesSection) {
 salesTabBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
         const tabName = btn.dataset.tab;
-        const view = tabIdToView[tabName] || 'daily';
+        setActiveSalesTab(tabName);
 
+        if (tabName === 'insights') {
+            renderInsights();
+            return;
+        }
+
+        const view = tabIdToView[tabName] || 'daily';
         if (analyticsSelect) {
             analyticsSelect.value = view;
         }
 
-        setActiveSalesTab(tabName);
         updateAnalyticsView();
     });
 });
@@ -3872,6 +4116,8 @@ const confirmOrderBtn = document.getElementById('confirmOrderBtn');
 const paymentMethodOptions = document.getElementById('paymentMethodOptions');
 const orderTypeOptions = document.getElementById('orderTypeOptions');
 const customerNameInput = document.getElementById('customerNameInput');
+const customerPhoneInput = document.getElementById('customerPhoneInput');
+const customerEmailInput = document.getElementById('customerEmailInput');
 const deliveryAddressSection = document.getElementById('deliveryAddressSection');
 const deliveryAddressInput = document.getElementById('deliveryAddressInput');
 const orderCheckoutItems = document.getElementById('orderCheckoutItems');
@@ -4682,13 +4928,13 @@ async function loadPendingOrdersFromServer() {
             }
             return mapped;
         });
-
         pendingOrders.sort((a, b) => b.timestamp - a.timestamp);
-        saveStaffOrderTimerCache();
-        savePendingOrders();
-        renderPendingOrders();
-        renderWalkInOrderBuilder();
-        renderOrderNotifications();
+        pruneOverdueStateToCurrentOrders();
+    saveStaffOrderTimerCache();
+    savePendingOrders();
+    renderPendingOrders();
+    renderWalkInOrderBuilder();
+    renderOrderNotifications();
     } catch (error) {
         console.error('Unable to load pending orders from the server', error);
     }
@@ -4699,7 +4945,7 @@ function startPendingOrdersRefresh() {
 
     pendingOrdersRefreshTimer = window.setInterval(() => {
         void loadPendingOrdersFromServer();
-    }, 30000);
+    }, 10000);
 }
 
 /**
@@ -4727,8 +4973,217 @@ function updatePendingOrdersCountdowns() {
         }
 
         countdownEl.classList.toggle('is-done', details.progress <= 0);
+
+        // Overdue detection: when the prep timer reaches 00:00, highlight the
+        // order card and raise the visual + audio alert exactly once per prep
+        // session (a fresh expiry after staff adds minutes re-triggers it).
+        const card = countdownEl.closest('.pending-order-card');
+        if (!card) return;
+        const orderId = Number(card.dataset.orderId || 0);
+        if (!orderId) return;
+
+        if (details.progress <= 0) {
+            handleOrderPreparationExpired(orderId);
+        } else {
+            clearOrderOverdueState(orderId);
+        }
     });
 }
+
+/* ---- Preparation timer overdue alert ---- */
+const overdueOrderIds = new Set();       // order ids rendered with the is-overdue style
+const overdueNotifiedOrderIds = new Set(); // prep sessions that already fired the alert
+let overdueAlertQueue = [];              // orders waiting to be shown in the alert modal
+let overdueAlertActive = false;
+let overdueAlertOrderId = null;
+let overdueActionInFlight = false;       // guards the modal buttons against double-firing
+const overdueAlertModal = document.getElementById('overdueAlertModal');
+const overdueAlertCloseBtn = document.getElementById('overdueAlertCloseBtn');
+const overdueAlertText = document.getElementById('overdueAlertText');
+const overdueMinutesInput = document.getElementById('overdueMinutesInput');
+const overdueAddMinutesBtn = document.getElementById('overdueAddMinutesBtn');
+const overdueCompleteBtn = document.getElementById('overdueCompleteBtn');
+const overdueAlertMessage = document.getElementById('overdueAlertMessage');
+
+function findPendingOrderIndexById(orderId) {
+    return pendingOrders.findIndex((order) => Number(order.id) === Number(orderId));
+}
+
+/**
+ * Resets the overdue flags for an order that is no longer expired (e.g. staff
+ * added minutes), so the card un-highlights and a future expiry can alert again.
+ */
+function clearOrderOverdueState(orderId) {
+    const key = String(orderId);
+    let changed = false;
+    if (overdueOrderIds.delete(key)) changed = true;
+    if (overdueNotifiedOrderIds.delete(key)) changed = true;
+    if (changed) renderPendingOrders();
+}
+
+function pruneOverdueStateToCurrentOrders() {
+    if (!pendingOrders.length) {
+        overdueOrderIds.clear();
+        overdueNotifiedOrderIds.clear();
+        overdueAlertQueue = [];
+        if (overdueAlertActive) dismissOverdueAlert();
+        return;
+    }
+    const currentIds = new Set(pendingOrders.map((order) => String(order.id)));
+    [...overdueOrderIds].forEach((key) => {
+        if (!currentIds.has(key)) overdueOrderIds.delete(key);
+    });
+    [...overdueNotifiedOrderIds].forEach((key) => {
+        if (!currentIds.has(key)) overdueNotifiedOrderIds.delete(key);
+    });
+    overdueAlertQueue = overdueAlertQueue.filter((key) => currentIds.has(key));
+
+    // If the order currently shown in the alert modal left the pending list
+    // (e.g. completed by another device), dismiss it and show the next one.
+    if (overdueAlertActive && overdueAlertOrderId !== null && !currentIds.has(String(overdueAlertOrderId))) {
+        dismissOverdueAlert();
+    }
+}
+
+function handleOrderPreparationExpired(orderId) {
+    const key = String(orderId);
+    overdueOrderIds.add(key);
+
+    // Highlight the visible card immediately (survives re-renders via the Set).
+    const card = pendingOrdersList.querySelector(`.pending-order-card[data-order-id="${key}"]`);
+    if (card) card.classList.add('is-overdue');
+
+    if (overdueNotifiedOrderIds.has(key)) return;
+
+    overdueNotifiedOrderIds.add(key);
+    overdueAlertQueue.push(key);
+
+    if (!overdueAlertActive) {
+        playPendingOrderSound();
+        showNextOverdueAlert();
+    }
+}
+
+function showNextOverdueAlert() {
+    if (!overdueAlertModal) {
+        overdueAlertActive = false;
+        return;
+    }
+
+    while (overdueAlertQueue.length) {
+        const orderId = Number(overdueAlertQueue.shift());
+        const orderIndex = findPendingOrderIndexById(orderId);
+        const order = orderIndex >= 0 ? pendingOrders[orderIndex] : null;
+        if (!order) continue; // order was already completed/removed
+
+        overdueAlertActive = true;
+        overdueAlertOrderId = orderId;
+        if (overdueAlertText) {
+            const displayNumber = String(order.orderNumber || order.order_number || order.id || '');
+            overdueAlertText.textContent = `Order #${displayNumber}'s preparation timer has expired. Extend the time or mark it complete to keep things moving.`;
+        }
+        if (overdueMinutesInput) {
+            const currentMinutes = Number(order.prepMinutes) || 15;
+            overdueMinutesInput.value = String(Math.min(180, Math.max(1, currentMinutes)));
+        }
+        if (overdueAlertMessage) overdueAlertMessage.textContent = '';
+        overdueAlertModal.hidden = false;
+        overdueAlertModal.classList.add('active');
+        overdueAlertModal.setAttribute('aria-hidden', 'false');
+        return;
+    }
+
+    overdueAlertActive = false;
+    overdueAlertOrderId = null;
+    overdueAlertModal.hidden = true;
+    overdueAlertModal.classList.remove('active');
+    overdueAlertModal.setAttribute('aria-hidden', 'true');
+}
+
+function dismissOverdueAlert() {
+    overdueAlertActive = false;
+    overdueAlertOrderId = null;
+    if (overdueAlertModal) {
+        overdueAlertModal.hidden = true;
+        overdueAlertModal.classList.remove('active');
+        overdueAlertModal.setAttribute('aria-hidden', 'true');
+    }
+    showNextOverdueAlert();
+}
+
+async function handleOverdueAddMinutes() {
+    if (overdueAlertOrderId === null || overdueActionInFlight) return;
+    const orderIndex = findPendingOrderIndexById(overdueAlertOrderId);
+    if (orderIndex < 0) {
+        dismissOverdueAlert();
+        return;
+    }
+
+    const minutes = Math.min(180, Math.max(1, Math.round(Number(overdueMinutesInput ? overdueMinutesInput.value : 0) || 15)));
+    if (overdueAlertMessage) overdueAlertMessage.textContent = 'Updating preparation time...';
+
+    overdueActionInFlight = true;
+    const extended = await startOrderPreparation(orderIndex, minutes);
+    overdueActionInFlight = false;
+    if (extended) {
+        // Deliberately do NOT clear the overdue flags here: the client countdown
+        // still shows 00:00 until the server reload lands, and clearing the
+        // notified set now would re-trigger the alert on the very next tick.
+        // The countdown ticker clears both flags itself once the reloaded timer
+        // reports progress > 0 (see updatePendingOrdersCountdowns).
+        dismissOverdueAlert();
+    } else {
+        if (overdueAlertMessage) {
+            overdueAlertMessage.textContent = 'Unable to extend the preparation time. Check your connection and try again.';
+        }
+        void loadPendingOrdersFromServer();
+    }
+}
+
+async function handleOverdueComplete() {
+    if (overdueAlertOrderId === null || overdueActionInFlight) return;
+    const orderIndex = findPendingOrderIndexById(overdueAlertOrderId);
+    if (orderIndex < 0) {
+        dismissOverdueAlert();
+        return;
+    }
+
+    if (overdueAlertMessage) overdueAlertMessage.textContent = 'Completing order...';
+    overdueActionInFlight = true;
+    const completed = await markPendingOrderAsComplete(orderIndex, true);
+    overdueActionInFlight = false;
+    if (completed) {
+        // markPendingOrderAsComplete already removed this order from the overdue
+        // bookkeeping; only dismiss so the next queued alert (if any) shows.
+        dismissOverdueAlert();
+    } else {
+        if (overdueAlertMessage) {
+            overdueAlertMessage.textContent = 'Unable to complete the order. It may already be finished — check the order list.';
+        }
+        void loadPendingOrdersFromServer();
+    }
+}
+
+if (overdueAlertCloseBtn) {
+    overdueAlertCloseBtn.addEventListener('click', dismissOverdueAlert);
+}
+if (overdueAddMinutesBtn) {
+    overdueAddMinutesBtn.addEventListener('click', () => void handleOverdueAddMinutes());
+}
+if (overdueCompleteBtn) {
+    overdueCompleteBtn.addEventListener('click', () => void handleOverdueComplete());
+}
+if (overdueAlertModal) {
+    overdueAlertModal.addEventListener('click', (event) => {
+        if (event.target === overdueAlertModal) dismissOverdueAlert();
+    });
+}
+document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (overdueAlertModal && !overdueAlertModal.hidden) {
+        dismissOverdueAlert();
+    }
+});
 
 function startPendingOrdersCountdownTicker() {
     if (!isStaffPage || pendingOrdersCountdownTicker) return;
@@ -4795,7 +5250,11 @@ async function submitOrderToServer(order) {
                 paymentMethod: order.paymentMethod,
                 orderType: order.orderType,
                 customerName: order.customerName || '',
-                deliveryAddress: order.deliveryAddress || ''
+                customerPhone: order.customerPhone || '',
+                customerEmail: order.customerEmail || '',
+                deliveryAddress: order.deliveryAddress || '',
+                discount: Number(order.loyaltyDiscount) || 0,
+                loyaltyPointsRedeemed: Number(order.loyaltyPointsRedeemed) || 0
             })
         });
 
@@ -4843,12 +5302,13 @@ async function startOrderPreparationOnServer(orderId, minutes) {
 
 async function markOrderCompleteOnServer(orderId) {
     const actor = getCurrentStaffActor();
+    const headers = await withCsrfHeaders({
+        'Content-Type': 'application/json'
+    });
 
     const response = await fetch(getApiUrl('api/mark_order_complete.php'), {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify({
             orderId,
             actorRole: actor.role,
@@ -4950,11 +5410,12 @@ async function updatePendingOrderItemQuantity(orderId, itemId, quantity, compone
         }));
     }
 
+    const headers = await withCsrfHeaders({
+        'Content-Type': 'application/json'
+    });
     const response = await fetch(getApiUrl('api/update_pending_order_item.php'), {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify(payload),
         cache: 'no-store'
     });
@@ -4974,11 +5435,12 @@ async function updatePendingOrderItemQuantity(orderId, itemId, quantity, compone
 async function updatePendingOrderItemComponentQuantity(orderId, itemId, componentName, componentQuantity) {
     const actor = getCurrentStaffActor();
 
+    const headers = await withCsrfHeaders({
+        'Content-Type': 'application/json'
+    });
     const response = await fetch(getApiUrl('api/update_pending_order_item.php'), {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify({
             orderId,
             itemId,
@@ -5091,8 +5553,8 @@ async function changePendingOrderItemQuantity(orderIndex, itemId, direction) {
 }
 
 async function startOrderPreparation(orderIndex, minutes) {
-    if (!canManageOrders()) return;
-    if (orderIndex < 0 || orderIndex >= pendingOrders.length) return;
+    if (!canManageOrders()) return false;
+    if (orderIndex < 0 || orderIndex >= pendingOrders.length) return false;
 
     const safeMinutes = Math.max(1, Math.min(180, Math.round(Number(minutes) || 0)));
     const targetOrder = pendingOrders[orderIndex];
@@ -5104,31 +5566,37 @@ async function startOrderPreparation(orderIndex, minutes) {
         if (typeof window !== 'undefined' && window.alert) {
             window.alert(error.message || 'Unable to start order preparation');
         }
-        return;
+        return false;
     }
 
     // The server preserves the originally chosen prep start time so the
     // customer's countdown is never reset when staff adjust the estimate.
     void loadPendingOrdersFromServer();
     void loadOrderLogsFromServer(true);
+    return true;
 }
 
 async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
-    if (!canManageOrders()) return;
-    if (orderIndex < 0 || orderIndex >= pendingOrders.length) return;
+    if (!canManageOrders()) return false;
+    if (orderIndex < 0 || orderIndex >= pendingOrders.length) return false;
 
     const targetOrder = pendingOrders[orderIndex];
     try {
         await markOrderCompleteOnServer(targetOrder.id);
     } catch (error) {
         console.error('Unable to mark order complete on server', error);
-        return;
+        return false;
     }
 
     const completedOrder = pendingOrders.splice(orderIndex, 1)[0];
     if (shouldIgnore) {
         ignorePendingOrder(completedOrder.orderNumber || completedOrder.id);
     }
+    // The completed order is no longer pending — drop any overdue bookkeeping
+    // so a stale id can never re-mark a future order as overdue.
+    overdueOrderIds.delete(String(completedOrder.id));
+    overdueNotifiedOrderIds.delete(String(completedOrder.id));
+    overdueAlertQueue = overdueAlertQueue.filter((key) => key !== String(completedOrder.id));
     completedOrders.unshift(completedOrder);
     recalculateSalesAnalytics();
     savePendingOrders();
@@ -5140,6 +5608,166 @@ async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
     void initializeInventoryData(true);
     void loadOrderLogsFromServer(true);
     void loadCompletedOrdersFromServer(true);
+    return true;
+}
+
+function printOrderReceipt(orderIndex) {
+    if (orderIndex < 0 || orderIndex >= pendingOrders.length) return;
+    const order = pendingOrders[orderIndex];
+    if (!order) return;
+
+    const items = (Array.isArray(order.items) ? order.items : []).map((item) => {
+        const components = (Array.isArray(item.components) ? item.components : [])
+            .map((component) => `  ↳ ${escapeHtml(component.name)} × ${Number(component.quantity) || 0}`)
+            .join('\n');
+        return `  ${item.name} × ${item.quantity} — ${formatCurrency(Number(item.price) * Number(item.quantity))}${components ? `\n${components}` : ''}`;
+    }).join('\n');
+
+    const customerName = String(order.customerName || order.customer_name || '').trim();
+    const address = String(order.deliveryAddress || order.delivery_address || '').trim();
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+    if (!printWindow) {
+        window.alert('Please allow pop-ups to print the receipt.');
+        return;
+    }
+
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>Receipt #${escapeHtml(String(order.orderNumber || order.order_number || order.id || ''))}</title>
+            <style>
+                body { font-family: 'Courier New', monospace; font-size: 12px; margin: 0; padding: 24px; color: #111; }
+                h1 { font-size: 16px; text-align: center; margin: 0 0 4px; }
+                .sub { text-align: center; color: #555; margin-bottom: 12px; }
+                hr { border: 0; border-top: 1px dashed #999; margin: 8px 0; }
+                .row { display: flex; justify-content: space-between; }
+                .meta { margin: 4px 0; }
+                pre { white-space: pre-wrap; font-family: inherit; margin: 0; }
+                .total { font-weight: 700; font-size: 14px; }
+                .footer { text-align: center; color: #555; margin-top: 12px; }
+            </style>
+        </head>
+        <body>
+            <h1>MOTASTE</h1>
+            <p class="sub">Crafted Silog • Restaurant</p>
+            <hr>
+            <p class="meta"><strong>Order #:</strong> ${escapeHtml(String(order.orderNumber || order.order_number || order.id || ''))}</p>
+            <p class="meta"><strong>Date:</strong> ${new Date(order.timestamp || Date.now()).toLocaleString()}</p>
+            <p class="meta"><strong>Type:</strong> ${escapeHtml(order.orderType || 'Dine In')}</p>
+            <p class="meta"><strong>Payment:</strong> ${escapeHtml(order.paymentMethod || '—')}</p>
+            ${customerName ? `<p class="meta"><strong>Customer:</strong> ${escapeHtml(customerName)}</p>` : ''}
+            ${address ? `<p class="meta"><strong>Address:</strong> ${escapeHtml(address)}</p>` : ''}
+            <hr>
+            <pre>${items || '  (no items)'}</pre>
+            <hr>
+            <p class="row total"><span>Total</span><span>${formatCurrency(order.total)}</span></p>
+            <p class="footer">Thank you for dining with us! 🍽</p>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    window.setTimeout(() => {
+        printWindow.print();
+    }, 300);
+}
+
+async function cancelPendingOrder(orderIndex) {
+    if (!canManageOrders()) return false;
+    if (orderIndex < 0 || orderIndex >= pendingOrders.length) return false;
+
+    const targetOrder = pendingOrders[orderIndex];
+    if (!window.confirm(`Cancel order #${targetOrder.orderNumber || targetOrder.id}? Stock will be restored and the order removed from the pending queue.`)) {
+        return false;
+    }
+
+    try {
+        const actor = getCurrentStaffActor();
+        const headers = await withCsrfHeaders({
+            'Content-Type': 'application/json'
+        });
+        const response = await fetch(getApiUrl('api/cancel_order.php'), {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                orderId: targetOrder.id,
+                actorRole: actor.role,
+                actorEmail: actor.email
+            })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || `HTTP ${response.status}`);
+        }
+    } catch (error) {
+        console.error('Unable to cancel order on server', error);
+        window.alert(`Order cancel failed. ${error.message || 'Unexpected error'}`);
+        return false;
+    }
+
+    const cancelledOrder = pendingOrders.splice(orderIndex, 1)[0];
+    overdueOrderIds.delete(String(cancelledOrder.id));
+    overdueNotifiedOrderIds.delete(String(cancelledOrder.id));
+    overdueAlertQueue = overdueAlertQueue.filter((key) => key !== String(cancelledOrder.id));
+    savePendingOrders();
+    renderPendingOrders();
+    renderWalkInOrderBuilder();
+    renderOrderNotifications();
+    void initializeInventoryData(true);
+    void loadOrderLogsFromServer(true);
+    setOrdersTab('pending');
+    window.alert(`Order #${cancelledOrder.orderNumber || cancelledOrder.id} was cancelled and stock restored.`);
+    return true;
+}
+
+async function refundCompletedOrder(orderId) {
+    if (!canManageOrders()) return false;
+    if (!orderId) return false;
+
+    if (!window.confirm('Refund this completed order? Stock will be restored and the order marked as refunded. This cannot be undone.')) {
+        return false;
+    }
+
+    try {
+        const actor = getCurrentStaffActor();
+        const headers = await withCsrfHeaders({
+            'Content-Type': 'application/json'
+        });
+        const response = await fetch(getApiUrl('api/refund_order.php'), {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                orderId,
+                actorRole: actor.role,
+                actorEmail: actor.email
+            })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || `HTTP ${response.status}`);
+        }
+    } catch (error) {
+        console.error('Unable to refund order on server', error);
+        window.alert(`Refund failed. ${error.message || 'Unexpected error'}`);
+        return false;
+    }
+
+    const completedIndex = completedOrders.findIndex((order) => Number(order.id) === Number(orderId));
+    if (completedIndex >= 0) {
+        completedOrders.splice(completedIndex, 1)[0];
+    }
+    recalculateSalesAnalytics();
+    saveCompletedOrders();
+    renderOrderNotifications();
+    updateAnalyticsView();
+    renderOverviewAnalytics();
+    void initializeInventoryData(true);
+    void loadCompletedOrdersFromServer(true);
+    void loadOrderLogsFromServer(true);
+    window.alert(`Order #${orderId} was refunded and stock restored.`);
+    return true;
 }
 
 function formatOrderLogAction(action) {
@@ -5530,7 +6158,7 @@ function startReviewRefresh() {
     if (reviewRefreshTimer) return;
     reviewRefreshTimer = window.setInterval(() => {
         void loadReviewsFromServer(true);
-    }, 10000);
+    }, 8000);
 }
 
 // Star-rating filter buttons (All / 1-5 stars) shared by public + staff views.
@@ -5624,9 +6252,19 @@ if (staffReviewList) {
                 throw new Error(payload.error || `HTTP ${response.status}`);
             }
 
+            if (deleteButton) {
+                // Optimistic removal so the admin sees the review disappear
+                // immediately; the server fetch below then re-syncs the lists.
+                cachedStaffReviews = cachedStaffReviews.filter((review) => Number(review.id) !== reviewId);
+                cachedReviews = cachedReviews.filter((review) => Number(review.id) !== reviewId);
+                renderCustomerReviews();
+                renderStaffReviews();
+            }
+
             void loadReviewsFromServer(true);
             void loadOrderLogsFromServer(true);
         } catch (error) {
+            console.error('Unable to update review status', error);
             if (typeof window !== 'undefined' && window.alert) {
                 window.alert(error.message || 'Unable to update review status');
             }
@@ -5795,8 +6433,9 @@ async function initializeInventoryData(forceRefresh = false) {
     inventorySyncInFlight = true;
     const defaults = buildDefaultInventoryFromMenu();
     try {
-        const inventoryUrl = getApiUrl(`api/get_inventory.php?_=${Date.now()}`);
-        const response = await fetch(inventoryUrl, { cache: 'no-store' });
+        const scopeParam = isStaffPage ? '&scope=staff' : '';
+        const inventoryUrl = getApiUrl(`api/get_inventory.php?_=${Date.now()}${scopeParam}`);
+        const response = await fetch(inventoryUrl, { cache: 'no-store', credentials: 'same-origin' });
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
@@ -5813,7 +6452,10 @@ async function initializeInventoryData(forceRefresh = false) {
                 status: item.status || (Number(item.stock) > 0 ? 'In stock' : 'Out of stock'),
                 category: item.category || localMatch?.category || resolveInventoryCategory(item.name),
                 description: item.description || localMatch?.description || '',
-                image: normalizeImageUrl(item.image || localMatch?.image || '')
+                image: normalizeImageUrl(item.image || localMatch?.image || ''),
+                unitCost: item.unit_cost != null ? Number(item.unit_cost) || 0 : (localMatch?.unitCost || 0),
+                reorderLevel: item.reorder_level != null ? Number(item.reorder_level) || 0 : (localMatch?.reorderLevel || 0),
+                isAvailable: item.is_available !== false && item.is_available !== 'false' && item.is_available !== 0 && item.is_available !== '0'
             };
         }).filter((item) => !blockedProductNames.has(normalizeInventoryName(item.name)));
 
@@ -6022,7 +6664,7 @@ function stopCustomerInventoryRefresh() {
     }
 }
 
-function saveCustomMenuData() {
+async function saveCustomMenuData() {
     const snapshot = {
         menuData: Object.fromEntries(Object.entries(menuData).map(([categoryKey, category]) => [
             categoryKey,
@@ -6044,16 +6686,19 @@ function saveCustomMenuData() {
         }))
     };
 
-    void fetch(getApiUrl('api/save_custom_menu.php'), {
-        method: 'POST',
-        headers: {
+    try {
+        const headers = await withCsrfHeaders({
             'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(snapshot),
-        cache: 'no-store'
-    }).catch((error) => {
+        });
+        await fetch(getApiUrl('api/save_custom_menu.php'), {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(snapshot),
+            cache: 'no-store'
+        });
+    } catch (error) {
         console.error('Unable to sync custom menu snapshot to server', error);
-    });
+    }
 }
 
 function mergeCustomMenuSnapshots(localSnapshot = {}, remoteSnapshot = {}) {
@@ -6651,7 +7296,9 @@ function renderOrderNotifications() {
                 </div>
                 <div class="order-notif-footer">
                     <strong>Total: ${formatCurrency(order.total)}</strong>
-                    ${isCompleted ? '' : `<button type="button" class="order-notif-go-link" data-order-id="${order.id}"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i> Orders → Pending Orders</button>`}
+                    ${isCompleted
+                        ? `<button type="button" class="order-refund-btn" data-order-id="${order.id}"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Refund</button>`
+                        : `<button type="button" class="order-notif-go-link" data-order-id="${order.id}"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i> Orders → Pending Orders</button>`}
                 </div>
             </article>
         `;
@@ -7173,9 +7820,22 @@ function renderInventoryManagement() {
         const categoryLabel = inventoryCategoryLabels[category] || 'Specials';
         const description = item.description || '';
 
+        const unitCost = Number(item.unitCost) || 0;
+        const reorderLevel = Number(item.reorderLevel) || 0;
+        const marginPct = item.price > 0 && unitCost > 0
+            ? Math.round(((item.price - unitCost) / item.price) * 100)
+            : null;
+        const isBelowReorder = reorderLevel > 0 && item.stock <= reorderLevel;
+        const isHidden = item.isAvailable === false;
+        const badgeHtml = [
+            isBelowReorder ? '<span class="inventory-badge badge-reorder"><i class="fa-solid fa-triangle-exclamation"></i> Reorder</span>' : '',
+            isHidden ? '<span class="inventory-badge badge-hidden"><i class="fa-solid fa-eye-slash"></i> Hidden</span>' : '',
+            unitCost > 0 ? `<span class="inventory-badge badge-cost">Cost ${formatCurrency(unitCost)} · Margin ${marginPct}%</span>` : ''
+        ].filter(Boolean).join('');
+
         if (!editing) {
             return `
-                <article class="inventory-item-card">
+                <article class="inventory-item-card${isHidden ? ' is-hidden' : ''}">
                     <div class="inventory-item-main">
                         <strong>${item.name}</strong>
                         <p><span class="inventory-item-category">${categoryLabel}</span></p>
@@ -7185,6 +7845,7 @@ function renderInventoryManagement() {
                             ${item.stock <= 0 ? `<img src="../../outofstock1.png" alt="Out of stock" class="inventory-out-of-stock-image">` : ''}
                         </p>
                         <p>Status: ${item.status}</p>
+                        ${badgeHtml ? `<p class="inventory-badges">${badgeHtml}</p>` : ''}
                         <p class="inventory-item-description">${escapeHtml(description || 'No description yet.')}</p>
                     </div>
                     <div class="inventory-item-actions">
@@ -7223,6 +7884,21 @@ function renderInventoryManagement() {
                         <input type="number" min="0" step="1" data-field="stock" value="${item.stock}">
                     </label>
                     <label>
+                        Unit Cost (₱)
+                        <input type="number" min="0" step="0.01" data-field="unitCost" value="${Number(item.unitCost) || 0}">
+                    </label>
+                    <label>
+                        Reorder Level
+                        <input type="number" min="0" step="1" data-field="reorderLevel" value="${Number(item.reorderLevel) || 0}">
+                    </label>
+                    <label>
+                        Availability
+                        <select data-field="isAvailable">
+                            <option value="1" ${item.isAvailable !== false ? 'selected' : ''}>Available on menu</option>
+                            <option value="0" ${item.isAvailable === false ? 'selected' : ''}>Hidden from menu</option>
+                        </select>
+                    </label>
+                    <label>
                         Description
                         <textarea data-field="description" rows="4">${escapeHtml(description)}</textarea>
                     </label>
@@ -7240,6 +7916,46 @@ function renderInventoryManagement() {
                     <button type="button" class="inventory-inline-cancel" data-item-name="${item.name}">Cancel</button>
                 </div>
             </article>
+        `;
+    }).join('');
+
+    renderReorderSuggestions();
+}
+
+function renderReorderSuggestions() {
+    if (!reorderSuggestionsPanel || !reorderSuggestionsList) return;
+
+    const suggestions = Array.isArray(inventoryData)
+        ? inventoryData
+            .filter((item) => {
+                const reorderLevel = Number(item.reorderLevel) || 0;
+                const stock = Number(item.stock) || 0;
+                return reorderLevel > 0 && stock <= reorderLevel && item.isAvailable !== false;
+            })
+            .sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0))
+        : [];
+
+    const hasSuggestions = suggestions.length > 0;
+    reorderSuggestionsPanel.hidden = !hasSuggestions;
+    if (!hasSuggestions) {
+        reorderSuggestionsList.innerHTML = '';
+        return;
+    }
+
+    reorderSuggestionsList.innerHTML = suggestions.map((item) => {
+        const reorderLevel = Number(item.reorderLevel) || 0;
+        const stock = Number(item.stock) || 0;
+        const unitCost = Number(item.unitCost) || 0;
+        const restockCost = Math.max(0, (reorderLevel * 2) - stock) * unitCost;
+        return `
+            <div class="reorder-suggestion-card">
+                <div class="reorder-suggestion-info">
+                    <strong>${item.name}</strong>
+                    <span class="reorder-suggestion-meta">Stock ${stock} / reorder at ${reorderLevel}</span>
+                </div>
+                ${unitCost > 0 ? `<span class="reorder-suggestion-cost">Est. restock ≈ ${formatCurrency(restockCost)}</span>` : ''}
+                <button type="button" class="reorder-suggestion-btn" data-reorder-name="${item.name}">Restock +</button>
+            </div>
         `;
     }).join('');
 }
@@ -7331,6 +8047,63 @@ function removeMenuItemByName(itemName) {
     return removed;
 }
 
+async function restockInventoryItem(name) {
+    const item = inventoryData.find((inventoryItem) => inventoryItem.name === name);
+    if (!item) return;
+
+    const reorderLevel = Number(item.reorderLevel) || 0;
+    const targetStock = Math.max(reorderLevel * 2, 1);
+    if (!window.confirm(`Mark "${item.name}" as restocked to ${targetStock} units?`)) return;
+
+    const previousStock = item.stock;
+    item.stock = targetStock;
+    item.status = 'In stock';
+    saveInventoryData();
+
+    try {
+        const actor = getCurrentStaffActor();
+        const headers = await withCsrfHeaders({
+            'Content-Type': 'application/json'
+        });
+        const response = await fetch(getApiUrl('api/update_inventory.php'), {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                name: item.name,
+                previousName: item.name,
+                price: Number(item.price) || 0,
+                stock: targetStock,
+                status: 'In stock',
+                category: item.category || 'specials',
+                description: item.description || '',
+                image: item.image || '',
+                unitCost: Number(item.unitCost) || 0,
+                reorderLevel,
+                isAvailable: item.isAvailable ? 1 : 0,
+                actorRole: actor.role,
+                actorEmail: actor.email
+            })
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const payload = await response.json();
+        if (!payload || payload.success !== true) {
+            throw new Error(payload?.error || 'Unknown server response');
+        }
+    } catch (error) {
+        item.stock = previousStock;
+        item.status = 'Out of stock';
+        saveInventoryData();
+        window.alert(`Restock failed on server. ${error?.message || ''}`);
+    }
+
+    renderInventoryManagement();
+    renderSpecialFoods();
+    void initializeInventoryData(true);
+    void loadOrderLogsFromServer(true);
+}
+
 async function deleteInventoryItem(name) {
     const normalizedTargetName = normalizeInventoryName(name);
     const index = inventoryData.findIndex((item) => normalizeInventoryName(item.name) === normalizedTargetName);
@@ -7339,11 +8112,12 @@ async function deleteInventoryItem(name) {
     const actor = getCurrentStaffActor();
     let shouldContinueDelete = false;
     try {
+        const headers = await withCsrfHeaders({
+            'Content-Type': 'application/json'
+        });
         const response = await fetch(getApiUrl('api/delete_inventory_item.php'), {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers,
             body: JSON.stringify({
                 name,
                 actorRole: actor.role,
@@ -7421,6 +8195,10 @@ async function saveInventoryItem(event) {
         selectedSpecialFoodImageFile = null;
     }
 
+    const unitCost = Math.max(0, Number(inventoryUnitCostInput?.value) || 0);
+    const reorderLevel = Math.max(0, Number(inventoryReorderLevelInput?.value) || 0);
+    const isAvailable = inventoryAvailabilityInput ? inventoryAvailabilityInput.value !== '0' : true;
+
     if (existingItem) {
         existingItem.price = price;
         existingItem.stock = stock;
@@ -7429,6 +8207,9 @@ async function saveInventoryItem(event) {
         existingItem.description = description;
         existingItem.components = specialComponents;
         existingItem.image = imageUrl;
+        existingItem.unitCost = unitCost;
+        existingItem.reorderLevel = reorderLevel;
+        existingItem.isAvailable = isAvailable;
         saveMenuCatalogItem({ ...existingItem, description, image: imageUrl, components: specialComponents });
     } else {
         inventoryData.push({
@@ -7439,7 +8220,10 @@ async function saveInventoryItem(event) {
             category,
             description,
             components: specialComponents,
-            image: imageUrl
+            image: imageUrl,
+            unitCost,
+            reorderLevel,
+            isAvailable
         });
         saveMenuCatalogItem({ name, price, stock, status, category, description, image: imageUrl, components: specialComponents });
     }
@@ -7454,11 +8238,12 @@ async function saveInventoryItem(event) {
 
     try {
         const actor = getCurrentStaffActor();
+        const headers = await withCsrfHeaders({
+            'Content-Type': 'application/json'
+        });
         const response = await fetch(getApiUrl('api/update_inventory.php'), {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers,
             body: JSON.stringify({
                 name,
                 previousName: existingItem ? existingItem.name : null,
@@ -7468,6 +8253,9 @@ async function saveInventoryItem(event) {
                 category,
                 description,
                 image: imageUrl,
+                unitCost: Number(inventoryUnitCostInput?.value) || 0,
+                reorderLevel: Number(inventoryReorderLevelInput?.value) || 0,
+                isAvailable: inventoryAvailabilityInput ? (inventoryAvailabilityInput.value !== '0' ? 1 : 0) : 1,
                 actorRole: actor.role,
                 actorEmail: actor.email
             })
@@ -7533,6 +8321,9 @@ async function commitInlineInventoryEdit(card) {
     const categoryInput = card.querySelector('[data-field="category"]');
     const priceInput = card.querySelector('[data-field="price"]');
     const stockInput = card.querySelector('[data-field="stock"]');
+    const unitCostInput = card.querySelector('[data-field="unitCost"]');
+    const reorderLevelInput = card.querySelector('[data-field="reorderLevel"]');
+    const isAvailableInput = card.querySelector('[data-field="isAvailable"]');
     const descriptionInput = card.querySelector('[data-field="description"]');
     const statusInput = card.querySelector('[data-field="status"]');
 
@@ -7544,6 +8335,9 @@ async function commitInlineInventoryEdit(card) {
     const category = categoryInput.value || 'specials';
     const description = descriptionInput.value.trim();
     const status = stock <= 0 ? 'Out of stock' : statusInput.value;
+    const unitCost = unitCostInput ? Math.max(0, Number(unitCostInput.value) || 0) : (previousItem.unitCost || 0);
+    const reorderLevel = reorderLevelInput ? Math.max(0, Number(reorderLevelInput.value) || 0) : (previousItem.reorderLevel || 0);
+    const isAvailable = isAvailableInput ? isAvailableInput.value !== '0' : (previousItem.isAvailable !== false);
 
     if (!nextName || Number.isNaN(price) || Number.isNaN(stock)) return;
 
@@ -7562,17 +8356,21 @@ async function commitInlineInventoryEdit(card) {
     previousItem.status = status;
     previousItem.category = category;
     previousItem.description = description;
+    previousItem.unitCost = unitCost;
+    previousItem.reorderLevel = reorderLevel;
+    previousItem.isAvailable = isAvailable;
 
     saveMenuCatalogItem(previousItem, itemName);
     saveInventoryData();
     let syncSucceeded = false;
     try {
         const actor = getCurrentStaffActor();
+        const headers = await withCsrfHeaders({
+            'Content-Type': 'application/json'
+        });
         const response = await fetch(getApiUrl('api/update_inventory.php'), {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers,
             body: JSON.stringify({
                 name: nextName,
                 previousName: itemName,
@@ -7581,6 +8379,9 @@ async function commitInlineInventoryEdit(card) {
                 status,
                 category,
                 description,
+                unitCost: previousItem.unitCost,
+                reorderLevel: previousItem.reorderLevel,
+                isAvailable: previousItem.isAvailable ? 1 : 0,
                 actorRole: actor.role,
                 actorEmail: actor.email
             })
@@ -7701,7 +8502,10 @@ function showDashboardSection(section) {
 
 function isItemOutOfStock(itemName) {
     const inventoryItem = getInventoryItem(itemName);
-    return Boolean(inventoryItem && inventoryItem.stock <= 0);
+    if (!inventoryItem) return false;
+    // Staff can hide an item entirely (is_available) even when stock remains.
+    if (inventoryItem.isAvailable === false) return true;
+    return Number(inventoryItem.stock) <= 0;
 }
 
 function renderSpecialFoods() {
@@ -7977,12 +8781,14 @@ function renderPendingOrders() {
                         </label>
                         <button type="button" class="prepare-order-btn" data-order-index="${index}">${isPreparing ? 'Update' : 'Prepare'}</button>
                         <button type="button" class="order-complete-btn" data-order-index="${index}">Mark Complete</button>
+                        <button type="button" class="order-print-btn" data-order-index="${index}"><i class="fa-solid fa-print" aria-hidden="true"></i> Receipt</button>
+                        <button type="button" class="order-cancel-btn" data-order-index="${index}"><i class="fa-solid fa-xmark" aria-hidden="true"></i> Cancel</button>
                     </div>
                 </div>
             `
             : `<strong>Total: ${formatCurrency(order.total)}</strong>`;
         return `
-            <article class="pending-order-card${isPreparing ? ' is-preparing' : ''}" data-order-id="${order.id}">
+            <article class="pending-order-card${isPreparing ? ' is-preparing' : ''}${overdueOrderIds.has(String(order.id)) ? ' is-overdue' : ''}" data-order-id="${order.id}">
                 <div class="pending-order-top">
                     <h4>Order #${escapeHtml(displayNumber)}</h4>
                     <span class="pending-order-type">${escapeHtml(order.orderType || 'Dine In')}</span>
@@ -8311,6 +9117,91 @@ function removeWalkInDraftItem(index) {
     renderWalkInOrderBuilder();
 }
 
+function renderWalkInLoyaltyResult() {
+    if (!walkInLoyaltyResult) return;
+    if (!walkInLoyaltyAccount) {
+        walkInLoyaltyResult.hidden = true;
+        walkInLoyaltyResult.innerHTML = '';
+        if (walkInLoyaltyRedeemRow) walkInLoyaltyRedeemRow.hidden = true;
+        walkInLoyaltyDiscount = 0;
+        return;
+    }
+
+    walkInLoyaltyResult.hidden = false;
+    walkInLoyaltyResult.innerHTML = `
+        <p><strong>${escapeHtml(walkInLoyaltyAccount.name || 'Loyalty member')}</strong> · ${escapeHtml(walkInLoyaltyAccount.phone)}</p>
+        <p class="walkin-loyalty-points">Balance: <strong>${Number(walkInLoyaltyAccount.points) || 0} pts</strong></p>
+    `;
+    if (walkInLoyaltyRedeemRow) {
+        walkInLoyaltyRedeemRow.hidden = (Number(walkInLoyaltyAccount.points) || 0) < (Number(walkInLoyaltyAccount.redemptionPoints) || 100);
+    }
+    if (walkInLoyaltyRedeemInput && walkInLoyaltyRedeemInput.value === '0') {
+        const maxBlocks = Math.floor((Number(walkInLoyaltyAccount.points) || 0) / (Number(walkInLoyaltyAccount.redemptionPoints) || 100));
+        walkInLoyaltyRedeemInput.max = String(Math.max(0, maxBlocks));
+    }
+    updateWalkInLoyaltyDiscountText();
+}
+
+function updateWalkInLoyaltyDiscountText() {
+    if (!walkInLoyaltyDiscountText) return;
+    if (!walkInLoyaltyAccount) {
+        walkInLoyaltyDiscountText.textContent = '';
+        return;
+    }
+    const blocks = Math.max(0, Math.floor(Number(walkInLoyaltyRedeemInput ? walkInLoyaltyRedeemInput.value : 0) || 0));
+    const value = Number(walkInLoyaltyAccount.redemptionValue) || 50;
+    const maxBlocks = Math.floor((Number(walkInLoyaltyAccount.points) || 0) / (Number(walkInLoyaltyAccount.redemptionPoints) || 100));
+    const capped = Math.min(blocks, maxBlocks);
+    walkInLoyaltyRedeemedBlocks = capped;
+    walkInLoyaltyDiscount = capped * value;
+    walkInLoyaltyDiscountText.textContent = capped > 0
+        ? `−${formatCurrency(walkInLoyaltyDiscount)} off total`
+        : '';
+}
+
+async function lookupWalkInLoyaltyAccount() {
+    if (!isStaffPage || !walkInLoyaltyPhoneInput) return;
+    const phone = walkInLoyaltyPhoneInput.value.trim();
+    if (!phone) {
+        walkInLoyaltyAccount = null;
+        renderWalkInLoyaltyResult();
+        return;
+    }
+
+    if (walkInLoyaltyLookupBtn) {
+        walkInLoyaltyLookupBtn.disabled = true;
+        walkInLoyaltyLookupBtn.textContent = '…';
+    }
+    try {
+        const response = await fetch(getApiUrl(`api/get_loyalty_account.php?phone=${encodeURIComponent(phone)}&_=${Date.now()}`), {
+            cache: 'no-store',
+            credentials: 'same-origin'
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || `HTTP ${response.status}`);
+        }
+        if (payload.found && payload.account) {
+            walkInLoyaltyAccount = payload.account;
+            if (walkInLoyaltyRedeemInput) walkInLoyaltyRedeemInput.value = '0';
+            setWalkInOrderMessage(`Loyalty account found for ${escapeHtml(payload.account.phone)}.`);
+        } else {
+            walkInLoyaltyAccount = null;
+            if (walkInLoyaltyRedeemInput) walkInLoyaltyRedeemInput.value = '0';
+            setWalkInOrderMessage('No loyalty account found for that number yet. Points will be created on first completed order.', true);
+        }
+    } catch (error) {
+        walkInLoyaltyAccount = null;
+        setWalkInOrderMessage(`Loyalty lookup failed: ${error.message || 'Unexpected error'}`, true);
+    } finally {
+        renderWalkInLoyaltyResult();
+        if (walkInLoyaltyLookupBtn) {
+            walkInLoyaltyLookupBtn.disabled = false;
+            walkInLoyaltyLookupBtn.textContent = 'Look Up';
+        }
+    }
+}
+
 async function placeWalkInOrder() {
     if (!canManageOrders()) {
         setWalkInOrderMessage('Only cashier/admin can place walk-in orders.', true);
@@ -8343,9 +9234,12 @@ async function placeWalkInOrder() {
             quantity: Number(item.quantity) || 0,
             components: getOrderComponents(item.components)
         })),
-        total: getWalkInDraftTotal(),
+        total: Math.max(0, getWalkInDraftTotal() - walkInLoyaltyDiscount),
         paymentMethod: walkInPaymentMethodSelect ? walkInPaymentMethodSelect.value || 'Cash' : 'Cash',
-        orderType: walkInOrderTypeSelect ? walkInOrderTypeSelect.value || 'Walk-in Dine In' : 'Walk-in Dine In'
+        orderType: walkInOrderTypeSelect ? walkInOrderTypeSelect.value || 'Walk-in Dine In' : 'Walk-in Dine In',
+        customerPhone: walkInLoyaltyAccount ? walkInLoyaltyAccount.phone : '',
+        loyaltyDiscount: walkInLoyaltyDiscount,
+        loyaltyPointsRedeemed: walkInLoyaltyRedeemedBlocks
     };
 
     const syncedOrder = await submitOrderToServer(order);
@@ -8359,7 +9253,12 @@ async function placeWalkInOrder() {
     renderPendingOrders();
     renderOrderNotifications();
     walkInDraftItems = [];
+    walkInLoyaltyAccount = null;
+    walkInLoyaltyDiscount = 0;
+    if (walkInLoyaltyPhoneInput) walkInLoyaltyPhoneInput.value = '';
+    if (walkInLoyaltyRedeemInput) walkInLoyaltyRedeemInput.value = '0';
     renderWalkInOrderBuilder();
+    renderWalkInLoyaltyResult();
     setOrdersTab('pending');
     setWalkInOrderMessage(`Walk-in order #${syncedOrder.orderNumber} created and moved to pending.`);
     void loadPendingOrdersFromServer();
@@ -8368,6 +9267,8 @@ async function placeWalkInOrder() {
 let selectedPaymentMethod = 'Cash';
 let selectedOrderType = 'Dine In';
 let selectedCustomerName = '';
+let selectedCustomerPhone = '';
+let selectedCustomerEmail = '';
 let selectedDeliveryAddress = '';
 let cartAddOnDraftQuantities = {};
 let cartAddOnSearchQuery = '';
@@ -8963,6 +9864,9 @@ async function confirmOrder() {
         return;
     }
 
+    selectedCustomerPhone = customerPhoneInput ? customerPhoneInput.value.trim() : '';
+    selectedCustomerEmail = customerEmailInput ? customerEmailInput.value.trim() : '';
+
     selectedDeliveryAddress = isSakayKoOrderType(selectedOrderType) && deliveryAddressInput
         ? deliveryAddressInput.value.trim()
         : '';
@@ -8990,6 +9894,8 @@ async function confirmOrder() {
         paymentMethod: selectedPaymentMethod,
         orderType: selectedOrderType,
         customerName: selectedCustomerName,
+        customerPhone: selectedCustomerPhone,
+        customerEmail: selectedCustomerEmail,
         deliveryAddress: selectedDeliveryAddress
     };
 
@@ -9351,6 +10257,13 @@ if (inventoryItemsWrapper) {
             deleteInventoryItem(itemName);
             return;
         }
+
+        const restockButton = event.target.closest('.reorder-suggestion-btn');
+        if (restockButton) {
+            const itemName = restockButton.dataset.reorderName;
+            restockInventoryItem(itemName);
+            return;
+        }
     });
 }
 
@@ -9673,10 +10586,20 @@ if (overviewToPendingLink) {
 }
 
 if (overviewOrderNotificationList) {
-    overviewOrderNotificationList.addEventListener('click', (event) => {
+    overviewOrderNotificationList.addEventListener('click', async (event) => {
         // clicking the notification list marks notifications as seen
         unseenPendingCount = 0;
         updateOverviewBadge();
+
+        const refundBtn = event.target.closest('.order-refund-btn');
+        if (refundBtn) {
+            if (!canManageOrders()) return;
+            const orderId = Number(refundBtn.dataset.orderId || 0);
+            if (orderId) {
+                await refundCompletedOrder(orderId);
+            }
+            return;
+        }
 
         // The overview feed is view-only: processing happens under Orders →
         // Pending Orders. Clicking the hint navigates staff there directly.
@@ -9740,9 +10663,24 @@ if (pendingOrdersList) {
         }
 
         const button = event.target.closest('.order-complete-btn');
-        if (!button) return;
-        const index = Number(button.dataset.orderIndex);
-        await markPendingOrderAsComplete(index, true);
+        if (button) {
+            const index = Number(button.dataset.orderIndex);
+            await markPendingOrderAsComplete(index, true);
+            return;
+        }
+
+        const printBtn = event.target.closest('.order-print-btn');
+        if (printBtn) {
+            const index = Number(printBtn.dataset.orderIndex);
+            printOrderReceipt(index);
+            return;
+        }
+
+        const cancelBtn = event.target.closest('.order-cancel-btn');
+        if (cancelBtn) {
+            const index = Number(cancelBtn.dataset.orderIndex);
+            await cancelPendingOrder(index);
+        }
     });
 }
 
@@ -9760,6 +10698,20 @@ if (pendingOrdersTabBtn) {
     });
 }
 
+if (walkInLoyaltyLookupBtn) {
+    walkInLoyaltyLookupBtn.addEventListener('click', () => void lookupWalkInLoyaltyAccount());
+}
+if (walkInLoyaltyPhoneInput) {
+    walkInLoyaltyPhoneInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            void lookupWalkInLoyaltyAccount();
+        }
+    });
+}
+if (walkInLoyaltyRedeemInput) {
+    walkInLoyaltyRedeemInput.addEventListener('input', updateWalkInLoyaltyDiscountText);
+}
 if (walkInAddItemBtn) {
     walkInAddItemBtn.addEventListener('click', addWalkInDraftItem);
 }
@@ -9874,6 +10826,12 @@ window.addEventListener('focus', () => {
 initOrders();
 restoreStaffSession();
 updateAccountManagementAccess();
+// Silently re-establish the server-side staff session (30-day cookie) on page
+// load so staff-only APIs keep working after browser restarts. Uses the stored
+// credentials exactly like the existing client-side session restore.
+if (isStaffPage) {
+    void ensureStaffServerSession();
+}
 
 // Real-time order events via Server-Sent Events
 let orderEventsSource = null;
@@ -10012,6 +10970,8 @@ async function fetchOverviewMetrics() {
                 if (totalEl) totalEl.textContent = String(total);
                 if (walkinEl) walkinEl.textContent = String(walkin);
                 if (onlineEl) onlineEl.textContent = String(online);
+
+                renderDashboardKpis(orders);
             }
         } catch (e) {
             console.debug('Unable to load completed orders for metrics', e);
@@ -10021,11 +10981,157 @@ async function fetchOverviewMetrics() {
     }
 }
 
+function renderDashboardKpis(completedOrdersData) {
+    const orders = Array.isArray(completedOrdersData) ? completedOrdersData : completedOrders;
+
+    // Today's revenue (local-timezone day)
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    let todayRevenue = 0;
+    orders.forEach((order) => {
+        const ts = order.order_date ? Date.parse(order.order_date) : NaN;
+        if (Number.isNaN(ts)) return;
+        const d = new Date(ts);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        if (key === todayKey) {
+            todayRevenue += Number(order.total_amount ?? order.total ?? 0) || 0;
+        }
+    });
+    const revenueEl = document.getElementById('todayRevenueCount');
+    if (revenueEl) revenueEl.textContent = formatCurrency(todayRevenue);
+
+    // Average prep time from prepMinutes on completed orders that carried one
+    let prepTotal = 0;
+    let prepCount = 0;
+    orders.forEach((order) => {
+        const mins = Number(order.prep_minutes ?? order.prepMinutes ?? 0) || 0;
+        if (mins > 0) {
+            prepTotal += mins;
+            prepCount += 1;
+        }
+    });
+    const avgEl = document.getElementById('avgPrepCount');
+    if (avgEl) avgEl.textContent = prepCount ? `${(prepTotal / prepCount).toFixed(1)} min` : '—';
+
+    // Low-stock count from current inventory
+    let lowStockCount = 0;
+    if (Array.isArray(inventoryData)) {
+        inventoryData.forEach((item) => {
+            const reorderLevel = Number(item.reorderLevel) || 0;
+            const stock = Number(item.stock) || 0;
+            if (reorderLevel > 0 && stock <= reorderLevel) lowStockCount += 1;
+        });
+    }
+    const lowEl = document.getElementById('lowStockCount');
+    if (lowEl) lowEl.textContent = String(lowStockCount);
+
+    // Best seller by total units sold
+    const units = new Map();
+    orders.forEach((order) => {
+        (Array.isArray(order.items) ? order.items : []).forEach((item) => {
+            const name = String(item.name || item.notes || '').trim();
+            if (!name) return;
+            units.set(name, (units.get(name) || 0) + (Number(item.quantity) || 0));
+        });
+    });
+    let bestSeller = null;
+    let bestQty = 0;
+    units.forEach((qty, name) => {
+        if (qty > bestQty) {
+            bestQty = qty;
+            bestSeller = name;
+        }
+    });
+    const bestEl = document.getElementById('bestSellerCount');
+    if (bestEl) bestEl.textContent = bestSeller ? `${bestSeller} (${bestQty})` : '—';
+}
+
 // Initial fetch + periodic refresh
 document.addEventListener('DOMContentLoaded', () => {
     void fetchOverviewMetrics();
     setInterval(() => void fetchOverviewMetrics(), 15000);
 });// ============================================================
+// PWA service worker registration
+// ============================================================
+if ('serviceWorker' in navigator && (isCustomerPage || window.location.pathname === '/')) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch((error) => {
+            console.warn('Service worker registration failed', error);
+        });
+    });
+}
+
+// ============================================================
+// Bilingual toggle (English / Filipino)
+// ============================================================
+const LANG_STORAGE_KEY = 'motaste_lang';
+const langToggleBtn = document.getElementById('langToggleBtn');
+
+const LANGUAGE_STRINGS = {
+    en: {
+        home: 'Home',
+        menu: 'Menu',
+        about: 'About Us',
+        contact: 'Contact',
+        orderNow: 'Order Now',
+        addToCart: 'Add to cart',
+        purchaseNow: 'Purchase now',
+        checkout: 'Checkout',
+        confirmOrder: 'Confirm Order',
+        fullName: 'Full Name',
+        paymentMethod: 'Payment Method',
+        orderType: 'Order Type',
+        total: 'Total'
+    },
+    fil: {
+        home: 'Tahanan',
+        menu: 'Menu',
+        about: 'Tungkol Sa Amin',
+        contact: 'Kontak',
+        orderNow: 'Mag-Order Na',
+        addToCart: 'Idagdag sa cart',
+        purchaseNow: 'Bilhin na',
+        checkout: 'Checkout',
+        confirmOrder: 'Kumpirmahin ang Order',
+        fullName: 'Buong Pangalan',
+        paymentMethod: 'Paraan ng Pagbabayad',
+        orderType: 'Uri ng Order',
+        total: 'Kabuuan'
+    }
+};
+
+function applySiteLanguage(lang) {
+    const strings = LANGUAGE_STRINGS[lang] || LANGUAGE_STRINGS.en;
+    document.documentElement.lang = lang === 'fil' ? 'fil-PH' : 'en';
+
+    const navLinks = document.querySelectorAll('.top-nav a');
+    if (navLinks.length >= 3) {
+        navLinks[0].textContent = strings.home;
+        navLinks[1].textContent = strings.menu;
+        navLinks[2].textContent = strings.about;
+    }
+
+    const langBtn = document.getElementById('langToggleBtn');
+    if (langBtn) langBtn.textContent = lang === 'fil' ? 'FIL' : 'EN';
+
+    try { localStorage.setItem(LANG_STORAGE_KEY, lang); } catch (e) { }
+}
+
+if (langToggleBtn) {
+    let currentLang = 'en';
+    try {
+        const saved = localStorage.getItem(LANG_STORAGE_KEY);
+        if (saved === 'fil') currentLang = 'fil';
+    } catch (e) { }
+    applySiteLanguage(currentLang);
+
+    langToggleBtn.addEventListener('click', () => {
+        currentLang = currentLang === 'fil' ? 'en' : 'fil';
+        applySiteLanguage(currentLang);
+    });
+}
+
+// ============================================================
 // Home page polish — sticky header scrolled state + footer year
 // ============================================================
 (function homePagePolish() {

@@ -2,7 +2,14 @@
 .DS_Store
 .env
 .env.backup
+.env.local
 .env.production
+.env.testing
+motaste_db
+motaste_db-journal
+*.sqlite
+*.sqlite3
+*.db
 .phpactor.json
 .phpunit.result.cache
 /.codex

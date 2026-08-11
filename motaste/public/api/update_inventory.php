@@ -5,6 +5,15 @@ require __DIR__ . '/../../vendor/autoload.php';
 
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+require_once __DIR__ . '/_staff_auth_helpers.php';
+if (!requireStaffAuth()) {
+    abortStaffAuthRequired();
+}
+
+require_once __DIR__ . '/csrf_guard.php';
+validateCsrfOrExit();
+
+
 
 require_once __DIR__ . '/_helpers.php';
 
@@ -49,6 +58,9 @@ $stock = isset($input['stock']) ? (int)$input['stock'] : 0;
 $category = isset($input['category']) ? trim($input['category']) : 'specials';
 $description = isset($input['description']) ? trim((string)$input['description']) : '';
 $status = isset($input['status']) ? trim($input['status']) : ($stock > 0 ? 'In stock' : 'Out of stock');
+$unitCost = isset($input['unitCost']) ? (float)$input['unitCost'] : 0;
+$reorderLevel = isset($input['reorderLevel']) ? (int)$input['reorderLevel'] : 0;
+$isAvailable = isset($input['isAvailable']) ? (($input['isAvailable'] === true || $input['isAvailable'] === 'true' || $input['isAvailable'] === 1 || $input['isAvailable'] === '1') ? 1 : 0) : 1;
 $actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
 $actorEmail = trim((string)($input['actorEmail'] ?? ''));
 
@@ -88,7 +100,7 @@ try {
     $image = isset($input['image']) ? trim((string)$input['image']) : null;
 
     $itemId = null;
-    DB::transaction(function () use ($normalizedLookup, $normalizedPrevious, $canonicalName, $price, $stock, $normalizedStatus, $category, $description, $image, &$itemId) {
+    DB::transaction(function () use ($normalizedLookup, $normalizedPrevious, $canonicalName, $price, $stock, $normalizedStatus, $category, $description, $image, $unitCost, $reorderLevel, $isAvailable, &$itemId) {
         $deleteIds = findInventoryItemIdsByNormalizedNames(array_filter([$normalizedLookup, $normalizedPrevious]));
         if (!empty($deleteIds)) {
             DB::table('inventory_items')->whereIn('id', $deleteIds)->delete();
@@ -102,6 +114,9 @@ try {
             'category' => $category,
             'description' => $description !== '' ? $description : null,
             'image' => $image !== '' ? $image : null,
+            'unit_cost' => max(0, $unitCost),
+            'reorder_level' => max(0, $reorderLevel),
+            'is_available' => $isAvailable,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 require_once __DIR__ . '/_device_auth_helpers.php';
 require_once __DIR__ . '/_email_auth_helpers.php';
 require_once __DIR__ . '/_helpers.php';
+require_once __DIR__ . '/_staff_auth_helpers.php';
 
 try {
     $input = json_decode(file_get_contents('php://input'), true);
@@ -21,10 +22,22 @@ try {
     $password = (string)($input['password'] ?? '');
     $selectedRole = trim((string)($input['role'] ?? ''));
     $deviceToken = trim((string)($input['deviceToken'] ?? ''));
+    $silentRefresh = !empty($input['silentRefresh']);
 
     if ($email === '' || $password === '') {
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'Email and password are required.']);
+        exit;
+    }
+
+    // Brute-force protection: lock the account after repeated failures.
+    if (isLoginRateLimited($email)) {
+        http_response_code(429);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Too many failed login attempts. Please try again in 15 minutes.',
+            'rateLimited' => true,
+        ]);
         exit;
     }
 
@@ -33,6 +46,7 @@ try {
         ->first();
 
     if (!$staffRow || !isset($staffRow->password_hash) || !password_verify($password, $staffRow->password_hash)) {
+        recordLoginAttempt($email, false);
         http_response_code(401);
         echo json_encode(['success' => false, 'error' => 'Invalid credentials']);
         exit;
@@ -147,8 +161,12 @@ try {
         }
     }
 
-    // Persist a server-side session so subsequent server endpoints can recognize the staff user.
-    if (session_status() === PHP_SESSION_NONE) session_start();
+    recordLoginAttempt($email, true);
+
+    // Persist a server-side session (30-day cookie) so subsequent server
+    // endpoints can recognize the staff user. Silent refreshes re-issue the
+    // session without spamming the login history audit trail.
+    ensureStaffAuthSession();
     session_regenerate_id(true);
     $_SESSION['staff'] = [
         'role' => $role,
@@ -157,8 +175,10 @@ try {
         'logged_in_at' => now()->toDateTimeString()
     ];
 
-    // Record the successful login in the credentials audit trail.
-    recordStaffLoginHistory($email, $role, (string)($staffRow->full_name ?? ''));
+    // Record the successful login in the credentials audit trail (not for silent refresh).
+    if (!$silentRefresh) {
+        recordStaffLoginHistory($email, $role, (string)($staffRow->full_name ?? ''));
+    }
 
     echo json_encode([
         'success' => true,

@@ -8,6 +8,11 @@ require __DIR__ . '/../../vendor/autoload.php';
 
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+require_once __DIR__ . '/_staff_auth_helpers.php';
+if (!requireStaffAuth()) {
+    abortStaffAuthRequired();
+}
+
 
 require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
@@ -126,6 +131,32 @@ try {
         ]);
     } catch (Throwable $eventError) {
         error_log('order_events insert failed (preparing): ' . $eventError->getMessage());
+    }
+
+    // Notify the customer that preparation has started (best-effort).
+    try {
+        require_once __DIR__ . '/_email_auth_helpers.php';
+
+        $customerRow = DB::table('orders')
+            ->where('id', $orderId)
+            ->first(['customer_email', 'customer_name', 'order_number', 'total_amount']);
+        if ($customerRow) {
+            $customerEmail = trim((string)($customerRow->customer_email ?? ''));
+            if ($customerEmail !== '' && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+                $displayName = trim((string)($customerRow->customer_name ?? ''));
+                sendSystemEmail(
+                    $customerEmail,
+                    'Your MOTASTE order is being prepared',
+                    'Hi ' . ($displayName !== '' ? $displayName : 'there')
+                        . ",\n\nGood news — your order #" . (string)($customerRow->order_number ?? $orderId)
+                        . " is now being prepared. Estimated time: " . (int)$result['prepMinutes'] . " minutes.\n\n"
+                        . 'Total: ₱' . number_format((float)($customerRow->total_amount ?? 0), 2)
+                        . "\n\nThank you for choosing MOTASTE!"
+                );
+            }
+        }
+    } catch (Throwable $notifyError) {
+        error_log('order preparing email failed: ' . $notifyError->getMessage());
     }
 
     echo json_encode([

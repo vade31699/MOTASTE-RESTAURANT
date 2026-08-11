@@ -9,15 +9,30 @@ require __DIR__ . '/../../vendor/autoload.php';
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
+require_once __DIR__ . '/_security_headers.php';
+sendSecurityHeaders();
+
 use Illuminate\Support\Facades\DB;
 
 try {
+    // Staff scope includes cost/reorder/availability fields and requires the
+    // staff session. Public scope hides cost data from the customer menu.
+    $scope = strtolower(trim((string)($_GET['scope'] ?? 'public')));
+    $isStaffScope = $scope === 'staff';
+    if ($isStaffScope) {
+        require_once __DIR__ . '/_staff_auth_helpers.php';
+        if (!requireStaffAuth()) {
+            abortStaffAuthRequired();
+        }
+        notifyLowStockAlerts();
+    }
+
     DB::table('inventory_items')
         ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", ['softdrinks'])
         ->delete();
 
     $rawItems = DB::table('inventory_items')
-        ->select('name', 'price', 'stock', 'status', 'category', 'description', 'image')
+        ->select('name', 'price', 'stock', 'status', 'category', 'description', 'image', 'unit_cost', 'reorder_level', 'is_available')
         ->orderBy('updated_at', 'desc')
         ->orderBy('id', 'desc')
         ->get()
@@ -31,7 +46,7 @@ try {
         }
 
         $stock = (int)($row->stock ?? 0);
-        $itemsByName[$normalizedName] = [
+        $item = [
             'name' => trim((string)$row->name),
             'price' => (float)($row->price ?? 0),
             'stock' => $stock,
@@ -39,7 +54,13 @@ try {
             'category' => $row->category ?: 'specials',
             'description' => trim((string)($row->description ?? '')),
             'image' => trim((string)($row->image ?? '')),
+            'is_available' => !(($row->is_available === false || $row->is_available === 0 || strtolower((string)($row->is_available ?? '1')) === 'false' || strtolower((string)($row->is_available ?? '1')) === '0')),
         ];
+        if ($isStaffScope) {
+            $item['unit_cost'] = (float)($row->unit_cost ?? 0);
+            $item['reorder_level'] = (int)($row->reorder_level ?? 0);
+        }
+        $itemsByName[$normalizedName] = $item;
     }
 
     $items = array_values($itemsByName);

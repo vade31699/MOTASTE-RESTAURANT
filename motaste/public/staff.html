@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./style.css?v=20260812">
+    <link rel="stylesheet" href="./style.css?v=20260814">
     <title>Staff Login - MOTASTE</title>
     <style>
         html,
@@ -151,6 +151,30 @@
                 <div id="onlineCompletedCount" style="font-size:28px;font-weight:700;color:#6366f1;">0</div>
                 <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Completed online orders</div>
             </div>
+
+            <div class="metric-card" id="metricTodayRevenue" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
+                <div style="font-size:13px;color:#666;margin-bottom:6px;">Today's Revenue</div>
+                <div id="todayRevenueCount" style="font-size:28px;font-weight:700;color:#7c3aed;">₱0</div>
+                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Completed sales today</div>
+            </div>
+
+            <div class="metric-card" id="metricAvgPrep" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
+                <div style="font-size:13px;color:#666;margin-bottom:6px;">Avg. Prep Time</div>
+                <div id="avgPrepCount" style="font-size:28px;font-weight:700;color:#0891b2;">—</div>
+                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Mean preparation minutes</div>
+            </div>
+
+            <div class="metric-card" id="metricLowStock" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
+                <div style="font-size:13px;color:#666;margin-bottom:6px;">Low-Stock Items</div>
+                <div id="lowStockCount" style="font-size:28px;font-weight:700;color:#dc2626;">0</div>
+                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">At or below reorder level</div>
+            </div>
+
+            <div class="metric-card" id="metricBestSeller" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
+                <div style="font-size:13px;color:#666;margin-bottom:6px;">Best Seller</div>
+                <div id="bestSellerCount" style="font-size:22px;font-weight:700;color:#059669;">—</div>
+                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Top item by units sold</div>
+            </div>
         </div>
         <div class="overview-grid">
             <div class="sales-analytics-placeholder overview-analytics-panel">
@@ -264,6 +288,27 @@
         </div>
     </div>
 
+    <div id="overdueAlertModal" class="modal-overlay" hidden aria-hidden="true">
+        <div class="modal-box overdue-alert-modal" role="alertdialog" aria-modal="true" aria-labelledby="overdueAlertTitle" aria-describedby="overdueAlertText">
+            <button type="button" class="modal-close" id="overdueAlertCloseBtn" aria-label="Dismiss overdue alert">×</button>
+            <h2 id="overdueAlertTitle"><i class="fa-solid fa-bell" aria-hidden="true"></i> Order Overdue</h2>
+            <p id="overdueAlertText">An order's preparation timer has expired.</p>
+            <div class="overdue-alert-actions">
+                <label class="prep-minutes-field">
+                    <span>Add minutes</span>
+                    <input type="number" id="overdueMinutesInput" min="1" max="180" step="1" value="15" aria-label="Additional preparation minutes">
+                </label>
+                <button type="button" id="overdueAddMinutesBtn" class="menu-place-order-btn overdue-add-minutes-btn">
+                    <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Add Minutes
+                </button>
+                <button type="button" id="overdueCompleteBtn" class="menu-place-order-btn overdue-complete-btn">
+                    <i class="fa-solid fa-check" aria-hidden="true"></i> Mark as Complete
+                </button>
+            </div>
+            <p id="overdueAlertMessage" class="menu-order-message" aria-live="polite"></p>
+        </div>
+    </div>
+
     <section id="sales" class="sales-section" hidden>
         <h2>Sales</h2>
 
@@ -303,6 +348,54 @@
             <button type="button" class="sales-tab-btn active" data-tab="daily-sales">Daily Sales</button>
             <button type="button" class="sales-tab-btn" data-tab="weekly-sales">Weekly Sales</button>
             <button type="button" class="sales-tab-btn" data-tab="monthly-sales">Monthly Sales</button>
+            <button type="button" class="sales-tab-btn" data-tab="insights">Insights</button>
+        </div>
+
+        <div id="insights" class="sales-tab-content" hidden>
+            <div class="insights-toolbar">
+                <h3>Insights</h3>
+                <button type="button" id="insightsExportPdfBtn" class="menu-place-order-btn"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> Export Report</button>
+            </div>
+            <p>Busiest hours, best-selling dishes, and period comparison across completed orders.</p>
+            <div class="insights-grid">
+                <div class="insight-card">
+                    <h4><i class="fa-solid fa-clock" aria-hidden="true"></i> Busiest Hours</h4>
+                    <div id="insightsHourlyChart" class="insights-hourly-chart" aria-label="Sales by hour of day"></div>
+                </div>
+                <div class="insight-card">
+                    <h4><i class="fa-solid fa-trophy" aria-hidden="true"></i> Best Sellers</h4>
+                    <div id="insightsBestSellers" class="insights-best-sellers"></div>
+                </div>
+                <div class="insight-card insight-card-wide">
+                    <h4><i class="fa-solid fa-scale-balanced" aria-hidden="true"></i> Period Comparison</h4>
+                    <div class="insights-compare-controls">
+                        <label>
+                            Period A
+                            <select id="insightsComparePeriodA">
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="thisweek">This Week</option>
+                                <option value="lastweek">Last Week</option>
+                                <option value="thismonth">This Month</option>
+                                <option value="lastmonth">Last Month</option>
+                            </select>
+                        </label>
+                        <label>
+                            Period B
+                            <select id="insightsComparePeriodB">
+                                <option value="yesterday">Yesterday</option>
+                                <option value="today">Today</option>
+                                <option value="thisweek">This Week</option>
+                                <option value="lastweek">Last Week</option>
+                                <option value="thismonth">This Month</option>
+                                <option value="lastmonth">Last Month</option>
+                            </select>
+                        </label>
+                        <button type="button" id="insightsCompareBtn" class="menu-place-order-btn">Compare</button>
+                    </div>
+                    <div id="insightsCompareResult" class="insights-compare-result"></div>
+                </div>
+            </div>
         </div>
 
         <div id="daily-sales" class="sales-tab-content">
@@ -327,18 +420,25 @@
     </section>
 
     <section id="inventory" class="inventory-section" hidden>
-        <h2>Inventory</h2>
-        <div id="inventoryAdminPanel" class="inventory-admin-panel">
-            <div class="inventory-panel-header">
-                <div>
-                    <h3>Inventory Manager</h3>
+        <h2>Inventory</h2>            <div id="inventoryAdminPanel" class="inventory-admin-panel">
+                <div class="inventory-panel-header">
+                    <div>
+                        <h3>Inventory Manager</h3>
+                    </div>
+                    <span id="inventoryAccessNote" class="inventory-access-note"></span>
                 </div>
-                <span id="inventoryAccessNote" class="inventory-access-note"></span>
-            </div>
 
-            <div class="inventory-action-row">
-                <button type="button" id="inventoryAddFab" class="inventory-add-fab" aria-label="Add new inventory product" onclick="openInventoryModal()">+</button>
-            </div>
+                <div id="reorderSuggestionsPanel" class="reorder-suggestions-panel" hidden>
+                    <div class="reorder-suggestions-header">
+                        <h4><i class="fa-solid fa-cart-arrow-down" aria-hidden="true"></i> Reorder Suggestions</h4>
+                        <span class="reorder-suggestions-hint">Items at or below their reorder level. Low-stock email alerts are sent automatically.</span>
+                    </div>
+                    <div id="reorderSuggestionsList" class="reorder-suggestions-list"></div>
+                </div>
+
+                <div class="inventory-action-row">
+                    <button type="button" id="inventoryAddFab" class="inventory-add-fab" aria-label="Add new inventory product" onclick="openInventoryModal()">+</button>
+                </div>
 
             <div id="inventoryModal" class="inventory-modal" hidden>
                 <div class="inventory-modal-card">
@@ -371,6 +471,21 @@
                             <label>
                                 Stock
                                 <input id="inventoryStockInput" type="number" min="0" step="1" placeholder="Stock" required>
+                            </label>
+                            <label>
+                                Unit Cost (₱)
+                                <input id="inventoryUnitCostInput" type="number" min="0" step="0.01" placeholder="Cost per unit" value="0">
+                            </label>
+                            <label>
+                                Reorder Level
+                                <input id="inventoryReorderLevelInput" type="number" min="0" step="1" placeholder="Reorder at (stock)" value="0">
+                            </label>
+                            <label>
+                                Availability
+                                <select id="inventoryAvailabilityInput">
+                                    <option value="1">Available on menu</option>
+                                    <option value="0">Hidden from menu</option>
+                                </select>
                             </label>
                             <label class="inventory-description-field">
                                 Description
@@ -458,6 +573,25 @@
             </div>
 
             <div id="walkInDraftList" class="walkin-draft-list"></div>
+
+            <div class="walkin-loyalty-panel">
+                <div class="walkin-loyalty-header">
+                    <span><i class="fa-solid fa-gift" aria-hidden="true"></i> Loyalty Points</span>
+                    <small>Look up a customer by mobile number to apply points.</small>
+                </div>
+                <div class="walkin-loyalty-row">
+                    <input id="walkInLoyaltyPhoneInput" type="tel" maxlength="20" placeholder="09XX XXX XXXX" aria-label="Customer mobile number">
+                    <button type="button" id="walkInLoyaltyLookupBtn" class="menu-place-order-btn">Look Up</button>
+                </div>
+                <div id="walkInLoyaltyResult" class="walkin-loyalty-result" hidden></div>
+                <div id="walkInLoyaltyRedeemRow" class="walkin-loyalty-redeem-row" hidden>
+                    <label>
+                        Redeem blocks (100 pts = ₱50)
+                        <input id="walkInLoyaltyRedeemInput" type="number" min="0" step="1" value="0" aria-label="Redeem blocks">
+                    </label>
+                    <span id="walkInLoyaltyDiscountText" class="walkin-loyalty-discount-text"></span>
+                </div>
+            </div>
 
             <div class="walkin-order-footer">
                 <label>
@@ -704,7 +838,7 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="./script.js?v=20260812"></script>
+    <script src="./script.js?v=20260814"></script>
     <script src="./staff-auth.js?v=20260731"></script>
 </body>
 </html>

@@ -9,6 +9,9 @@ require __DIR__ . '/../../vendor/autoload.php';
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
+require_once __DIR__ . '/_security_headers.php';
+sendSecurityHeaders();
+
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
@@ -30,6 +33,32 @@ $paymentMethod = trim((string)($input['paymentMethod'] ?? 'Cash'));
 $orderType = trim((string)($input['orderType'] ?? 'Dine In'));
 $customerName = trim((string)($input['customerName'] ?? ''));
 $deliveryAddress = trim((string)($input['deliveryAddress'] ?? ''));
+$customerEmail = trim((string)($input['customerEmail'] ?? ''));
+$customerPhone = trim((string)($input['customerPhone'] ?? ''));
+$discountAmount = max(0, (float)($input['discount'] ?? 0));
+$loyaltyPointsRedeemed = max(0, (int)($input['loyaltyPointsRedeemed'] ?? 0));
+
+// Loyalty redemption: validate against the customer's balance BEFORE the order
+// is inserted, so the discount amount and stored points are authoritative and
+// consistent. The actual point deduction happens after the order is created.
+$loyaltyRedemptionPending = false;
+if ($loyaltyPointsRedeemed > 0 && trim((string)($input['customerPhone'] ?? '')) !== '') {
+    require_once __DIR__ . '/_staff_auth_helpers.php';
+
+    $loyaltyAccount = getLoyaltyAccount(trim((string)$input['customerPhone']));
+    $requiredPoints = $loyaltyPointsRedeemed * LOYALTY_REDEMPTION_POINTS;
+    $availablePoints = $loyaltyAccount ? (int)($loyaltyAccount->points ?? 0) : 0;
+
+    if ($loyaltyAccount && $availablePoints >= $requiredPoints) {
+        // Recompute the discount authoritatively from the redeemed blocks.
+        $discountAmount = $loyaltyPointsRedeemed * LOYALTY_REDEMPTION_VALUE;
+        $loyaltyRedemptionPending = true;
+    } else {
+        // Insufficient points: ignore the redemption request entirely.
+        $loyaltyPointsRedeemed = 0;
+        $discountAmount = 0;
+    }
+}
 
 $subtotal = 0;
 foreach ($items as $it) {
@@ -60,8 +89,9 @@ try {
     $orderId = null;
     $insertedItems = 0;
 
-    DB::transaction(function () use (&$orderId, &$insertedItems, $orderNumber, $paymentMethod, $orderType, $customerName, $deliveryAddress, $subtotal, $total, $items) {
+    DB::transaction(function () use (&$orderId, &$insertedItems, $orderNumber, $paymentMethod, $orderType, $customerName, $deliveryAddress, $customerEmail, $customerPhone, $discountAmount, $loyaltyPointsRedeemed, $subtotal, $total, $items) {
         $now = now();
+        $finalTotal = max(0, $total - $discountAmount);
         $orderId = DB::table('orders')->insertGetId([
             'order_number' => $orderNumber,
             'order_date' => $now,
@@ -71,8 +101,12 @@ try {
             'order_type' => $orderType,
             'customer_name' => $customerName !== '' ? $customerName : null,
             'delivery_address' => $deliveryAddress !== '' ? $deliveryAddress : null,
+            'customer_email' => $customerEmail !== '' ? $customerEmail : null,
+            'customer_phone' => $customerPhone !== '' ? $customerPhone : null,
             'subtotal' => $subtotal,
-            'total_amount' => $total,
+            'discount' => $discountAmount,
+            'loyalty_points_redeemed' => $loyaltyPointsRedeemed,
+            'total_amount' => $finalTotal,
             'created_at' => $now,
             'updated_at' => $now,
         ]);
@@ -127,7 +161,22 @@ try {
         }
     });
 
-    echo json_encode(['success' => true, 'orderId' => $orderId, 'insertedItems' => $insertedItems]);
+    // Deduct the loyalty points after the order exists (best-effort).
+    if ($loyaltyRedemptionPending) {
+        try {
+            require_once __DIR__ . '/_staff_auth_helpers.php';
+            redeemLoyaltyPoints(
+                trim((string)($input['customerPhone'] ?? '')),
+                $loyaltyPointsRedeemed,
+                $orderId,
+                $orderNumber
+            );
+        } catch (Throwable $redeemError) {
+            error_log('loyalty redemption failed: ' . $redeemError->getMessage());
+        }
+    }
+
+    echo json_encode(['success' => true, 'orderId' => $orderId, 'insertedItems' => $insertedItems, 'discount' => $discountAmount]);
 } catch (Throwable $error) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Insert order failed', 'details' => $error->getMessage()]);

@@ -1,5 +1,9 @@
 <?php
 header('Content-Type: application/json');
+
+require_once __DIR__ . '/_security_headers.php';
+sendSecurityHeaders();
+
 if (session_status() === PHP_SESSION_NONE) session_start();
 if (isset($_SESSION['staff'])) {
     $s = $_SESSION['staff'];

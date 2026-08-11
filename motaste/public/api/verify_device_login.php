@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 require_once __DIR__ . '/_device_auth_helpers.php';
 require_once __DIR__ . '/_helpers.php';
+require_once __DIR__ . '/_staff_auth_helpers.php';
 
 try {
     $input = json_decode(file_get_contents('php://input'), true);
@@ -62,7 +63,9 @@ try {
         }
     }
 
-    if (session_status() === PHP_SESSION_NONE) session_start();
+    // Persist a server-side session with a 30-day cookie (same behavior as a
+    // normal login) so staff-only endpoints recognize this device.
+    ensureStaffAuthSession();
     session_regenerate_id(true);
     $_SESSION['staff'] = [
         'role' => $role,

@@ -8,6 +8,15 @@ require __DIR__ . '/../../vendor/autoload.php';
 
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+require_once __DIR__ . '/_staff_auth_helpers.php';
+if (!requireStaffAuth()) {
+    abortStaffAuthRequired();
+}
+
+require_once __DIR__ . '/csrf_guard.php';
+validateCsrfOrExit();
+
+
 
 require_once __DIR__ . '/_helpers.php';
 

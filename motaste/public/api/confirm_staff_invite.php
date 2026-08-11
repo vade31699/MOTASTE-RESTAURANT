@@ -9,6 +9,14 @@ require __DIR__ . '/../../vendor/autoload.php';
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
+require_once __DIR__ . '/_security_headers.php';
+sendSecurityHeaders();
+require_once __DIR__ . '/_staff_auth_helpers.php';
+if (!requireStaffAuth()) {
+    abortStaffAuthRequired();
+}
+
+
 use Illuminate\Support\Facades\DB;
 
 require_once __DIR__ . '/_email_auth_helpers.php';
