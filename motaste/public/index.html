@@ -82,6 +82,11 @@
                     </button>
                     <!-- Live order status floating icon: hidden until an active order is placed -->
                     <div id="orderStatusFloat" class="order-status-float" hidden aria-hidden="true">
+                        <!-- Live countdown chip: MM:SS text sits directly inside a depleting loading bar -->
+                        <div id="orderStatusChip" class="order-status-chip is-waiting" hidden aria-hidden="true">
+                            <span class="order-status-chip-bar" aria-hidden="true"><span class="order-status-chip-bar-fill" id="orderStatusChipBarFill"></span></span>
+                            <span class="order-status-chip-label" id="orderStatusChipLabel">Awaiting acceptance</span>
+                        </div>
                         <button type="button" id="orderStatusFloatBtn" class="order-status-float-btn" aria-label="Track your order status" aria-expanded="false" aria-controls="orderStatusPopover">
                             <svg class="order-status-ring" viewBox="0 0 54 54" aria-hidden="true">
                                 <circle class="order-status-ring-track" cx="27" cy="27" r="24.5"></circle>

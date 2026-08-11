@@ -48,6 +48,8 @@ let reviewActivityLogs = [];
 let activeOrderLogFilter = 'all';
 let pendingOrdersRefreshTimer = null;
 let pendingOrdersCountdownTicker = null;
+const staffOrderTimerCacheKey = 'motasteStaffOrderTimerCache';
+let staffOrderTimerCache = new Map();
 const blockedProductNames = new Set(['softdrinks']);
 const isStaffPage = Boolean(document.getElementById('accountList') || document.getElementById('staffLoginForm'));
 
@@ -4400,6 +4402,9 @@ const orderStatusCloseBtn = document.getElementById('orderStatusCloseBtn');
 const orderStatusRingFill = document.querySelector('#orderStatusFloatBtn .order-status-ring-fill');
 // Matches the CSS `stroke-dasharray: 154` so the ring is seamless at full progress.
 const ORDER_STATUS_RING_CIRCUMFERENCE = 154;
+const orderStatusChip = document.getElementById('orderStatusChip');
+const orderStatusChipLabel = document.getElementById('orderStatusChipLabel');
+const orderStatusChipBarFill = document.getElementById('orderStatusChipBarFill');
 
 function getActiveTrackedOrder() {
     const entries = [...customerOrderStatuses.entries()];
@@ -4420,15 +4425,27 @@ function getOrderStatusFloatIconName(orderType) {
 }
 
 /**
+ * Formats a remaining-seconds countdown as an exact MM:SS clock.
+ * Minutes are not capped, so long estimates render like "120:00".
+ */
+function formatCountdownClock(totalSeconds) {
+    const secs = Math.max(0, Math.floor(totalSeconds));
+    const mins = Math.floor(secs / 60);
+    const rem = secs % 60;
+    return `${String(mins).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
+}
+
+/**
  * Shared countdown engine used by both the customer icon/popover and the
- * staff pending-order cards. Computes the live remaining text and the
- * remaining fraction (1 = full time left, 0 = time is up) from the server's
- * prep start timestamp + duration.
+ * staff pending-order cards. Computes the live MM:SS clock and the remaining
+ * fraction (1 = full time left, 0 = time is up) from the server's prep start
+ * timestamp + duration. The countdown only begins once staff accept the
+ * order (prep_started_at is set server-side on "Prepare").
  */
 function getPreparationCountdownDetails(prepStartedAt, prepMinutes) {
     const minutes = Math.max(0, Number(prepMinutes) || 0);
     if (!minutes || !prepStartedAt) {
-        return { text: '', progress: 1 };
+        return { clock: '', progress: 1 };
     }
 
     const startedMs = parseServerDateToMs(prepStartedAt);
@@ -4437,20 +4454,14 @@ function getPreparationCountdownDetails(prepStartedAt, prepMinutes) {
     const remainingMs = endMs - Date.now();
 
     if (remainingMs <= 0) {
-        return { text: 'Almost ready!', progress: 0 };
+        return { clock: '00:00', progress: 0 };
     }
 
     const remainingSecs = Math.max(0, Math.ceil(remainingMs / 1000));
-    const mins = Math.floor(remainingSecs / 60);
-    const secs = remainingSecs % 60;
     return {
-        text: `~${mins} min ${String(secs).padStart(2, '0')} sec left`,
+        clock: formatCountdownClock(remainingSecs),
         progress: Math.min(1, Math.max(0, remainingMs / durationMs))
     };
-}
-
-function getPreparationCountdownText(prepStartedAt, prepMinutes) {
-    return getPreparationCountdownDetails(prepStartedAt, prepMinutes).text || null;
 }
 
 /**
@@ -4463,6 +4474,43 @@ function updateOrderStatusRing(progress) {
     orderStatusRingFill.style.strokeDashoffset = String(ORDER_STATUS_RING_CIRCUMFERENCE * (1 - clamped));
 }
 
+/**
+ * Renders the live countdown chip attached to the floating icon. While the
+ * order is still waiting for acceptance the chip shows an "Awaiting
+ * acceptance" state; once staff start preparation it shows the exact MM:SS
+ * remaining on top of a depleting loading bar (1s ticker keeps it live).
+ */
+function updateOrderStatusChip(isPreparing, prepStartedAt, prepMinutes) {
+    if (!orderStatusChip) return;
+
+    orderStatusChip.hidden = false;
+    orderStatusChip.setAttribute('aria-hidden', 'false');
+    orderStatusChip.classList.toggle('is-preparing', isPreparing);
+    orderStatusChip.classList.toggle('is-waiting', !isPreparing);
+
+    if (!isPreparing) {
+        if (orderStatusChipLabel) orderStatusChipLabel.textContent = 'Awaiting acceptance';
+        if (orderStatusChipBarFill) {
+            orderStatusChipBarFill.style.width = '0%';
+            orderStatusChipBarFill.classList.remove('is-done');
+        }
+        orderStatusChip.classList.remove('is-done');
+        return;
+    }
+
+    const details = getPreparationCountdownDetails(prepStartedAt, prepMinutes);
+    const isDone = details.progress <= 0;
+    orderStatusChip.classList.toggle('is-done', isDone);
+
+    if (orderStatusChipLabel) {
+        orderStatusChipLabel.textContent = isDone ? 'Almost ready!' : details.clock;
+    }
+    if (orderStatusChipBarFill) {
+        orderStatusChipBarFill.style.width = `${Math.round(details.progress * 100)}%`;
+        orderStatusChipBarFill.classList.toggle('is-done', isDone);
+    }
+}
+
 function renderOrderStatusFloat() {
     if (!orderStatusFloat) return;
 
@@ -4470,6 +4518,7 @@ function renderOrderStatusFloat() {
     if (!active) {
         orderStatusFloat.hidden = true;
         orderStatusFloat.setAttribute('aria-hidden', 'true');
+        if (orderStatusChip) orderStatusChip.hidden = true;
         return;
     }
 
@@ -4493,15 +4542,21 @@ function renderOrderStatusFloat() {
         ? getPreparationCountdownDetails(state.prepStartedAt, state.prepMinutes).progress
         : 1);
 
+    // Live MM:SS chip with the integrated depleting loading bar.
+    updateOrderStatusChip(isPreparing, state.prepStartedAt, state.prepMinutes);
+
     if (!orderStatusBody || !orderStatusFloatOpen) return;
 
-    const countdownText = isPreparing
-        ? getPreparationCountdownText(state.prepStartedAt, state.prepMinutes)
+    const countdownDetails = isPreparing
+        ? getPreparationCountdownDetails(state.prepStartedAt, state.prepMinutes)
         : null;
     const statusLabel = isPreparing ? 'Preparing your order' : 'Waiting for acceptance';
     const statusClass = isPreparing ? 'is-preparing' : 'is-waiting';
-    const countdownHtml = countdownText
-        ? `<div class="order-status-countdown"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i> ${escapeHtml(countdownText)}</div>`
+    const countdownLabel = countdownDetails && countdownDetails.clock
+        ? (countdownDetails.progress > 0 ? `${countdownDetails.clock} remaining` : 'Almost ready!')
+        : '';
+    const countdownHtml = countdownLabel
+        ? `<div class="order-status-countdown"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i> <strong>${escapeHtml(countdownLabel)}</strong></div>`
         : '';
     orderStatusBody.innerHTML = `
         <div class="order-status-line ${statusClass}">
@@ -4541,6 +4596,10 @@ if (orderStatusFloatBtn) {
     orderStatusFloatBtn.addEventListener('click', () => toggleOrderStatusPopover());
 }
 
+if (orderStatusChip) {
+    orderStatusChip.addEventListener('click', () => toggleOrderStatusPopover());
+}
+
 if (orderStatusCloseBtn) {
     orderStatusCloseBtn.addEventListener('click', () => toggleOrderStatusPopover(false));
 }
@@ -4569,8 +4628,9 @@ async function loadPendingOrdersFromServer() {
 
         pendingOrders = serverOrders.map((order) => {
             const items = Array.isArray(order.items) ? order.items : [];
-            return {
-                id: Number(order.id),
+            const orderId = Number(order.id);
+            const mapped = {
+                id: orderId,
                 orderNumber: order.order_number || order.orderNumber || String(order.id),
                 timestamp: parseServerDateToMs(order.order_date_iso || order.order_date || Date.now()),
                 total: Number(order.total_amount ?? order.total ?? 0),
@@ -4589,9 +4649,19 @@ async function loadPendingOrdersFromServer() {
                     components: Array.isArray(item.components) ? item.components : []
                 }))
             };
+
+            // Fallback to the locally cached timer so the countdown survives a
+            // refresh even if the server payload omits the prep fields.
+            if (mapped.prepStartedAt == null && staffOrderTimerCache.has(String(orderId))) {
+                const cached = staffOrderTimerCache.get(String(orderId));
+                mapped.prepStartedAt = cached.prepStartedAt;
+                mapped.prepMinutes = cached.prepMinutes;
+            }
+            return mapped;
         });
 
         pendingOrders.sort((a, b) => b.timestamp - a.timestamp);
+        saveStaffOrderTimerCache();
         savePendingOrders();
         renderPendingOrders();
         renderWalkInOrderBuilder();
@@ -4624,7 +4694,7 @@ function updatePendingOrdersCountdowns() {
 
         const textEl = countdownEl.querySelector('.pending-order-countdown-text');
         if (textEl) {
-            textEl.textContent = details.text || 'Preparing your order';
+            textEl.textContent = details.progress > 0 ? details.clock : 'Almost ready!';
         }
 
         const barFill = countdownEl.querySelector('.pending-order-countdown-bar-fill');
@@ -4642,6 +4712,51 @@ function startPendingOrdersCountdownTicker() {
     pendingOrdersCountdownTicker = window.setInterval(() => {
         updatePendingOrdersCountdowns();
     }, 1000);
+}
+
+/**
+ * Persist each preparing order's timer (prep start + duration) so the MM:SS
+ * countdown is accurate across page refreshes. The backend is the source of
+ * truth; this local cache is a fallback while the server response is pending
+ * or if the payload ever omits the prep fields.
+ */
+function saveStaffOrderTimerCache() {
+    if (!isStaffPage || typeof window === 'undefined' || !window.localStorage) return;
+    try {
+        const cache = {};
+        pendingOrders.forEach((order) => {
+            if (order.prepStartedAt && order.prepMinutes != null) {
+                cache[String(order.id)] = {
+                    prepMinutes: Number(order.prepMinutes),
+                    prepStartedAt: order.prepStartedAt
+                };
+            }
+        });
+        window.localStorage.setItem(staffOrderTimerCacheKey, JSON.stringify(cache));
+    } catch (error) {
+        console.warn('Unable to persist staff order timer cache', error);
+    }
+}
+
+function loadStaffOrderTimerCache() {
+    staffOrderTimerCache = new Map();
+    if (!isStaffPage || typeof window === 'undefined' || !window.localStorage) return;
+    try {
+        const raw = window.localStorage.getItem(staffOrderTimerCacheKey);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return;
+        Object.entries(parsed).forEach(([orderId, entry]) => {
+            if (entry && entry.prepStartedAt && entry.prepMinutes != null) {
+                staffOrderTimerCache.set(String(orderId), {
+                    prepMinutes: Number(entry.prepMinutes),
+                    prepStartedAt: entry.prepStartedAt
+                });
+            }
+        });
+    } catch (error) {
+        console.warn('Unable to restore staff order timer cache', error);
+    }
 }
 
 async function submitOrderToServer(order) {
@@ -7588,7 +7703,7 @@ function renderPendingOrders() {
             ? `
                 <div class="pending-order-countdown${countdownDetails.progress <= 0 ? ' is-done' : ''}" data-prep-started-at="${escapeHtml(order.prepStartedAt)}" data-prep-minutes="${Number(order.prepMinutes) || 0}">
                     <i class="fa-solid fa-hourglass-half" aria-hidden="true"></i>
-                    <span class="pending-order-countdown-text">${escapeHtml(countdownDetails.text || 'Preparing your order')}</span>
+                    <span class="pending-order-countdown-text">${escapeHtml(countdownDetails.progress > 0 ? countdownDetails.clock : 'Almost ready!')}</span>
                     <span class="pending-order-countdown-bar" aria-hidden="true"><span class="pending-order-countdown-bar-fill" style="width:${Math.round(countdownDetails.progress * 100)}%"></span></span>
                 </div>
             `
@@ -9474,6 +9589,7 @@ function initOrders() {
     void loadCompletedOrdersFromServer();
     void loadReviewsFromServer();
     startReviewRefresh();
+    loadStaffOrderTimerCache();
     startPendingOrdersCountdownTicker();
 
     if (isCustomerPage) {

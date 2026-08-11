@@ -8882,6 +8882,7 @@ body.staff-app .login-dark-overlay {
     z-index: 1800;
     display: inline-flex;
     align-items: center;
+    gap: 8px;
 }
 
 .order-status-float[hidden] {
@@ -8964,6 +8965,69 @@ body.staff-app .login-dark-overlay {
     stroke-dasharray: 154;
     stroke-dashoffset: 0;
     transition: stroke-dashoffset 1s linear;
+}
+
+/* Live countdown chip — MM:SS text positioned inside a depleting loading bar */
+.order-status-chip {
+    position: relative;
+    overflow: hidden;
+    border-radius: 999px;
+    min-width: 118px;
+    max-width: min(46vw, 180px);
+    padding: 7px 14px;
+    text-align: center;
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+    cursor: pointer;
+}
+
+.order-status-chip[hidden] {
+    display: none;
+}
+
+.order-status-chip-bar {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: #0f172a;
+    pointer-events: none;
+}
+
+.order-status-chip-bar-fill {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #2563eb, #6366f1);
+    transition: width 1s linear;
+}
+
+.order-status-chip-bar-fill.is-done {
+    background: linear-gradient(90deg, #b91c1c, #ef4444);
+}
+
+.order-status-chip-label {
+    position: relative;
+    z-index: 1;
+    display: block;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.order-status-chip.is-waiting .order-status-chip-label {
+    font-size: 0.72rem;
+    opacity: 0.92;
+}
+
+.order-status-chip.is-done .order-status-chip-label {
+    color: #fecaca;
 }
 
 .order-status-popover {
