@@ -8874,7 +8874,12 @@ body.staff-app .login-dark-overlay {
 }
 
 .order-status-float {
-    position: relative;
+    /* Independently anchored beside the fixed cart FAB (bottom-right corner)
+       so the icon stays visible while the page scrolls. */
+    position: fixed;
+    right: 98px;
+    bottom: 26px;
+    z-index: 1800;
     display: inline-flex;
     align-items: center;
 }
@@ -8929,12 +8934,49 @@ body.staff-app .login-dark-overlay {
     border: 2px solid #fff;
 }
 
+/* Circular countdown ring — wraps the icon and depletes as time runs out */
+.order-status-ring {
+    position: absolute;
+    inset: -5px;
+    width: 54px;
+    height: 54px;
+    transform: rotate(-90deg);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.order-status-float-btn.has-countdown .order-status-ring {
+    opacity: 1;
+}
+
+.order-status-ring-track {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.22);
+    stroke-width: 3;
+}
+
+.order-status-ring-fill {
+    fill: none;
+    stroke: #fff;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 154;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s linear;
+}
+
 .order-status-popover {
     position: absolute;
     right: 0;
-    top: calc(100% + 10px);
+    top: auto;
+    /* The float always sits near the bottom edge (fixed), so the popover
+       opens upward instead of falling off the bottom of the viewport. */
+    bottom: calc(100% + 10px);
     width: 300px;
     max-width: 82vw;
+    max-height: min(420px, calc(100vh - 96px));
+    overflow-y: auto;
     background: #111827;
     color: #fff;
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -9046,17 +9088,8 @@ body.staff-app .login-dark-overlay {
 
 @media (max-width: 900px) {
     .order-status-float {
-        position: fixed;
         right: 86px;
         bottom: 24px;
-        z-index: 1800;
-    }
-
-    /* The float sits near the bottom edge on mobile, so the popover must open
-       upward instead of below the viewport. */
-    .order-status-popover {
-        top: auto;
-        bottom: calc(100% + 10px);
     }
 }
 
@@ -9147,6 +9180,54 @@ body.staff-app .login-dark-overlay {
     padding: 4px 10px;
     font-size: 0.76rem;
     font-weight: 700;
+}
+
+/* Live preparation countdown shown inside each preparing order card */
+.pending-order-countdown {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #eef2ff;
+    border: 1px solid rgba(99, 102, 241, 0.35);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #4338ca;
+}
+
+.pending-order-countdown > i {
+    font-size: 0.9rem;
+    flex: none;
+}
+
+.pending-order-countdown-text {
+    white-space: nowrap;
+}
+
+.pending-order-countdown-bar {
+    flex: 1 1 auto;
+    min-width: 60px;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(99, 102, 241, 0.2);
+    overflow: hidden;
+}
+
+.pending-order-countdown-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #6366f1, #2563eb);
+    transition: width 1s linear;
+}
+
+.pending-order-countdown-bar-fill.is-done {
+    background: #ef4444;
+}
+
+.pending-order-countdown.is-done {
+    color: #ef4444;
 }
 
 .pending-order-prep-row {

@@ -47,6 +47,7 @@ let orderActivityLogs = [];
 let reviewActivityLogs = [];
 let activeOrderLogFilter = 'all';
 let pendingOrdersRefreshTimer = null;
+let pendingOrdersCountdownTicker = null;
 const blockedProductNames = new Set(['softdrinks']);
 const isStaffPage = Boolean(document.getElementById('accountList') || document.getElementById('staffLoginForm'));
 
@@ -1559,6 +1560,10 @@ if (logoutBtn) {
         if (pendingOrdersRefreshTimer) {
             window.clearInterval(pendingOrdersRefreshTimer);
             pendingOrdersRefreshTimer = null;
+        }
+        if (pendingOrdersCountdownTicker) {
+            window.clearInterval(pendingOrdersCountdownTicker);
+            pendingOrdersCountdownTicker = null;
         }
         if (customerOrderStatusPoller) {
             window.clearInterval(customerOrderStatusPoller);
@@ -3916,6 +3921,7 @@ const syncInventoryAcrossTabs = false;
 const enableInventoryAutoRefresh = false;
 const customerOrderNumbersStorageKey = 'motasteCustomerOrderNumbers';
 const seenCompletedOrdersStorageKey = 'motasteSeenCompletedOrders';
+const customerOrderTimerCacheKey = 'motasteCustomerOrderTimerCache';
 let customerOrderNumbers = new Set();
 let seenCompletedOrders = new Set();
 let customerOrderStatusPoller = null;
@@ -4053,6 +4059,52 @@ function registerCustomerOrder(orderNumber) {
     if (!orderNumber && orderNumber !== 0) return;
     customerOrderNumbers.add(String(orderNumber));
     saveCustomerOrderTracking();
+}
+
+/**
+ * Persist the prep-timer state (start timestamp + duration) in localStorage so
+ * the countdown stays accurate immediately after a page refresh, even before
+ * the first status poll returns. The server remains the source of truth.
+ */
+function saveCustomerOrderTimerCache() {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+        const cache = [...customerOrderStatuses.entries()].map(([orderNumber, state]) => ({
+            orderNumber: String(orderNumber),
+            status: state.status || 'pending',
+            prepMinutes: state.prepMinutes != null ? Number(state.prepMinutes) : null,
+            prepStartedAt: state.prepStartedAt || null,
+            orderType: state.orderType || ''
+        }));
+        window.localStorage.setItem(customerOrderTimerCacheKey, JSON.stringify(cache));
+    } catch (error) {
+        console.warn('Unable to persist customer order timer cache', error);
+    }
+}
+
+function loadCustomerOrderTimerCache() {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+        const raw = window.localStorage.getItem(customerOrderTimerCacheKey);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return;
+
+        parsed.forEach((entry) => {
+            if (!entry || !entry.orderNumber) return;
+            const orderNumber = String(entry.orderNumber);
+            // Only hydrate orders the customer is still actively tracking.
+            if (!customerOrderNumbers.has(orderNumber)) return;
+            customerOrderStatuses.set(orderNumber, {
+                status: entry.status || 'pending',
+                prepMinutes: entry.prepMinutes != null ? Number(entry.prepMinutes) : null,
+                prepStartedAt: entry.prepStartedAt || null,
+                orderType: entry.orderType || ''
+            });
+        });
+    } catch (error) {
+        console.warn('Unable to restore customer order timer cache', error);
+    }
 }
 
 function getOrderSummaryByNumber(orderNumber) {
@@ -4324,6 +4376,7 @@ async function pollCustomerOrderStatus() {
         });
 
         saveCustomerOrderTracking();
+        saveCustomerOrderTimerCache();
         renderOrderStatusFloat();
     } catch (error) {
         console.error('Unable to poll customer order status', error);
@@ -4344,6 +4397,9 @@ const orderStatusFloatIcon = document.getElementById('orderStatusFloatIcon');
 const orderStatusPopover = document.getElementById('orderStatusPopover');
 const orderStatusBody = document.getElementById('orderStatusBody');
 const orderStatusCloseBtn = document.getElementById('orderStatusCloseBtn');
+const orderStatusRingFill = document.querySelector('#orderStatusFloatBtn .order-status-ring-fill');
+// Matches the CSS `stroke-dasharray: 154` so the ring is seamless at full progress.
+const ORDER_STATUS_RING_CIRCUMFERENCE = 154;
 
 function getActiveTrackedOrder() {
     const entries = [...customerOrderStatuses.entries()];
@@ -4363,19 +4419,48 @@ function getOrderStatusFloatIconName(orderType) {
     return 'fa-utensils';
 }
 
-function getPreparationCountdownText(prepStartedAt, prepMinutes) {
+/**
+ * Shared countdown engine used by both the customer icon/popover and the
+ * staff pending-order cards. Computes the live remaining text and the
+ * remaining fraction (1 = full time left, 0 = time is up) from the server's
+ * prep start timestamp + duration.
+ */
+function getPreparationCountdownDetails(prepStartedAt, prepMinutes) {
     const minutes = Math.max(0, Number(prepMinutes) || 0);
-    if (!minutes || !prepStartedAt) return null;
+    if (!minutes || !prepStartedAt) {
+        return { text: '', progress: 1 };
+    }
 
     const startedMs = parseServerDateToMs(prepStartedAt);
-    const remainingMs = (startedMs + minutes * 60 * 1000) - Date.now();
-    const remainingSecs = Math.max(0, Math.ceil(remainingMs / 1000));
-    if (remainingSecs <= 0) {
-        return 'Almost ready!';
+    const durationMs = minutes * 60 * 1000;
+    const endMs = startedMs + durationMs;
+    const remainingMs = endMs - Date.now();
+
+    if (remainingMs <= 0) {
+        return { text: 'Almost ready!', progress: 0 };
     }
+
+    const remainingSecs = Math.max(0, Math.ceil(remainingMs / 1000));
     const mins = Math.floor(remainingSecs / 60);
     const secs = remainingSecs % 60;
-    return `~${mins} min ${String(secs).padStart(2, '0')} sec left`;
+    return {
+        text: `~${mins} min ${String(secs).padStart(2, '0')} sec left`,
+        progress: Math.min(1, Math.max(0, remainingMs / durationMs))
+    };
+}
+
+function getPreparationCountdownText(prepStartedAt, prepMinutes) {
+    return getPreparationCountdownDetails(prepStartedAt, prepMinutes).text || null;
+}
+
+/**
+ * Depletes the circular progress ring around the floating icon. progress=1
+ * shows a full ring; progress=0 leaves the ring empty (time is up).
+ */
+function updateOrderStatusRing(progress) {
+    if (!orderStatusRingFill) return;
+    const clamped = Math.min(1, Math.max(0, Number(progress) || 0));
+    orderStatusRingFill.style.strokeDashoffset = String(ORDER_STATUS_RING_CIRCUMFERENCE * (1 - clamped));
 }
 
 function renderOrderStatusFloat() {
@@ -4400,7 +4485,13 @@ function renderOrderStatusFloat() {
     if (orderStatusFloatBtn) {
         orderStatusFloatBtn.classList.toggle('is-preparing', isPreparing);
         orderStatusFloatBtn.classList.toggle('is-waiting', !isPreparing);
+        orderStatusFloatBtn.classList.toggle('has-countdown', isPreparing);
     }
+
+    // Deplete the ring as preparation time runs out (1s ticker keeps it live).
+    updateOrderStatusRing(isPreparing
+        ? getPreparationCountdownDetails(state.prepStartedAt, state.prepMinutes).progress
+        : 1);
 
     if (!orderStatusBody || !orderStatusFloatOpen) return;
 
@@ -4516,6 +4607,41 @@ function startPendingOrdersRefresh() {
     pendingOrdersRefreshTimer = window.setInterval(() => {
         void loadPendingOrdersFromServer();
     }, 30000);
+}
+
+/**
+ * Live per-second countdown for preparing pending orders. Re-reads the DOM
+ * each tick so it survives list re-renders from the 30s server refresh.
+ */
+function updatePendingOrdersCountdowns() {
+    if (!pendingOrdersList) return;
+
+    const countdownEls = pendingOrdersList.querySelectorAll('.pending-order-countdown');
+    countdownEls.forEach((countdownEl) => {
+        const startedAt = countdownEl.dataset.prepStartedAt || '';
+        const minutes = Number(countdownEl.dataset.prepMinutes || 0);
+        const details = getPreparationCountdownDetails(startedAt, minutes);
+
+        const textEl = countdownEl.querySelector('.pending-order-countdown-text');
+        if (textEl) {
+            textEl.textContent = details.text || 'Preparing your order';
+        }
+
+        const barFill = countdownEl.querySelector('.pending-order-countdown-bar-fill');
+        if (barFill) {
+            barFill.style.width = `${Math.round(details.progress * 100)}%`;
+            barFill.classList.toggle('is-done', details.progress <= 0);
+        }
+
+        countdownEl.classList.toggle('is-done', details.progress <= 0);
+    });
+}
+
+function startPendingOrdersCountdownTicker() {
+    if (!isStaffPage || pendingOrdersCountdownTicker) return;
+    pendingOrdersCountdownTicker = window.setInterval(() => {
+        updatePendingOrdersCountdowns();
+    }, 1000);
 }
 
 async function submitOrderToServer(order) {
@@ -7457,6 +7583,16 @@ function renderPendingOrders() {
         const displayNumber = String(order.orderNumber || order.order_number || order.id || '');
         const isPreparing = order.prepStartedAt != null && order.prepMinutes != null;
         const prepMinutesValue = isPreparing ? Number(order.prepMinutes) || 15 : 15;
+        const countdownDetails = isPreparing ? getPreparationCountdownDetails(order.prepStartedAt, order.prepMinutes) : null;
+        const countdownBlock = countdownDetails
+            ? `
+                <div class="pending-order-countdown${countdownDetails.progress <= 0 ? ' is-done' : ''}" data-prep-started-at="${escapeHtml(order.prepStartedAt)}" data-prep-minutes="${Number(order.prepMinutes) || 0}">
+                    <i class="fa-solid fa-hourglass-half" aria-hidden="true"></i>
+                    <span class="pending-order-countdown-text">${escapeHtml(countdownDetails.text || 'Preparing your order')}</span>
+                    <span class="pending-order-countdown-bar" aria-hidden="true"><span class="pending-order-countdown-bar-fill" style="width:${Math.round(countdownDetails.progress * 100)}%"></span></span>
+                </div>
+            `
+            : '';
         const prepBlock = canCompleteOrders
             ? `
                 <div class="pending-order-actions">
@@ -7464,6 +7600,7 @@ function renderPendingOrders() {
                         <strong>Total: ${formatCurrency(order.total)}</strong>
                         ${isPreparing ? `<span class="pending-order-prep-status"><i class="fa-solid fa-fire-burner" aria-hidden="true"></i> Preparing · ~${prepMinutesValue} min est.</span>` : ''}
                     </div>
+                    ${countdownBlock}
                     <div class="pending-order-prep-row">
                         <label class="prep-minutes-field">
                             <span>Est. minutes</span>
@@ -8519,6 +8656,7 @@ async function confirmOrder() {
         prepStartedAt: null,
         orderType: syncedOrder.orderType || ''
     });
+    saveCustomerOrderTimerCache();
     renderOrderStatusFloat();
     savePendingOrders();
     renderPendingOrders();
@@ -9336,10 +9474,12 @@ function initOrders() {
     void loadCompletedOrdersFromServer();
     void loadReviewsFromServer();
     startReviewRefresh();
+    startPendingOrdersCountdownTicker();
 
     if (isCustomerPage) {
         initializeOrderNotificationAudio();
         loadCustomerOrderTracking();
+        loadCustomerOrderTimerCache();
         startCustomerInventoryRefresh();
         void initializeInventoryData(true);
         startCustomerOrderStatusPolling();
