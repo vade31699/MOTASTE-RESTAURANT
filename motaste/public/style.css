@@ -3670,8 +3670,7 @@ body.modal-open {
 }
 
 .overview-analytics-panel,
-.overview-order-notification-box,
-.overview-inventory-box {
+.overview-order-notification-box {
     background: #ffffff;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -3691,21 +3690,8 @@ body.modal-open {
     min-height: 380px;
 }
 
-.overview-inventory-box {
-    grid-column: 1 / -1;
-}
-
-/* Ensure the real-time inventory list in the Overview uses white text for readability */
-.overview-inventory-box .inventory-list-panel,
-.overview-inventory-box .inventory-list-panel th,
-.overview-inventory-box .inventory-list-panel td,
-.overview-inventory-box .inventory-list-panel p {
-    color: #fff;
-}
-
 .overview-analytics-panel h3,
-.overview-order-notification-box h3,
-.overview-inventory-box h3 {
+.overview-order-notification-box h3 {
     margin-top: 0;
     color: #1f2937;
     font-size: 1.1rem;
@@ -3713,9 +3699,7 @@ body.modal-open {
 }
 
 .overview-order-notification-box .order-notification-list,
-.overview-order-notification-box .order-notification-card,
-.overview-inventory-box .inventory-list-panel,
-.overview-inventory-box .inventory-list-panel * {
+.overview-order-notification-box .order-notification-card {
     color: #1f2937;
 }
 
@@ -4156,39 +4140,6 @@ body.modal-open {
     font-size: 1rem;
 }
 
-.inventory-list-panel {
-    background: rgba(255,255,255,0.03);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    border: 1px solid rgba(255,255,255,0.04);
-    border-radius: 16px;
-    color: #111;
-}
-
-.inventory-list-panel table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.inventory-list-panel th,
-.inventory-list-panel td {
-    padding: 12px 10px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-    text-align: left;
-}
-
- .inventory-list-panel th {
-    background: rgba(255,255,255,0.02);
-}
-
-.inventory-list-panel tr:last-child td {
-    border-bottom: none;
-}
-
-.inventory-stock-low {
-    color: #b02020;
-    font-weight: 700;
-}
 
     .inventory-admin-panel,
     .inventory-manager-list,
@@ -5037,7 +4988,6 @@ body.modal-open {
 
     .overview-analytics-panel,
     .overview-order-notification-box,
-    .overview-inventory-box,
     .inventory-admin-panel,
     .inventory-manager-list,
     .inventory-readonly-summary {
@@ -7679,7 +7629,6 @@ body.staff-app .overview-grid {
 body.staff-app .sales-analytics-placeholder,
 body.staff-app .overview-analytics-panel,
 body.staff-app .overview-order-notification-box,
-body.staff-app .overview-inventory-box,
 body.staff-app .order-notification-footer {
     background: var(--staff-surface-2) !important;
     border: 1px solid var(--staff-border) !important;
@@ -7689,8 +7638,7 @@ body.staff-app .order-notification-footer {
 
 body.staff-app .sales-analytics-placeholder h3,
 body.staff-app .overview-analytics-panel h3,
-body.staff-app .overview-order-notification-box h3,
-body.staff-app .overview-inventory-box h3 {
+body.staff-app .overview-order-notification-box h3 {
     color: var(--staff-text);
     font-size: 1.1rem;
     font-weight: 800;
@@ -7698,8 +7646,7 @@ body.staff-app .overview-inventory-box h3 {
 
 body.staff-app .sales-analytics-placeholder p,
 body.staff-app .overview-analytics-panel p,
-body.staff-app .overview-order-notification-box p,
-body.staff-app .overview-inventory-box p {
+body.staff-app .overview-order-notification-box p {
     color: var(--staff-muted);
 }
 
@@ -7718,12 +7665,7 @@ body.staff-app .order-notification-footer strong {
     font-weight: 800;
 }
 
-/* Overview inventory list (light text on light cards) */
-body.staff-app .overview-inventory-box .inventory-list-panel th,
-body.staff-app .overview-inventory-box .inventory-list-panel td,
-body.staff-app .overview-inventory-box .inventory-list-panel p {
-    color: var(--staff-text);
-}
+
 
 /* ---------- Order notification cards (override dark base) ---------- */
 body.staff-app .order-notification-card {
@@ -9431,4 +9373,175 @@ body.staff-app .login-history-role {
     padding: 3px 10px;
     font-size: 0.74rem;
     font-weight: 700;
+}
+
+/* ===== Sales & Receipt Export module (Overview dashboard) ===== */
+.overview-export-module {
+    grid-column: 1 / -1;
+    background: #ffffff;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 18px;
+    padding: 20px 22px;
+    color: #1f2937;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+}
+
+.overview-export-module h3 {
+    margin: 0;
+    color: #1f2937;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.overview-export-module p {
+    margin: 4px 0 0;
+    color: #475569;
+    font-size: 0.9rem;
+}
+
+body.staff-app .overview-export-module {
+    background: var(--staff-surface-2) !important;
+    border: 1px solid var(--staff-border) !important;
+    border-radius: 16px !important;
+    color: var(--staff-text) !important;
+}
+
+body.staff-app .overview-export-module h3 {
+    color: var(--staff-text);
+    font-weight: 800;
+}
+
+body.staff-app .overview-export-module p {
+    color: var(--staff-muted);
+}
+
+.export-mode-tabs {
+    display: inline-flex;
+    gap: 4px;
+    margin: 14px 0 16px;
+    padding: 4px;
+    background: rgba(148, 163, 184, 0.10);
+    border-radius: 12px;
+}
+
+body.staff-app .export-mode-tabs {
+    background: var(--staff-accent-soft);
+}
+
+.export-mode-tab {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    border-radius: 9px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #475569;
+    transition: all 0.18s ease;
+}
+
+.export-mode-tab:hover {
+    color: #1f2937;
+}
+
+.export-mode-tab.active {
+    background: #ffffff;
+    color: #1f2937;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.10);
+}
+
+body.staff-app .export-mode-tab {
+    color: var(--staff-muted);
+}
+
+body.staff-app .export-mode-tab.active {
+    background: #ffffff;
+    color: var(--staff-accent-strong);
+    box-shadow: 0 4px 12px rgba(43, 174, 102, 0.18);
+}
+
+.export-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 14px;
+}
+
+.export-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+body.staff-app .export-field {
+    color: var(--staff-muted);
+}
+
+.export-field input,
+.export-field select {
+    padding: 9px 12px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #1f2937;
+    font-size: 0.9rem;
+    min-width: 180px;
+}
+
+body.staff-app .export-field input,
+body.staff-app .export-field select {
+    background: #ffffff;
+    border: 1px solid var(--staff-border);
+    color: var(--staff-text);
+}
+
+.export-field input:focus,
+.export-field select:focus {
+    outline: none;
+    border-color: var(--staff-accent);
+    box-shadow: 0 0 0 3px var(--staff-accent-soft);
+}
+
+.export-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.export-summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 16px;
+    background: #f8fafc;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 12px;
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+body.staff-app .export-summary-item {
+    background: var(--staff-accent-soft);
+    border-color: var(--staff-border);
+    color: var(--staff-muted);
+}
+
+.export-summary-item strong {
+    font-size: 1.05rem;
+    color: #1f2937;
+}
+
+body.staff-app .export-summary-item strong {
+    color: var(--staff-text);
+}
+
+#exportMessage.is-error {
+    color: #dc2626;
+    font-weight: 600;
 }

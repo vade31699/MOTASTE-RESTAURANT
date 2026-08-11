@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./style.css?v=20260811b">
+    <link rel="stylesheet" href="./style.css?v=20260812">
     <title>Staff Login - MOTASTE</title>
     <style>
         html,
@@ -199,12 +199,54 @@
                 </div>
             </div>
 
-            <div class="overview-inventory-box" hidden>
-                <div class="overview-inventory-header">
-                    <h3>Inventory Real-Time List</h3>
-                    <p>Track stock levels as orders are placed.</p>
+            <div class="overview-export-module" id="salesExportModule">
+                <div class="export-panel-header">
+                    <div>
+                        <h3>Sales &amp; Receipt Export</h3>
+                        <p>Generate Excel reports of completed orders with order numbers and itemized food lists.</p>
+                    </div>
                 </div>
-                <div id="overviewInventoryList" class="inventory-list-panel"></div>
+                <div class="export-mode-tabs" role="tablist" aria-label="Export report type">
+                    <button type="button" class="export-mode-tab active" data-export-mode="daily" role="tab" aria-selected="true">Daily Report</button>
+                    <button type="button" class="export-mode-tab" data-export-mode="monthly" role="tab" aria-selected="false">Monthly Report</button>
+                </div>
+                <div class="export-controls" id="exportDailyControls">
+                    <label class="export-field" for="exportDailyDate">
+                        <span>Report Date</span>
+                        <input type="date" id="exportDailyDate">
+                    </label>
+                    <button type="button" id="exportDailyBtn" class="menu-place-order-btn">
+                        <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export Daily Sales &amp; Receipts
+                    </button>
+                </div>
+                <div class="export-controls" id="exportMonthlyControls" hidden>
+                    <label class="export-field" for="exportMonthSelect">
+                        <span>Month</span>
+                        <select id="exportMonthSelect">
+                            <option value="0">January</option>
+                            <option value="1">February</option>
+                            <option value="2">March</option>
+                            <option value="3">April</option>
+                            <option value="4">May</option>
+                            <option value="5">June</option>
+                            <option value="6">July</option>
+                            <option value="7">August</option>
+                            <option value="8">September</option>
+                            <option value="9">October</option>
+                            <option value="10">November</option>
+                            <option value="11">December</option>
+                        </select>
+                    </label>
+                    <label class="export-field" for="exportYearSelect">
+                        <span>Year</span>
+                        <select id="exportYearSelect"></select>
+                    </label>
+                    <button type="button" id="exportMonthlyBtn" class="menu-place-order-btn">
+                        <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export Monthly Sales &amp; Receipts
+                    </button>
+                </div>
+                <p id="exportMessage" class="menu-order-message" aria-live="polite"></p>
+                <div id="exportSummary" class="export-summary" hidden></div>
             </div>
         </div>
     </section>
@@ -661,7 +703,8 @@
     </div>
     </div>
 
-    <script src="./script.js?v=20260811b"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="./script.js?v=20260812"></script>
     <script src="./staff-auth.js?v=20260731"></script>
 </body>
 </html>

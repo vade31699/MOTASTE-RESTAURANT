@@ -33,8 +33,6 @@ const staffSessionStorageKey = 'motasteStaffSession';
 const staffActiveSectionStorageKey = 'motasteStaffActiveSection';
 const staffAccountsStorageKey = 'motasteStaffAccounts';
 const lastLoginRoleStorageKey = 'motasteLastLoginRole';
-let inventoryRefreshTimer = null;
-let inventoryRefreshVersion = 0;
 let inventorySyncInFlight = false;
 let lastInventoryUpdateAt = 0;
 let staffAccountsSyncInFlight = false;
@@ -733,7 +731,6 @@ function restoreStaffSession() {
         if (targetSectionId === 'overview') {
             renderOverviewAnalytics();
             renderOrderNotifications();
-            renderOverviewInventory();
         } else if (targetSectionId === 'pending-orders') {
             void loadPendingOrdersFromServer();
             setOrdersTab('pending');
@@ -742,7 +739,6 @@ function restoreStaffSession() {
         } else if (targetSectionId === 'sales') {
             updateAnalyticsView();
         } else if (targetSectionId === 'inventory') {
-            renderOverviewInventory();
         } else if (targetSectionId === 'logs') {
             void loadOrderLogsFromServer(true);
         }
@@ -1575,10 +1571,6 @@ if (logoutBtn) {
             window.clearInterval(orderStatusFloatTicker);
             orderStatusFloatTicker = null;
         }
-        if (inventoryRefreshTimer) {
-            window.clearInterval(inventoryRefreshTimer);
-            inventoryRefreshTimer = null;
-        }
         stopOrderCompletedNotificationSound();
 
         // Hide the dashboard panel when logged out so it does not remain visible.
@@ -2314,7 +2306,6 @@ const overviewMonthWrapper = document.getElementById('overviewMonthWrapper');
 const overviewMonthSelect = document.getElementById('overviewMonthSelect');
 const overviewOrderNotificationList = document.getElementById('overviewOrderNotificationList');
 const overviewOrderRevenue = document.getElementById('overviewOrderRevenue');
-const overviewInventoryList = document.getElementById('overviewInventoryList');
 const inventoryAdminPanel = document.getElementById('inventoryAdminPanel');
 const inventoryForm = document.getElementById('inventoryForm');
 const inventoryNameInput = document.getElementById('inventoryNameInput');
@@ -3920,7 +3911,6 @@ let inventoryEditItemName = null;
 let inventoryEditLock = false;
 let ignoredPendingOrderNumbers = new Set();
 const syncInventoryAcrossTabs = false;
-const enableInventoryAutoRefresh = false;
 const customerOrderNumbersStorageKey = 'motasteCustomerOrderNumbers';
 const seenCompletedOrdersStorageKey = 'motasteSeenCompletedOrders';
 const customerOrderTimerCacheKey = 'motasteCustomerOrderTimerCache';
@@ -5850,7 +5840,6 @@ async function initializeInventoryData(forceRefresh = false) {
     renderSpecialFoods();
     renderInventoryManagement();
     renderWalkInOrderBuilder();
-    renderOverviewInventory();
     if (inventoryModal && !inventoryModal.hidden && inventoryCategoryInput && inventoryCategoryInput.value === 'specials') {
         renderSpecialCustomizeControls();
     }
@@ -6014,22 +6003,6 @@ function debugInventory(msg, source) {
         console.debug(`[INV] ${msg}`, { source: source || 'unknown', at: Date.now(), summary, lastInventoryUpdateAt });
     } catch (e) {
         console.debug('[INV] debugInventory error', e);
-    }
-}
-
-function startInventoryAutoRefresh() {
-    if (!enableInventoryAutoRefresh) return;
-    if (inventoryRefreshTimer) return;
-
-    inventoryRefreshTimer = window.setInterval(() => {
-        void initializeInventoryData();
-    }, 5000);
-}
-
-function stopInventoryAutoRefresh() {
-    if (inventoryRefreshTimer) {
-        window.clearInterval(inventoryRefreshTimer);
-        inventoryRefreshTimer = null;
     }
 }
 
@@ -6685,50 +6658,309 @@ function renderOrderNotifications() {
     }).join('');
 }
 
-function renderInventoryList(container, items) {
-    if (!container) return;
-    if (!items || !items.length) {
-        // hide the inventory list entirely when there are no items
-        container.innerHTML = '';
+/* ================= Sales & Receipt Export (Overview dashboard) ================= */
+const exportDailyDateInput = document.getElementById('exportDailyDate');
+const exportMonthSelect = document.getElementById('exportMonthSelect');
+const exportYearSelect = document.getElementById('exportYearSelect');
+const exportDailyControls = document.getElementById('exportDailyControls');
+const exportMonthlyControls = document.getElementById('exportMonthlyControls');
+const exportMessage = document.getElementById('exportMessage');
+const exportSummary = document.getElementById('exportSummary');
+const exportDailyBtn = document.getElementById('exportDailyBtn');
+const exportMonthlyBtn = document.getElementById('exportMonthlyBtn');
+
+const EXPORT_ORDER_COLUMNS = ['Order Number', 'Timestamp', 'Customer Order List', 'Order Total', 'Fulfillment Method', 'Payment Method'];
+
+function toLocalDateInputValue(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function populateExportYearSelect() {
+    if (!exportYearSelect) return;
+    const currentYear = new Date().getFullYear();
+    const fragment = document.createDocumentFragment();
+    for (let year = currentYear; year >= currentYear - 6; year -= 1) {
+        const option = document.createElement('option');
+        option.value = String(year);
+        option.textContent = String(year);
+        if (year === currentYear) option.selected = true;
+        fragment.appendChild(option);
+    }
+    exportYearSelect.innerHTML = '';
+    exportYearSelect.appendChild(fragment);
+}
+
+function setExportMessage(text, isError = false) {
+    if (!exportMessage) return;
+    exportMessage.textContent = text || '';
+    exportMessage.classList.toggle('is-error', Boolean(isError));
+}
+
+function setExportSummary(summary) {
+    if (!exportSummary) return;
+    if (!summary) {
+        exportSummary.hidden = true;
+        exportSummary.innerHTML = '';
         return;
     }
-
-    container.innerHTML = `
-        <div class="inventory-list-panel">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th>Stock</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${items.map((item) => `
-                        <tr>
-                            <td>${item.name}</td>
-                            <td>${item.stock}</td>
-                            <td class="${item.stock <= 5 ? 'inventory-stock-low' : ''}">${item.status}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
+    exportSummary.hidden = false;
+    exportSummary.innerHTML = `
+        <div class="export-summary-item"><span>Orders</span><strong>${summary.orders}</strong></div>
+        <div class="export-summary-item"><span>Total Sales</span><strong>${formatCurrency(summary.total)}</strong></div>
+        <div class="export-summary-item"><span>Items Sold</span><strong>${summary.items}</strong></div>
     `;
 }
 
-function renderOverviewInventory() {
-    // hide the entire overview inventory box when there are no inventory items
-    const overviewBox = document.querySelector('.overview-inventory-box');
-    if (!inventoryData || !inventoryData.length) {
-        if (overviewBox) overviewBox.hidden = true;
-        if (overviewInventoryList) overviewInventoryList.innerHTML = '';
+function switchExportMode(mode) {
+    const isDaily = mode === 'daily';
+    if (exportDailyControls) exportDailyControls.hidden = !isDaily;
+    if (exportMonthlyControls) exportMonthlyControls.hidden = isDaily;
+    document.querySelectorAll('.export-mode-tab').forEach((tab) => {
+        const active = tab.dataset.exportMode === mode;
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', String(active));
+    });
+    setExportMessage('');
+    setExportSummary(null);
+}
+
+function getSelectedExportDate() {
+    return exportDailyDateInput && exportDailyDateInput.value
+        ? exportDailyDateInput.value
+        : toLocalDateInputValue(new Date());
+}
+
+function getSelectedExportMonth() {
+    const monthIndex = exportMonthSelect
+        ? Math.max(0, Math.min(11, parseInt(exportMonthSelect.value, 10) || 0))
+        : new Date().getMonth();
+    const year = exportYearSelect
+        ? parseInt(exportYearSelect.value, 10) || new Date().getFullYear()
+        : new Date().getFullYear();
+    const firstDay = new Date(year, monthIndex, 1);
+    const lastDay = new Date(year, monthIndex + 1, 0);
+    return {
+        label: `${firstDay.toLocaleString('en-US', { month: 'long' })} ${year}`,
+        from: toLocalDateInputValue(firstDay),
+        to: toLocalDateInputValue(lastDay)
+    };
+}
+
+function getTimezoneOffsetForLocalDate(dateStr) {
+    const parts = String(dateStr || '').split('-').map(Number);
+    if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) {
+        return -new Date().getTimezoneOffset();
+    }
+    const localMidnight = new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+    return -localMidnight.getTimezoneOffset();
+}
+
+async function fetchSalesReport(fromDate, toDate) {
+    const tzOffset = getTimezoneOffsetForLocalDate(fromDate);
+    const url = getApiUrl(`api/get_sales_report.php?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}&tz=${tzOffset}&_=${Date.now()}`);
+    const response = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.success) {
+        throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+    return Array.isArray(payload.orders) ? payload.orders : [];
+}
+
+function formatExportTimestamp(order) {
+    if (order.order_date_iso) {
+        const date = new Date(order.order_date_iso);
+        if (!Number.isNaN(date.getTime())) {
+            return date.toLocaleString();
+        }
+    }
+    return order.order_date ? String(order.order_date) : '—';
+}
+
+function buildCustomerOrderList(order) {
+    const items = Array.isArray(order.items) ? order.items : [];
+    if (!items.length) return '—';
+    return items.map((item) => {
+        const name = String(item.name || item.notes || 'Menu item').trim() || 'Menu item';
+        const quantity = Math.max(1, Number(item.quantity) || 1);
+        return `${quantity} × ${name}`;
+    }).join('; ');
+}
+
+function excelSafe(value) {
+    const str = String(value ?? '');
+    return /^[=+\-@]/.test(str) ? `'${str}` : str;
+}
+
+function toLocalDateKey(iso) {
+    if (!iso) return '—';
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return '—';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function buildOrderRow(order) {
+    return [
+        excelSafe(String(order.order_number || order.id || '—')),
+        excelSafe(formatExportTimestamp(order)),
+        excelSafe(buildCustomerOrderList(order)),
+        Number(order.total_amount ?? order.total ?? 0),
+        excelSafe(String(order.order_type || '—')),
+        excelSafe(String(order.payment_method || '—'))
+    ];
+}
+
+function orderItemCount(order) {
+    return (Array.isArray(order.items) ? order.items : [])
+        .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+}
+
+function buildExcelSheet(rows, columns, columnWidths) {
+    const sheet = XLSX.utils.aoa_to_sheet([columns].concat(rows));
+    sheet['!cols'] = columns.map((_, index) => {
+        const width = columnWidths && columnWidths[index] ? columnWidths[index] : 16;
+        return { wch: width };
+    });
+    return sheet;
+}
+
+async function exportDailySales() {
+    if (!isStaffPage) return;
+    if (typeof XLSX === 'undefined') {
+        setExportMessage('Excel library is not loaded. Check your connection and refresh the page.', true);
         return;
     }
 
-    if (overviewBox) overviewBox.hidden = false;
-    renderInventoryList(overviewInventoryList, inventoryData);
+    const date = getSelectedExportDate();
+    if (!date) {
+        setExportMessage('Please choose a report date.', true);
+        return;
+    }
+
+    setExportMessage('Fetching completed orders...');
+    if (exportDailyBtn) exportDailyBtn.disabled = true;
+    try {
+        const orders = await fetchSalesReport(date, date);
+        if (!orders.length) {
+            setExportSummary(null);
+            setExportMessage(`No completed orders found for ${date}.`);
+            return;
+        }
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(
+            workbook,
+            buildExcelSheet(orders.map(buildOrderRow), EXPORT_ORDER_COLUMNS, [16, 22, 60, 14, 20, 16]),
+            'Daily Sales'
+        );
+        XLSX.writeFile(workbook, `MOTASTE-Daily-Sales-${date}.xlsx`);
+
+        const total = orders.reduce((sum, order) => sum + (Number(order.total_amount ?? order.total) || 0), 0);
+        setExportSummary({
+            orders: orders.length,
+            total,
+            items: orders.reduce((sum, order) => sum + orderItemCount(order), 0)
+        });
+        setExportMessage(`Exported ${orders.length} completed order(s) for ${date}.`);
+    } catch (error) {
+        setExportSummary(null);
+        setExportMessage(`Export failed: ${error.message || 'Unexpected error'}`, true);
+    } finally {
+        if (exportDailyBtn) exportDailyBtn.disabled = false;
+    }
 }
+
+async function exportMonthlySales() {
+    if (!isStaffPage) return;
+    if (typeof XLSX === 'undefined') {
+        setExportMessage('Excel library is not loaded. Check your connection and refresh the page.', true);
+        return;
+    }
+
+    const { label, from, to } = getSelectedExportMonth();
+    setExportMessage(`Fetching completed orders for ${label}...`);
+    if (exportMonthlyBtn) exportMonthlyBtn.disabled = true;
+    try {
+        const orders = await fetchSalesReport(from, to);
+        if (!orders.length) {
+            setExportSummary(null);
+            setExportMessage(`No completed orders found for ${label}.`);
+            return;
+        }
+
+        const dayMap = new Map();
+        const itemMap = new Map();
+        orders.forEach((order) => {
+            const day = toLocalDateKey(order.order_date_iso);
+            if (!dayMap.has(day)) dayMap.set(day, { orders: 0, total: 0, items: 0 });
+            const dayEntry = dayMap.get(day);
+            dayEntry.orders += 1;
+            dayEntry.total += Number(order.total_amount ?? order.total) || 0;
+            dayEntry.items += orderItemCount(order);
+
+            (Array.isArray(order.items) ? order.items : []).forEach((item) => {
+                const name = String(item.name || item.notes || 'Menu item').trim() || 'Menu item';
+                if (!itemMap.has(name)) itemMap.set(name, { qty: 0, revenue: 0 });
+                const itemEntry = itemMap.get(name);
+                itemEntry.qty += Number(item.quantity) || 0;
+                itemEntry.revenue += Number(item.line_total) || 0;
+            });
+        });
+
+        const dayRows = [...dayMap.entries()]
+            .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+            .map(([day, entry]) => [day, entry.orders, Number(entry.total.toFixed(2)), entry.items]);
+        const orderRows = orders.map(buildOrderRow);
+        const itemRows = [...itemMap.entries()]
+            .sort((a, b) => b[1].qty - a[1].qty)
+            .map(([name, entry]) => [excelSafe(name), entry.qty, Number(entry.revenue.toFixed(2))]);
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, buildExcelSheet(dayRows, ['Date', 'Order Count', 'Total Sales', 'Items Sold'], [14, 14, 14, 14]), 'Daily Summary');
+        XLSX.utils.book_append_sheet(workbook, buildExcelSheet(orderRows, EXPORT_ORDER_COLUMNS, [16, 22, 60, 14, 20, 16]), 'Orders');
+        XLSX.utils.book_append_sheet(workbook, buildExcelSheet(itemRows, ['Food Item', 'Qty Sold', 'Revenue'], [40, 12, 14]), 'Items Summary');
+        XLSX.writeFile(workbook, `MOTASTE-Monthly-Sales-${from.slice(0, 7)}.xlsx`);
+
+        const total = orders.reduce((sum, order) => sum + (Number(order.total_amount ?? order.total) || 0), 0);
+        setExportSummary({
+            orders: orders.length,
+            total,
+            items: orders.reduce((sum, order) => sum + orderItemCount(order), 0)
+        });
+        setExportMessage(`Exported ${orders.length} completed order(s) for ${label}.`);
+    } catch (error) {
+        setExportSummary(null);
+        setExportMessage(`Export failed: ${error.message || 'Unexpected error'}`, true);
+    } finally {
+        if (exportMonthlyBtn) exportMonthlyBtn.disabled = false;
+    }
+}
+
+function initSalesExportModule() {
+    if (!isStaffPage) return;
+    if (exportDailyDateInput && !exportDailyDateInput.value) {
+        exportDailyDateInput.value = toLocalDateInputValue(new Date());
+    }
+    populateExportYearSelect();
+    if (exportMonthSelect && exportMonthSelect.value === '') {
+        exportMonthSelect.value = String(new Date().getMonth());
+    }
+}
+
+if (exportDailyBtn) {
+    exportDailyBtn.addEventListener('click', () => void exportDailySales());
+}
+if (exportMonthlyBtn) {
+    exportMonthlyBtn.addEventListener('click', () => void exportMonthlySales());
+}
+document.querySelectorAll('.export-mode-tab').forEach((tab) => {
+    tab.addEventListener('click', () => switchExportMode(tab.dataset.exportMode || 'daily'));
+});
 
 function getLowStockItems() {
     if (!Array.isArray(inventoryData)) return [];
@@ -7145,7 +7377,6 @@ async function deleteInventoryItem(name) {
     syncMenuPricesWithInventory();
     inventoryEditItemName = null;
     renderInventoryManagement();
-    renderOverviewInventory();
     renderSpecialFoods();
     if (currentMenuCategoryId) {
         showMenuCategory(currentMenuCategoryId);
@@ -7259,7 +7490,6 @@ async function saveInventoryItem(event) {
 
     if (!syncSucceeded) {
         inventoryEditLock = false;
-        startInventoryAutoRefresh();
         void initializeInventoryData(true);
         return;
     }
@@ -7267,7 +7497,6 @@ async function saveInventoryItem(event) {
 
     syncMenuPricesWithInventory();
     renderInventoryManagement();
-    renderOverviewInventory();
     renderSpecialFoods();
 
     if (currentMenuCategoryId) {
@@ -7281,7 +7510,6 @@ async function saveInventoryItem(event) {
 
     setInventoryModalVisible(false);
     inventoryEditLock = false;
-    startInventoryAutoRefresh();
     void initializeInventoryData(true);
     void loadOrderLogsFromServer(true);
     selectedSpecialFoodImageData = '';
@@ -7291,7 +7519,6 @@ function editInventoryItem(name) {
     const item = inventoryData.find((inventoryItem) => inventoryItem.name === name);
     if (!item) return;
 
-    stopInventoryAutoRefresh();
     inventoryEditLock = true;
     inventoryEditItemName = item.name;
     renderInventoryManagement();
@@ -7338,7 +7565,6 @@ async function commitInlineInventoryEdit(card) {
 
     saveMenuCatalogItem(previousItem, itemName);
     saveInventoryData();
-    inventoryRefreshVersion += 1;
     let syncSucceeded = false;
     try {
         const actor = getCurrentStaffActor();
@@ -7382,15 +7608,12 @@ async function commitInlineInventoryEdit(card) {
         inventoryEditItemName = null;
         inventoryEditLock = false;
         renderInventoryManagement();
-        renderOverviewInventory();
         renderSpecialFoods();
         window.alert(`Inventory update failed on server. ${error?.message || ''}`);
-        startInventoryAutoRefresh();
         return;
     }
 
     if (!syncSucceeded) {
-        startInventoryAutoRefresh();
         return;
     }
 
@@ -7398,14 +7621,12 @@ async function commitInlineInventoryEdit(card) {
     inventoryEditItemName = null;
     inventoryEditLock = false;
     renderInventoryManagement();
-    renderOverviewInventory();
     renderSpecialFoods();
 
     if (currentMenuCategoryId) {
         showMenuCategory(currentMenuCategoryId);
     }
 
-    startInventoryAutoRefresh();
     void initializeInventoryData(true);
     void loadOrderLogsFromServer(true);
 }
@@ -8809,7 +9030,6 @@ async function confirmOrder() {
     savePendingOrders();
     renderPendingOrders();
     renderOrderNotifications();
-    renderOverviewInventory();
     if (menuOrderMessage) {
         menuOrderMessage.textContent = 'Order received! Proceed with payment to complete transaction.';
     }
@@ -9123,7 +9343,6 @@ if (inventoryItemsWrapper) {
             inventoryEditItemName = null;
             inventoryEditLock = false;
             renderInventoryManagement();
-            startInventoryAutoRefresh();
             return;
         }
 
@@ -9398,11 +9617,9 @@ if (dashboardPanel) {
             showDashboardSection(overviewSection);
             renderOrderNotifications();
             renderOverviewAnalytics();
-            renderOverviewInventory();
         } else if (href === '#inventory') {
             if (!canAccessInventory()) return;
             showDashboardSection(inventorySection);
-            renderOverviewInventory();
         } else if (href === '#pending-orders') {
             if (!canManageOrders()) return;
             showDashboardSection(pendingOrdersSection);
@@ -9601,9 +9818,9 @@ function initOrders() {
     loadPendingOrders();
     loadIgnoredPendingOrders();
     loadCompletedOrders();
+    initSalesExportModule();
     syncAnalyticsMonthSelectorsToCurrentMonth();
     loadCustomMenuData();
-    startInventoryAutoRefresh();
     void initializeInventoryData();
     recalculateSalesAnalytics();
     renderSpecialFoods();
@@ -9612,7 +9829,6 @@ function initOrders() {
     setOrdersTab('walk-in');
     renderPendingOrders();
     renderOrderNotifications();
-    renderOverviewInventory();
     renderInventoryManagement();
     updateAnalyticsView();
     renderOverviewAnalytics();
@@ -9644,11 +9860,6 @@ document.addEventListener('visibilitychange', () => {
         void initializeInventoryData(true);
         void loadHighlightsFromServer();
     }
-
-    if (!enableInventoryAutoRefresh) return;
-    if (!document.hidden && !inventoryEditLock) {
-        void initializeInventoryData();
-    }
 });
 
 window.addEventListener('focus', () => {
@@ -9658,10 +9869,6 @@ window.addEventListener('focus', () => {
         void loadHighlightsFromServer();
     }
 
-    if (!enableInventoryAutoRefresh) return;
-    if (!inventoryEditLock) {
-        void initializeInventoryData();
-    }
 });
 
 initOrders();
