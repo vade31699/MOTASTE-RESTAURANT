@@ -1004,6 +1004,18 @@ async function authenticateStaffAccount(email, password, role = '', deviceToken 
         // A 2xx response with needsDeviceVerification=true is a valid state:
         // credentials were correct but the device must be confirmed first.
         if (!response.ok) {
+            // Preserve rate-limit, auth-required, and remaining-attempt responses
+            // instead of swallowing them into a generic "Invalid credentials"
+            // error, so staff can see the lockout countdown and message.
+            if (payload && (payload.rateLimited || payload.authRequired || payload.remainingAttempts != null)) {
+                return {
+                    success: false,
+                    error: payload.error || `HTTP ${response.status}`,
+                    rateLimited: Boolean(payload.rateLimited),
+                    authRequired: Boolean(payload.authRequired),
+                    remainingAttempts: payload.remainingAttempts != null ? Number(payload.remainingAttempts) : null
+                };
+            }
             return null;
         }
 
@@ -1405,6 +1417,25 @@ function attachStaffLoginHandler() {
             setAuthButtonsVisible(false);
             if (modalTitle) {
                 modalTitle.textContent = 'Invalid credentials';
+            }
+            return;
+        }
+
+        // Account locked out after too many failed login attempts: show the
+        // lockout message from the server so staff know to wait and retry.
+        if (authResult.rateLimited) {
+            setAuthButtonsVisible(false);
+            if (modalTitle) {
+                modalTitle.textContent = authResult.error || 'Too many failed login attempts. Please try again later.';
+            }
+            return;
+        }
+
+        // Invalid credentials with a remaining-attempts countdown from the server.
+        if (!authResult.success && authResult.remainingAttempts != null) {
+            setAuthButtonsVisible(false);
+            if (modalTitle) {
+                modalTitle.textContent = authResult.error || 'Invalid credentials';
             }
             return;
         }

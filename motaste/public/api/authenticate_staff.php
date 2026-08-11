@@ -48,7 +48,26 @@ try {
     if (!$staffRow || !isset($staffRow->password_hash) || !password_verify($password, $staffRow->password_hash)) {
         recordLoginAttempt($email, false);
         http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Invalid credentials']);
+
+        // Tell the staff member how many attempts remain before lockout.
+        $failedCount = 0;
+        try {
+            $failedCount = (int)DB::table('login_attempts')
+                ->whereRaw('LOWER(email) = ?', [$email])
+                ->where('success', false)
+                ->count();
+        } catch (Throwable $countError) {
+            // Best effort.
+        }
+        $remaining = max(0, STAFF_LOGIN_MAX_ATTEMPTS - $failedCount);
+
+        echo json_encode([
+            'success' => false,
+            'error' => $remaining > 0
+                ? "Invalid credentials. {$remaining} attempt(s) left before your account is locked for 15 minutes."
+                : 'Invalid credentials. Your account is now locked for 15 minutes.',
+            'remainingAttempts' => $remaining,
+        ]);
         exit;
     }
 
