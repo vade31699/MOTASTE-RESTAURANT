@@ -733,7 +733,7 @@ function restoreStaffSession() {
             renderOverviewInventory();
         } else if (targetSectionId === 'pending-orders') {
             void loadPendingOrdersFromServer();
-            setOrdersTab('walk-in');
+            setOrdersTab('pending');
             renderWalkInOrderBuilder();
             renderPendingOrders();
         } else if (targetSectionId === 'sales') {
@@ -1150,6 +1150,11 @@ async function loadTrustedDevices() {
             email: actor.email,
             deviceToken: getOrCreateDeviceToken()
         });
+        // The Credentials section is admin-only and lists every staff device so
+        // Cashier and Inventory Manager devices can be labelled separately.
+        if (actor.role === 'Admin') {
+            query.set('includeAll', '1');
+        }
         const response = await fetch(getApiUrl(`api/get_trusted_devices.php?${query.toString()}&_=${Date.now()}`), { cache: 'no-store' });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload.success) {
@@ -1162,6 +1167,22 @@ async function loadTrustedDevices() {
     }
 }
 
+function getTrustedDeviceRoleLabel(role) {
+    const normalized = String(role || '').trim().toLowerCase();
+    if (normalized === 'cashier') return 'Cashier device logged in';
+    if (normalized === 'inventory manager') return 'Inventory device logged in';
+    if (normalized === 'admin') return 'Admin device logged in';
+    return 'Other device logged in';
+}
+
+function getTrustedDeviceRoleIcon(role) {
+    const normalized = String(role || '').trim().toLowerCase();
+    if (normalized === 'cashier') return 'fa-cash-register';
+    if (normalized === 'inventory manager') return 'fa-boxes-stacked';
+    if (normalized === 'admin') return 'fa-user-shield';
+    return 'fa-laptop';
+}
+
 function renderTrustedDevices(devices) {
     if (!trustedDevicesList) return;
 
@@ -1170,33 +1191,68 @@ function renderTrustedDevices(devices) {
         return;
     }
 
-    trustedDevicesList.innerHTML = devices.map((device) => {
-        const label = escapeHtml(device.device_label || 'Unknown device');
-        const fingerprint = escapeHtml(device.fingerprint || '');
-        const lastSeen = device.last_seen_at ? formatRealtimeDate(device.last_seen_at) : 'Never';
-        const status = device.is_current
-            ? '<span class="trusted-device-status is-current">Current Device</span>'
-            : '<span class="trusted-device-status is-trusted">Trusted</span>';
-        const revokeBtn = device.is_current
-            ? ''
-            : `<button type="button" class="trusted-device-revoke" data-fingerprint="${fingerprint}">Revoke Trust</button>`;
-        return `
-            <div class="trusted-device-row">
-                <div class="trusted-device-icon" aria-hidden="true"><i class="fa-solid fa-laptop"></i></div>
-                <div class="trusted-device-meta">
-                    <strong>${label}</strong>
-                    <span>Last seen ${lastSeen}</span>
+    const roleGroups = [];
+    const roleOrder = ['Cashier', 'Inventory Manager', 'Admin'];
+    const grouped = {};
+
+    devices.forEach((device) => {
+        const role = String(device.role || '').trim() || 'Other';
+        if (!grouped[role]) grouped[role] = [];
+        grouped[role].push(device);
+    });
+
+    Object.keys(grouped)
+        .sort((a, b) => {
+            const indexA = roleOrder.indexOf(a);
+            const indexB = roleOrder.indexOf(b);
+            if (indexA === -1 && indexB === -1) return String(a).localeCompare(String(b));
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+        })
+        .forEach((role) => {
+            const groupDevices = grouped[role];
+            roleGroups.push(`
+                <div class="trusted-devices-group">
+                    <div class="trusted-devices-group-title">
+                        <i class="fa-solid ${getTrustedDeviceRoleIcon(role)}" aria-hidden="true"></i>
+                        <span>${escapeHtml(getTrustedDeviceRoleLabel(role))}</span>
+                        <span class="trusted-devices-group-count">${groupDevices.length}</span>
+                    </div>
+                    ${groupDevices.map((device) => {
+                        const label = escapeHtml(device.device_label || 'Unknown device');
+                        const fingerprint = escapeHtml(device.fingerprint || '');
+                        const email = escapeHtml(device.email || '');
+                        const lastSeen = device.last_seen_at ? formatRealtimeDate(device.last_seen_at) : 'Never';
+                        const status = device.is_current
+                            ? '<span class="trusted-device-status is-current">Current Device</span>'
+                            : '<span class="trusted-device-status is-trusted">Trusted</span>';
+                        const revokeBtn = device.is_current
+                            ? ''
+                            : `<button type="button" class="trusted-device-revoke" data-fingerprint="${fingerprint}" data-email="${email}">Revoke Trust</button>`;
+                        return `
+                            <div class="trusted-device-row">
+                                <div class="trusted-device-icon" aria-hidden="true"><i class="fa-solid fa-laptop"></i></div>
+                                <div class="trusted-device-meta">
+                                    <strong>${label}</strong>
+                                    <span>${email ? `${escapeHtml(device.email)} · ` : ''}Last seen ${lastSeen}</span>
+                                </div>
+                                ${status}
+                                ${revokeBtn}
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
-                ${status}
-                ${revokeBtn}
-            </div>
-        `;
-    }).join('');
+            `);
+        });
+
+    trustedDevicesList.innerHTML = roleGroups.join('');
 }
 
-async function revokeTrustedDevice(fingerprint) {
+async function revokeTrustedDevice(fingerprint, email = '') {
     const actor = getCurrentStaffActor();
-    if (!fingerprint || !actor.email) return;
+    const targetEmail = (email || '').trim().toLowerCase() || actor.email;
+    if (!fingerprint || !targetEmail) return;
 
     try {
         const headers = await withCsrfHeaders({
@@ -1206,7 +1262,7 @@ async function revokeTrustedDevice(fingerprint) {
         const response = await fetch(getApiUrl('api/revoke_trusted_device.php'), {
             method: 'POST',
             headers,
-            body: JSON.stringify({ email: actor.email, fingerprint, deviceToken: getOrCreateDeviceToken() }),
+            body: JSON.stringify({ email: targetEmail, fingerprint, deviceToken: getOrCreateDeviceToken() }),
             cache: 'no-store'
         });
 
@@ -1226,8 +1282,63 @@ if (trustedDevicesList) {
     trustedDevicesList.addEventListener('click', (event) => {
         const button = event.target.closest('.trusted-device-revoke');
         if (!button) return;
-        void revokeTrustedDevice(button.dataset.fingerprint || '');
+        void revokeTrustedDevice(button.dataset.fingerprint || '', button.dataset.email || '');
     });
+}
+
+/* ---- Login history audit trail (Credentials section) ---- */
+const loginHistoryList = document.getElementById('loginHistoryList');
+
+async function loadLoginHistory() {
+    if (!loginHistoryList) return;
+
+    try {
+        const response = await fetch(getApiUrl(`api/get_login_history.php?_=${Date.now()}`), { cache: 'no-store' });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || 'Unable to load login history');
+        }
+        renderLoginHistory(Array.isArray(payload.history) ? payload.history : []);
+    } catch (error) {
+        console.error('Unable to load login history', error);
+        if (loginHistoryList) {
+            loginHistoryList.innerHTML = '<p class="trusted-devices-empty">Unable to load login history.</p>';
+        }
+    }
+}
+
+function renderLoginHistory(history) {
+    if (!loginHistoryList) return;
+
+    if (!history.length) {
+        loginHistoryList.innerHTML = '<p class="trusted-devices-empty">No login history recorded yet. Successful staff logins will appear here with their date, time, and role.</p>';
+        return;
+    }
+
+    loginHistoryList.innerHTML = `
+        <div class="login-history-table-wrap">
+            <table class="login-history-table">
+                <thead>
+                    <tr>
+                        <th>Date &amp; Time</th>
+                        <th>Role</th>
+                        <th>Email</th>
+                        <th>Device</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${history.map((entry) => `
+                        <tr>
+                            <td>${entry.logged_in_at ? escapeHtml(formatRealtimeDate(entry.logged_in_at)) : '—'}</td>
+                            <td><span class="login-history-role">${escapeHtml(entry.role || '—')}</span></td>
+                            <td>${escapeHtml(entry.email || '—')}</td>
+                            <td>${escapeHtml(entry.device_label || '—')}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
 }
 
 function attachStaffLoginHandler() {
@@ -1452,6 +1563,10 @@ if (logoutBtn) {
         if (customerOrderStatusPoller) {
             window.clearInterval(customerOrderStatusPoller);
             customerOrderStatusPoller = null;
+        }
+        if (orderStatusFloatTicker) {
+            window.clearInterval(orderStatusFloatTicker);
+            orderStatusFloatTicker = null;
         }
         if (inventoryRefreshTimer) {
             window.clearInterval(inventoryRefreshTimer);
@@ -1800,6 +1915,7 @@ if (credentialsLink && credentialsSection) {
         showDashboardSection(credentialsSection);
         void loadAdminCredentials();
         void loadTrustedDevices();
+        void loadLoginHistory();
     });
 }
 
@@ -3803,6 +3919,9 @@ const seenCompletedOrdersStorageKey = 'motasteSeenCompletedOrders';
 let customerOrderNumbers = new Set();
 let seenCompletedOrders = new Set();
 let customerOrderStatusPoller = null;
+let customerOrderStatuses = new Map();
+let orderStatusFloatTicker = null;
+let orderStatusFloatOpen = false;
 let orderCompleteScrollLockState = null;
 let orderNotificationAudioElement = null;
 let orderNotificationAudioListenersBound = false;
@@ -3902,10 +4021,32 @@ function savePendingOrders() {
 function loadCustomerOrderTracking() {
     customerOrderNumbers = new Set();
     seenCompletedOrders = new Set();
+
+    // Persist the tracked order numbers so the floating status icon survives a
+    // page refresh while the order is still active (pending/preparing).
+    if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+            const raw = window.localStorage.getItem(customerOrderNumbersStorageKey);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    parsed.forEach((number) => customerOrderNumbers.add(String(number)));
+                }
+            }
+        } catch (error) {
+            console.warn('Unable to restore customer order tracking', error);
+        }
+    }
 }
 
 function saveCustomerOrderTracking() {
-    // Customer order tracking state is not persisted in local storage.
+    if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+            window.localStorage.setItem(customerOrderNumbersStorageKey, JSON.stringify([...customerOrderNumbers]));
+        } catch (error) {
+            console.warn('Unable to persist customer order tracking', error);
+        }
+    }
 }
 
 function registerCustomerOrder(orderNumber) {
@@ -4161,6 +4302,21 @@ async function pollCustomerOrderStatus() {
             const status = String(order.status || '').toLowerCase();
             if (!orderNumber) return;
 
+            if (status === 'completed' || status === 'expired') {
+                // Completed/expired orders are no longer "active": stop tracking
+                // them so the floating icon hides once every tracked order is done.
+                customerOrderStatuses.delete(orderNumber);
+                customerOrderNumbers.delete(orderNumber);
+            } else {
+                // Keep the live status map for the floating status icon.
+                customerOrderStatuses.set(orderNumber, {
+                    status,
+                    prepMinutes: order.prep_minutes != null ? Number(order.prep_minutes) : null,
+                    prepStartedAt: order.prep_started_at || null,
+                    orderType: order.order_type || ''
+                });
+            }
+
             if (status === 'completed' && !seenCompletedOrders.has(orderNumber)) {
                 seenCompletedOrders.add(orderNumber);
                 showCustomerOrderCompletedPopup(orderNumber);
@@ -4168,6 +4324,7 @@ async function pollCustomerOrderStatus() {
         });
 
         saveCustomerOrderTracking();
+        renderOrderStatusFloat();
     } catch (error) {
         console.error('Unable to poll customer order status', error);
     }
@@ -4179,6 +4336,135 @@ function startCustomerOrderStatusPolling() {
         void pollCustomerOrderStatus();
     }, 5000);
 }
+
+/* ---- Customer live order status floating icon ---- */
+const orderStatusFloat = document.getElementById('orderStatusFloat');
+const orderStatusFloatBtn = document.getElementById('orderStatusFloatBtn');
+const orderStatusFloatIcon = document.getElementById('orderStatusFloatIcon');
+const orderStatusPopover = document.getElementById('orderStatusPopover');
+const orderStatusBody = document.getElementById('orderStatusBody');
+const orderStatusCloseBtn = document.getElementById('orderStatusCloseBtn');
+
+function getActiveTrackedOrder() {
+    const entries = [...customerOrderStatuses.entries()];
+    if (!entries.length) return null;
+
+    // Prefer an accepted/preparing order so the countdown is always visible;
+    // fall back to an order still waiting for acceptance. Completed and expired
+    // orders are pruned from the map when polled, so only active states remain.
+    const preparing = entries.find(([, state]) => state.prepStartedAt != null && state.status !== 'completed' && state.status !== 'expired');
+    const waiting = entries.find(([, state]) => state.status !== 'completed' && state.status !== 'expired' && !state.prepStartedAt);
+    return preparing || waiting || null;
+}
+
+function getOrderStatusFloatIconName(orderType) {
+    if (isSakayKoOrderType(orderType)) return 'fa-motorcycle';
+    if (String(orderType || '').toLowerCase().includes('take out')) return 'fa-bag-shopping';
+    return 'fa-utensils';
+}
+
+function getPreparationCountdownText(prepStartedAt, prepMinutes) {
+    const minutes = Math.max(0, Number(prepMinutes) || 0);
+    if (!minutes || !prepStartedAt) return null;
+
+    const startedMs = parseServerDateToMs(prepStartedAt);
+    const remainingMs = (startedMs + minutes * 60 * 1000) - Date.now();
+    const remainingSecs = Math.max(0, Math.ceil(remainingMs / 1000));
+    if (remainingSecs <= 0) {
+        return 'Almost ready!';
+    }
+    const mins = Math.floor(remainingSecs / 60);
+    const secs = remainingSecs % 60;
+    return `~${mins} min ${String(secs).padStart(2, '0')} sec left`;
+}
+
+function renderOrderStatusFloat() {
+    if (!orderStatusFloat) return;
+
+    const active = getActiveTrackedOrder();
+    if (!active) {
+        orderStatusFloat.hidden = true;
+        orderStatusFloat.setAttribute('aria-hidden', 'true');
+        return;
+    }
+
+    const [orderNumber, state] = active;
+    const isPreparing = state.prepStartedAt != null && state.status !== 'completed';
+    orderStatusFloat.hidden = false;
+    orderStatusFloat.setAttribute('aria-hidden', 'false');
+
+    if (orderStatusFloatIcon) {
+        orderStatusFloatIcon.className = `fa-solid ${getOrderStatusFloatIconName(state.orderType)}`;
+    }
+
+    if (orderStatusFloatBtn) {
+        orderStatusFloatBtn.classList.toggle('is-preparing', isPreparing);
+        orderStatusFloatBtn.classList.toggle('is-waiting', !isPreparing);
+    }
+
+    if (!orderStatusBody || !orderStatusFloatOpen) return;
+
+    const countdownText = isPreparing
+        ? getPreparationCountdownText(state.prepStartedAt, state.prepMinutes)
+        : null;
+    const statusLabel = isPreparing ? 'Preparing your order' : 'Waiting for acceptance';
+    const statusClass = isPreparing ? 'is-preparing' : 'is-waiting';
+    const countdownHtml = countdownText
+        ? `<div class="order-status-countdown"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i> ${escapeHtml(countdownText)}</div>`
+        : '';
+    orderStatusBody.innerHTML = `
+        <div class="order-status-line ${statusClass}">
+            <i class="fa-solid ${getOrderStatusFloatIconName(state.orderType)}" aria-hidden="true"></i>
+            <div>
+                <strong>Order #${escapeHtml(String(orderNumber))}</strong>
+                <span>${statusLabel}</span>
+            </div>
+        </div>
+        ${countdownHtml}
+        <p class="order-status-note">${isPreparing ? 'The kitchen is working on your order.' : 'The kitchen will accept your order shortly.'}</p>
+    `;
+}
+
+function startOrderStatusFloatTicker() {
+    if (orderStatusFloatTicker || !orderStatusFloat) return;
+    orderStatusFloatTicker = window.setInterval(() => {
+        if (orderStatusFloat.hidden) return;
+        renderOrderStatusFloat();
+    }, 1000);
+}
+
+function toggleOrderStatusPopover(forceOpen) {
+    if (!orderStatusPopover) return;
+    orderStatusFloatOpen = typeof forceOpen === 'boolean' ? forceOpen : !orderStatusFloatOpen;
+    orderStatusPopover.hidden = !orderStatusFloatOpen;
+    orderStatusPopover.setAttribute('aria-hidden', String(!orderStatusFloatOpen));
+    if (orderStatusFloatBtn) {
+        orderStatusFloatBtn.setAttribute('aria-expanded', String(orderStatusFloatOpen));
+    }
+    if (orderStatusFloatOpen) {
+        renderOrderStatusFloat();
+    }
+}
+
+if (orderStatusFloatBtn) {
+    orderStatusFloatBtn.addEventListener('click', () => toggleOrderStatusPopover());
+}
+
+if (orderStatusCloseBtn) {
+    orderStatusCloseBtn.addEventListener('click', () => toggleOrderStatusPopover(false));
+}
+
+if (orderStatusPopover) {
+    orderStatusPopover.addEventListener('click', (event) => {
+        event.stopPropagation();
+    });
+}
+
+document.addEventListener('click', (event) => {
+    if (!orderStatusFloatOpen || !orderStatusFloat) return;
+    if (orderStatusFloat.contains(event.target)) return;
+    toggleOrderStatusPopover(false);
+});
 
 async function loadPendingOrdersFromServer() {
     try {
@@ -4201,6 +4487,8 @@ async function loadPendingOrdersFromServer() {
                 orderType: order.order_type || order.orderType || 'Dine In',
                 customerName: order.customer_name || order.customerName || '',
                 deliveryAddress: order.delivery_address || order.deliveryAddress || '',
+                prepMinutes: order.prep_minutes != null ? Number(order.prep_minutes) : null,
+                prepStartedAt: order.prep_started_at || null,
                 items: items.map((item) => ({
                     id: Number(item.id ?? 0),
                     name: item.notes || item.name || 'Menu item',
@@ -4261,6 +4549,32 @@ async function submitOrderToServer(order) {
         console.error('Unable to save order to the server', error);
         return null;
     }
+}
+
+async function startOrderPreparationOnServer(orderId, minutes) {
+    const actor = getCurrentStaffActor();
+    const headers = await withCsrfHeaders({
+        'Content-Type': 'application/json'
+    });
+
+    const response = await fetch(getApiUrl('api/start_order_preparation.php'), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+            orderId,
+            minutes,
+            actorRole: actor.role,
+            actorEmail: actor.email
+        }),
+        cache: 'no-store'
+    });
+
+    const payload = await response.json();
+    if (!response.ok || !payload.success) {
+        throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    return payload;
 }
 
 async function markOrderCompleteOnServer(orderId) {
@@ -4512,6 +4826,29 @@ async function changePendingOrderItemQuantity(orderIndex, itemId, direction) {
     void loadOrderLogsFromServer(true);
 }
 
+async function startOrderPreparation(orderIndex, minutes) {
+    if (!canManageOrders()) return;
+    if (orderIndex < 0 || orderIndex >= pendingOrders.length) return;
+
+    const safeMinutes = Math.max(1, Math.min(180, Math.round(Number(minutes) || 0)));
+    const targetOrder = pendingOrders[orderIndex];
+
+    try {
+        await startOrderPreparationOnServer(targetOrder.id, safeMinutes);
+    } catch (error) {
+        console.error('Unable to start order preparation', error);
+        if (typeof window !== 'undefined' && window.alert) {
+            window.alert(error.message || 'Unable to start order preparation');
+        }
+        return;
+    }
+
+    // The server preserves the originally chosen prep start time so the
+    // customer's countdown is never reset when staff adjust the estimate.
+    void loadPendingOrdersFromServer();
+    void loadOrderLogsFromServer(true);
+}
+
 async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
     if (!canManageOrders()) return;
     if (orderIndex < 0 || orderIndex >= pendingOrders.length) return;
@@ -4544,6 +4881,7 @@ async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
 function formatOrderLogAction(action) {
     const map = {
         order_completed: 'Marked complete',
+        order_preparing: 'Order accepted · preparing',
         quantity_increased: 'Quantity increased',
         quantity_decreased: 'Quantity decreased',
         quantity_updated: 'Quantity updated',
@@ -5070,6 +5408,9 @@ async function loadCompletedOrdersFromServer(forceRefresh = false) {
 
         completedOrders = payload.orders.map((order) => ({
             ...order,
+            // Normalize the order number so the notifications feed never renders
+            // "Order #undefined" for completed orders after a page refresh.
+            orderNumber: order.order_number || order.orderNumber || String(order.id),
             total: Number(order.total_amount ?? order.total ?? 0),
             timestamp: order.order_date ? Date.parse(order.order_date) || Date.now() : Date.now(),
             items: Array.isArray(order.items) ? order.items.map((item) => ({
@@ -6015,14 +6356,14 @@ function renderOrderNotifications() {
         return;
     }
 
-    const canCompleteOrders = canManageOrders();
-
     overviewOrderNotificationList.innerHTML = allOrders.map((order) => {
         const isCompleted = completedOrders.some((completed) => completed.id === order.id);
         const items = Array.isArray(order.items) ? order.items : [];
         const customerName = String(order.customerName || order.customer_name || '').trim();
         const deliveryAddress = String(order.deliveryAddress || order.delivery_address || '').trim();
         const isSakayKo = isSakayKoOrderType(order.orderType);
+        const displayNumber = String(order.orderNumber || order.order_number || order.id || '');
+        const isPreparing = !isCompleted && (order.prepStartedAt != null && order.prepMinutes != null);
         const orderItems = items.map((item) => {
             const componentLines = Array.isArray(item.components) && item.components.length
                 ? item.components.map((component) =>
@@ -6037,11 +6378,16 @@ function renderOrderNotifications() {
                 </li>
             `;
         }).join('');
+        const badgeLabel = isCompleted ? 'Completed' : (isPreparing ? 'Preparing' : 'New');
+        const badgeClass = isCompleted ? 'is-completed' : (isPreparing ? 'is-preparing' : 'is-new');
+        const prepLine = isPreparing
+            ? `<p class="order-notif-prep"><strong>Prep:</strong> ~${Number(order.prepMinutes) || 0} min</p>`
+            : '';
         return `
             <article class="order-notification-card ${isCompleted ? 'completed' : ''}">
                 <div class="order-notif-top">
-                    <h4>Order #${order.orderNumber}</h4>
-                    <span class="order-notif-badge ${isCompleted ? 'is-completed' : 'is-new'}">${isCompleted ? 'Completed' : 'New'}</span>
+                    <h4>Order #${escapeHtml(displayNumber)}</h4>
+                    <span class="order-notif-badge ${badgeClass}">${badgeLabel}</span>
                 </div>
                 <div class="order-notif-body">
                     <div class="order-notif-customer">
@@ -6050,6 +6396,7 @@ function renderOrderNotifications() {
                         ${isSakayKo ? `<p class="order-notif-address"><strong>Address:</strong> ${deliveryAddress ? escapeHtml(deliveryAddress) : '—'}</p>` : ''}
                         <p><strong>Payment:</strong> ${escapeHtml(order.paymentMethod)}</p>
                         <p><strong>Submitted:</strong> ${formatRealtimeDate(order.timestamp)}</p>
+                        ${prepLine}
                     </div>
                     <div class="order-notif-items">
                         <ul>${orderItems}</ul>
@@ -6057,7 +6404,7 @@ function renderOrderNotifications() {
                 </div>
                 <div class="order-notif-footer">
                     <strong>Total: ${formatCurrency(order.total)}</strong>
-                    ${isCompleted || !canCompleteOrders ? '' : `<button type="button" class="order-complete-btn" data-order-id="${order.id}">Mark Complete</button>`}
+                    ${isCompleted ? '' : `<button type="button" class="order-notif-go-link" data-order-id="${order.id}"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i> Orders → Pending Orders</button>`}
                 </div>
             </article>
         `;
@@ -6825,6 +7172,7 @@ function showDashboardSection(section) {
 
     if (section === credentialsSection) {
         void loadTrustedDevices();
+        void loadLoginHistory();
     }
 
     if (section && section.id) {
@@ -7106,10 +7454,31 @@ function renderPendingOrders() {
         const customerName = String(order.customerName || order.customer_name || '').trim();
         const deliveryAddress = String(order.deliveryAddress || order.delivery_address || '').trim();
         const isSakayKo = isSakayKoOrderType(order.orderType);
+        const displayNumber = String(order.orderNumber || order.order_number || order.id || '');
+        const isPreparing = order.prepStartedAt != null && order.prepMinutes != null;
+        const prepMinutesValue = isPreparing ? Number(order.prepMinutes) || 15 : 15;
+        const prepBlock = canCompleteOrders
+            ? `
+                <div class="pending-order-actions">
+                    <div class="pending-order-total">
+                        <strong>Total: ${formatCurrency(order.total)}</strong>
+                        ${isPreparing ? `<span class="pending-order-prep-status"><i class="fa-solid fa-fire-burner" aria-hidden="true"></i> Preparing · ~${prepMinutesValue} min est.</span>` : ''}
+                    </div>
+                    <div class="pending-order-prep-row">
+                        <label class="prep-minutes-field">
+                            <span>Est. minutes</span>
+                            <input type="number" class="prep-minutes-input" min="1" max="180" step="1" value="${prepMinutesValue}" aria-label="Estimated preparation minutes">
+                        </label>
+                        <button type="button" class="prepare-order-btn" data-order-index="${index}">${isPreparing ? 'Update' : 'Prepare'}</button>
+                        <button type="button" class="order-complete-btn" data-order-index="${index}">Mark Complete</button>
+                    </div>
+                </div>
+            `
+            : `<strong>Total: ${formatCurrency(order.total)}</strong>`;
         return `
-            <article class="pending-order-card">
+            <article class="pending-order-card${isPreparing ? ' is-preparing' : ''}" data-order-id="${order.id}">
                 <div class="pending-order-top">
-                    <h4>Order #${order.orderNumber}</h4>
+                    <h4>Order #${escapeHtml(displayNumber)}</h4>
                     <span class="pending-order-type">${escapeHtml(order.orderType || 'Dine In')}</span>
                 </div>
                 <p><strong>Submitted:</strong> ${formatRealtimeDate(order.timestamp)}</p>
@@ -7117,10 +7486,7 @@ function renderPendingOrders() {
                 ${customerName ? `<p><strong>Customer:</strong> ${escapeHtml(customerName)}</p>` : ''}
                 ${isSakayKo ? `<p class="order-notif-address"><strong>Address:</strong> ${deliveryAddress ? escapeHtml(deliveryAddress) : '—'}</p>` : ''}
                 <ul>${itemsHtml}</ul>
-                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
-                    <strong>Total: ${formatCurrency(order.total)}</strong>
-                    ${canCompleteOrders ? `<button type="button" class="order-complete-btn" data-order-index="${index}">Mark Complete</button>` : ''}
-                </div>
+                ${prepBlock}
             </article>
         `;
     }).join('');
@@ -7928,7 +8294,12 @@ function selectCheckoutOption(container, type, selectedValue) {
 }
 
 function generateOrderNumber() {
-    return Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+    // Collision-resistant order number: last 6 digits of the timestamp plus a
+    // 2-digit random suffix, so concurrent orders from different devices never
+    // produce the same number (a previous pure-random 6-digit format could).
+    const timePart = Date.now().toString().slice(-6);
+    const randomPart = String(Math.floor(Math.random() * 100)).padStart(2, '0');
+    return timePart + randomPart;
 }
 
 function updateLiveClock() {
@@ -8141,6 +8512,14 @@ async function confirmOrder() {
     suppressMenuOverlay = false;
     try { document.body.classList.remove('suppress-menu'); } catch (e) { }
     registerCustomerOrder(syncedOrder.orderNumber);
+    // Optimistically surface the floating status icon right after checkout.
+    customerOrderStatuses.set(String(syncedOrder.orderNumber), {
+        status: 'pending',
+        prepMinutes: null,
+        prepStartedAt: null,
+        orderType: syncedOrder.orderType || ''
+    });
+    renderOrderStatusFloat();
     savePendingOrders();
     renderPendingOrders();
     renderOrderNotifications();
@@ -8741,7 +9120,9 @@ if (dashboardPanel) {
         } else if (href === '#pending-orders') {
             if (!canManageOrders()) return;
             showDashboardSection(pendingOrdersSection);
-            setOrdersTab('walk-in');
+            // Pending Orders is the primary order workflow; the walk-in builder
+            // remains available through the tab switch.
+            setOrdersTab('pending');
             renderWalkInOrderBuilder();
             void loadPendingOrdersFromServer();
             renderPendingOrders();
@@ -8776,18 +9157,48 @@ if (dashboardPanel) {
     });
 }
 
+const overviewToPendingLink = document.getElementById('overviewToPendingLink');
+if (overviewToPendingLink) {
+    overviewToPendingLink.addEventListener('click', () => {
+        if (!canManageOrders()) return;
+        showDashboardSection(pendingOrdersSection);
+        setOrdersTab('pending');
+        renderWalkInOrderBuilder();
+        renderPendingOrders();
+        void loadPendingOrdersFromServer();
+    });
+}
+
 if (overviewOrderNotificationList) {
-    overviewOrderNotificationList.addEventListener('click', async (event) => {
+    overviewOrderNotificationList.addEventListener('click', (event) => {
         // clicking the notification list marks notifications as seen
         unseenPendingCount = 0;
         updateOverviewBadge();
 
+        // The overview feed is view-only: processing happens under Orders →
+        // Pending Orders. Clicking the hint navigates staff there directly.
+        const link = event.target.closest('.order-notif-go-link');
+        if (!link) return;
         if (!canManageOrders()) return;
-        const button = event.target.closest('.order-complete-btn');
-        if (!button) return;
-        const orderId = button.dataset.orderId;
-        const orderIndex = pendingOrders.findIndex((order) => order.id === Number(orderId));
-        await markPendingOrderAsComplete(orderIndex, false);
+
+        showDashboardSection(pendingOrdersSection);
+        setOrdersTab('pending');
+        renderWalkInOrderBuilder();
+        renderPendingOrders();
+
+        const orderId = Number(link.dataset.orderId || 0);
+        // Highlight the target card only after the server reload re-renders the
+        // list, so the highlight is never wiped by the async refresh.
+        loadPendingOrdersFromServer().then(() => {
+            if (!orderId) return;
+            const targetCard = Array.from(document.querySelectorAll('#pendingOrdersList .pending-order-card'))
+                .find((card) => Number(card.dataset.orderId || card.dataset.orderIndex) === orderId);
+            if (targetCard && typeof targetCard.scrollIntoView === 'function') {
+                targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                targetCard.classList.add('is-highlighted');
+                window.setTimeout(() => targetCard.classList.remove('is-highlighted'), 2200);
+            }
+        });
     });
 }
 
@@ -8812,6 +9223,16 @@ if (pendingOrdersList) {
             const orderIndex = Number(qtyButton.dataset.orderIndex);
             const itemId = Number(qtyButton.dataset.itemId);
             await changePendingOrderItemQuantity(orderIndex, itemId, action);
+            return;
+        }
+
+        const prepareBtn = event.target.closest('.prepare-order-btn');
+        if (prepareBtn) {
+            const index = Number(prepareBtn.dataset.orderIndex);
+            const card = prepareBtn.closest('.pending-order-card');
+            const input = card ? card.querySelector('.prep-minutes-input') : null;
+            const minutes = input ? Number(input.value) || 15 : 15;
+            await startOrderPreparation(index, minutes);
             return;
         }
 
@@ -8923,6 +9344,8 @@ function initOrders() {
         void initializeInventoryData(true);
         startCustomerOrderStatusPolling();
         void pollCustomerOrderStatus();
+        startOrderStatusFloatTicker();
+        renderOrderStatusFloat();
     }
 }
 

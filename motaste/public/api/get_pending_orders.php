@@ -12,11 +12,16 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
+require_once __DIR__ . '/_helpers.php';
+
 try {
-    
-    
+    ensureOrderPrepTimerColumns();
+
+    // Only pending orders that have not started preparation are auto-expired.
+    // Accepted orders (prep timer running) must stay visible until completed.
     DB::table('orders')
         ->where('status', 'pending')
+        ->whereNull('prep_started_at')
         ->whereRaw("COALESCE(updated_at, order_date) <= NOW() - INTERVAL '10 minutes'")
         ->update([
             'status' => 'expired',
@@ -66,6 +71,8 @@ try {
             'order_type' => $order->order_type,
             'customer_name' => $order->customer_name ?? null,
             'delivery_address' => $order->delivery_address ?? null,
+            'prep_minutes' => isset($order->prep_minutes) ? (int)$order->prep_minutes : null,
+            'prep_started_at' => $order->prep_started_at ?? null,
             'subtotal' => (float)($order->subtotal ?? 0),
             'total_amount' => (float)($order->total_amount ?? 0),
             'items' => $items,

@@ -20,6 +20,7 @@ try {
     $body = is_array($input) ? $input : [];
     $email = strtolower(trim((string)($_GET['email'] ?? ($body['email'] ?? ''))));
     $deviceToken = trim((string)($_GET['deviceToken'] ?? ($body['deviceToken'] ?? '')));
+    $includeAll = !empty($_GET['includeAll']) || !empty($body['includeAll']);
 
     if ($email === '') {
         http_response_code(400);
@@ -29,10 +30,16 @@ try {
 
     $currentFingerprint = $deviceToken !== '' ? computeDeviceFingerprint($email, $deviceToken) : '';
 
-    $devices = DB::table('trusted_devices')
-        ->whereRaw('LOWER(email) = ?', [$email])
-        ->orderByDesc('last_seen_at')
-        ->limit(100)
+    // Credentials (admin-only view) lists trusted devices for every staff role
+    // so Cashier and Inventory Manager devices can be labelled separately.
+    $devices = DB::table('trusted_devices as td')
+        ->leftJoin('staff as s', DB::raw('LOWER(s.email)'), '=', DB::raw('LOWER(td.email)'))
+        ->select('td.*', 's.role as staff_role', 's.full_name as staff_name')
+        ->when(!$includeAll, function ($query) use ($email) {
+            return $query->whereRaw('LOWER(td.email) = ?', [$email]);
+        })
+        ->orderByDesc('td.last_seen_at')
+        ->limit(200)
         ->get();
 
     $list = $devices->map(function ($row) use ($currentFingerprint) {
@@ -42,6 +49,8 @@ try {
         }
         return [
             'id' => (int)($row->id ?? 0),
+            'email' => (string)($row->email ?? ''),
+            'role' => (string)($row->staff_role ?? ''),
             'device_label' => $label !== '' ? $label : 'Unknown device',
             'fingerprint' => (string)($row->fingerprint ?? ''),
             'ip_address' => (string)($row->ip_address ?? ''),

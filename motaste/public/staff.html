@@ -191,6 +191,7 @@
                     <h3 style="margin:0">Order Notifications</h3>
                     <span id="overviewOrderBadge" aria-hidden="true" style="display:none;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;background:#ef4444;color:#fff;font-size:12px;font-weight:700;">0</span>
                 </div>
+                <p class="overview-notification-hint">View-only alert feed. Go to <button type="button" id="overviewToPendingLink" class="overview-to-pending-link">Orders → Pending Orders</button> to accept and process incoming orders.</p>
                 <div id="overviewOrderNotificationList" class="order-notification-list"></div>
                 <div class="order-notification-footer">
                     <span>Total revenue</span>
@@ -579,6 +580,14 @@
             </div>
             <div id="trustedDevicesList" class="trusted-devices-list"></div>
             <p id="trustedDevicesMessage" class="menu-order-message" aria-live="polite"></p>
+        </div>
+
+        <div class="trusted-devices-card login-history-card" id="loginHistoryCard">
+            <div class="trusted-devices-header">
+                <h3>Login History</h3>
+                <p>Audit trail of successful staff logins with date, time, and role.</p>
+            </div>
+            <div id="loginHistoryList" class="login-history-list"></div>
         </div>
 
         <p id="credentialsMessage" class="menu-order-message" aria-live="polite"></p>

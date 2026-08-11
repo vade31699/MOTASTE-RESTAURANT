@@ -8861,3 +8861,429 @@ body.staff-app .login-dark-overlay {
         transition: none !important;
     }
 }
+
+/* ============================================================
+   Customer live order status floating icon (beside the cart)
+   ============================================================ */
+.menu-right .menu-total-panel {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.order-status-float {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.order-status-float[hidden] {
+    display: none;
+}
+
+.order-status-float-btn {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    color: #fff;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
+
+.order-status-float-btn.is-waiting {
+    background: linear-gradient(135deg, #f97316, #ef4444);
+    animation: order-status-pulse 1.6s ease-in-out infinite;
+}
+
+.order-status-float-btn.is-preparing {
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+}
+
+.order-status-float-btn:hover,
+.order-status-float-btn:focus-visible {
+    transform: scale(1.08);
+}
+
+@keyframes order-status-pulse {
+    0%, 100% { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28), 0 0 0 0 rgba(239, 68, 68, 0.55); }
+    50% { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28), 0 0 0 10px rgba(239, 68, 68, 0); }
+}
+
+.order-status-float-ping {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: #22c55e;
+    border: 2px solid #fff;
+}
+
+.order-status-popover {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 10px);
+    width: 300px;
+    max-width: 82vw;
+    background: #111827;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    padding: 14px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    z-index: 1900;
+}
+
+.order-status-popover[hidden] {
+    display: none;
+}
+
+.order-status-popover-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.order-status-popover-head strong {
+    font-size: 0.9rem;
+}
+
+.order-status-close {
+    border: none;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.order-status-body {
+    display: grid;
+    gap: 10px;
+}
+
+.order-status-line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.order-status-line > i {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex: none;
+}
+
+.order-status-line.is-waiting > i {
+    background: rgba(239, 68, 68, 0.18);
+    color: #f87171;
+}
+
+.order-status-line.is-preparing > i {
+    background: rgba(99, 102, 241, 0.2);
+    color: #a5b4fc;
+}
+
+.order-status-line > div {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.order-status-line strong {
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.order-status-line span {
+    font-size: 0.82rem;
+    color: #cbd5e1;
+}
+
+.order-status-countdown {
+    background: rgba(99, 102, 241, 0.14);
+    border: 1px solid rgba(99, 102, 241, 0.35);
+    color: #c7d2fe;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.order-status-note {
+    margin: 0;
+    font-size: 0.78rem;
+    color: #9ca3af;
+}
+
+@media (max-width: 900px) {
+    .order-status-float {
+        position: fixed;
+        right: 86px;
+        bottom: 24px;
+        z-index: 1800;
+    }
+
+    /* The float sits near the bottom edge on mobile, so the popover must open
+       upward instead of below the viewport. */
+    .order-status-popover {
+        top: auto;
+        bottom: calc(100% + 10px);
+    }
+}
+
+/* ============================================================
+   Overview Order Notifications — view-only feed + hint
+   ============================================================ */
+.overview-notification-hint {
+    margin: 8px 0 12px;
+    font-size: 0.8rem;
+    color: var(--staff-muted, #57655c);
+    background: var(--staff-surface-2, #f1f5f9);
+    border: 1px dashed var(--staff-border, #cbd5e1);
+    border-radius: 10px;
+    padding: 8px 12px;
+    line-height: 1.5;
+}
+
+.overview-to-pending-link {
+    border: none;
+    background: none;
+    padding: 0;
+    color: var(--staff-accent-strong, #167a45);
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: inherit;
+}
+
+.overview-to-pending-link:hover {
+    color: var(--staff-accent, #2bae66);
+}
+
+.order-notif-go-link {
+    border: 1px solid rgba(22, 122, 69, 0.35);
+    background: rgba(22, 122, 69, 0.08);
+    color: var(--staff-accent-strong, #167a45);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.order-notif-go-link:hover {
+    background: rgba(22, 122, 69, 0.16);
+    transform: translateY(-1px);
+}
+
+.order-notif-badge.is-preparing {
+    background: #e0e7ff;
+    color: #4338ca;
+}
+
+.order-notif-prep {
+    color: #4338ca !important;
+    font-weight: 600;
+}
+
+/* ============================================================
+   Pending Orders — prepare timer workflow
+   ============================================================ */
+.pending-order-actions {
+    display: grid;
+    gap: 10px;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 10px;
+}
+
+.pending-order-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.pending-order-prep-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #e0e7ff;
+    color: #4338ca;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.pending-order-prep-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.prep-minutes-field {
+    display: grid;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: var(--staff-muted, #555);
+    font-weight: 600;
+}
+
+.prep-minutes-input {
+    width: 84px;
+    padding: 9px 10px;
+    border: 1px solid var(--staff-border, #d1d5db);
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--staff-text, #111);
+    background: var(--staff-surface, #fff);
+}
+
+.prepare-order-btn {
+    border: none;
+    background: #2563eb;
+    color: #fff;
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.prepare-order-btn:hover {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+}
+
+.pending-order-card.is-preparing {
+    border: 1px solid rgba(99, 102, 241, 0.5);
+}
+
+.pending-order-card.is-highlighted {
+    animation: pending-order-highlight 2.2s ease;
+}
+
+@keyframes pending-order-highlight {
+    0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.45); }
+    35% { box-shadow: 0 0 0 12px rgba(37, 99, 235, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+}
+
+/* ============================================================
+   Credentials — trusted device groups + login history
+   ============================================================ */
+body.staff-app .trusted-devices-group {
+    display: grid;
+    gap: 2px;
+}
+
+body.staff-app .trusted-devices-group + .trusted-devices-group {
+    margin-top: 14px;
+}
+
+body.staff-app .trusted-devices-group-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.76rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--staff-muted);
+    border-bottom: 1px solid var(--staff-border-soft);
+    padding: 6px 4px 8px;
+}
+
+body.staff-app .trusted-devices-group-title i {
+    color: var(--staff-accent-strong);
+}
+
+body.staff-app .trusted-devices-group-count {
+    margin-left: auto;
+    background: var(--staff-accent-soft);
+   
+    border-radius: 999px;
+    padding: 2px 9px;
+    font-size: 0.72rem;
+    color: var(--staff-accent-strong);
+}
+
+body.staff-app .login-history-card {
+    margin-top: 24px;
+}
+
+body.staff-app .login-history-table-wrap {
+    overflow-x: auto;
+}
+
+body.staff-app .login-history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+body.staff-app .login-history-table th,
+body.staff-app .login-history-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--staff-border-soft);
+    color: var(--staff-text);
+    white-space: nowrap;
+}
+
+body.staff-app .login-history-table th {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--staff-muted);
+}
+
+body.staff-app .login-history-table tbody tr:hover {
+    background: var(--staff-accent-softer);
+}
+
+body.staff-app .login-history-role {
+    display: inline-block;
+    background: var(--staff-accent-soft);
+    color: var(--staff-accent-strong);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 0.74rem;
+    font-weight: 700;
+}

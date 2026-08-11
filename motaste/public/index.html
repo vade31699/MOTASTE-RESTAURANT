@@ -80,6 +80,20 @@
                         <i class="fa-solid fa-cart-shopping"></i>
                         <span id="menuTopCartCount">0</span>
                     </button>
+                    <!-- Live order status floating icon: hidden until an active order is placed -->
+                    <div id="orderStatusFloat" class="order-status-float" hidden aria-hidden="true">
+                        <button type="button" id="orderStatusFloatBtn" class="order-status-float-btn" aria-label="Track your order status" aria-expanded="false" aria-controls="orderStatusPopover">
+                            <i class="fa-solid fa-utensils" id="orderStatusFloatIcon" aria-hidden="true"></i>
+                            <span class="order-status-float-ping" aria-hidden="true"></span>
+                        </button>
+                        <div id="orderStatusPopover" class="order-status-popover" role="dialog" aria-label="Order status" aria-hidden="true" hidden>
+                            <div class="order-status-popover-head">
+                                <strong>Order Status</strong>
+                                <button type="button" id="orderStatusCloseBtn" class="order-status-close" aria-label="Close order status">×</button>
+                            </div>
+                            <div id="orderStatusBody" class="order-status-body"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

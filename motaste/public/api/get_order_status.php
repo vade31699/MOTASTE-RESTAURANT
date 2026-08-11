@@ -11,6 +11,11 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
 
+require_once __DIR__ . '/_helpers.php';
+
+// Best-effort: prep columns are guaranteed by the helper (or the migration).
+ensureOrderPrepTimerColumns();
+
 $input = json_decode(file_get_contents('php://input'), true);
 $orderNumbers = $input['orderNumbers'] ?? [];
 
@@ -35,12 +40,15 @@ try {
     $orders = DB::table('orders')
         ->whereIn('order_number', $normalizedOrderNumbers)
         ->orderByDesc('updated_at')
-        ->get(['id', 'order_number', 'status', 'updated_at'])
+        ->get(['id', 'order_number', 'status', 'order_type', 'prep_minutes', 'prep_started_at', 'updated_at'])
         ->map(static function ($order) {
             return [
                 'id' => (int)$order->id,
                 'order_number' => (string)$order->order_number,
                 'status' => (string)$order->status,
+                'order_type' => (string)($order->order_type ?? ''),
+                'prep_minutes' => isset($order->prep_minutes) && $order->prep_minutes !== null ? (int)$order->prep_minutes : null,
+                'prep_started_at' => $order->prep_started_at ?? null,
                 'updated_at' => $order->updated_at,
             ];
         })
