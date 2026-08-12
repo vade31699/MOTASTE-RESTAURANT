@@ -39,6 +39,6 @@ try {
     echo json_encode([
         'success' => false,
         'error' => 'Unable to load highlights snapshot',
-        'details' => apiErrorDetail($error),
+        'details' => $error->getMessage(),
     ]);
 }

@@ -73,5 +73,5 @@ try {
     echo json_encode(['success' => true, 'reviewId' => $reviewId, 'publish_status' => 'published']);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to publish review', 'details' => apiErrorDetail($error)]);
+    echo json_encode(['success' => false, 'error' => 'Unable to publish review', 'details' => $error->getMessage()]);
 }

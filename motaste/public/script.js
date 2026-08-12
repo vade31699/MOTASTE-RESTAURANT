@@ -455,25 +455,51 @@ function getSavedLoginCredentials() {
     }
 
     try {
-        // Security: legacy versions persisted plaintext passwords for login
-        // auto-fill. Purge them once so no credentials remain in storage.
-        window.localStorage.removeItem('motasteSavedLoginCredentials');
+        const raw = window.localStorage.getItem('motasteSavedLoginCredentials');
+        return raw ? JSON.parse(raw) : {};
     } catch (error) {
-        console.warn('Unable to purge legacy saved credentials', error);
+        console.warn('Unable to load saved login credentials', error);
+        return {};
     }
-
-    return {};
 }
 
 function storeSavedLoginCredentials(credentials) {
-    // Security: passwords are no longer persisted for login auto-fill.
-    void credentials;
+    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+        return;
+    }
+
+    try {
+        window.localStorage.setItem('motasteSavedLoginCredentials', JSON.stringify(credentials || {}));
+    } catch (error) {
+        console.warn('Unable to persist saved login credentials', error);
+    }
 }
 
 function saveCredentialsForRole(role, email, password) {
-    // Security: passwords are no longer persisted for login auto-fill. Staff
-    // stay signed in through the server-side session instead.
-    void role; void email; void password;
+    if (!role || !email || !password) {
+        return;
+    }
+
+    const normalizedRole = role.trim();
+    if (!normalizedRole) {
+        return;
+    }
+
+    const credentials = getSavedLoginCredentials();
+    credentials[normalizedRole] = {
+        email: email.trim().toLowerCase(),
+        password: password || '',
+        savedAt: new Date().toISOString()
+    };
+
+    storeSavedLoginCredentials(credentials);
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+        try {
+            window.localStorage.setItem(lastLoginRoleStorageKey, normalizedRole);
+        } catch (error) {
+            console.warn('Unable to persist last login role', error);
+        }
+    }
 }
 
 function clearSavedCredentialsForRole(role) {
@@ -4166,7 +4192,6 @@ const customerOrderNumbersStorageKey = 'motasteCustomerOrderNumbers';
 const seenCompletedOrdersStorageKey = 'motasteSeenCompletedOrders';
 const customerOrderTimerCacheKey = 'motasteCustomerOrderTimerCache';
 let customerOrderNumbers = new Set();
-let customerOrderPhones = new Map();
 let seenCompletedOrders = new Set();
 let customerOrderStatusPoller = null;
 let customerOrderStatuses = new Map();
@@ -4270,27 +4295,17 @@ function savePendingOrders() {
 
 function loadCustomerOrderTracking() {
     customerOrderNumbers = new Set();
-    customerOrderPhones = new Map();
     seenCompletedOrders = new Set();
 
-    // Persist the tracked order numbers (with the phone used at checkout) so
-    // the floating status icon survives a page refresh while the order is
-    // still active (pending/preparing). The phone is required to verify order
-    // ownership on the server.
+    // Persist the tracked order numbers so the floating status icon survives a
+    // page refresh while the order is still active (pending/preparing).
     if (typeof window !== 'undefined' && window.localStorage) {
         try {
             const raw = window.localStorage.getItem(customerOrderNumbersStorageKey);
             if (raw) {
                 const parsed = JSON.parse(raw);
                 if (Array.isArray(parsed)) {
-                    // Legacy format: array of numbers without a phone. They can
-                    // no longer be verified, so they are dropped from tracking.
                     parsed.forEach((number) => customerOrderNumbers.add(String(number)));
-                } else if (parsed && typeof parsed === 'object') {
-                    Object.entries(parsed).forEach(([number, phone]) => {
-                        customerOrderNumbers.add(String(number));
-                        customerOrderPhones.set(String(number), String(phone || ''));
-                    });
                 }
             }
         } catch (error) {
@@ -4302,21 +4317,16 @@ function loadCustomerOrderTracking() {
 function saveCustomerOrderTracking() {
     if (typeof window !== 'undefined' && window.localStorage) {
         try {
-            const byNumber = {};
-            customerOrderPhones.forEach((phone, number) => {
-                byNumber[String(number)] = String(phone || '');
-            });
-            window.localStorage.setItem(customerOrderNumbersStorageKey, JSON.stringify(byNumber));
+            window.localStorage.setItem(customerOrderNumbersStorageKey, JSON.stringify([...customerOrderNumbers]));
         } catch (error) {
             console.warn('Unable to persist customer order tracking', error);
         }
     }
 }
 
-function registerCustomerOrder(orderNumber, phone) {
+function registerCustomerOrder(orderNumber) {
     if (!orderNumber && orderNumber !== 0) return;
     customerOrderNumbers.add(String(orderNumber));
-    customerOrderPhones.set(String(orderNumber), String(phone || ''));
     saveCustomerOrderTracking();
 }
 
@@ -4591,19 +4601,13 @@ function showCustomerOrderCompletedPopup(orderNumber) {
 async function pollCustomerOrderStatus() {
     if (!customerOrderNumbers.size) return;
 
-    // Order status is only returned when the order's customer phone matches,
-    // so tracking requires the phone used at checkout (prevents strangers from
-    // enumerating order numbers).
-    const customerPhone = [...customerOrderPhones.values()].find((value) => value) || '';
-    if (!customerPhone) return;
-
     try {
         const response = await fetch(getApiUrl(`api/get_order_status.php?_=${Date.now()}`), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ orderNumbers: [...customerOrderNumbers], customerPhone }),
+            body: JSON.stringify({ orderNumbers: [...customerOrderNumbers] }),
             cache: 'no-store'
         });
 
@@ -4624,7 +4628,6 @@ async function pollCustomerOrderStatus() {
                 // them so the floating icon hides once every tracked order is done.
                 customerOrderStatuses.delete(orderNumber);
                 customerOrderNumbers.delete(orderNumber);
-                customerOrderPhones.delete(orderNumber);
             } else {
                 // Keep the live status map for the floating status icon.
                 customerOrderStatuses.set(orderNumber, {
@@ -5267,13 +5270,11 @@ function loadStaffOrderTimerCache() {
 
 async function submitOrderToServer(order) {
     try {
-        const headers = await withCsrfHeaders({
-            'Content-Type': 'application/json'
-        });
-
         const response = await fetch(getApiUrl('api/create_order.php'), {
             method: 'POST',
-            headers,
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({
                 orderNumber: order.orderNumber,
                 items: order.items,
@@ -5283,9 +5284,9 @@ async function submitOrderToServer(order) {
                 customerPhone: order.customerPhone || '',
                 customerEmail: order.customerEmail || '',
                 deliveryAddress: order.deliveryAddress || '',
+                discount: Number(order.loyaltyDiscount) || 0,
                 loyaltyPointsRedeemed: Number(order.loyaltyPointsRedeemed) || 0
-            }),
-            cache: 'no-store'
+            })
         });
 
         const payload = await response.json();
@@ -5296,9 +5297,7 @@ async function submitOrderToServer(order) {
         return {
             ...order,
             id: Number(payload.orderId || Date.now()),
-            // The server may re-issue the order number on collision; always
-            // track the authoritative number returned by the server.
-            orderNumber: String(payload.orderNumber || order.orderNumber || payload.orderId || Date.now())
+            orderNumber: order.orderNumber || String(payload.orderId || Date.now())
         };
     } catch (error) {
         console.error('Unable to save order to the server', error);
@@ -9955,7 +9954,7 @@ async function confirmOrder() {
     pendingOrders.unshift(syncedOrder);
     suppressMenuOverlay = false;
     try { document.body.classList.remove('suppress-menu'); } catch (e) { }
-    registerCustomerOrder(syncedOrder.orderNumber, syncedOrder.customerPhone || selectedCustomerPhone);
+    registerCustomerOrder(syncedOrder.orderNumber);
     // Optimistically surface the floating status icon right after checkout.
     customerOrderStatuses.set(String(syncedOrder.orderNumber), {
         status: 'pending',
@@ -10962,22 +10961,8 @@ function initOrderEvents() {
     }
 }
 
-// Inventory modal open/close is wired here (no inline onclick attributes) so
-// the Content-Security-Policy can stay strict about inline scripts.
 document.addEventListener('DOMContentLoaded', () => {
-    if (inventoryAddFab) {
-        inventoryAddFab.addEventListener('click', () => openInventoryModal());
-    }
-    if (inventoryModalCloseBtn) {
-        inventoryModalCloseBtn.addEventListener('click', closeInventoryModal);
-    }
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-    // The event stream exposes order details, so only staff dashboards connect.
-    if (isStaffPage) {
-        initOrderEvents();
-    }
+    initOrderEvents();
 });
 
 // Overview metrics: fetch counts for staff logins and completed orders
@@ -11092,13 +11077,10 @@ function renderDashboardKpis(completedOrdersData) {
     if (bestEl) bestEl.textContent = bestSeller ? `${bestSeller} (${bestQty})` : '—';
 }
 
-// Initial fetch + periodic refresh (staff dashboard only — the underlying
-// endpoints require a staff session and would 401 on the public page).
+// Initial fetch + periodic refresh
 document.addEventListener('DOMContentLoaded', () => {
-    if (isStaffPage) {
-        void fetchOverviewMetrics();
-        setInterval(() => void fetchOverviewMetrics(), 15000);
-    }
+    void fetchOverviewMetrics();
+    setInterval(() => void fetchOverviewMetrics(), 15000);
 });// ============================================================
 // PWA service worker registration
 // ============================================================

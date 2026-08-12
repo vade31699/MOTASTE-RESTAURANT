@@ -69,5 +69,5 @@ try {
     echo json_encode(['success' => true]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to save activity log', 'details' => apiErrorDetail($error)]);
+    echo json_encode(['success' => false, 'error' => 'Unable to save activity log', 'details' => $error->getMessage()]);
 }

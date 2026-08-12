@@ -83,5 +83,5 @@ try {
     echo json_encode(['success' => true]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to delete review', 'details' => apiErrorDetail($error)]);
+    echo json_encode(['success' => false, 'error' => 'Unable to delete review', 'details' => $error->getMessage()]);
 }
