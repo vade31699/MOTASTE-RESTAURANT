@@ -135,6 +135,12 @@ async function loadStaffAccountsFromServer(forceRefresh = false) {
 
     staffAccountsSyncInFlight = true;
     try {
+        // This endpoint is gated by the server session; wait for the page-load
+        // session renewal so the first fetch does not 401.
+        if (isStaffPage) {
+            await ensureStaffServerSession();
+        }
+
         const response = await fetch(getApiUrl(`api/get_staff_accounts.php?_=${Date.now()}`), { cache: 'no-store' });
         if (!response.ok) return false;
 
@@ -542,6 +548,10 @@ function clearStaffSession() {
     } catch (error) {
         console.warn('Unable to clear persisted staff session', error);
     }
+
+    // A cleared session invalidates any cached renewal result — the next
+    // ensureStaffServerSession() call must attempt a fresh renewal.
+    staffServerSessionRenewal = null;
 }
 
 function saveActiveSection(sectionId) {
@@ -925,35 +935,51 @@ async function verifyDeviceLogin(email, password, code, deviceToken) {
     }
 }
 
+let staffServerSessionRenewal = null;
+
 /**
  * Re-establishes the server-side staff session on page load using the persisted
  * opaque session token (no plaintext password is ever stored or re-sent). The
  * staff-only API gate (requireStaffAuth) needs the PHP session cookie; this
  * self-heals it after browser restarts without touching the login history.
+ *
+ * Returns a promise so staff-scoped fetches (e.g. inventory) can wait for the
+ * session cookie to be valid before calling gated endpoints.
  */
-async function ensureStaffServerSession() {
+function ensureStaffServerSession() {
+    if (staffServerSessionRenewal) return staffServerSessionRenewal;
+
     const session = getPersistedStaffSession();
-    if (!session || !session.email || !session.sessionToken) return;
-
-    try {
-        const response = await fetchWithTimeout(getApiUrl('api/renew_staff_session.php'), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ sessionToken: session.sessionToken }),
-            cache: 'no-store'
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (response.ok && payload && payload.success) return;
-
-        // Token invalid/expired or the account was removed: end the session and
-        // return to the login screen.
-        clearStaffSession();
-        forceLogoutCurrentStaffSession();
-    } catch (error) {
-        console.debug('Unable to renew staff server session', error);
+    if (!session || !session.email || !session.sessionToken) {
+        staffServerSessionRenewal = Promise.resolve(false);
+        return staffServerSessionRenewal;
     }
+
+    staffServerSessionRenewal = (async () => {
+        try {
+            const response = await fetchWithTimeout(getApiUrl('api/renew_staff_session.php'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ sessionToken: session.sessionToken }),
+                cache: 'no-store'
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (response.ok && payload && payload.success) return true;
+
+            // Token invalid/expired or the account was removed: end the session
+            // and return to the login screen.
+            clearStaffSession();
+            forceLogoutCurrentStaffSession();
+            return false;
+        } catch (error) {
+            console.debug('Unable to renew staff server session', error);
+            return false;
+        }
+    })();
+
+    return staffServerSessionRenewal;
 }
 
 /* ---- Device verification modal (replaces native prompt) ---- */
@@ -1402,6 +1428,9 @@ async function handleStaffLogin(email, password, role, remember) {
     // Persist an opaque session token — never the plaintext password.
     if (authResult.sessionToken) {
         saveStaffSession(detectedRole, email, authResult.sessionToken, remember);
+        // A fresh token means the server session was (re)established — drop any
+        // stale cached renewal so future calls re-check against the server.
+        staffServerSessionRenewal = null;
     }
 
     if (modalTitle) {
@@ -4800,6 +4829,10 @@ document.addEventListener('click', (event) => {
 
 async function loadPendingOrdersFromServer() {
     try {
+        // Gated by the server session; wait for the page-load renewal first.
+        if (isStaffPage) {
+            await ensureStaffServerSession();
+        }
         const response = await fetch(getApiUrl('api/get_pending_orders.php'), { cache: 'no-store', credentials: 'same-origin' });
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
@@ -5906,6 +5939,10 @@ async function loadOrderLogsFromServer(forceRefresh = false) {
 
     orderLogsSyncInFlight = true;
     try {
+        // Gated by the server session; wait for the page-load renewal first.
+        if (isStaffPage) {
+            await ensureStaffServerSession();
+        }
         const [logsResponse, reviewLogsResponse] = await Promise.all([
             fetch(getApiUrl(`api/get_order_logs.php?_=${Date.now()}`), { cache: 'no-store' }),
             fetch(getApiUrl(`api/get_review_logs.php?_=${Date.now()}`), { cache: 'no-store' })
@@ -6212,9 +6249,14 @@ function saveCompletedOrders() {
 
 async function loadCompletedOrdersFromServer(forceRefresh = false) {
     if (completedOrdersSyncInFlight && !forceRefresh) return false;
+
     completedOrdersSyncInFlight = true;
 
     try {
+        // Gated by the server session; wait for the page-load renewal first.
+        if (isStaffPage) {
+            await ensureStaffServerSession();
+        }
         const response = await fetch(getApiUrl(`api/get_completed_orders.php?_=${Date.now()}`), { cache: 'no-store', credentials: 'same-origin' });
         if (!response.ok) return false;
 
@@ -6347,6 +6389,12 @@ async function initializeInventoryData(forceRefresh = false) {
     const defaults = buildDefaultInventoryFromMenu();
     try {
         const scopeParam = isStaffPage ? '&scope=staff' : '';
+        // The staff scope is gated by the server session. On a page load the
+        // session cookie is re-established by ensureStaffServerSession() — wait
+        // for it so the first fetch does not 401 (which hid the inventory list).
+        if (scopeParam) {
+            await ensureStaffServerSession();
+        }
         const inventoryUrl = getApiUrl(`api/get_inventory.php?_=${Date.now()}${scopeParam}`);
         const response = await fetch(inventoryUrl, { cache: 'no-store', credentials: 'same-origin' });
         if (!response.ok) {
@@ -10850,6 +10898,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // Overview metrics: fetch counts for staff logins and completed orders
 async function fetchOverviewMetrics() {
     try {
+        // The count endpoints are gated by the server session; wait for the
+        // page-load renewal so the numbers render on the first try.
+        if (isStaffPage) {
+            await ensureStaffServerSession();
+        }
+
         // Pending orders count
         let pendingCount = 0;
         try {
