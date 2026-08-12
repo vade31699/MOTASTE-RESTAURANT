@@ -66,7 +66,19 @@ php artisan serve
 
 Open `http://localhost:8000` for the customer site and `http://localhost:8000/staff` for the staff dashboard.
 
-> **Local email:** verification emails use SMTP. Without SMTP credentials in `.env`, `sendSystemEmail()` falls back to the configured mailer (log/array) and writes the message — including verification codes — to the server log.
+> **Local email:** verification emails use SMTP. The project is configured for Gmail SMTP (`smtp.gmail.com:587`) with an **App Password** (not the normal Gmail password):
+>
+> ```env
+> MAIL_MAILER=smtp
+> MAIL_HOST=smtp.gmail.com
+> MAIL_PORT=587
+> MAIL_USERNAME=dvidaddocs@gmail.com
+> MAIL_PASSWORD=<16-char Gmail App Password>
+> MAIL_FROM_ADDRESS="dvidaddocs@gmail.com"
+> MAIL_FROM_NAME="MOTASTE"
+> ```
+>
+> To create an App Password: enable 2-Step Verification at `myaccount.google.com/security`, then generate one at `myaccount.google.com/apppasswords`. Without valid credentials, `sendSystemEmail()` falls back to writing the message — including verification codes — to the server log.
 
 ## Deploying (Laravel Cloud)
 
@@ -80,7 +92,7 @@ Open `http://localhost:8000` for the customer site and `http://localhost:8000/st
 | --- | --- |
 | Login says "Invalid credentials" with correct password | Admin/staff email was changed in the DB (e.g., by a script). Restore the row or use the email-verified credentials flow. |
 | "Too many failed login attempts" | Brute-force lockout — wait 15 minutes; failed attempts are cleared on success. |
-| New device can't log in, no email arrives | SMTP is not configured — the 6-digit code is written to the server log (search `[MOTASTE device verification]`). |
+| New device can't log in, no email arrives | SMTP credentials missing/invalid — check `MAIL_*` in `.env` (Laravel Cloud dashboard for prod) and retry; the code then falls back to the server log. |
 | All API calls return 504 | The hosting PHP runtime is down — check the Laravel Cloud dashboard (deployment status, logs, metrics) and restart/redeploy. |
 
 ## Maintenance
