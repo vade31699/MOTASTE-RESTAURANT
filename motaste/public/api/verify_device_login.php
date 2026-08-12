@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 require_once __DIR__ . '/_device_auth_helpers.php';
 require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/_staff_auth_helpers.php';
+require_once __DIR__ . '/csrf_guard.php';
 
 try {
     $input = json_decode(file_get_contents('php://input'), true);
@@ -66,6 +67,18 @@ try {
     // Persist a server-side session with a 30-day cookie (same behavior as a
     // normal login) so staff-only endpoints recognize this device.
     ensureStaffAuthSession();
+
+    // Carry the CSRF token across the session-ID regeneration so tokens the
+    // client cached before this request keep validating.
+    $csrfBeforeRegenerate = '';
+    if (function_exists('getOrCreateCsrfToken')) {
+        try {
+            $csrfBeforeRegenerate = getOrCreateCsrfToken();
+        } catch (Throwable $csrfError) {
+            $csrfBeforeRegenerate = '';
+        }
+    }
+
     session_regenerate_id(true);
     $_SESSION['staff'] = [
         'role' => $role,
@@ -73,6 +86,9 @@ try {
         'name' => trim((string)($staffRow->full_name ?? '')),
         'logged_in_at' => now()->toDateTimeString()
     ];
+    if ($csrfBeforeRegenerate !== '') {
+        $_SESSION['csrf_token'] = $csrfBeforeRegenerate;
+    }
 
     // Record the successful (device-verified) login in the credentials audit trail.
     recordStaffLoginHistory($email, $role, (string)($staffRow->full_name ?? ''));
@@ -100,6 +116,10 @@ try {
 
     $sessionToken = issueStaffSessionToken($email, $role);
 
+    $freshCsrf = $csrfBeforeRegenerate !== ''
+        ? $csrfBeforeRegenerate
+        : (function_exists('getOrCreateCsrfToken') ? getOrCreateCsrfToken() : '');
+
     echo json_encode([
         'success' => true,
         'role' => $role,
@@ -107,7 +127,8 @@ try {
         'name' => trim((string)($staffRow->full_name ?? '')),
         'inviteConfirmed' => $inviteConfirmed,
         'deviceVerified' => true,
-        'sessionToken' => $sessionToken
+        'sessionToken' => $sessionToken,
+        'csrfToken' => $freshCsrf
     ]);
 } catch (Throwable $error) {
     http_response_code(500);

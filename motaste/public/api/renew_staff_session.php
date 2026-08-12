@@ -12,6 +12,7 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 use Illuminate\Support\Facades\DB;
 
 require_once __DIR__ . '/_staff_auth_helpers.php';
+require_once __DIR__ . '/csrf_guard.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
 $token = trim((string)($input['sessionToken'] ?? ''));
@@ -52,17 +53,40 @@ if (!$staffRow || strtolower(trim((string)$staffRow->role)) !== strtolower(trim(
 
 // Re-establish the PHP-native session so staff-only endpoints recognize the user.
 ensureStaffAuthSession();
+
+// Carry the CSRF token across the session-ID regeneration. The browser may
+// have cached a token issued for the previous session (fetched on page load
+// BEFORE this renewal ran); without this, every later POST would fail with
+// "Invalid CSRF token" because the old token belonged to a destroyed session.
+$csrfBeforeRegenerate = '';
+if (function_exists('getOrCreateCsrfToken')) {
+    try {
+        $csrfBeforeRegenerate = getOrCreateCsrfToken();
+    } catch (Throwable $csrfError) {
+        $csrfBeforeRegenerate = '';
+    }
+}
+
 session_regenerate_id(true);
+
 $_SESSION['staff'] = [
     'role' => $identity['role'],
     'email' => $identity['email'],
     'name' => trim((string)($staffRow->full_name ?? '')),
     'logged_in_at' => now()->toDateTimeString(),
 ];
+if ($csrfBeforeRegenerate !== '') {
+    $_SESSION['csrf_token'] = $csrfBeforeRegenerate;
+}
+
+$freshCsrf = $csrfBeforeRegenerate !== ''
+    ? $csrfBeforeRegenerate
+    : (function_exists('getOrCreateCsrfToken') ? getOrCreateCsrfToken() : '');
 
 echo json_encode([
     'success' => true,
     'role' => $identity['role'],
     'email' => $identity['email'],
     'name' => trim((string)($staffRow->full_name ?? '')),
+    'csrfToken' => $freshCsrf,
 ]);
