@@ -34,5 +34,5 @@ try {
     ]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to load admin credentials', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Unable to load admin credentials', 'details' => apiErrorDetail($error)]);
 }

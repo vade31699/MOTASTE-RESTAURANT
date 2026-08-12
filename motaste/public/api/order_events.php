@@ -1,10 +1,7 @@
 <?php
-// Server-Sent Events endpoint for order events (created/completed)
-header('Content-Type: text/event-stream');
-header('Cache-Control: no-cache');
-header('Connection: keep-alive');
-set_time_limit(0);
-
+// Server-Sent Events endpoint for order events (created/completed).
+// Staff-only: the stream exposes order numbers and item lists, so it must be
+// authenticated before any bytes are flushed.
 require __DIR__ . '/../../vendor/autoload.php';
 
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
@@ -13,7 +10,17 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_security_headers.php';
 sendSecurityHeaders();
 
+require_once __DIR__ . '/_staff_auth_helpers.php';
+if (!requireStaffAuth()) {
+    abortStaffAuthRequired();
+}
+
 use Illuminate\Support\Facades\DB;
+
+header('Content-Type: text/event-stream');
+header('Cache-Control: no-cache');
+header('Connection: keep-alive');
+set_time_limit(0);
 
 $lastId = 0;
 if (!empty($_SERVER['HTTP_LAST_EVENT_ID'])) {

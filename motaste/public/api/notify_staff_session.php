@@ -12,7 +12,12 @@ $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 require_once __DIR__ . '/_email_auth_helpers.php';
+require_once __DIR__ . '/_staff_auth_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
+
+if (!requireStaffAuth()) {
+    abortStaffAuthRequired();
+}
 
 $input = json_decode(file_get_contents('php://input'), true);
 $event = strtolower(trim((string)($input['event'] ?? '')));
@@ -26,6 +31,15 @@ validateCsrfOrExit();
 if (!in_array($event, ['login', 'logout'], true) || $role === '' || $email === '') {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Invalid notification payload']);
+    exit;
+}
+
+// Audit integrity: the reported account must be the authenticated session's
+// account so staff cannot inject fake login/logout entries for other people.
+$session = $_SESSION['staff'] ?? null;
+if (!is_array($session) || strtolower(trim((string)($session['email'] ?? ''))) !== $email) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'error' => 'Notification account does not match the active session']);
     exit;
 }
 
@@ -88,5 +102,5 @@ try {
     echo json_encode(['success' => true]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to notify admin', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Unable to notify admin', 'details' => apiErrorDetail($error)]);
 }

@@ -42,5 +42,5 @@ try {
     echo json_encode(['success' => true]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to save custom menu snapshot', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Unable to save custom menu snapshot', 'details' => apiErrorDetail($error)]);
 }

@@ -209,5 +209,5 @@ try {
     ]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to authenticate staff account', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Unable to authenticate staff account', 'details' => apiErrorDetail($error)]);
 }
