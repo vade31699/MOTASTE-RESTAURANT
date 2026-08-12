@@ -58,6 +58,15 @@ function ensureTrustedDeviceTables(): void
 
 function resolveClientIpAddress(): string
 {
+    // Prefer REMOTE_ADDR — the address the platform's load balancer/proxy
+    // actually connected from. X-Forwarded-For is client-supplied and can be
+    // spoofed, so it must never be trusted for rate limiting / audits unless
+    // REMOTE_ADDR is unavailable (e.g. local CLI runs).
+    $remote = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+    if ($remote !== '' && $remote !== '::1') {
+        return $remote;
+    }
+
     $forwarded = trim((string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
     if ($forwarded !== '') {
         $parts = explode(',', $forwarded);
@@ -67,7 +76,7 @@ function resolveClientIpAddress(): string
         }
     }
 
-    return trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+    return $remote;
 }
 
 function resolveDeviceUserAgent(): string

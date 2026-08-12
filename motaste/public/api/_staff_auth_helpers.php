@@ -470,9 +470,16 @@ const ORDER_STATUS_WINDOW_SECONDS = 60;   // per 60 seconds, per IP
 
 function resolveApiClientIp(): string
 {
-    // Reuse the device-auth helper's trusted-forwarded-headers logic when loaded.
+    // Reuse the device-auth helper's resolver when loaded (prefers REMOTE_ADDR
+    // over the spoofable X-Forwarded-For header).
     if (function_exists('resolveClientIpAddress')) {
         return resolveClientIpAddress();
+    }
+
+    // Same logic as resolveClientIpAddress: never trust client-set headers.
+    $remote = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+    if ($remote !== '' && $remote !== '::1') {
+        return $remote;
     }
 
     $forwarded = trim((string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
@@ -484,7 +491,7 @@ function resolveApiClientIp(): string
         }
     }
 
-    return trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+    return $remote;
 }
 
 /**

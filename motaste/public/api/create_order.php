@@ -16,10 +16,22 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 
+// Provides IP-based rate limiting (recordOrderApiRequest / isOrderApiRateLimited).
+require_once __DIR__ . '/_staff_auth_helpers.php';
+
 $input = json_decode(file_get_contents('php://input'), true);
-if (!$input) {
+if (!$input || !is_array($input['items'] ?? null) || count($input['items']) === 0) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
+    echo json_encode(['success' => false, 'error' => 'Invalid JSON or empty order']);
+    exit;
+}
+
+// Per-IP abuse protection for order creation: count only valid attempts so a
+// scripted spammer is throttled while a customer placing a few orders is not.
+recordOrderApiRequest('create_order');
+if (isOrderApiRateLimited('create_order', 12, 60)) {
+    http_response_code(429);
+    echo json_encode(['success' => false, 'error' => 'Too many orders placed from this device. Please wait a minute and try again.']);
     exit;
 }
 

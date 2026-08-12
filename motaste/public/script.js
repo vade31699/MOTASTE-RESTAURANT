@@ -5237,9 +5237,11 @@ async function submitOrderToServer(order) {
             })
         });
 
-        const payload = await response.json();
+        const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload.success) {
-            throw new Error(payload.error || 'Unable to save order');
+            // Surface server messages (e.g. the per-IP order rate limit) to the
+            // customer instead of a generic failure.
+            throw new Error(payload.error || `Unable to save order (HTTP ${response.status})`);
         }
 
         return {
@@ -5249,7 +5251,7 @@ async function submitOrderToServer(order) {
         };
     } catch (error) {
         console.error('Unable to save order to the server', error);
-        return null;
+        return { error: error instanceof Error ? error.message : 'Unable to submit order' };
     }
 }
 
@@ -9237,8 +9239,8 @@ async function placeWalkInOrder() {
     };
 
     const syncedOrder = await submitOrderToServer(order);
-    if (!syncedOrder) {
-        setWalkInOrderMessage('Unable to submit walk-in order. Please try again.', true);
+    if (!syncedOrder || syncedOrder.error) {
+        setWalkInOrderMessage((syncedOrder && syncedOrder.error) || 'Unable to submit walk-in order. Please try again.', true);
         return;
     }
 
@@ -9900,16 +9902,17 @@ async function confirmOrder() {
 
     const syncedOrder = await submitOrderToServer(order);
     console.debug('confirmOrder: submitOrderToServer returned', syncedOrder);
-    if (!syncedOrder) {
+    if (!syncedOrder || syncedOrder.error) {
         if (confirmOrderBtn) {
             confirmOrderBtn.disabled = false;
             confirmOrderBtn.textContent = 'Confirm Order';
         }
+        const failureMessage = (syncedOrder && syncedOrder.error) || 'Unable to submit order to server. Please try again.';
         if (checkoutMessage) {
-            checkoutMessage.textContent = 'Unable to submit order to server. Please try again.';
+            checkoutMessage.textContent = failureMessage;
             checkoutMessage.style.color = '#b00020';
         } else if (menuOrderMessage) {
-            menuOrderMessage.textContent = 'Unable to submit order to server. Please try again.';
+            menuOrderMessage.textContent = failureMessage;
         }
         return;
     }
