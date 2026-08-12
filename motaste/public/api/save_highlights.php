@@ -69,6 +69,6 @@ try {
     echo json_encode([
         'success' => false,
         'error' => 'Unable to save highlights snapshot',
-        'details' => $error->getMessage(),
+        'details' => apiErrorDetail($error),
     ]);
 }

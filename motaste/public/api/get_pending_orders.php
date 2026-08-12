@@ -88,5 +88,5 @@ try {
     echo json_encode(['success' => true, 'orders' => $result]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Load pending orders failed', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Load pending orders failed', 'details' => apiErrorDetail($error)]);
 }

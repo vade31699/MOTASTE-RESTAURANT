@@ -48,6 +48,13 @@ if (mb_strlen($reviewText) > 500) {
     exit;
 }
 
+// Lightweight spam guard: block reviews promoting external links.
+if (preg_match('/(?:https?:\/\/|www\.)/i', $reviewText)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Reviews containing links are not allowed']);
+    exit;
+}
+
 try {
     ensureReviewTables();
 
@@ -118,5 +125,5 @@ try {
     ]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to save review', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Unable to save review', 'details' => apiErrorDetail($error)]);
 }

@@ -12,59 +12,140 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_security_headers.php';
 sendSecurityHeaders();
 
+require_once __DIR__ . '/csrf_guard.php';
+require_once __DIR__ . '/_staff_auth_helpers.php';
+require_once __DIR__ . '/_helpers.php';
+
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 
 $input = json_decode(file_get_contents('php://input'), true);
-if (!$input) {
+if (!is_array($input)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
     exit;
 }
 
-$orderNumber = trim((string)($input['orderNumber'] ?? ''));
-if ($orderNumber === '') {
-    $orderNumber = (string)time();
+validateCsrfOrExit();
+
+// Rate-limit order creation per IP so the public endpoint cannot be spammed.
+if (isOrderApiRateLimited('create_order', ORDER_CREATE_MAX_PER_WINDOW, ORDER_CREATE_WINDOW_SECONDS)) {
+    http_response_code(429);
+    echo json_encode(['success' => false, 'error' => 'Too many orders from this device. Please try again in a few minutes.']);
+    exit;
 }
 
-$items = is_array($input['items'] ?? null) ? $input['items'] : [];
+$orderNumber = trim((string)($input['orderNumber'] ?? ''));
+$items = is_array($input['items'] ?? null) ? array_values($input['items']) : [];
 $paymentMethod = trim((string)($input['paymentMethod'] ?? 'Cash'));
 $orderType = trim((string)($input['orderType'] ?? 'Dine In'));
 $customerName = trim((string)($input['customerName'] ?? ''));
 $deliveryAddress = trim((string)($input['deliveryAddress'] ?? ''));
 $customerEmail = trim((string)($input['customerEmail'] ?? ''));
 $customerPhone = trim((string)($input['customerPhone'] ?? ''));
-$discountAmount = max(0, (float)($input['discount'] ?? 0));
 $loyaltyPointsRedeemed = max(0, (int)($input['loyaltyPointsRedeemed'] ?? 0));
+
+// Basic cart sanity checks. Prices are NOT taken from the client — the server
+// looks every item up in inventory and charges the stored menu price.
+if ($items === []) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Your cart is empty.']);
+    exit;
+}
+
+if (count($items) > 50) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Too many items in the cart.']);
+    exit;
+}
+
+// Load the authoritative menu prices once (normalized name -> price/stock).
+$inventoryRows = DB::table('inventory_items')->get(['name', 'price', 'stock', 'status', 'is_available']);
+$priceByNormalizedName = [];
+foreach ($inventoryRows as $row) {
+    $key = normalizeInventoryName((string)($row->name ?? ''));
+    if ($key === '' || isset($priceByNormalizedName[$key])) {
+        continue;
+    }
+    $priceByNormalizedName[$key] = [
+        'price' => (float) ($row->price ?? 0),
+        'stock' => (int) ($row->stock ?? 0),
+        'is_available' => !(($row->is_available === false || $row->is_available === 0
+            || strtolower((string)($row->is_available ?? '1')) === 'false'
+            || strtolower((string)($row->is_available ?? '1')) === '0')),
+    ];
+}
+
+$normalizedItems = [];
+$subtotal = 0.0;
+foreach ($items as $index => $it) {
+    $name = trim((string)($it['name'] ?? ''));
+    $qty = (int)($it['quantity'] ?? 0);
+
+    if ($name === '') {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'One of the cart items is missing a name.']);
+        exit;
+    }
+    if ($qty < 1 || $qty > 99) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => "Invalid quantity for \"{$name}\"."]);
+        exit;
+    }
+
+    $key = normalizeInventoryName($name);
+    if (!isset($priceByNormalizedName[$key])) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => "\"{$name}\" is no longer on the menu. Please refresh and try again."]);
+        exit;
+    }
+
+    $meta = $priceByNormalizedName[$key];
+    if (!$meta['is_available'] || $meta['stock'] <= 0) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => "\"{$name}\" is currently unavailable."]);
+        exit;
+    }
+
+    $unitPrice = round($meta['price'], 2);
+    $components = is_array($it['components'] ?? null) ? array_values($it['components']) : null;
+    $lineTotal = round($unitPrice * $qty, 2);
+    $subtotal += $lineTotal;
+
+    $normalizedItems[] = [
+        'name' => $name,
+        'unit_price' => $unitPrice,
+        'quantity' => $qty,
+        'line_total' => $lineTotal,
+        'components' => $components,
+    ];
+}
+$subtotal = round($subtotal, 2);
 
 // Loyalty redemption: validate against the customer's balance BEFORE the order
 // is inserted, so the discount amount and stored points are authoritative and
 // consistent. The actual point deduction happens after the order is created.
+// Discounts can ONLY come from a server-verified loyalty redemption; client
+// supplied discount values are ignored (prevents price/discount tampering).
+$discountAmount = 0.0;
 $loyaltyRedemptionPending = false;
-if ($loyaltyPointsRedeemed > 0 && trim((string)($input['customerPhone'] ?? '')) !== '') {
-    require_once __DIR__ . '/_staff_auth_helpers.php';
-
-    $loyaltyAccount = getLoyaltyAccount(trim((string)$input['customerPhone']));
+if ($loyaltyPointsRedeemed > 0 && $customerPhone !== '') {
+    $loyaltyAccount = getLoyaltyAccount($customerPhone);
     $requiredPoints = $loyaltyPointsRedeemed * LOYALTY_REDEMPTION_POINTS;
     $availablePoints = $loyaltyAccount ? (int)($loyaltyAccount->points ?? 0) : 0;
 
     if ($loyaltyAccount && $availablePoints >= $requiredPoints) {
-        // Recompute the discount authoritatively from the redeemed blocks.
-        $discountAmount = $loyaltyPointsRedeemed * LOYALTY_REDEMPTION_VALUE;
+        $discountAmount = (float) ($loyaltyPointsRedeemed * LOYALTY_REDEMPTION_VALUE);
         $loyaltyRedemptionPending = true;
     } else {
         // Insufficient points: ignore the redemption request entirely.
         $loyaltyPointsRedeemed = 0;
-        $discountAmount = 0;
+        $discountAmount = 0.0;
     }
 }
 
-$subtotal = 0;
-foreach ($items as $it) {
-    $subtotal += (float)($it['price'] ?? 0) * (int)($it['quantity'] ?? 0);
-}
-$total = $subtotal;
+$total = max(0, $subtotal - $discountAmount);
 
 try {
     // Ensure customer detail columns exist (schema managed by migrations; this
@@ -88,12 +169,17 @@ try {
 
     $orderId = null;
     $insertedItems = 0;
+    $finalOrderNumber = '';
+    $maxInsertAttempts = 3;
 
-    DB::transaction(function () use (&$orderId, &$insertedItems, $orderNumber, $paymentMethod, $orderType, $customerName, $deliveryAddress, $customerEmail, $customerPhone, $discountAmount, $loyaltyPointsRedeemed, $subtotal, $total, $items) {
+    for ($attempt = 0; $attempt < $maxInsertAttempts; $attempt++) {
+        $finalOrderNumber = ensureUniqueOrderNumber($orderNumber);
+
+        try {
+            DB::transaction(function () use (&$orderId, &$insertedItems, $finalOrderNumber, $paymentMethod, $orderType, $customerName, $deliveryAddress, $customerEmail, $customerPhone, $discountAmount, $loyaltyPointsRedeemed, $subtotal, $total, $normalizedItems) {
         $now = now();
-        $finalTotal = max(0, $total - $discountAmount);
         $orderId = DB::table('orders')->insertGetId([
-            'order_number' => $orderNumber,
+            'order_number' => $finalOrderNumber,
             'order_date' => $now,
             'status' => 'pending',
             'payment_status' => 'unpaid',
@@ -106,24 +192,20 @@ try {
             'subtotal' => $subtotal,
             'discount' => $discountAmount,
             'loyalty_points_redeemed' => $loyaltyPointsRedeemed,
-            'total_amount' => $finalTotal,
+            'total_amount' => $total,
             'created_at' => $now,
             'updated_at' => $now,
         ]);
 
-        foreach ($items as $it) {
-            $itemName = trim((string)($it['name'] ?? 'Menu item'));
-            $price = (float)($it['price'] ?? 0);
-            $qty = (int)($it['quantity'] ?? 0);
-            $lineTotal = $price * $qty;
-            $components = is_array($it['components'] ?? null) ? array_values($it['components']) : null;
+        foreach ($normalizedItems as $item) {
+            $components = $item['components'];
 
             DB::table('order_items')->insert([
                 'order_id' => $orderId,
-                'quantity' => $qty,
-                'unit_price' => $price,
-                'line_total' => $lineTotal,
-                'notes' => $itemName,
+                'quantity' => $item['quantity'],
+                'unit_price' => $item['unit_price'],
+                'line_total' => $item['line_total'],
+                'notes' => $item['name'],
                 'components' => $components !== null ? json_encode($components, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -148,10 +230,10 @@ try {
 
             DB::table('order_events')->insert([
                 'order_id' => $orderId,
-                'order_number' => $orderNumber,
+                'order_number' => $finalOrderNumber,
                 'event_type' => 'order_created',
                 'order_type' => $orderType,
-                'payload' => json_encode(['items' => $items], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'payload' => json_encode(['items' => $normalizedItems], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -159,25 +241,44 @@ try {
             // don't fail order creation for event logging errors
             error_log('order_events insert failed: ' . $__e->getMessage());
         }
-    });
+        });
+
+            // A concurrent request may have claimed our order number between
+            // the uniqueness check and the insert; retry with a fresh number.
+            break;
+        } catch (Throwable $txError) {
+            if ($attempt < $maxInsertAttempts - 1 && isOrderNumberUniqueViolation($txError)) {
+                continue;
+            }
+            throw $txError;
+        }
+    }
 
     // Deduct the loyalty points after the order exists (best-effort).
     if ($loyaltyRedemptionPending) {
         try {
-            require_once __DIR__ . '/_staff_auth_helpers.php';
             redeemLoyaltyPoints(
-                trim((string)($input['customerPhone'] ?? '')),
+                $customerPhone,
                 $loyaltyPointsRedeemed,
                 $orderId,
-                $orderNumber
+                $finalOrderNumber
             );
         } catch (Throwable $redeemError) {
             error_log('loyalty redemption failed: ' . $redeemError->getMessage());
         }
     }
 
-    echo json_encode(['success' => true, 'orderId' => $orderId, 'insertedItems' => $insertedItems, 'discount' => $discountAmount]);
+    recordOrderApiRequest('create_order');
+
+    echo json_encode([
+        'success' => true,
+        'orderId' => $orderId,
+        'orderNumber' => $finalOrderNumber,
+        'insertedItems' => $insertedItems,
+        'discount' => $discountAmount,
+        'total' => $total,
+    ]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Insert order failed', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Insert order failed', 'details' => apiErrorDetail($error)]);
 }

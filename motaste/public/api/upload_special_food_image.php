@@ -13,6 +13,10 @@ if (!requireStaffAuth()) {
     abortStaffAuthRequired();
 }
 
+require_once __DIR__ . '/csrf_guard.php';
+validateCsrfOrExit();
+
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MB
 
 try {
     if (!isset($_FILES['image']) || !is_array($_FILES['image'])) {
@@ -34,10 +38,32 @@ try {
         exit;
     }
 
-    $extension = strtolower(pathinfo((string)$file['name'], PATHINFO_EXTENSION)) ?: 'jpg';
-    $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-    if (!in_array($extension, $allowed, true)) {
-        $extension = 'jpg';
+    if ((int)$file['size'] > MAX_UPLOAD_BYTES) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Image exceeds the 5 MB size limit']);
+        exit;
+    }
+
+    // Verify the file is a real image and derive the extension from its actual
+    // content rather than trusting the client-supplied filename/extension.
+    $imageInfo = @getimagesize((string)$file['tmp_name']);
+    if ($imageInfo === false || empty($imageInfo['mime'])) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Uploaded file is not a valid image']);
+        exit;
+    }
+
+    $mimeToExtension = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/gif' => 'gif',
+        'image/webp' => 'webp',
+    ];
+    $extension = $mimeToExtension[$imageInfo['mime']] ?? null;
+    if ($extension === null) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Only JPG, PNG, GIF, and WebP images are allowed']);
+        exit;
     }
 
     $fileName = 'special-food-' . time() . '-' . bin2hex(random_bytes(6)) . '.' . $extension;
@@ -63,5 +89,5 @@ try {
     ]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Image upload failed', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Image upload failed', 'details' => apiErrorDetail($error)]);
 }

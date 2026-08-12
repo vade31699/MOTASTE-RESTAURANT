@@ -420,6 +420,111 @@ function redeemLoyaltyPoints(string $phone, int $redeemBlocks, int $orderId, str
 }
 
 /* ------------------------------------------------------------------ */
+/* Order API rate limiting                                             */
+/* ------------------------------------------------------------------ */
+
+const ORDER_CREATE_MAX_PER_WINDOW = 15;   // order creations
+const ORDER_CREATE_WINDOW_SECONDS = 600;  // per 10 minutes, per IP
+const ORDER_STATUS_MAX_PER_WINDOW = 240;  // order status lookups
+const ORDER_STATUS_WINDOW_SECONDS = 60;   // per 60 seconds, per IP
+
+function resolveApiClientIp(): string
+{
+    // Reuse the device-auth helper's trusted-forwarded-headers logic when loaded.
+    if (function_exists('resolveClientIpAddress')) {
+        return resolveClientIpAddress();
+    }
+
+    $forwarded = trim((string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
+    if ($forwarded !== '') {
+        $parts = explode(',', $forwarded);
+        $first = trim((string)$parts[0]);
+        if ($first !== '') {
+            return $first;
+        }
+    }
+
+    return trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+}
+
+/**
+ * Returns the authenticated staff array when the account is an Admin, or null.
+ * Guards account-management endpoints so a Cashier cannot promote themselves
+ * or modify other staff accounts.
+ */
+function requireAdminAuth(): ?array
+{
+    $staff = requireStaffAuth();
+    if ($staff && strtolower(trim((string)($staff['role'] ?? ''))) === 'admin') {
+        return $staff;
+    }
+
+    return null;
+}
+
+/**
+ * Ensure the order_request_log table used to rate-limit public order APIs.
+ */
+function ensureOrderRequestLogTable(): void
+{
+    try {
+        if (!Schema::hasTable('order_request_log')) {
+            Schema::create('order_request_log', function (Blueprint $table) {
+                $table->id();
+                $table->string('ip_address', 45)->nullable();
+                $table->string('endpoint', 64)->nullable();
+                $table->timestamp('created_at')->nullable();
+
+                $table->index(['ip_address', 'endpoint', 'created_at'], 'order_request_log_ip_endpoint_idx');
+            });
+        }
+    } catch (Throwable $error) {
+        // Rate limiting must never block a request; the migration applies on deploy.
+        error_log('order_request_log table check failed: ' . $error->getMessage());
+    }
+}
+
+/**
+ * Record a public order API request (create/lookup) for rate limiting.
+ */
+function recordOrderApiRequest(string $endpoint): void
+{
+    ensureOrderRequestLogTable();
+
+    try {
+        DB::table('order_request_log')->insert([
+            'ip_address' => resolveApiClientIp(),
+            'endpoint' => $endpoint,
+            'created_at' => now()->toDateTimeString(),
+        ]);
+    } catch (Throwable $error) {
+        error_log('order_request_log insert failed: ' . $error->getMessage());
+    }
+}
+
+/**
+ * True when this IP has exceeded the per-window request budget for an endpoint.
+ */
+function isOrderApiRateLimited(string $endpoint, int $maxRequests, int $windowSeconds): bool
+{
+    ensureOrderRequestLogTable();
+
+    try {
+        $since = now()->subSeconds($windowSeconds);
+        $count = DB::table('order_request_log')
+            ->where('endpoint', $endpoint)
+            ->where('ip_address', resolveApiClientIp())
+            ->where('created_at', '>=', $since->toDateTimeString())
+            ->count();
+
+        return $count >= $maxRequests;
+    } catch (Throwable $error) {
+        error_log('order_request_log rate check failed: ' . $error->getMessage());
+        return false;
+    }
+}
+
+/* ------------------------------------------------------------------ */
 /* Low-stock email alert                                               */
 /* ------------------------------------------------------------------ */
 
