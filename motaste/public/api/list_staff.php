@@ -11,6 +11,14 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
 
+require_once __DIR__ . '/_security_headers.php';
+sendSecurityHeaders();
+
+require_once __DIR__ . '/_staff_auth_helpers.php';
+if (!requireStaffAuth()) {
+    abortStaffAuthRequired();
+}
+
 try {
     $staffRecords = DB::table('staff')
         ->select('id', 'full_name', 'role', 'email')

@@ -1,58 +1,89 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# MOTASTE Restaurant System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+An online ordering and restaurant-management platform for **MOTASTE** (Batchoy, Silog, Fried Chicken, Breakfast, Drinks, Add-ons, and Specials). Customers order through a public site while staff manage orders, inventory, sales, reviews, highlights, and credentials from a staff dashboard.
 
-## About Laravel
+## Stack
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Backend:** Laravel (PHP 8.x) — used for routing and shared helpers; business logic lives in standalone PHP endpoints under `public/api/`
+- **Database:** PostgreSQL (Laravel Cloud managed) — `staff`, `users`, `orders`, `inventory_items`, `customer_reviews`, `trusted_devices`, `login_attempts`, `staff_session_tokens`, and more
+- **Frontend:** Vanilla HTML/CSS/JS (`public/index.html` for customers, `public/staff.html` for staff) + Chart.js/Boxicons/FontAwesome
+- **Hosting:** Laravel Cloud (`https://motasterestaurant890.laravel.cloud`)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Features
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Customer site (`index.html`)
+- Menu browsing with categories (Batchoy, Silog, Fried Chicken, Breakfast, Drinks, Add-ons, Specials)
+- Cart + online ordering with order tracking (status + preparation countdown via Server-Sent Events)
+- Star reviews with daily per-customer limits
+- Homepage highlights slideshow (admin-managed)
+- Loyalty points lookup/redemption (points per peso)
 
-## Learning Laravel
+### Staff dashboard (`staff.html`)
+- **Roles:** Admin, Cashier, Inventory Manager (role-based access to sections)
+- **Overview:** live metrics — pending/completed orders, revenue, prep time, low stock, best seller, sales analytics, receipt export (Excel)
+- **Orders:** walk-in order builder, pending-order queue with prep timers, completion/refund/cancel
+- **Inventory:** product CRUD, categories, stock, unit cost, reorder levels, availability, special-food images, low-stock alerts
+- **Sales:** daily/weekly/monthly analytics + insights (busiest hours, best sellers, period comparison, PDF export)
+- **Logs:** real-time activity + review management (publish/delete)
+- **Account Management:** create/edit/delete Cashier & Inventory Manager accounts (Gmail-only, invite code confirmation)
+- **Credentials (Admin only):** change the admin email/password (email-verified), manage trusted devices, view login history
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Security model
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- **Password hashing:** `password_hash()` (bcrypt) — plaintext passwords are never stored
+- **Login rate limiting:** 6 failed attempts per 15 minutes locks the account (`login_attempts`)
+- **Device verification:** new browsers must confirm a 6-digit code emailed to the account before the device is trusted (`trusted_devices`, `login_verification_tokens`)
+- **Session tokens:** after login the client stores an opaque bearer token (hashed server-side in `staff_session_tokens`) instead of the password. Logout revokes the token and destroys the PHP session
+- **Endpoint gating:** staff endpoints require `requireStaffAuth()` / `requireAdminAuth()`; the Admin account can only be changed through the email-verified credentials flow
+- **CSRF:** staff mutation endpoints validate an `X-CSRF-TOKEN`
+- **Security headers:** `_security_headers.php` applied to API responses
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## Project structure
 
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+app/            Laravel app (models, middleware, console commands)
+public/
+  index.html    Customer site
+  staff.html    Staff dashboard
+  script.js     Shared frontend logic (both sites)
+  api/          Standalone PHP endpoints (auth, orders, inventory, reviews…)
+  style.css     Styles
+database/       Migrations + seeders
+routes/         Laravel routes
+scripts/        One-off dev/ops scripts
+tests/          Pest feature/unit tests
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Local setup
 
-## Contributing
+```bash
+cp .env.example .env    # configure DB (see .env for the production Postgres URL)
+composer install
+npm install
+php artisan migrate
+php artisan serve
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Open `http://localhost:8000` for the customer site and `http://localhost:8000/staff` for the staff dashboard.
 
-## Code of Conduct
+> **Local email:** verification emails use SMTP. Without SMTP credentials in `.env`, `sendSystemEmail()` falls back to the configured mailer (log/array) and writes the message — including verification codes — to the server log.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Deploying (Laravel Cloud)
 
-## Security Vulnerabilities
+1. Push to the connected Git repository (Laravel Cloud auto-deploys).
+2. In the dashboard set the production environment variables (APP_KEY, DB_*, MAIL_* SMTP credentials).
+3. Verify with `GET https://your-app.laravel.cloud/api/health.php` (returns `{"status":"ok","db":"ok"}`).
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Troubleshooting
 
-## License
+| Symptom | Likely cause |
+| --- | --- |
+| Login says "Invalid credentials" with correct password | Admin/staff email was changed in the DB (e.g., by a script). Restore the row or use the email-verified credentials flow. |
+| "Too many failed login attempts" | Brute-force lockout — wait 15 minutes; failed attempts are cleared on success. |
+| New device can't log in, no email arrives | SMTP is not configured — the 6-digit code is written to the server log (search `[MOTASTE device verification]`). |
+| All API calls return 504 | The hosting PHP runtime is down — check the Laravel Cloud dashboard (deployment status, logs, metrics) and restart/redeploy. |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Maintenance
+
+- One-off DB scripts live in `scripts/` and should be removed after use.
+- Do **not** run smoke tests against the production site — tests connected to the production DB overwrote the admin account once (2026-08-12). Use a staging database.

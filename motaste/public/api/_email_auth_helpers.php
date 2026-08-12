@@ -239,6 +239,16 @@ function generateVerificationCode(int $length = 6): string
     return $digits;
 }
 
+/**
+ * Normalize a mail env value: trim it and treat the literal string "null" as
+ * an empty value.
+ */
+function normalizeMailEnv($value): string
+{
+    $trimmed = trim((string)$value);
+    return strtolower($trimmed) === 'null' ? '' : $trimmed;
+}
+
 function sendSystemEmail(string $to, string $subject, string $body): array
 {
     $to = trim($to);
@@ -246,27 +256,28 @@ function sendSystemEmail(string $to, string $subject, string $body): array
         return ['success' => false, 'error' => 'Recipient email is required'];
     }
 
-    $smtpHost = trim((string)config('mail.mailers.smtp.host', ''));
-    $smtpPort = (string)config('mail.mailers.smtp.port', '');
-    $smtpUser = trim((string)config('mail.mailers.smtp.username', ''));
-    $smtpPass = (string)config('mail.mailers.smtp.password', '');
-    $smtpScheme = trim((string)config('mail.mailers.smtp.scheme', ''));
+    // Treat empty and the literal string "null" (common in .env files) as unset.
+    $smtpHost = normalizeMailEnv(config('mail.mailers.smtp.host', ''));
+    $smtpPort = normalizeMailEnv(config('mail.mailers.smtp.port', ''));
+    $smtpUser = normalizeMailEnv(config('mail.mailers.smtp.username', ''));
+    $smtpPass = normalizeMailEnv(config('mail.mailers.smtp.password', ''));
+    $smtpScheme = normalizeMailEnv(config('mail.mailers.smtp.scheme', ''));
 
     // Cloud envs can lag behind config cache; pull direct env values when config is empty.
     if ($smtpHost === '') {
-        $smtpHost = trim((string)(env('MAIL_HOST') ?: (getenv('MAIL_HOST') ?: '')));
+        $smtpHost = normalizeMailEnv(env('MAIL_HOST') ?: (getenv('MAIL_HOST') ?: ''));
     }
     if ($smtpPort === '') {
-        $smtpPort = (string)(env('MAIL_PORT') ?: (getenv('MAIL_PORT') ?: ''));
+        $smtpPort = normalizeMailEnv(env('MAIL_PORT') ?: (getenv('MAIL_PORT') ?: ''));
     }
     if ($smtpUser === '') {
-        $smtpUser = trim((string)(env('MAIL_USERNAME') ?: (getenv('MAIL_USERNAME') ?: '')));
+        $smtpUser = normalizeMailEnv(env('MAIL_USERNAME') ?: (getenv('MAIL_USERNAME') ?: ''));
     }
     if ($smtpPass === '') {
-        $smtpPass = (string)(env('MAIL_PASSWORD') ?: (getenv('MAIL_PASSWORD') ?: ''));
+        $smtpPass = normalizeMailEnv(env('MAIL_PASSWORD') ?: (getenv('MAIL_PASSWORD') ?: ''));
     }
     if ($smtpScheme === '') {
-        $smtpScheme = trim((string)(env('MAIL_SCHEME') ?: (getenv('MAIL_SCHEME') ?: '')));
+        $smtpScheme = normalizeMailEnv(env('MAIL_SCHEME') ?: (getenv('MAIL_SCHEME') ?: ''));
     }
 
     config([
@@ -286,12 +297,38 @@ function sendSystemEmail(string $to, string $subject, string $body): array
     if ($smtpPass === '') $missing[] = 'MAIL_PASSWORD';
 
     if ($missing) {
-        return [
-            'success' => false,
-            'driver' => 'smtp',
-            'delivered' => false,
-            'error' => 'SMTP configuration is incomplete in deployment environment. Missing: ' . implode(', ', $missing),
-        ];
+        // No SMTP credentials configured (typical for local development). Fall
+        // back to the configured default mailer (log/array) so the flow still
+        // completes, and write the message to the server log so verification
+        // codes remain retrievable.
+        $driver = (string)config('mail.default', 'log');
+        try {
+            Mail::raw($body, function ($message) use ($to, $subject): void {
+                $message->to($to)->subject($subject);
+            });
+
+            error_log('[MOTASTE mail] (fallback driver: ' . $driver . ') to=' . $to . ' subject=' . $subject . ' body=' . str_replace(["\r", "\n"], ' ', $body));
+
+            return [
+                'success' => true,
+                'driver' => $driver,
+                'delivered' => false,
+                'warning' => 'SMTP is not configured; the message was written to the server log instead of being emailed. Missing: ' . implode(', ', $missing),
+            ];
+        } catch (Throwable $mailError) {
+            Log::error('Fallback email send failed', [
+                'to' => $to,
+                'subject' => $subject,
+                'error' => $mailError->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'driver' => $driver,
+                'delivered' => false,
+                'error' => 'Email could not be delivered: ' . $mailError->getMessage(),
+            ];
+        }
     }
 
     // Laravel expects smtp/smtps schemes. For Gmail on port 587, smtp enables STARTTLS.

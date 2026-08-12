@@ -18,6 +18,8 @@ require_once __DIR__ . '/csrf_guard.php';
 require_once __DIR__ . '/_review_log_helpers.php';
 // Provides resolveClientIpAddress() used for the anonymous reviewer key fallback.
 require_once __DIR__ . '/_device_auth_helpers.php';
+// Provides IP-based rate limiting (recordOrderApiRequest / isOrderApiRateLimited).
+require_once __DIR__ . '/_staff_auth_helpers.php';
 
 function ensureReviewTables(): void
 {
@@ -31,6 +33,14 @@ $reviewText = trim((string)($input['reviewText'] ?? ''));
 $reviewerToken = trim((string)($input['reviewerToken'] ?? ''));
 
 validateCsrfOrExit();
+
+// Brute-force protection: a modest per-IP budget for review submissions.
+recordOrderApiRequest('save_review');
+if (isOrderApiRateLimited('save_review', 5, 60)) {
+    http_response_code(429);
+    echo json_encode(['success' => false, 'error' => 'Too many review submissions. Please try again later.']);
+    exit;
+}
 
 $reviewText = strip_tags($reviewText);
 $reviewText = preg_replace('/\s+/u', ' ', $reviewText);

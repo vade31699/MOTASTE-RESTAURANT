@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Database\Schema\Blueprint;
 
 /**
@@ -27,6 +28,23 @@ const STAFF_LOGIN_LOCKOUT_MINUTES = 15;
  */
 function ensureStaffEnhancementSchema(): void
 {
+    // Run the introspection queries at most once per request, and remember the
+    // successful result in the cache so logins don't pay for ~15 schema queries
+    // on every request (these tables are also managed by migrations).
+    static $verifiedThisRequest = false;
+    if ($verifiedThisRequest) {
+        return;
+    }
+
+    try {
+        if (Cache::has('motaste_schema_ok_v1')) {
+            $verifiedThisRequest = true;
+            return;
+        }
+    } catch (Throwable $cacheError) {
+        // Cache unavailable (e.g. fresh deployment) — fall through to the full check.
+    }
+
     try {
         if (!Schema::hasTable('login_attempts')) {
             Schema::create('login_attempts', function (Blueprint $table) {
@@ -55,6 +73,20 @@ function ensureStaffEnhancementSchema(): void
                 $table->string('name', 191)->nullable();
                 $table->integer('points')->default(0);
                 $table->timestamps();
+            });
+        }
+
+        if (!Schema::hasTable('staff_session_tokens')) {
+            Schema::create('staff_session_tokens', function (Blueprint $table) {
+                $table->id();
+                $table->string('email', 191);
+                $table->string('role', 100)->nullable();
+                // SHA-256 hash of the opaque bearer token (never stored in plaintext).
+                $table->string('token_hash', 64)->unique();
+                $table->timestamp('expires_at');
+                $table->timestamps();
+
+                $table->index('email', 'staff_session_tokens_email_idx');
             });
         }
 
@@ -126,6 +158,14 @@ function ensureStaffEnhancementSchema(): void
                 $table->timestamp('refunded_at')->nullable();
             });
         }
+        // Schema verified successfully — remember it briefly so subsequent
+        // requests skip the introspection round-trips.
+        try {
+            Cache::put('motaste_schema_ok_v1', true, 600);
+        } catch (Throwable $cacheError) {
+            // Best effort.
+        }
+        $verifiedThisRequest = true;
     } catch (Throwable $error) {
         // Schema changes must never block a request; migrations apply on deploy.
         error_log('ensureStaffEnhancementSchema failed: ' . $error->getMessage());
@@ -416,6 +456,251 @@ function redeemLoyaltyPoints(string $phone, int $redeemBlocks, int $orderId, str
     } catch (Throwable $error) {
         error_log('redeemLoyaltyPoints failed: ' . $error->getMessage());
         return 0.0;
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* Order API rate limiting                                             */
+/* ------------------------------------------------------------------ */
+
+const ORDER_CREATE_MAX_PER_WINDOW = 15;   // order creations
+const ORDER_CREATE_WINDOW_SECONDS = 600;  // per 10 minutes, per IP
+const ORDER_STATUS_MAX_PER_WINDOW = 240;  // order status lookups
+const ORDER_STATUS_WINDOW_SECONDS = 60;   // per 60 seconds, per IP
+
+function resolveApiClientIp(): string
+{
+    // Reuse the device-auth helper's trusted-forwarded-headers logic when loaded.
+    if (function_exists('resolveClientIpAddress')) {
+        return resolveClientIpAddress();
+    }
+
+    $forwarded = trim((string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
+    if ($forwarded !== '') {
+        $parts = explode(',', $forwarded);
+        $first = trim((string)$parts[0]);
+        if ($first !== '') {
+            return $first;
+        }
+    }
+
+    return trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+}
+
+/**
+ * Returns the authenticated staff array when the account is an Admin, or null.
+ * Guards account-management endpoints so a Cashier cannot promote themselves
+ * or modify other staff accounts.
+ */
+function requireAdminAuth(): ?array
+{
+    $staff = requireStaffAuth();
+    if ($staff && strtolower(trim((string)($staff['role'] ?? ''))) === 'admin') {
+        return $staff;
+    }
+
+    return null;
+}
+
+/**
+ * Ensure the order_request_log table used to rate-limit public order APIs.
+ */
+function ensureOrderRequestLogTable(): void
+{
+    try {
+        if (!Schema::hasTable('order_request_log')) {
+            Schema::create('order_request_log', function (Blueprint $table) {
+                $table->id();
+                $table->string('ip_address', 45)->nullable();
+                $table->string('endpoint', 64)->nullable();
+                $table->timestamp('created_at')->nullable();
+
+                $table->index(['ip_address', 'endpoint', 'created_at'], 'order_request_log_ip_endpoint_idx');
+            });
+        }
+    } catch (Throwable $error) {
+        // Rate limiting must never block a request; the migration applies on deploy.
+        error_log('order_request_log table check failed: ' . $error->getMessage());
+    }
+}
+
+/**
+ * Record a public order API request (create/lookup) for rate limiting.
+ */
+function recordOrderApiRequest(string $endpoint): void
+{
+    ensureOrderRequestLogTable();
+
+    try {
+        DB::table('order_request_log')->insert([
+            'ip_address' => resolveApiClientIp(),
+            'endpoint' => $endpoint,
+            'created_at' => now()->toDateTimeString(),
+        ]);
+    } catch (Throwable $error) {
+        error_log('order_request_log insert failed: ' . $error->getMessage());
+    }
+}
+
+/**
+ * True when this IP has exceeded the per-window request budget for an endpoint.
+ */
+function isOrderApiRateLimited(string $endpoint, int $maxRequests, int $windowSeconds): bool
+{
+    ensureOrderRequestLogTable();
+
+    try {
+        $since = now()->subSeconds($windowSeconds);
+        $count = DB::table('order_request_log')
+            ->where('endpoint', $endpoint)
+            ->where('ip_address', resolveApiClientIp())
+            ->where('created_at', '>=', $since->toDateTimeString())
+            ->count();
+
+        return $count >= $maxRequests;
+    } catch (Throwable $error) {
+        error_log('order_request_log rate check failed: ' . $error->getMessage());
+        return false;
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* Staff session tokens                                               */
+/* ------------------------------------------------------------------ */
+
+const STAFF_SESSION_TOKEN_TTL_DAYS = 30;
+const STAFF_SESSION_TOKEN_MAX_PER_ACCOUNT = 5;
+
+function ensureStaffSessionTokenTable(): void
+{
+    // Table is created by ensureStaffEnhancementSchema(); this is a safe no-op
+    // fallback for code paths that need it directly.
+    try {
+        if (!Schema::hasTable('staff_session_tokens')) {
+            Schema::create('staff_session_tokens', function (Blueprint $table) {
+                $table->id();
+                $table->string('email', 191);
+                $table->string('role', 100)->nullable();
+                $table->string('token_hash', 64)->unique();
+                $table->timestamp('expires_at');
+                $table->timestamps();
+
+                $table->index('email', 'staff_session_tokens_email_idx');
+            });
+        }
+    } catch (Throwable $error) {
+        error_log('ensureStaffSessionTokenTable failed: ' . $error->getMessage());
+    }
+}
+
+/**
+ * Issue a new opaque bearer token for a staff account. Only the SHA-256 hash
+ * is stored; the plaintext token is returned exactly once for the client to
+ * keep in browser storage (replacing plaintext passwords).
+ */
+function issueStaffSessionToken(string $email, string $role): string
+{
+    ensureStaffSessionTokenTable();
+    $email = strtolower(trim($email));
+    $token = bin2hex(random_bytes(32));
+
+    try {
+        // Expire old tokens and cap the number of live sessions per account.
+        DB::table('staff_session_tokens')
+            ->where('email', $email)
+            ->where('expires_at', '<', now()->toDateTimeString())
+            ->delete();
+
+        $liveCount = (int)DB::table('staff_session_tokens')->where('email', $email)->count();
+        if ($liveCount >= STAFF_SESSION_TOKEN_MAX_PER_ACCOUNT) {
+            $oldest = DB::table('staff_session_tokens')
+                ->where('email', $email)
+                ->orderBy('id', 'asc')
+                ->limit($liveCount - STAFF_SESSION_TOKEN_MAX_PER_ACCOUNT + 1)
+                ->get(['id']);
+            foreach ($oldest as $row) {
+                DB::table('staff_session_tokens')->where('id', $row->id)->delete();
+            }
+        }
+
+        DB::table('staff_session_tokens')->insert([
+            'email' => $email,
+            'role' => trim($role),
+            'token_hash' => hash('sha256', $token),
+            'expires_at' => now()->addDays(STAFF_SESSION_TOKEN_TTL_DAYS)->toDateTimeString(),
+            'created_at' => now()->toDateTimeString(),
+            'updated_at' => now()->toDateTimeString(),
+        ]);
+    } catch (Throwable $error) {
+        error_log('issueStaffSessionToken failed: ' . $error->getMessage());
+    }
+
+    return $token;
+}
+
+/**
+ * Resolve a session token to its account identity, or null when invalid/expired.
+ */
+function resolveStaffSessionToken(?string $token): ?array
+{
+    if ($token === null || trim($token) === '') {
+        return null;
+    }
+    ensureStaffSessionTokenTable();
+
+    try {
+        $row = DB::table('staff_session_tokens')
+            ->where('token_hash', hash('sha256', trim($token)))
+            ->first();
+        if (!$row) {
+            return null;
+        }
+        if (now()->greaterThan($row->expires_at)) {
+            DB::table('staff_session_tokens')->where('id', $row->id)->delete();
+            return null;
+        }
+        return [
+            'email' => strtolower(trim((string)$row->email)),
+            'role' => trim((string)($row->role ?? '')),
+        ];
+    } catch (Throwable $error) {
+        error_log('resolveStaffSessionToken failed: ' . $error->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Revoke a single session token (logout).
+ */
+function revokeStaffSessionToken(?string $token): void
+{
+    if ($token === null || trim($token) === '') {
+        return;
+    }
+    ensureStaffSessionTokenTable();
+
+    try {
+        DB::table('staff_session_tokens')
+            ->where('token_hash', hash('sha256', trim($token)))
+            ->delete();
+    } catch (Throwable $error) {
+        error_log('revokeStaffSessionToken failed: ' . $error->getMessage());
+    }
+}
+
+/**
+ * Revoke every live session for an account (used after a password/email change).
+ */
+function revokeAllStaffSessionTokens(string $email): void
+{
+    ensureStaffSessionTokenTable();
+
+    try {
+        DB::table('staff_session_tokens')
+            ->whereRaw('LOWER(email) = ?', [strtolower(trim($email))])
+            ->delete();
+    } catch (Throwable $error) {
+        error_log('revokeAllStaffSessionTokens failed: ' . $error->getMessage());
     }
 }
 

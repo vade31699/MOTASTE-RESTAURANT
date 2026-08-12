@@ -98,13 +98,16 @@ try {
         // Auditing must never block the login response.
     }
 
+    $sessionToken = issueStaffSessionToken($email, $role);
+
     echo json_encode([
         'success' => true,
         'role' => $role,
         'email' => strtolower(trim((string)($staffRow->email ?? ''))),
         'name' => trim((string)($staffRow->full_name ?? '')),
         'inviteConfirmed' => $inviteConfirmed,
-        'deviceVerified' => true
+        'deviceVerified' => true,
+        'sessionToken' => $sessionToken
     ]);
 } catch (Throwable $error) {
     http_response_code(500);

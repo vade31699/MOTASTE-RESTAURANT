@@ -16,9 +16,18 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 require_once __DIR__ . '/_helpers.php';
+require_once __DIR__ . '/_staff_auth_helpers.php';
 
 // Best-effort: prep columns are guaranteed by the helper (or the migration).
 ensureOrderPrepTimerColumns();
+
+// Per-IP rate limit for order status lookups (used by the customer poller).
+recordOrderApiRequest('get_order_status');
+if (isOrderApiRateLimited('get_order_status', 300, 60)) {
+    http_response_code(429);
+    echo json_encode(['success' => false, 'error' => 'Too many requests. Please try again shortly.']);
+    exit;
+}
 
 $input = json_decode(file_get_contents('php://input'), true);
 $orderNumbers = $input['orderNumbers'] ?? [];

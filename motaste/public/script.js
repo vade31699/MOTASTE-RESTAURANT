@@ -80,28 +80,15 @@ function getCurrentStaffAccounts() {
 
 function getLoggedInStaffSession() {
     const persistedSession = getPersistedStaffSession();
-    if (!persistedSession || !persistedSession.email || !persistedSession.password || !persistedSession.role) {
+    if (!persistedSession || !persistedSession.email || !persistedSession.sessionToken || !persistedSession.role) {
         return null;
     }
 
     return {
         email: persistedSession.email.trim().toLowerCase(),
         role: persistedSession.role.trim(),
-        password: persistedSession.password
+        sessionToken: persistedSession.sessionToken
     };
-}
-
-function restoreSessionPasswords(accountsList) {
-    const session = getLoggedInStaffSession();
-    if (!session) return accountsList;
-
-    return accountsList.map((account) => {
-        if (!account || !account.email || !account.role) return account;
-        if (account.email.toLowerCase() === session.email && account.role === session.role) {
-            return { ...account, password: session.password };
-        }
-        return account;
-    });
 }
 
 function ensureAdminAccountInvariant() {
@@ -128,11 +115,6 @@ function saveStaffAccountsToStorage() {
     // Staff accounts are persisted by the server. Local storage is disabled.
 }
 
-function loadStaffAccountsFromStorage() {
-    // Local storage is disabled for staff accounts. Server will provide the source of truth.
-    return false;
-}
-
 function applyStaffAccountsSnapshot(snapshot) {
     if (!Array.isArray(snapshot)) return false;
 
@@ -142,7 +124,7 @@ function applyStaffAccountsSnapshot(snapshot) {
     const nextSignature = JSON.stringify(normalized);
     if (currentSignature === nextSignature) return false;
 
-    accounts = restoreSessionPasswords(normalized);
+    accounts = normalized;
     ensureAdminAccountInvariant();
     window.motasteStaffAccounts = accounts;
     return true;
@@ -398,6 +380,27 @@ async function notifyStaffSessionEvent(eventName, actorRole, actorEmail) {
     }
 }
 
+/**
+ * Revoke the session token on the server and destroy the PHP session so a
+ * logout actually ends the session everywhere.
+ */
+async function revokeStaffSessionOnServer(sessionToken) {
+    if (!sessionToken) return;
+    try {
+        const headers = await withCsrfHeaders({
+            'Content-Type': 'application/json'
+        });
+        await fetchWithTimeout(getApiUrl('api/logout_staff.php'), {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ sessionToken }),
+            cache: 'no-store'
+        });
+    } catch (error) {
+        console.debug('Unable to revoke staff session on server', error);
+    }
+}
+
 async function sendStaffInviteEmail(account) {
     const headers = await withCsrfHeaders({
         'Content-Type': 'application/json'
@@ -449,167 +452,47 @@ function normalizeInventoryName(name) {
     return (name || '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
-function getSavedLoginCredentials() {
-    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
-        return {};
-    }
-
+function readStaffSessionFrom(storage) {
+    if (!storage) return null;
     try {
-        const raw = window.localStorage.getItem('motasteSavedLoginCredentials');
-        return raw ? JSON.parse(raw) : {};
+        const raw = storage.getItem(staffSessionStorageKey);
+        if (!raw) return null;
+        const session = JSON.parse(raw);
+        if (!session || typeof session !== 'object') return null;
+        return session;
     } catch (error) {
-        console.warn('Unable to load saved login credentials', error);
-        return {};
+        return null;
     }
-}
-
-function storeSavedLoginCredentials(credentials) {
-    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
-        return;
-    }
-
-    try {
-        window.localStorage.setItem('motasteSavedLoginCredentials', JSON.stringify(credentials || {}));
-    } catch (error) {
-        console.warn('Unable to persist saved login credentials', error);
-    }
-}
-
-function saveCredentialsForRole(role, email, password) {
-    if (!role || !email || !password) {
-        return;
-    }
-
-    const normalizedRole = role.trim();
-    if (!normalizedRole) {
-        return;
-    }
-
-    const credentials = getSavedLoginCredentials();
-    credentials[normalizedRole] = {
-        email: email.trim().toLowerCase(),
-        password: password || '',
-        savedAt: new Date().toISOString()
-    };
-
-    storeSavedLoginCredentials(credentials);
-    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
-        try {
-            window.localStorage.setItem(lastLoginRoleStorageKey, normalizedRole);
-        } catch (error) {
-            console.warn('Unable to persist last login role', error);
-        }
-    }
-}
-
-function clearSavedCredentialsForRole(role) {
-    if (!role) {
-        return;
-    }
-
-    const normalizedRole = role.trim();
-    const credentials = getSavedLoginCredentials();
-    if (credentials && Object.prototype.hasOwnProperty.call(credentials, normalizedRole)) {
-        delete credentials[normalizedRole];
-        storeSavedLoginCredentials(credentials);
-    }
-
-    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
-        try {
-            const lastRole = window.localStorage.getItem(lastLoginRoleStorageKey);
-            if (lastRole === normalizedRole) {
-                window.localStorage.removeItem(lastLoginRoleStorageKey);
-            }
-        } catch (error) {
-            console.warn('Unable to clear last login role', error);
-        }
-    }
-}
-
-function loadSavedCredentialsForRole(role) {
-    const normalizedRole = role ? role.trim() : '';
-    if (!normalizedRole) {
-        if (emailInput) emailInput.value = '';
-        if (passwordInput) passwordInput.value = '';
-        if (rememberCheckbox) rememberCheckbox.checked = false;
-        return;
-    }
-
-    const credentials = getSavedLoginCredentials();
-    const saved = credentials[normalizedRole];
-    if (saved && saved.email && saved.password) {
-        if (selectedRoleInput) {
-            selectedRoleInput.value = normalizedRole;
-        }
-        if (emailInput) {
-            emailInput.value = saved.email;
-        }
-        if (passwordInput) {
-            passwordInput.value = saved.password;
-        }
-        if (rememberCheckbox) {
-            rememberCheckbox.checked = true;
-        }
-    } else {
-        if (emailInput) emailInput.value = '';
-        if (passwordInput) passwordInput.value = '';
-        if (rememberCheckbox) rememberCheckbox.checked = false;
-    }
-}
-
-function loadSavedCredentialsForLastLogin() {
-    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
-        if (emailInput) emailInput.value = '';
-        if (passwordInput) passwordInput.value = '';
-        if (rememberCheckbox) rememberCheckbox.checked = false;
-        return;
-    }
-
-    try {
-        const lastRole = window.localStorage.getItem(lastLoginRoleStorageKey);
-        if (lastRole) {
-            loadSavedCredentialsForRole(lastRole);
-            return;
-        }
-    } catch (error) {
-        console.warn('Unable to load last login role', error);
-    }
-
-    if (emailInput) emailInput.value = '';
-    if (passwordInput) passwordInput.value = '';
-    if (rememberCheckbox) rememberCheckbox.checked = false;
 }
 
 function getPersistedStaffSession() {
-    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+    if (typeof window === 'undefined') {
         return null;
     }
 
-    try {
-        const raw = window.localStorage.getItem(staffSessionStorageKey);
-        if (!raw) {
-            return null;
-        }
-
-        const session = JSON.parse(raw);
-        if (!session || typeof session !== 'object') {
-            return null;
-        }
-
-        return {
-            role: session.role || '',
-            email: session.email || '',
-            password: session.password || '',
-            remember: Boolean(session.remember)
-        };
-    } catch (error) {
-        console.warn('Unable to restore persisted staff session', error);
+    // Remembered sessions live in localStorage; per-tab sessions in sessionStorage.
+    const session = readStaffSessionFrom(sessionStorage) || readStaffSessionFrom(window.localStorage);
+    if (!session) {
         return null;
     }
+
+    // Security: sessions must be token-based. Legacy sessions stored the
+    // plaintext password — purge them and require a fresh login.
+    if (!session.sessionToken) {
+        clearStaffSession();
+        return null;
+    }
+
+    return {
+        role: session.role || '',
+        email: session.email || '',
+        sessionToken: session.sessionToken || '',
+        remember: Boolean(session.remember)
+    };
 }
 
-function saveStaffSession(role, email, password, remember) {
-    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+function saveStaffSession(role, email, sessionToken, remember) {
+    if (typeof window === 'undefined') {
         return;
     }
 
@@ -617,19 +500,28 @@ function saveStaffSession(role, email, password, remember) {
         const session = {
             role: role ? role.trim() : '',
             email: email ? email.trim().toLowerCase() : '',
-            password: password || '',
+            sessionToken: sessionToken || '',
             remember: Boolean(remember),
             savedAt: new Date().toISOString()
         };
 
-        if (!session.role || !session.email || !session.password) {
+        if (!session.role || !session.email || !session.sessionToken) {
             clearStaffSession();
             return;
         }
 
-        // Sessions persist across refreshes and browser restarts so staff stay
-        // logged in. The session is only terminated by a manual logout.
-        window.localStorage.setItem(staffSessionStorageKey, JSON.stringify(session));
+        // Remembered sessions persist across browser restarts (localStorage);
+        // otherwise the token lives for the tab (sessionStorage). Only the
+        // opaque session token is ever stored — never the password.
+        const storage = remember
+            ? window.localStorage
+            : (typeof sessionStorage !== 'undefined' ? sessionStorage : window.localStorage);
+        try {
+            (storage === window.localStorage ? sessionStorage : window.localStorage).removeItem(staffSessionStorageKey);
+        } catch (storageError) {
+            // best effort
+        }
+        storage.setItem(staffSessionStorageKey, JSON.stringify(session));
         window.localStorage.setItem(lastLoginRoleStorageKey, session.role);
     } catch (error) {
         console.warn('Unable to persist staff session', error);
@@ -637,12 +529,16 @@ function saveStaffSession(role, email, password, remember) {
 }
 
 function clearStaffSession() {
-    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+    if (typeof window === 'undefined') {
         return;
     }
 
     try {
         window.localStorage.removeItem(staffSessionStorageKey);
+        window.localStorage.removeItem(lastLoginRoleStorageKey);
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.removeItem(staffSessionStorageKey);
+        }
     } catch (error) {
         console.warn('Unable to clear persisted staff session', error);
     }
@@ -663,8 +559,8 @@ function restoreStaffSession() {
         return false;
     }
 
-    const { role, email, password } = persistedSession;
-    if (!role || !email || !password || !allowedRoles.includes(role)) {
+    const { role, email } = persistedSession;
+    if (!role || !email || !allowedRoles.includes(role)) {
         clearStaffSession();
         forceLogoutCurrentStaffSession();
         return false;
@@ -690,12 +586,6 @@ function restoreStaffSession() {
     }
     if (emailInput) {
         emailInput.value = email;
-    }
-    if (passwordInput) {
-        passwordInput.value = password;
-    }
-    if (rememberCheckbox) {
-        rememberCheckbox.checked = Boolean(persistedSession.remember);
     }
 
     if (modalTitle) {
@@ -749,26 +639,6 @@ function restoreStaffSession() {
 
     setDashboardPanelState(false);
     return true;
-}
-
-function isValidStaffLogin(role, email, password) {
-    const normalizedRole = (role || '').trim();
-    const normalizedEmail = (email || '').trim().toLowerCase();
-    const staffAccounts = getCurrentStaffAccounts();
-
-    return staffAccounts.some((account) => {
-        const isConfirmed = account.role === 'Admin' ? true : Boolean(account.inviteConfirmed);
-        return account.email.toLowerCase() === normalizedEmail
-            && account.password === password
-            && (!normalizedRole || account.role === normalizedRole)
-            && isConfirmed;
-    });
-}
-
-function findStaffAccountByCredentials(email, password) {
-    const normalizedEmail = (email || '').trim().toLowerCase();
-    const staffAccounts = getCurrentStaffAccounts();
-    return staffAccounts.find((account) => account.email.toLowerCase() === normalizedEmail && account.password === password) || null;
 }
 
 function syncSelectedRoleWithTypedEmail(email) {
@@ -987,11 +857,17 @@ function getOrCreateDeviceToken() {
     }
 }
 
+function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+    return fetch(url, { ...options, signal: controller.signal }).finally(() => window.clearTimeout(timer));
+}
+
 async function authenticateStaffAccount(email, password, role = '', deviceToken = '', silentRefresh = false) {
     try {
         const body = { email, password, role, deviceToken };
         if (silentRefresh) body.silentRefresh = true;
-        const response = await fetch(getApiUrl('api/authenticate_staff.php'), {
+        const response = await fetchWithTimeout(getApiUrl('api/authenticate_staff.php'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1028,7 +904,7 @@ async function authenticateStaffAccount(email, password, role = '', deviceToken 
 
 async function verifyDeviceLogin(email, password, code, deviceToken) {
     try {
-        const response = await fetch(getApiUrl('api/verify_device_login.php'), {
+        const response = await fetchWithTimeout(getApiUrl('api/verify_device_login.php'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1051,32 +927,32 @@ async function verifyDeviceLogin(email, password, code, deviceToken) {
 
 /**
  * Re-establishes the server-side staff session on page load using the persisted
- * credentials. The staff-only API gate (requireStaffAuth) needs the PHP session
- * cookie; this self-heals it after browser restarts without touching the login
- * history audit trail (silentRefresh). Trusted devices re-auth silently; device
- * challenges and rate limits are left for the user to resolve at login.
+ * opaque session token (no plaintext password is ever stored or re-sent). The
+ * staff-only API gate (requireStaffAuth) needs the PHP session cookie; this
+ * self-heals it after browser restarts without touching the login history.
  */
 async function ensureStaffServerSession() {
     const session = getPersistedStaffSession();
-    if (!session || !session.email || !session.password) return;
+    if (!session || !session.email || !session.sessionToken) return;
 
     try {
-        const result = await authenticateStaffAccount(
-            session.email,
-            session.password,
-            session.role || '',
-            getOrCreateDeviceToken(),
-            true
-        );
-        if (!result) return;
-        if (result.success) return;
-        if (result.needsDeviceVerification || result.rateLimited) return;
-        if (result.error && /invalid credentials/i.test(result.error)) {
-            clearStaffSession();
-            forceLogoutCurrentStaffSession();
-        }
+        const response = await fetchWithTimeout(getApiUrl('api/renew_staff_session.php'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ sessionToken: session.sessionToken }),
+            cache: 'no-store'
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (response.ok && payload && payload.success) return;
+
+        // Token invalid/expired or the account was removed: end the session and
+        // return to the login screen.
+        clearStaffSession();
+        forceLogoutCurrentStaffSession();
     } catch (error) {
-        console.debug('Unable to refresh staff server session', error);
+        console.debug('Unable to renew staff server session', error);
     }
 }
 
@@ -1095,6 +971,7 @@ const deviceVerifyCodeInput = document.getElementById('deviceVerifyCodeInput');
 const deviceVerifyMessage = document.getElementById('deviceVerifyMessage');
 
 let deviceVerifyResolver = null;
+let deviceVerifyWarningText = '';
 
 function openDeviceVerifyModal() {
     if (!deviceVerifyModal) return;
@@ -1115,23 +992,36 @@ function resetDeviceVerifyModal() {
     if (deviceVerifyCodeStep) deviceVerifyCodeStep.hidden = true;
     if (deviceVerifyCodeInput) deviceVerifyCodeInput.value = '';
     if (deviceVerifyMessage) deviceVerifyMessage.textContent = '';
+    deviceVerifyWarningText = '';
+    if (deviceVerifyText) {
+        deviceVerifyText.textContent = 'Send a confirmation code to your email to continue?';
+    }
 }
 
 function showDeviceVerifyCodeStep() {
     if (deviceVerifyConfirmStep) deviceVerifyConfirmStep.hidden = true;
     if (deviceVerifyCodeStep) deviceVerifyCodeStep.hidden = false;
+    if (deviceVerifyMessage && deviceVerifyWarningText) {
+        deviceVerifyMessage.textContent = deviceVerifyWarningText;
+    }
     if (deviceVerifyCodeInput) deviceVerifyCodeInput.focus();
 }
 
 /**
  * Promise-based replacement for window.prompt() during device verification.
  * Resolves with the entered code string, or null when the user cancels.
+ * When the verification email could not be delivered, warningMessage is shown
+ * so staff know the code was written to the server log instead.
  */
-function requestDeviceVerificationCode() {
+function requestDeviceVerificationCode(warningMessage) {
     if (!deviceVerifyModal) return Promise.resolve(null);
     return new Promise((resolve) => {
         deviceVerifyResolver = resolve;
         resetDeviceVerifyModal();
+        if (warningMessage && deviceVerifyText) {
+            deviceVerifyWarningText = warningMessage;
+            deviceVerifyText.textContent = warningMessage;
+        }
         openDeviceVerifyModal();
     });
 }
@@ -1410,99 +1300,113 @@ function attachStaffLoginHandler() {
             : '';
         const password = passwordInput ? passwordInput.value : '';
         const remember = rememberCheckbox ? rememberCheckbox.checked : false;
+        const submitBtn = staffForm.querySelector('button[type="submit"]');
 
-        const deviceToken = getOrCreateDeviceToken();
-        let authResult = await authenticateStaffAccount(email, password, role, deviceToken);
-        if (!authResult) {
-            setAuthButtonsVisible(false);
-            if (modalTitle) {
-                modalTitle.textContent = 'Invalid credentials';
-            }
-            return;
+        const setLoading = (loading) => {
+            if (!submitBtn) return;
+            submitBtn.disabled = loading;
+            submitBtn.textContent = loading ? 'Logging in…' : 'Login';
+        };
+
+        setLoading(true);
+        try {
+            await handleStaffLogin(email, password, role, remember);
+        } finally {
+            setLoading(false);
         }
+    });
+}
 
-        // Account locked out after too many failed login attempts: show the
-        // lockout message from the server so staff know to wait and retry.
-        if (authResult.rateLimited) {
-            setAuthButtonsVisible(false);
-            if (modalTitle) {
-                modalTitle.textContent = authResult.error || 'Too many failed login attempts. Please try again later.';
-            }
-            return;
-        }
-
-        // Invalid credentials with a remaining-attempts countdown from the server.
-        if (!authResult.success && authResult.remainingAttempts != null) {
-            setAuthButtonsVisible(false);
-            if (modalTitle) {
-                modalTitle.textContent = authResult.error || 'Invalid credentials';
-            }
-            return;
-        }
-
-        // Unrecognized device: the account must confirm the emailed code first.
-        if (authResult.needsDeviceVerification) {
-            const code = await requestDeviceVerificationCode();
-            if (!code) {
-                if (modalTitle) {
-                    modalTitle.textContent = 'Device verification required';
-                }
-                return;
-            }
-
-            authResult = await verifyDeviceLogin(email, password, code, deviceToken);
-            if (!authResult) {
-                if (modalTitle) {
-                    modalTitle.textContent = 'Invalid or expired verification code';
-                }
-                return;
-            }
-        }
-
-        // Only a genuinely successful auth (or a device-verified one) proceeds.
-        if (!authResult.success || !allowedRoles.includes(authResult.role)) {
-            setAuthButtonsVisible(false);
-            if (modalTitle) {
-                modalTitle.textContent = 'Invalid credentials';
-            }
-            return;
-        }
-
-        const detectedRole = authResult.role;
-        if (selectedRoleInput) {
-            selectedRoleInput.value = detectedRole;
-        }
-
-        if ((detectedRole === 'Cashier' || detectedRole === 'Inventory Manager') && !authResult.inviteConfirmed) {
-            const inviteCode = typeof window !== 'undefined' ? window.prompt('Enter the invite verification code sent to your Gmail:') : '';
-            if (!inviteCode) {
-                if (modalTitle) {
-                    modalTitle.textContent = 'Invite confirmation required';
-                }
-                return;
-            }
-
-            try {
-                await confirmStaffInviteCode(email, detectedRole, inviteCode);
-            } catch (error) {
-                if (modalTitle) {
-                    modalTitle.textContent = error.message || 'Invite verification failed';
-                }
-                return;
-            }
-        }
-
-        if (remember) {
-            saveCredentialsForRole(detectedRole, email, password);
-        } else {
-            clearSavedCredentialsForRole(detectedRole);
-        }
-
-        saveStaffSession(detectedRole, email, password, remember);
-
+async function handleStaffLogin(email, password, role, remember) {
+    const deviceToken = getOrCreateDeviceToken();
+    let authResult = await authenticateStaffAccount(email, password, role, deviceToken);
+    if (!authResult) {
+        setAuthButtonsVisible(false);
         if (modalTitle) {
-            modalTitle.textContent = `Logged in as ${detectedRole}`;
+            modalTitle.textContent = 'Invalid credentials';
         }
+        return;
+    }
+
+    // Account locked out after too many failed login attempts: show the
+    // lockout message from the server so staff know to wait and retry.
+    if (authResult.rateLimited) {
+        setAuthButtonsVisible(false);
+        if (modalTitle) {
+            modalTitle.textContent = authResult.error || 'Too many failed login attempts. Please try again later.';
+        }
+        return;
+    }
+
+    // Invalid credentials with a remaining-attempts countdown from the server.
+    if (!authResult.success && authResult.remainingAttempts != null) {
+        setAuthButtonsVisible(false);
+        if (modalTitle) {
+            modalTitle.textContent = authResult.error || 'Invalid credentials';
+        }
+        return;
+    }
+
+    // Unrecognized device: the account must confirm the emailed code first.
+    if (authResult.needsDeviceVerification) {
+        const code = await requestDeviceVerificationCode(authResult.warning || '');
+        if (!code) {
+            if (modalTitle) {
+                modalTitle.textContent = 'Device verification required';
+            }
+            return;
+        }
+
+        authResult = await verifyDeviceLogin(email, password, code, deviceToken);
+        if (!authResult) {
+            if (modalTitle) {
+                modalTitle.textContent = 'Invalid or expired verification code';
+            }
+            return;
+        }
+    }
+
+    // Only a genuinely successful auth (or a device-verified one) proceeds.
+    if (!authResult.success || !allowedRoles.includes(authResult.role)) {
+        setAuthButtonsVisible(false);
+        if (modalTitle) {
+            modalTitle.textContent = 'Invalid credentials';
+        }
+        return;
+    }
+
+    const detectedRole = authResult.role;
+    if (selectedRoleInput) {
+        selectedRoleInput.value = detectedRole;
+    }
+
+    if ((detectedRole === 'Cashier' || detectedRole === 'Inventory Manager') && !authResult.inviteConfirmed) {
+        const inviteCode = typeof window !== 'undefined' ? window.prompt('Enter the invite verification code sent to your Gmail:') : '';
+        if (!inviteCode) {
+            if (modalTitle) {
+                modalTitle.textContent = 'Invite confirmation required';
+            }
+            return;
+        }
+
+        try {
+            await confirmStaffInviteCode(email, detectedRole, inviteCode);
+        } catch (error) {
+            if (modalTitle) {
+                modalTitle.textContent = error.message || 'Invite verification failed';
+            }
+            return;
+        }
+    }
+
+    // Persist an opaque session token — never the plaintext password.
+    if (authResult.sessionToken) {
+        saveStaffSession(detectedRole, email, authResult.sessionToken, remember);
+    }
+
+    if (modalTitle) {
+        modalTitle.textContent = `Logged in as ${detectedRole}`;
+    }
 
         updateDashboardProfile();
 
@@ -1536,7 +1440,6 @@ function attachStaffLoginHandler() {
         setDashboardPanelState(false);
 
         void notifyStaffSessionEvent('login', detectedRole, email.toLowerCase());
-    });
 }
 
 document.addEventListener('DOMContentLoaded', attachStaffLoginHandler);
@@ -1545,7 +1448,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (loginFields) {
         loginFields.hidden = false;
     }
-    loadSavedCredentialsForLastLogin();
     initializeLowStockAlertHandlers();
 });
 
@@ -1554,6 +1456,11 @@ if (logoutBtn) {
         const actorRole = selectedRoleInput ? selectedRoleInput.value.trim() : '';
         const actorEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
         void notifyStaffSessionEvent('logout', actorRole, actorEmail);
+
+        const session = getPersistedStaffSession();
+        if (session && session.sessionToken) {
+            void revokeStaffSessionOnServer(session.sessionToken);
+        }
 
         if (selectedRoleInput) {
             selectedRoleInput.value = '';
@@ -1901,21 +1808,26 @@ async function confirmAdminCredentialsChange(event, formType = 'email') {
 
         const nextEmail = nextEmailInput ? nextEmailInput.value.trim().toLowerCase() : currentEmail;
         const nextPassword = nextPasswordInput ? nextPasswordInput.value : '';
+
+        // The credentials change revokes every previously issued session token,
+        // so re-authenticate silently (this device is already trusted) to obtain
+        // a fresh token for the restored session.
         if (nextEmail && nextPassword) {
-            if (selectedRoleInput) {
-                selectedRoleInput.value = 'Admin';
+            const deviceToken = getOrCreateDeviceToken();
+            const reAuth = await authenticateStaffAccount(nextEmail, nextPassword, 'Admin', deviceToken, true);
+            if (reAuth && reAuth.success && reAuth.sessionToken) {
+                if (selectedRoleInput) {
+                    selectedRoleInput.value = 'Admin';
+                }
+                if (emailInput) {
+                    emailInput.value = nextEmail;
+                }
+                if (passwordInput) {
+                    passwordInput.value = nextPassword;
+                }
+                saveStaffSession('Admin', nextEmail, reAuth.sessionToken, false);
+                updateDashboardProfile();
             }
-            if (emailInput) {
-                emailInput.value = nextEmail;
-            }
-            if (passwordInput) {
-                passwordInput.value = nextPassword;
-            }
-            saveStaffSession('Admin', nextEmail, nextPassword, rememberCheckbox ? rememberCheckbox.checked : false);
-            if (rememberCheckbox && rememberCheckbox.checked) {
-                saveCredentialsForRole('Admin', nextEmail, nextPassword);
-            }
-            updateDashboardProfile();
         }
 
         skipNextLogoutValidation = true;
@@ -3520,20 +3432,6 @@ if (accountForm) {
             return;
         }
 
-        const currentRole = selectedRoleInput ? selectedRoleInput.value : '';
-        const currentEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
-        if (previousAccount && currentRole === previousAccount.role && currentEmail === (previousAccount.email || '').trim().toLowerCase()) {
-            clearSavedCredentialsForRole(previousAccount.role);
-            if (selectedRoleInput) selectedRoleInput.value = account.role;
-            if (emailInput) emailInput.value = account.email;
-            if (passwordInput) passwordInput.value = account.password;
-            saveStaffSession(account.role, account.email, account.password, rememberCheckbox ? rememberCheckbox.checked : false);
-            if (rememberCheckbox && rememberCheckbox.checked) {
-                saveCredentialsForRole(account.role, account.email, account.password);
-            }
-            updateDashboardProfile();
-        }
-
         renderAccounts();
         toggleAccountForm(false);
         if (accountEditIndex !== null) {
@@ -3614,20 +3512,6 @@ if (accountList) {
                 return;
             }
 
-            const currentRole = selectedRoleInput ? selectedRoleInput.value : '';
-            const currentEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
-            if (previousAccount && currentRole === previousAccount.role && currentEmail === (previousAccount.email || '').trim().toLowerCase()) {
-                clearSavedCredentialsForRole(previousAccount.role);
-                if (selectedRoleInput) selectedRoleInput.value = updatedAccount.role;
-                if (emailInput) emailInput.value = updatedAccount.email;
-                if (passwordInput) passwordInput.value = updatedAccount.password;
-                saveStaffSession(updatedAccount.role, updatedAccount.email, updatedAccount.password, rememberCheckbox ? rememberCheckbox.checked : false);
-                if (rememberCheckbox && rememberCheckbox.checked) {
-                    saveCredentialsForRole(updatedAccount.role, updatedAccount.email, updatedAccount.password);
-                }
-                updateDashboardProfile();
-            }
-
             accountEditIndex = null;
             renderAccounts();
             alert('Staff account updated successfully.');
@@ -3659,7 +3543,6 @@ if (accountList) {
             void loadOrderLogsFromServer(true);
             renderAccounts();
             if (removedAccount) {
-                clearSavedCredentialsForRole(removedAccount.role);
                 const currentRole = selectedRoleInput ? selectedRoleInput.value : '';
                 const currentEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
                 const removedEmail = (removedAccount.email || '').trim().toLowerCase();
@@ -3800,7 +3683,6 @@ if (socialLoginButtons && socialLoginButtons.length) {
     });
 }
 
-loadStaffAccountsFromStorage();
 renderAccounts();
 toggleAccountForm(false);
 if (isStaffPage) {

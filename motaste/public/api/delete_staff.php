@@ -18,6 +18,16 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
 
+require_once __DIR__ . '/_security_headers.php';
+sendSecurityHeaders();
+
+require_once __DIR__ . '/_staff_auth_helpers.php';
+if (!requireAdminAuth()) {
+    abortStaffAuthRequired();
+}
+
+require_once __DIR__ . '/csrf_guard.php';
+
 $email = isset($input['email']) ? trim($input['email']) : '';
 if (!$email) {
     http_response_code(400);
@@ -25,9 +35,18 @@ if (!$email) {
     exit;
 }
 
+validateCsrfOrExit();
+
 try {
+    $target = DB::table('staff')->whereRaw('LOWER(email) = ?', [strtolower(trim($email))])->first();
+    if ($target && strtolower(trim((string)$target->role)) === 'admin') {
+        http_response_code(403);
+        echo json_encode(['error' => 'The Admin account cannot be deleted. Manage it through the Credentials section.']);
+        exit;
+    }
+
     $deleted = DB::table('staff')
-        ->where('email', $email)
+        ->whereRaw('LOWER(email) = ?', [strtolower(trim($email))])
         ->delete();
 
     echo json_encode(['success' => true, 'deleted' => $deleted]);

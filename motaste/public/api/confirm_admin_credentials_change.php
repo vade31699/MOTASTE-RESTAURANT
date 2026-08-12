@@ -82,6 +82,13 @@ try {
 
     DB::table('staff')->where('id', $adminRow->id)->update($update);
 
+    // Credentials changed: revoke every previously issued session token so old
+    // sessions cannot linger.
+    revokeAllStaffSessionTokens($currentEmail);
+    if ($newEmail !== '' && strtolower(trim($newEmail)) !== strtolower(trim($currentEmail))) {
+        revokeAllStaffSessionTokens($newEmail);
+    }
+
     DB::table('admin_credential_change_tokens')->where('id', $token->id)->delete();
 
     $accounts = loadStaffAccountsSnapshot();

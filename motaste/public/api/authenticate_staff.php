@@ -155,12 +155,18 @@ try {
             'deviceToken' => $deviceToken,
         ];
 
-        if (!$emailResult['success']) {
+        if (!empty($emailResult['warning'])) {
+            // SMTP is not configured; the message (including the code) was
+            // written to the server log as a fallback.
+            $response['warning'] = $emailResult['warning']
+                . ' The verification code was written to the server log.';
+        } elseif (!$emailResult['success']) {
             $response['warning'] = 'Verification email could not be delivered: '
                 . ($emailResult['error'] ?? 'unknown mail error')
                 . ' Check the server logs for the code.';
-            error_log('[MOTASTE device verification] code for ' . $email . ': ' . $code);
         }
+        // NOTE: when SMTP fails, sendSystemEmail() already falls back to
+        // writing the code to the server log — never log the raw code again.
 
         echo json_encode($response);
         exit;
@@ -199,13 +205,18 @@ try {
         recordStaffLoginHistory($email, $role, (string)($staffRow->full_name ?? ''));
     }
 
+    // Issue an opaque bearer token so the client can restore this session after
+    // a browser restart WITHOUT persisting the plaintext password.
+    $sessionToken = issueStaffSessionToken($email, $role);
+
     echo json_encode([
         'success' => true,
         'role' => $role,
         'email' => strtolower(trim((string)($staffRow->email ?? ''))),
         'name' => trim((string)($staffRow->full_name ?? '')),
         'inviteConfirmed' => $inviteConfirmed,
-        'deviceVerified' => true
+        'deviceVerified' => true,
+        'sessionToken' => $sessionToken
     ]);
 } catch (Throwable $error) {
     http_response_code(500);

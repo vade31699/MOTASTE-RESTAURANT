@@ -13,6 +13,13 @@ use Illuminate\Support\Facades\DB;
 
 function ensureTrustedDeviceTables(): void
 {
+    // At most once per request — avoids redundant introspection round-trips
+    // (called by deviceIsTrusted, markTrustedDeviceSeen, createDeviceLoginCode).
+    static $verified = false;
+    if ($verified) {
+        return;
+    }
+
     if (!Schema::hasTable('trusted_devices')) {
         Schema::create('trusted_devices', function ($table) {
             $table->id();
@@ -45,6 +52,8 @@ function ensureTrustedDeviceTables(): void
             $table->index('fingerprint', 'login_verification_tokens_fingerprint_idx');
         });
     }
+
+    $verified = true;
 }
 
 function resolveClientIpAddress(): string

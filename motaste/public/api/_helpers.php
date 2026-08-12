@@ -16,6 +16,11 @@ use Illuminate\Database\Schema\Blueprint;
  */
 function ensureOrderPrepTimerColumns(): void
 {
+    static $verified = false;
+    if ($verified) {
+        return;
+    }
+
     try {
         if (!Schema::hasColumn('orders', 'prep_minutes')) {
             Schema::table('orders', function (Blueprint $table) {
@@ -27,6 +32,7 @@ function ensureOrderPrepTimerColumns(): void
                 $table->timestamp('prep_started_at')->nullable();
             });
         }
+        $verified = true;
     } catch (Throwable $error) {
         // Schema changes must never block order processing; the migration will
         // apply the columns on deploy.
@@ -39,6 +45,11 @@ function ensureOrderPrepTimerColumns(): void
  */
 function ensureStaffLoginHistoryTable(): void
 {
+    static $verified = false;
+    if ($verified) {
+        return;
+    }
+
     try {
         if (!Schema::hasTable('staff_login_history')) {
             Schema::create('staff_login_history', function (Blueprint $table) {
@@ -57,6 +68,7 @@ function ensureStaffLoginHistoryTable(): void
                 $table->index('logged_in_at', 'staff_login_history_logged_in_at_idx');
             });
         }
+        $verified = true;
     } catch (Throwable $error) {
         // Auditing must never block the login response.
         error_log('staff_login_history table check failed: ' . $error->getMessage());

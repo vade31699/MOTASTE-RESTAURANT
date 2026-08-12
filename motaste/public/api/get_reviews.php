@@ -15,7 +15,25 @@ sendSecurityHeaders();
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
+require_once __DIR__ . '/_staff_auth_helpers.php';
+
 try {
+    $scope = strtolower(trim((string)($_GET['scope'] ?? 'public')));
+
+    // Staff scope exposes unpublished/pending reviews — staff authentication is
+    // required. Public scope is rate-limited per IP.
+    if ($scope === 'staff') {
+        if (!requireStaffAuth()) {
+            abortStaffAuthRequired();
+        }
+    } else {
+        recordOrderApiRequest('get_reviews');
+        if (isOrderApiRateLimited('get_reviews', 300, 60)) {
+            http_response_code(429);
+            echo json_encode(['success' => false, 'error' => 'Too many requests. Please try again shortly.']);
+            exit;
+        }
+    }
     
                 
     DB::statement("UPDATE customer_reviews SET publish_status = 'published' WHERE publish_status IS NULL");
