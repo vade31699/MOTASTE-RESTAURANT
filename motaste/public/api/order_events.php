@@ -13,7 +13,19 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_security_headers.php';
 sendSecurityHeaders();
 
+// Provides IP-based rate limiting (recordOrderApiRequest / isOrderApiRateLimited).
+require_once __DIR__ . '/_staff_auth_helpers.php';
+
 use Illuminate\Support\Facades\DB;
+
+// Per-IP abuse protection: each connection is a long-lived SSE stream, so the
+// budget limits how often a client can (re)open a connection, not its polling.
+recordOrderApiRequest('order_events');
+if (isOrderApiRateLimited('order_events', 60, 60)) {
+    http_response_code(429);
+    echo json_encode(['success' => false, 'error' => 'Too many requests. Please try again shortly.']);
+    exit;
+}
 
 $lastId = 0;
 if (!empty($_SERVER['HTTP_LAST_EVENT_ID'])) {

@@ -3732,19 +3732,6 @@ if (passwordCredentialsForm) {
     });
 }
 
-const socialLoginButtons = document.querySelectorAll('.social-login-btn');
-if (socialLoginButtons && socialLoginButtons.length) {
-    socialLoginButtons.forEach((button) => {
-        button.addEventListener('click', () => {
-            const provider = (button.dataset.provider || '').trim();
-            const label = provider ? provider.charAt(0).toUpperCase() + provider.slice(1) : 'Social';
-            if (typeof window !== 'undefined' && window.alert) {
-                window.alert(`${label} login option is shown. Complete OAuth app keys/server callback setup before enabling live sign-in.`);
-            }
-        });
-    });
-}
-
 renderAccounts();
 toggleAccountForm(false);
 if (isStaffPage) {

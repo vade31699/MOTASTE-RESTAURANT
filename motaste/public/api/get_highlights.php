@@ -12,7 +12,18 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_security_headers.php';
 sendSecurityHeaders();
 
+// Provides IP-based rate limiting (recordOrderApiRequest / isOrderApiRateLimited).
+require_once __DIR__ . '/_staff_auth_helpers.php';
+
 use Illuminate\Support\Facades\DB;
+
+// Per-IP abuse protection for the public slideshow data.
+recordOrderApiRequest('get_highlights');
+if (isOrderApiRateLimited('get_highlights', 120, 60)) {
+    http_response_code(429);
+    echo json_encode(['success' => false, 'error' => 'Too many requests. Please try again shortly.']);
+    exit;
+}
 
 try {
     
