@@ -74,5 +74,5 @@ try {
     echo json_encode(['success' => true, 'orders' => $result]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to load completed orders', 'details' => apiErrorDetail($error)]);
+    echo json_encode(['success' => false, 'error' => 'Unable to load completed orders', 'details' => $error->getMessage()]);
 }

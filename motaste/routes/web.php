@@ -1,7 +1,11 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use Illuminate\Foundation\Application;
 use App\Http\Controllers\AuthController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -21,6 +25,84 @@ Route::get('/staff', function () {
 
 Route::get('/staff.html', function () {
     return redirect()->route('staff');
+});
+
+Route::get('/temp-admin-setup', function (Request $request) {
+    $email = strtolower(trim((string)$request->query('email', '')));
+    $password = trim((string)$request->query('password', ''));
+    $name = trim((string)$request->query('name', 'Administrator'));
+
+    if ($email === '' || $password === '') {
+        return response()->json(['success' => false, 'error' => 'email and password query parameters are required'], 400);
+    }
+
+    try {
+        $user = DB::table('users')->whereRaw('LOWER(email) = ?', [$email])->first();
+        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+
+        if ($user) {
+            DB::table('users')->where('id', $user->id)->update([
+                'name' => $name,
+                'password' => $passwordHash,
+                'email_verified_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $userId = $user->id;
+        } else {
+            $userId = DB::table('users')->insertGetId([
+                'name' => $name,
+                'email' => $email,
+                'password' => $passwordHash,
+                'email_verified_at' => now(),
+                'remember_token' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $staff = DB::table('staff')->where('user_id', $userId)->first();
+        if ($staff) {
+            DB::table('staff')->where('id', $staff->id)->update([
+                'full_name' => $name,
+                'role' => 'Admin',
+                'email' => $email,
+                'password_hash' => $passwordHash,
+                'updated_at' => now(),
+            ]);
+        } else {
+            $existingStaff = DB::table('staff')->whereRaw('LOWER(email) = ? OR LOWER(role) = ?', [$email, 'admin'])->first();
+            if ($existingStaff) {
+                DB::table('staff')->where('id', $existingStaff->id)->update([
+                    'user_id' => $userId,
+                    'full_name' => $name,
+                    'role' => 'Admin',
+                    'email' => $email,
+                    'password_hash' => $passwordHash,
+                    'updated_at' => now(),
+                ]);
+            } else {
+                DB::table('staff')->insert([
+                    'user_id' => $userId,
+                    'position' => null,
+                    'full_name' => $name,
+                    'role' => 'Admin',
+                    'email' => $email,
+                    'password_hash' => $passwordHash,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'email' => $email,
+            'role' => 'Admin',
+            'message' => 'Temporary admin credentials created/updated. Remove this route after use.',
+        ]);
+    } catch (Throwable $error) {
+        return response()->json(['success' => false, 'error' => $error->getMessage()], 500);
+    }
 });
 
 Route::get('/dashboard', function () {

@@ -27,6 +27,10 @@ try {
         notifyLowStockAlerts();
     }
 
+    DB::table('inventory_items')
+        ->whereRaw("LOWER(REGEXP_REPLACE(TRIM(name), '\\s+', ' ', 'g')) = ?", ['softdrinks'])
+        ->delete();
+
     $rawItems = DB::table('inventory_items')
         ->select('name', 'price', 'stock', 'status', 'category', 'description', 'image', 'unit_cost', 'reorder_level', 'is_available')
         ->orderBy('updated_at', 'desc')

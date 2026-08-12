@@ -101,47 +101,6 @@ function normalizeItemName(?string $value): string
 }
 
 /**
- * Ensure the submitted order number does not collide with an existing order.
- * Appends a short random suffix when a duplicate is detected so the number a
- * customer tracks is always unique and retrievable.
- */
-function ensureUniqueOrderNumber(string $orderNumber): string
-{
-    $base = $orderNumber !== '' ? $orderNumber : (string)time();
-    $candidate = $base;
-
-    for ($attempt = 0; $attempt < 5; $attempt++) {
-        $exists = DB::table('orders')->where('order_number', $candidate)->exists();
-        if (!$exists) {
-            return $candidate;
-        }
-
-        $candidate = $base . '-' . substr((string)time(), -4)
-            . str_pad((string)random_int(0, 99), 2, '0', STR_PAD_LEFT);
-    }
-
-    // Final fallback: a short collision-resistant suffix.
-    return $base . '-' . substr(md5(uniqid('', true)), 0, 8);
-}
-
-/**
- * True when a query exception is caused by a duplicate order_number (the
- * unique index added by the 2026_08_12 migration). Used to retry order
- * creation with a fresh number when a concurrent request wins the race
- * between the exists() check and the insert.
- */
-function isOrderNumberUniqueViolation(Throwable $error): bool
-{
-    $message = strtolower($error->getMessage());
-    $code = (string) $error->getCode();
-
-    return in_array($code, ['23505', '1062', '23000', '19'], true)
-        || str_contains($message, 'duplicate entry')
-        || str_contains($message, 'unique constraint')
-        || str_contains($message, 'unique index');
-}
-
-/**
  * Build a short human-readable summary from an iterable of order item rows.
  * Accepts arrays or objects with `notes`/`quantity` fields.
  */
