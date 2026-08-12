@@ -10090,6 +10090,7 @@ body.staff-app .insight-card h4 {
     gap: 10px;
     padding: 6px 0;
     border-bottom: 1px
+}
 /* ============ Accessibility: skip link ============ */
 .skip-link {
     position: absolute;
