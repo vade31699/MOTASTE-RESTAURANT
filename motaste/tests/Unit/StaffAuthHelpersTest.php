@@ -15,12 +15,29 @@ function bootTestApp(): void
     }
     $booted = true;
 
+    // Force the in-memory SQLite testing database. The app is booted manually
+    // (not through Laravel's test harness), so without this the tests would
+    // read .env and run against the PRODUCTION database.
+    putenv('APP_ENV=testing');
+    putenv('DB_CONNECTION=sqlite');
+    putenv('DB_DATABASE=:memory:');
+    $_ENV['APP_ENV'] = 'testing';
+    $_ENV['DB_CONNECTION'] = 'sqlite';
+    $_ENV['DB_DATABASE'] = ':memory:';
+    $_SERVER['APP_ENV'] = 'testing';
+    $_SERVER['DB_CONNECTION'] = 'sqlite';
+    $_SERVER['DB_DATABASE'] = ':memory:';
+
     $app = require __DIR__ . '/../../bootstrap/app.php';
     $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
     require_once __DIR__ . '/../../public/api/_staff_auth_helpers.php';
     require_once __DIR__ . '/../../public/api/_helpers.php';
     require_once __DIR__ . '/../../public/api/_device_auth_helpers.php';
+
+    // The tests touch login_attempts / staff_session_tokens before any helper
+    // creates them; ensure the schema up front so pre-test cleanup deletes work.
+    ensureStaffEnhancementSchema();
 }
 
 test('failed login attempts trigger the brute-force rate limiter', function () {
