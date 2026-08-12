@@ -18,15 +18,11 @@ use Illuminate\Support\Facades\DB;
 
 require_once __DIR__ . '/csrf_guard.php';
 
-$csrfToken = trim((string)($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ''));
-if ($csrfToken === '' || !hash_equals(getOrCreateCsrfToken(), $csrfToken)) {
-    http_response_code(419);
-    echo json_encode([
-        'success' => false,
-        'error' => 'Invalid CSRF token. Please refresh and try again.',
-    ]);
-    exit;
-}
+// Stateless signed CSRF validation (same as every other gated endpoint).
+// NOTE: do NOT compare against getOrCreateCsrfToken() here — tokens are now
+// stateless, so that function mints a NEW token every call and the comparison
+// would always fail with "Invalid CSRF token".
+validateCsrfOrExit();
 
 $input = json_decode(file_get_contents('php://input'), true);
 if (!is_array($input) || !isset($input['slides']) || !is_array($input['slides'])) {
