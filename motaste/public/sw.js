@@ -1,5 +1,5 @@
 /* Motaste service worker — offline menu shell with network-first strategy for pages */
-const CACHE_NAME = 'motaste-cache-v1';
+const CACHE_NAME = 'motaste-cache-v2';
 const SHELL_ASSETS = [
     '/',
     '/index.html',
@@ -42,6 +42,21 @@ self.addEventListener('fetch', (event) => {
                     return response;
                 })
                 .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/index.html')))
+        );
+        return;
+    }
+
+    // Network-first for the app script so fixes deploy immediately; cache-first
+    // for the other static assets (css/images).
+    if (requestUrl.pathname === '/script.js') {
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    const copy = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
+                    return response;
+                })
+                .catch(() => caches.match(event.request))
         );
         return;
     }
