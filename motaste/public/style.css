@@ -2904,6 +2904,62 @@ body.modal-open {
     padding: 10px 12px;
     font-size: 0.95rem;
 }
+.walkin-item-picker {
+    position: relative;
+    display: block;
+}
+.walkin-item-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 60;
+    max-height: min(38vh, 280px);
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #d4d4d4;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+    padding: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: #c9c9c9 transparent;
+}
+.walkin-item-dropdown::-webkit-scrollbar {
+    width: 8px;
+}
+.walkin-item-dropdown::-webkit-scrollbar-thumb {
+    background: #c9c9c9;
+    border-radius: 999px;
+}
+.walkin-item-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    padding: 9px 10px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: #222;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.12s ease;
+}
+.walkin-item-option:hover,
+.walkin-item-option.active {
+    background: #f3f4f6;
+}
+.walkin-item-option-name {
+    font-weight: 600;
+}
+.walkin-item-option-meta {
+    color: #6b7280;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
 .walkin-draft-list {
     display: grid;
     gap: 10px;

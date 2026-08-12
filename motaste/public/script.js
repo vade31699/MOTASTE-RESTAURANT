@@ -2654,7 +2654,10 @@ const pendingOrdersTabBtn = document.getElementById('pendingOrdersTabBtn');
 const walkInOrderPanel = document.getElementById('walkInOrderPanel');
 const pendingOrdersPanel = document.getElementById('pendingOrdersPanel');
 const walkInItemInput = document.getElementById('walkInItemInput');
-const walkInItemOptions = document.getElementById('walkInItemOptions');
+const walkInItemDropdown = document.getElementById('walkInItemDropdown');
+let walkInAvailableItems = [];
+let walkInDropdownOpen = false;
+let walkInDropdownHighlight = -1;
 const walkInItemQtyInput = document.getElementById('walkInItemQtyInput');
 const walkInAddItemBtn = document.getElementById('walkInAddItemBtn');
 const walkInDraftList = document.getElementById('walkInDraftList');
@@ -8953,29 +8956,24 @@ function getWalkInDraftTotal() {
 
 function renderWalkInOrderBuilder() {
     hydrateWalkInDraftItemsFromSpecialFoods();
-    if (walkInItemInput && walkInItemOptions) {
+    if (walkInItemInput) {
         const previousSelection = walkInItemInput.value;
-        const availableItems = (inventoryData || [])
+        walkInAvailableItems = (inventoryData || [])
             .filter((item) => getAvailablePendingStockForItem(item.name) > 0)
             .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 
-        if (!availableItems.length) {
+        if (!walkInAvailableItems.length) {
             walkInItemInput.value = '';
             walkInItemInput.placeholder = 'No available items';
             walkInItemInput.disabled = true;
-            walkInItemOptions.innerHTML = '';
         } else {
             walkInItemInput.disabled = false;
-            walkInItemInput.placeholder = 'Search or select a product';
-            walkInItemOptions.innerHTML = availableItems.map((item) => {
-                const available = getAvailablePendingStockForItem(item.name);
-                const label = `${item.name} (${formatCurrency(item.price)} · stock ${available})`;
-                return `<option value="${escapeHtml(item.name)}">${escapeHtml(label)}</option>`;
-            }).join('');
+            walkInItemInput.placeholder = 'Click to choose a product';
 
-            const stillExists = availableItems.some((item) => item.name === previousSelection);
-            walkInItemInput.value = stillExists ? previousSelection : availableItems[0].name;
+            const stillExists = walkInAvailableItems.some((item) => item.name === previousSelection);
+            walkInItemInput.value = stillExists ? previousSelection : walkInAvailableItems[0].name;
         }
+        renderWalkInItemDropdown();
     }
 
     if (!walkInDraftList) return;
@@ -9038,6 +9036,134 @@ function renderWalkInOrderBuilder() {
         </div>
         <p class="walkin-draft-total"><strong>Total:</strong> ${formatCurrency(getWalkInDraftTotal())}</p>
     `;
+}
+
+function getFilteredWalkInItems(query) {
+    const q = String(query || '').trim().toLowerCase();
+    if (!q) return walkInAvailableItems;
+    return walkInAvailableItems.filter((item) => String(item.name || '').toLowerCase().includes(q));
+}
+
+function renderWalkInItemDropdown(query = '') {
+    if (!walkInItemDropdown) return;
+
+    const matches = getFilteredWalkInItems(query);
+    if (!matches.length || walkInItemInput.disabled) {
+        walkInItemDropdown.innerHTML = '';
+        walkInItemDropdown.hidden = true;
+        walkInDropdownOpen = false;
+        if (walkInItemInput) walkInItemInput.setAttribute('aria-expanded', 'false');
+        return;
+    }
+
+    walkInItemDropdown.innerHTML = matches.map((item, index) => {
+        const available = getAvailablePendingStockForItem(item.name);
+        const active = index === walkInDropdownHighlight ? ' class="active"' : '';
+        return `
+            <button type="button" role="option" aria-selected="${index === walkInDropdownHighlight}" class="walkin-item-option${active}" data-name="${escapeHtml(item.name)}" data-index="${index}">
+                <span class="walkin-item-option-name">${escapeHtml(item.name)}</span>
+                <span class="walkin-item-option-meta">${formatCurrency(item.price)} · stock ${available}</span>
+            </button>
+        `;
+    }).join('');
+
+    // Reveal the list ONLY when the user actually opened it (click/focus/typing).
+    // Background refreshes call renderWalkInOrderBuilder() frequently; they must
+    // re-populate the contents but never force the panel open on their own.
+    if (walkInDropdownOpen) {
+        walkInItemDropdown.hidden = false;
+        if (walkInItemInput) walkInItemInput.setAttribute('aria-expanded', 'true');
+    }
+}
+
+function openWalkInItemDropdown() {
+    if (!walkInItemDropdown || !walkInAvailableItems.length || walkInItemInput.disabled) return;
+    walkInDropdownOpen = true;
+    if (walkInDropdownHighlight === -1) {
+        walkInDropdownHighlight = 0;
+    }
+    renderWalkInItemDropdown(walkInItemInput.value);
+}
+
+function closeWalkInItemDropdown() {
+    walkInDropdownOpen = false;
+    walkInDropdownHighlight = -1;
+    if (walkInItemDropdown) {
+        walkInItemDropdown.hidden = true;
+        walkInItemDropdown.innerHTML = '';
+    }
+    if (walkInItemInput) walkInItemInput.setAttribute('aria-expanded', 'false');
+}
+
+function selectWalkInItemFromDropdown(name) {
+    const match = walkInAvailableItems.find((item) => item.name === name);
+    if (!match) return;
+    walkInItemInput.value = match.name;
+    closeWalkInItemDropdown();
+    if (walkInItemQtyInput) walkInItemQtyInput.focus();
+}
+
+function setupWalkInItemPicker() {
+    if (!walkInItemInput || !walkInItemDropdown) return;
+
+    // Clicking the search bar drops the full list down (no more native datalist
+    // up/down arrows — the whole list is visible at once).
+    walkInItemInput.addEventListener('click', () => {
+        openWalkInItemDropdown();
+    });
+    walkInItemInput.addEventListener('focus', () => {
+        openWalkInItemDropdown();
+    });
+    walkInItemInput.addEventListener('input', () => {
+        walkInDropdownHighlight = -1;
+        walkInDropdownOpen = true;
+        if (walkInItemInput.value.trim() !== '') {
+            renderWalkInItemDropdown(walkInItemInput.value);
+        } else {
+            renderWalkInItemDropdown('');
+        }
+    });
+    walkInItemInput.addEventListener('keydown', (event) => {
+        const visibleOptions = Array.from(walkInItemDropdown ? walkInItemDropdown.querySelectorAll('.walkin-item-option') : []);
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (!walkInDropdownOpen) {
+                openWalkInItemDropdown();
+                return;
+            }
+            if (!visibleOptions.length) return;
+            walkInDropdownHighlight = event.key === 'ArrowDown'
+                ? (walkInDropdownHighlight + 1) % visibleOptions.length
+                : (walkInDropdownHighlight - 1 + visibleOptions.length) % visibleOptions.length;
+            renderWalkInItemDropdown(walkInItemInput.value);
+            const active = walkInItemDropdown.querySelector('.walkin-item-option.active');
+            if (active) active.scrollIntoView({ block: 'nearest' });
+        } else if (event.key === 'Enter' && walkInDropdownOpen && walkInDropdownHighlight >= 0 && visibleOptions.length) {
+            event.preventDefault();
+            const active = walkInItemDropdown.querySelector('.walkin-item-option.active');
+            if (active && active.dataset.name) {
+                selectWalkInItemFromDropdown(active.dataset.name);
+            }
+        } else if (event.key === 'Escape') {
+            closeWalkInItemDropdown();
+        }
+    });
+
+    walkInItemDropdown.addEventListener('mousedown', (event) => {
+        // Keep the input's focus when clicking inside the dropdown.
+        event.preventDefault();
+        const option = event.target.closest('.walkin-item-option');
+        if (option && option.dataset.name) {
+            selectWalkInItemFromDropdown(option.dataset.name);
+        }
+    });
+
+    // Close when clicking anywhere outside the picker.
+    document.addEventListener('click', (event) => {
+        if (walkInDropdownOpen && !event.target.closest('.walkin-item-picker')) {
+            closeWalkInItemDropdown();
+        }
+    });
 }
 
 function addWalkInDraftItem() {
@@ -10717,6 +10843,8 @@ if (walkInOrdersTabBtn) {
         renderWalkInOrderBuilder();
     });
 }
+
+setupWalkInItemPicker();
 
 if (pendingOrdersTabBtn) {
     pendingOrdersTabBtn.addEventListener('click', () => {

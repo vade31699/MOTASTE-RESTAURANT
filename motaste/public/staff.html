@@ -538,8 +538,10 @@
             <div class="walkin-order-builder">
                 <label>
                     Product
-                    <input id="walkInItemInput" list="walkInItemOptions" type="text" placeholder="Search or select a product">
-                    <datalist id="walkInItemOptions"></datalist>
+                    <span class="walkin-item-picker">
+                        <input id="walkInItemInput" type="text" placeholder="Click to choose a product" autocomplete="off" aria-expanded="false" aria-haspopup="listbox" aria-controls="walkInItemDropdown" role="combobox">
+                        <div id="walkInItemDropdown" class="walkin-item-dropdown" role="listbox" hidden></div>
+                    </span>
                 </label>
                 <label>
                     Quantity
