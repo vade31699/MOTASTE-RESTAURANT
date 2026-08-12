@@ -68,17 +68,9 @@ try {
     // normal login) so staff-only endpoints recognize this device.
     ensureStaffAuthSession();
 
-    // Carry the CSRF token across the session-ID regeneration so tokens the
-    // client cached before this request keep validating.
-    $csrfBeforeRegenerate = '';
-    if (function_exists('getOrCreateCsrfToken')) {
-        try {
-            $csrfBeforeRegenerate = getOrCreateCsrfToken();
-        } catch (Throwable $csrfError) {
-            $csrfBeforeRegenerate = '';
-        }
-    }
-
+    // Regenerate the session ID, then issue a fresh stateless CSRF token
+    // bound to the NEW session ID. (Tokens are HMAC-signed and
+    // self-contained, so nothing needs carrying across the regeneration.)
     session_regenerate_id(true);
     $_SESSION['staff'] = [
         'role' => $role,
@@ -86,9 +78,6 @@ try {
         'name' => trim((string)($staffRow->full_name ?? '')),
         'logged_in_at' => now()->toDateTimeString()
     ];
-    if ($csrfBeforeRegenerate !== '') {
-        $_SESSION['csrf_token'] = $csrfBeforeRegenerate;
-    }
 
     // Record the successful (device-verified) login in the credentials audit trail.
     recordStaffLoginHistory($email, $role, (string)($staffRow->full_name ?? ''));
@@ -116,9 +105,7 @@ try {
 
     $sessionToken = issueStaffSessionToken($email, $role);
 
-    $freshCsrf = $csrfBeforeRegenerate !== ''
-        ? $csrfBeforeRegenerate
-        : (function_exists('getOrCreateCsrfToken') ? getOrCreateCsrfToken() : '');
+    $freshCsrf = function_exists('getOrCreateCsrfToken') ? getOrCreateCsrfToken() : '';
 
     echo json_encode([
         'success' => true,

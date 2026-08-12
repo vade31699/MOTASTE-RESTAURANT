@@ -55,18 +55,9 @@ if (!$staffRow || strtolower(trim((string)$staffRow->role)) !== strtolower(trim(
 ensureStaffAuthSession();
 
 // Carry the CSRF token across the session-ID regeneration. The browser may
-// have cached a token issued for the previous session (fetched on page load
-// BEFORE this renewal ran); without this, every later POST would fail with
-// "Invalid CSRF token" because the old token belonged to a destroyed session.
-$csrfBeforeRegenerate = '';
-if (function_exists('getOrCreateCsrfToken')) {
-    try {
-        $csrfBeforeRegenerate = getOrCreateCsrfToken();
-    } catch (Throwable $csrfError) {
-        $csrfBeforeRegenerate = '';
-    }
-}
-
+// Regenerate the session ID, then issue a fresh stateless CSRF token bound
+// to the NEW session ID. (Tokens are HMAC-signed and self-contained, so
+// nothing needs carrying across the regeneration.)
 session_regenerate_id(true);
 
 $_SESSION['staff'] = [
@@ -75,13 +66,8 @@ $_SESSION['staff'] = [
     'name' => trim((string)($staffRow->full_name ?? '')),
     'logged_in_at' => now()->toDateTimeString(),
 ];
-if ($csrfBeforeRegenerate !== '') {
-    $_SESSION['csrf_token'] = $csrfBeforeRegenerate;
-}
 
-$freshCsrf = $csrfBeforeRegenerate !== ''
-    ? $csrfBeforeRegenerate
-    : (function_exists('getOrCreateCsrfToken') ? getOrCreateCsrfToken() : '');
+$freshCsrf = function_exists('getOrCreateCsrfToken') ? getOrCreateCsrfToken() : '';
 
 echo json_encode([
     'success' => true,

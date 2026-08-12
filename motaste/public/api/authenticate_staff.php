@@ -194,17 +194,10 @@ try {
     // session without spamming the login history audit trail.
     ensureStaffAuthSession();
 
-    // Carry the CSRF token across the session-ID regeneration so tokens the
-    // client cached before login/renewal keep validating.
-    $csrfBeforeRegenerate = '';
-    if (function_exists('getOrCreateCsrfToken')) {
-        try {
-            $csrfBeforeRegenerate = getOrCreateCsrfToken();
-        } catch (Throwable $csrfError) {
-            $csrfBeforeRegenerate = '';
-        }
-    }
-
+    // Regenerate the session ID so the pre-login session cannot be hijacked,
+    // then issue a fresh stateless CSRF token bound to the NEW session ID.
+    // (Tokens are HMAC-signed and self-contained, so nothing needs carrying
+    // across the regeneration.)
     session_regenerate_id(true);
     $_SESSION['staff'] = [
         'role' => $role,
@@ -212,9 +205,6 @@ try {
         'name' => trim((string)($staffRow->full_name ?? '')),
         'logged_in_at' => now()->toDateTimeString()
     ];
-    if ($csrfBeforeRegenerate !== '') {
-        $_SESSION['csrf_token'] = $csrfBeforeRegenerate;
-    }
 
     // Record the successful login in the credentials audit trail (not for silent refresh).
     if (!$silentRefresh) {
@@ -225,9 +215,7 @@ try {
     // a browser restart WITHOUT persisting the plaintext password.
     $sessionToken = issueStaffSessionToken($email, $role);
 
-    $freshCsrf = $csrfBeforeRegenerate !== ''
-        ? $csrfBeforeRegenerate
-        : (function_exists('getOrCreateCsrfToken') ? getOrCreateCsrfToken() : '');
+    $freshCsrf = function_exists('getOrCreateCsrfToken') ? getOrCreateCsrfToken() : '';
 
     echo json_encode([
         'success' => true,
