@@ -103,6 +103,22 @@
 
     <section id="overview" class="overview-section" hidden>
         <h2>Overview</h2>
+
+        <div id="retentionBanner" class="retention-banner" hidden aria-live="polite">
+            <div class="retention-banner-head">
+                <i class="fa-solid fa-database" aria-hidden="true"></i>
+                <strong>Data Retention</strong>
+            </div>
+            <p class="retention-banner-text" id="retentionBannerText"></p>
+            <div class="retention-banner-actions">
+                <button type="button" id="retentionExportBtn" class="menu-place-order-btn">
+                    <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export to Excel
+                </button>
+                <button type="button" id="retentionClearBtn" class="secondary-btn retention-clear-btn">Clear Records</button>
+            </div>
+            <p id="retentionBannerMessage" class="menu-order-message" aria-live="polite"></p>
+        </div>
+
         <div class="overview-metrics-row" style="display:flex;gap:12px;margin:12px 0 18px;flex-wrap:wrap;">
             <div class="metric-card" id="metricPendingOrders" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
                 <div style="font-size:13px;color:#666;margin-bottom:6px;">Pending Orders</div>
@@ -539,25 +555,6 @@
             </div>
 
             <div id="walkInDraftList" class="walkin-draft-list"></div>
-
-            <div class="walkin-loyalty-panel">
-                <div class="walkin-loyalty-header">
-                    <span><i class="fa-solid fa-gift" aria-hidden="true"></i> Loyalty Points</span>
-                    <small>Look up a customer by mobile number to apply points.</small>
-                </div>
-                <div class="walkin-loyalty-row">
-                    <input id="walkInLoyaltyPhoneInput" type="tel" maxlength="12" inputmode="numeric" autocomplete="tel" placeholder="639XXXXXXXXX" aria-label="Customer mobile number (639XXXXXXXXX)">
-                    <button type="button" id="walkInLoyaltyLookupBtn" class="menu-place-order-btn">Look Up</button>
-                </div>
-                <div id="walkInLoyaltyResult" class="walkin-loyalty-result" hidden></div>
-                <div id="walkInLoyaltyRedeemRow" class="walkin-loyalty-redeem-row" hidden>
-                    <label>
-                        Redeem blocks (100 pts = ₱50)
-                        <input id="walkInLoyaltyRedeemInput" type="number" min="0" step="1" value="0" aria-label="Redeem blocks">
-                    </label>
-                    <span id="walkInLoyaltyDiscountText" class="walkin-loyalty-discount-text"></span>
-                </div>
-            </div>
 
             <div class="walkin-order-footer">
                 <label>

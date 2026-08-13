@@ -66,16 +66,6 @@ function ensureStaffEnhancementSchema(): void
             });
         }
 
-        if (!Schema::hasTable('loyalty_accounts')) {
-            Schema::create('loyalty_accounts', function (Blueprint $table) {
-                $table->id();
-                $table->string('phone', 40)->unique();
-                $table->string('name', 191)->nullable();
-                $table->integer('points')->default(0);
-                $table->timestamps();
-            });
-        }
-
         if (!Schema::hasTable('staff_session_tokens')) {
             Schema::create('staff_session_tokens', function (Blueprint $table) {
                 $table->id();
@@ -87,21 +77,6 @@ function ensureStaffEnhancementSchema(): void
                 $table->timestamps();
 
                 $table->index('email', 'staff_session_tokens_email_idx');
-            });
-        }
-
-        if (!Schema::hasTable('loyalty_transactions')) {
-            Schema::create('loyalty_transactions', function (Blueprint $table) {
-                $table->id();
-                $table->string('phone', 40)->index();
-                $table->integer('points_delta')->default(0);
-                $table->string('reason', 100)->nullable();
-                $table->unsignedBigInteger('order_id')->nullable();
-                $table->string('order_number', 191)->nullable();
-                $table->timestamps();
-
-                $table->index('phone', 'loyalty_transactions_phone_idx');
-                $table->index('order_id', 'loyalty_transactions_order_id_idx');
             });
         }
 
@@ -149,11 +124,6 @@ function ensureStaffEnhancementSchema(): void
         if (!Schema::hasColumn('orders', 'discount')) {
             Schema::table('orders', function (Blueprint $table) {
                 $table->decimal('discount', 10, 2)->default(0)->after('total_amount');
-            });
-        }
-        if (!Schema::hasColumn('orders', 'loyalty_points_redeemed')) {
-            Schema::table('orders', function (Blueprint $table) {
-                $table->integer('loyalty_points_redeemed')->default(0)->after('discount');
             });
         }
         if (!Schema::hasColumn('orders', 'cancelled_at')) {
@@ -383,182 +353,6 @@ function logApiEvent(string $event, array $details = []): void
         ]);
     } catch (Throwable $error) {
         error_log('logApiEvent failed: ' . $error->getMessage());
-    }
-}
-
-/* ------------------------------------------------------------------ */
-/* Loyalty                                                             */
-/* ------------------------------------------------------------------ */
-
-const LOYALTY_POINTS_PER_PESO = 1;          // 1 point per full peso spent
-const LOYALTY_REDEMPTION_POINTS = 100;      // points needed per redemption
-const LOYALTY_REDEMPTION_VALUE = 50;        // peso value per redemption
-
-/**
- * Normalize a Philippine mobile number to its canonical 639XXXXXXXXX form
- * (12 digits). Accepts +63..., 09XXXXXXXXX, 9XXXXXXXXX and 639XXXXXXXXX with
- * spaces/dashes/parentheses stripped, so numbers typed during checkout and
- * during staff loyalty lookups always compare equal.
- */
-function normalizePhilippinePhone(string $phone): string
-{
-    $digits = preg_replace('/\D+/', '', $phone) ?? '';
-
-    // +63 9XX XXX XXXX (13 digits) -> 639XXXXXXXXX
-    if (strlen($digits) === 13 && strpos($digits, '63') === 0) {
-        return '6' . substr($digits, 2);
-    }
-    // 09XXXXXXXXX (11 digits) -> 639XXXXXXXXX
-    if (strlen($digits) === 11 && strpos($digits, '0') === 0) {
-        return '63' . substr($digits, 1);
-    }
-    // 9XXXXXXXXX (10 digits) -> 639XXXXXXXXX
-    if (strlen($digits) === 10 && strpos($digits, '9') === 0) {
-        return '639' . $digits;
-    }
-    // 639XXXXXXXXX (12 digits) or anything unrecognized: digits as-is
-    return $digits;
-}
-
-function getLoyaltyAccount(string $phone): ?object
-{
-    ensureStaffEnhancementSchema();
-
-    $canonical = normalizePhilippinePhone($phone);
-    if ($canonical === '') {
-        return null;
-    }
-
-    // Also try the legacy 09XXXXXXXXX form so accounts that were created before
-    // phone normalization still resolve regardless of the input format.
-    $legacy = (strlen($canonical) === 12 && strpos($canonical, '639') === 0)
-        ? '0' . substr($canonical, 2)
-        : null;
-
-    return DB::table('loyalty_accounts')
-        ->where('phone', $canonical)
-        ->when($legacy !== null, function ($query) use ($legacy) {
-            $query->orWhere('phone', $legacy);
-        })
-        ->first();
-}
-
-function ensureLoyaltyAccount(string $phone, ?string $name = null): object
-{
-    ensureStaffEnhancementSchema();
-
-    $phone = normalizePhilippinePhone($phone);
-    $existing = getLoyaltyAccount($phone);
-    if ($existing) {
-        if ($name !== null && trim($name) !== '') {
-            DB::table('loyalty_accounts')->where('id', $existing->id)->update([
-                'name' => trim($name),
-                'updated_at' => now()->toDateTimeString(),
-            ]);
-        }
-        return $existing;
-    }
-
-    $id = DB::table('loyalty_accounts')->insertGetId([
-        'phone' => $phone,
-        'name' => $name !== null && trim($name) !== '' ? trim($name) : null,
-        'points' => 0,
-        'created_at' => now()->toDateTimeString(),
-        'updated_at' => now()->toDateTimeString(),
-    ]);
-
-    return (object)['id' => $id, 'phone' => $phone, 'name' => $name, 'points' => 0];
-}
-
-/**
- * Award points for a completed order. Called by mark_order_complete.php.
- */
-function awardLoyaltyPoints(int $orderId, string $orderNumber, float $total, ?string $phone, ?string $name = null): ?int
-{
-    if ($phone === null || trim($phone) === '') {
-        return null;
-    }
-
-    ensureStaffEnhancementSchema();
-    $phone = normalizePhilippinePhone($phone);
-
-    try {
-        $account = ensureLoyaltyAccount($phone, $name);
-        $points = max(1, (int)floor($total) * LOYALTY_POINTS_PER_PESO);
-
-        DB::table('loyalty_accounts')->where('id', $account->id)->increment('points', $points);
-        DB::table('loyalty_transactions')->insert([
-            'phone' => $phone,
-            'points_delta' => $points,
-            'reason' => 'order_completed',
-            'order_id' => $orderId,
-            'order_number' => $orderNumber,
-            'created_at' => now()->toDateTimeString(),
-            'updated_at' => now()->toDateTimeString(),
-        ]);
-
-        logApiEvent('loyalty_points_awarded', [
-            'phone' => $phone,
-            'points' => $points,
-            'order_id' => $orderId,
-            'order_number' => $orderNumber,
-        ]);
-
-        return $points;
-    } catch (Throwable $error) {
-        error_log('awardLoyaltyPoints failed: ' . $error->getMessage());
-        return null;
-    }
-}
-
-/**
- * Redeem points for a walk-in order discount. Returns the discount amount or 0.
- */
-function redeemLoyaltyPoints(string $phone, int $redeemBlocks, int $orderId, string $orderNumber): float
-{
-    if ($redeemBlocks <= 0) {
-        return 0.0;
-    }
-
-    ensureStaffEnhancementSchema();
-    $phone = normalizePhilippinePhone($phone);
-
-    try {
-        $account = getLoyaltyAccount($phone);
-        if (!$account) {
-            return 0.0;
-        }
-
-        $required = $redeemBlocks * LOYALTY_REDEMPTION_POINTS;
-        if ((int)($account->points ?? 0) < $required) {
-            return 0.0;
-        }
-
-        $discount = $redeemBlocks * LOYALTY_REDEMPTION_VALUE;
-
-        DB::table('loyalty_accounts')->where('id', $account->id)->decrement('points', $required);
-        DB::table('loyalty_transactions')->insert([
-            'phone' => $phone,
-            'points_delta' => -$required,
-            'reason' => 'redeemed_for_discount',
-            'order_id' => $orderId,
-            'order_number' => $orderNumber,
-            'created_at' => now()->toDateTimeString(),
-            'updated_at' => now()->toDateTimeString(),
-        ]);
-
-        logApiEvent('loyalty_points_redeemed', [
-            'phone' => $phone,
-            'points' => $required,
-            'discount' => $discount,
-            'order_id' => $orderId,
-            'order_number' => $orderNumber,
-        ]);
-
-        return $discount;
-    } catch (Throwable $error) {
-        error_log('redeemLoyaltyPoints failed: ' . $error->getMessage());
-        return 0.0;
     }
 }
 

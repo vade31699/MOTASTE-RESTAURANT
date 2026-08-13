@@ -166,27 +166,16 @@ try {
         }
     }
 
-    // Loyalty points, low-stock alerts, and the customer "order ready" email.
+    // Low-stock alerts and the customer "order ready" email.
     try {
         require_once __DIR__ . '/_staff_auth_helpers.php';
         require_once __DIR__ . '/_email_auth_helpers.php';
 
         $customerRow = DB::table('orders')
             ->where('id', $orderId)
-            ->first(['customer_phone', 'customer_name', 'customer_email', 'total_amount', 'order_number']);
+            ->first(['customer_name', 'customer_email', 'total_amount', 'order_number']);
 
         if ($customerRow) {
-            $phone = trim((string)($customerRow->customer_phone ?? ''));
-            if ($phone !== '') {
-                awardLoyaltyPoints(
-                    $orderId,
-                    (string)($customerRow->order_number ?? $orderId),
-                    (float)($customerRow->total_amount ?? 0),
-                    $phone,
-                    (string)($customerRow->customer_name ?? '')
-                );
-            }
-
             $customerEmail = trim((string)($customerRow->customer_email ?? ''));
             if ($customerEmail !== '' && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
                 $summaryText = (string)($result['summary'] ?? '');

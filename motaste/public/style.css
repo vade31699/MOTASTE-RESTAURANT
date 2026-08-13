@@ -3753,6 +3753,70 @@ body.modal-open {
 }
 
 .overview-analytics-panel,
+/* ============ Data retention banner ============ */
+.retention-banner {
+    background: #fffbeb;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: 16px;
+    padding: 16px 18px;
+    margin: 4px 0 18px;
+    color: #78350f;
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.08);
+}
+
+body.staff-app .retention-banner {
+    background: var(--staff-surface);
+    border-color: var(--staff-border);
+    color: var(--staff-text);
+}
+
+.retention-banner-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.retention-banner-head i {
+    color: #d97706;
+}
+
+.retention-banner-text {
+    margin: 0 0 12px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: inherit;
+}
+
+.retention-banner-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.retention-clear-btn {
+    background: transparent;
+    border: 1px solid rgba(220, 38, 38, 0.4);
+    color: #dc2626;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+body.staff-app .retention-clear-btn {
+    border-color: rgba(239, 68, 68, 0.5);
+    color: #ef4444;
+}
+
+.retention-clear-btn:hover {
+    background: rgba(220, 38, 38, 0.08);
+}
+
+/* ============ Overview panels ============ */
 .overview-order-notification-box {
     background: #ffffff;
     backdrop-filter: none;
@@ -9821,112 +9885,6 @@ body.staff-app .export-summary-item strong {
     opacity: 0.6;
 }
 
-/* ============ Walk-in loyalty panel ============ */
-.walkin-loyalty-panel {
-    border: 1px dashed rgba(139, 92, 246, 0.4);
-    border-radius: 14px;
-    padding: 14px;
-    margin-bottom: 14px;
-    background: rgba(139, 92, 246, 0.06);
-}
-
-body.staff-app .walkin-loyalty-panel {
-    background: rgba(139, 92, 246, 0.08);
-    border-color: var(--staff-accent);
-}
-
-.walkin-loyalty-header {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    margin-bottom: 10px;
-    font-weight: 700;
-    color: #6d28d9;
-}
-
-body.staff-app .walkin-loyalty-header {
-    color: var(--staff-text);
-}
-
-.walkin-loyalty-header small {
-    font-weight: 400;
-    font-size: 0.75rem;
-    color: #8b5cf6;
-}
-
-.walkin-loyalty-row {
-    display: flex;
-    gap: 8px;
-}
-
-.walkin-loyalty-row input {
-    flex: 1;
-    padding: 8px 12px;
-    border-radius: 10px;
-    border: 1px solid rgba(139, 92, 246, 0.3);
-    background: #fff;
-}
-
-body.staff-app .walkin-loyalty-row input {
-    background: var(--staff-surface);
-    color: var(--staff-text);
-    border-color: var(--staff-border);
-}
-
-.walkin-loyalty-result {
-    margin-top: 10px;
-    background: #f5f3ff;
-    border-radius: 10px;
-    padding: 10px 12px;
-    font-size: 0.85rem;
-}
-
-body.staff-app .walkin-loyalty-result {
-    background: var(--staff-surface-2);
-    color: var(--staff-text);
-}
-
-.walkin-loyalty-result p {
-    margin: 2px 0;
-}
-
-.walkin-loyalty-points strong {
-    color: #7c3aed;
-}
-
-.walkin-loyalty-redeem-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-top: 10px;
-    flex-wrap: wrap;
-}
-
-.walkin-loyalty-redeem-row label {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: 0.78rem;
-    color: #6d28d9;
-    font-weight: 600;
-}
-
-body.staff-app .walkin-loyalty-redeem-row label {
-    color: var(--staff-muted);
-}
-
-.walkin-loyalty-redeem-row input {
-    width: 90px;
-    padding: 6px 10px;
-    border-radius: 8px;
-    border: 1px solid rgba(139, 92, 246, 0.3);
-}
-
-.walkin-loyalty-discount-text {
-    font-weight: 700;
-    color: #059669;
-}
-
 /* ============ Order action buttons ============ */
 .order-cancel-btn,
 .order-print-btn {
@@ -10132,112 +10090,6 @@ body.staff-app .insight-card h4 {
 
 .inventory-item-card.is-hidden .inventory-item-main > strong {
     opacity: 0.6;
-}
-
-/* ============ Walk-in loyalty panel ============ */
-.walkin-loyalty-panel {
-    border: 1px dashed rgba(139, 92, 246, 0.4);
-    border-radius: 14px;
-    padding: 14px;
-    margin-bottom: 14px;
-    background: rgba(139, 92, 246, 0.06);
-}
-
-body.staff-app .walkin-loyalty-panel {
-    background: rgba(139, 92, 246, 0.08);
-    border-color: var(--staff-accent);
-}
-
-.walkin-loyalty-header {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    margin-bottom: 10px;
-    font-weight: 700;
-    color: #6d28d9;
-}
-
-body.staff-app .walkin-loyalty-header {
-    color: var(--staff-text);
-}
-
-.walkin-loyalty-header small {
-    font-weight: 400;
-    font-size: 0.75rem;
-    color: #8b5cf6;
-}
-
-.walkin-loyalty-row {
-    display: flex;
-    gap: 8px;
-}
-
-.walkin-loyalty-row input {
-    flex: 1;
-    padding: 8px 12px;
-    border-radius: 10px;
-    border: 1px solid rgba(139, 92, 246, 0.3);
-    background: #fff;
-}
-
-body.staff-app .walkin-loyalty-row input {
-    background: var(--staff-surface);
-    color: var(--staff-text);
-    border-color: var(--staff-border);
-}
-
-.walkin-loyalty-result {
-    margin-top: 10px;
-    background: #f5f3ff;
-    border-radius: 10px;
-    padding: 10px 12px;
-    font-size: 0.85rem;
-}
-
-body.staff-app .walkin-loyalty-result {
-    background: var(--staff-surface-2);
-    color: var(--staff-text);
-}
-
-.walkin-loyalty-result p {
-    margin: 2px 0;
-}
-
-.walkin-loyalty-points strong {
-    color: #7c3aed;
-}
-
-.walkin-loyalty-redeem-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-top: 10px;
-    flex-wrap: wrap;
-}
-
-.walkin-loyalty-redeem-row label {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: 0.78rem;
-    color: #6d28d9;
-    font-weight: 600;
-}
-
-body.staff-app .walkin-loyalty-redeem-row label {
-    color: var(--staff-muted);
-}
-
-.walkin-loyalty-redeem-row input {
-    width: 90px;
-    padding: 6px 10px;
-    border-radius: 8px;
-    border: 1px solid rgba(139, 92, 246, 0.3);
-}
-
-.walkin-loyalty-discount-text {
-    font-weight: 700;
-    color: #059669;
 }
 
 /* ============ Order action buttons ============ */

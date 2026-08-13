@@ -249,7 +249,7 @@ function normalizeMailEnv($value): string
     return strtolower($trimmed) === 'null' ? '' : $trimmed;
 }
 
-function sendSystemEmail(string $to, string $subject, string $body): array
+function sendSystemEmail(string $to, string $subject, string $body, ?array $attachment = null): array
 {
     $to = trim($to);
     if ($to === '') {
@@ -303,8 +303,15 @@ function sendSystemEmail(string $to, string $subject, string $body): array
         // codes remain retrievable.
         $driver = (string)config('mail.default', 'log');
         try {
-            Mail::raw($body, function ($message) use ($to, $subject): void {
+            Mail::raw($body, function ($message) use ($to, $subject, $attachment): void {
                 $message->to($to)->subject($subject);
+                if (is_array($attachment) && !empty($attachment['name']) && isset($attachment['content'])) {
+                    $message->attachData(
+                        (string)$attachment['content'],
+                        (string)$attachment['name'],
+                        ['mime' => (string)($attachment['mime'] ?? 'application/octet-stream')]
+                    );
+                }
             });
 
             error_log('[MOTASTE mail] (fallback driver: ' . $driver . ') to=' . $to . ' subject=' . $subject . ' body=' . str_replace(["\r", "\n"], ' ', $body));
@@ -339,8 +346,15 @@ function sendSystemEmail(string $to, string $subject, string $body): array
 
     try {
         // Always send through SMTP to avoid log/array default transports.
-        Mail::mailer('smtp')->raw($body, function ($message) use ($to, $subject): void {
+        Mail::mailer('smtp')->raw($body, function ($message) use ($to, $subject, $attachment): void {
             $message->to($to)->subject($subject);
+            if (is_array($attachment) && !empty($attachment['name']) && isset($attachment['content'])) {
+                $message->attachData(
+                    (string)$attachment['content'],
+                    (string)$attachment['name'],
+                    ['mime' => (string)($attachment['mime'] ?? 'application/octet-stream')]
+                );
+            }
         });
 
         return ['success' => true, 'driver' => 'smtp', 'delivered' => true];

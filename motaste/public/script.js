@@ -2716,15 +2716,6 @@ const walkInItemQtyInput = document.getElementById('walkInItemQtyInput');
 const walkInAddItemBtn = document.getElementById('walkInAddItemBtn');
 const walkInDraftList = document.getElementById('walkInDraftList');
 const walkInPaymentMethodSelect = document.getElementById('walkInPaymentMethodSelect');
-const walkInLoyaltyPhoneInput = document.getElementById('walkInLoyaltyPhoneInput');
-const walkInLoyaltyLookupBtn = document.getElementById('walkInLoyaltyLookupBtn');
-const walkInLoyaltyResult = document.getElementById('walkInLoyaltyResult');
-const walkInLoyaltyRedeemRow = document.getElementById('walkInLoyaltyRedeemRow');
-const walkInLoyaltyRedeemInput = document.getElementById('walkInLoyaltyRedeemInput');
-const walkInLoyaltyDiscountText = document.getElementById('walkInLoyaltyDiscountText');
-let walkInLoyaltyAccount = null;
-let walkInLoyaltyDiscount = 0;
-let walkInLoyaltyRedeemedBlocks = 0;
 const walkInOrderTypeSelect = document.getElementById('walkInOrderTypeSelect');
 const walkInPlaceOrderBtn = document.getElementById('walkInPlaceOrderBtn');
 const walkInOrderMessage = document.getElementById('walkInOrderMessage');
@@ -4237,6 +4228,7 @@ const seenCompletedOrdersStorageKey = 'motasteSeenCompletedOrders';
 const customerOrderTimerCacheKey = 'motasteCustomerOrderTimerCache';
 let customerOrderNumbers = new Set();
 let seenCompletedOrders = new Set();
+let seenCancelledOrders = new Set();
 let customerOrderStatusPoller = null;
 let customerOrderStatuses = new Map();
 let orderStatusFloatTicker = null;
@@ -4643,6 +4635,60 @@ function showCustomerOrderCompletedPopup(orderNumber) {
     playOrderCompletedNotificationSound();
 }
 
+function showCustomerOrderCancelledNotice(orderNumber, status) {
+    const label = status === 'refunded' ? 'refunded' : 'cancelled';
+    const existing = document.getElementById('order-cancelled-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'order-cancelled-toast';
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'polite');
+    toast.style.position = 'fixed';
+    toast.style.left = '50%';
+    toast.style.top = '24px';
+    toast.style.transform = 'translateX(-50%)';
+    toast.style.width = 'min(92vw, 460px)';
+    toast.style.padding = '14px 18px';
+    toast.style.borderRadius = '14px';
+    toast.style.background = 'rgba(127, 29, 29, 0.95)';
+    toast.style.color = '#fff';
+    toast.style.boxShadow = '0 14px 30px rgba(0, 0, 0, 0.3)';
+    toast.style.zIndex = '9999';
+    toast.style.fontWeight = '700';
+    toast.style.fontSize = 'clamp(14px, 2.6vw, 17px)';
+    toast.style.textAlign = 'center';
+    toast.style.lineHeight = '1.4';
+    toast.style.border = '1px solid rgba(255, 255, 255, 0.25)';
+    toast.style.pointerEvents = 'auto';
+    toast.textContent = `Your order #${orderNumber} was ${label} by the restaurant. You can place a new order anytime.`;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', 'Dismiss notification');
+    closeBtn.textContent = '×';
+    closeBtn.style.position = 'absolute';
+    closeBtn.style.top = '6px';
+    closeBtn.style.right = '10px';
+    closeBtn.style.background = 'transparent';
+    closeBtn.style.border = 'none';
+    closeBtn.style.color = 'rgba(255, 255, 255, 0.8)';
+    closeBtn.style.fontSize = '22px';
+    closeBtn.style.lineHeight = '1';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.style.padding = '0';
+    closeBtn.addEventListener('click', () => toast.remove());
+    toast.appendChild(closeBtn);
+
+    document.body.appendChild(toast);
+
+    // Auto-dismiss after 8 seconds unless the customer closes it sooner.
+    window.setTimeout(() => {
+        const stillThere = document.getElementById('order-cancelled-toast');
+        if (stillThere) stillThere.remove();
+    }, 8000);
+}
+
 async function pollCustomerOrderStatus() {
     if (!customerOrderNumbers.size) return;
 
@@ -4668,11 +4714,18 @@ async function pollCustomerOrderStatus() {
             const status = String(order.status || '').toLowerCase();
             if (!orderNumber) return;
 
-            if (status === 'completed' || status === 'expired') {
-                // Completed/expired orders are no longer "active": stop tracking
-                // them so the floating icon hides once every tracked order is done.
+            if (status === 'completed' || status === 'expired' || status === 'cancelled' || status === 'refunded') {
+                // Completed/expired/cancelled/refunded orders are no longer
+                // "active": stop tracking them so the floating icon hides once
+                // every tracked order is done, and never shows a cancelled
+                // order as if it were still being prepared.
+                const wasTracked = customerOrderStatuses.has(orderNumber);
                 customerOrderStatuses.delete(orderNumber);
                 customerOrderNumbers.delete(orderNumber);
+                if (wasTracked && (status === 'cancelled' || status === 'refunded') && !seenCancelledOrders.has(orderNumber)) {
+                    seenCancelledOrders.add(orderNumber);
+                    showCustomerOrderCancelledNotice(orderNumber, status);
+                }
             } else {
                 // Keep the live status map for the floating status icon.
                 customerOrderStatuses.set(orderNumber, {
@@ -5332,9 +5385,7 @@ async function submitOrderToServer(order) {
                 customerName: order.customerName || '',
                 customerPhone: order.customerPhone || '',
                 customerEmail: order.customerEmail || '',
-                deliveryAddress: order.deliveryAddress || '',
-                discount: Number(order.loyaltyDiscount) || 0,
-                loyaltyPointsRedeemed: Number(order.loyaltyPointsRedeemed) || 0
+                deliveryAddress: order.deliveryAddress || ''
             })
         });
 
@@ -7331,17 +7382,33 @@ function decrementInventory(items) {
     saveInventoryData();
 }
 
+function isTodayLocalTimestamp(timestamp) {
+    const value = Number(timestamp);
+    if (!value) return false;
+    const date = new Date(value);
+    const now = new Date();
+    return date.getFullYear() === now.getFullYear()
+        && date.getMonth() === now.getMonth()
+        && date.getDate() === now.getDate();
+}
+
 function renderOrderNotifications() {
     if (!overviewOrderNotificationList || !overviewOrderRevenue) return;
 
-    const sortedPendingOrders = [...pendingOrders].sort((a, b) => b.timestamp - a.timestamp);
-    const sortedCompletedOrders = [...completedOrders].sort((a, b) => b.timestamp - a.timestamp);
+    // The Overview feed only shows orders created on the current calendar day,
+    // so historical orders never stack up in this view.
+    const sortedPendingOrders = [...pendingOrders]
+        .filter((order) => isTodayLocalTimestamp(order.timestamp))
+        .sort((a, b) => b.timestamp - a.timestamp);
+    const sortedCompletedOrders = [...completedOrders]
+        .filter((order) => isTodayLocalTimestamp(order.timestamp))
+        .sort((a, b) => b.timestamp - a.timestamp);
     const allOrders = [...sortedPendingOrders, ...sortedCompletedOrders];
     const totalRevenue = allOrders.reduce((sum, order) => sum + (order.total || 0), 0);
     overviewOrderRevenue.textContent = formatCurrency(totalRevenue);
 
     if (!allOrders.length) {
-        overviewOrderNotificationList.innerHTML = '<p class="menu-cart-empty">There are no order notifications yet.</p>';
+        overviewOrderNotificationList.innerHTML = '<p class="menu-cart-empty">No orders yet today.</p>';
         return;
     }
 
@@ -9226,109 +9293,6 @@ function removeWalkInDraftItem(index) {
     renderWalkInOrderBuilder();
 }
 
-function renderWalkInLoyaltyResult() {
-    if (!walkInLoyaltyResult) return;
-    if (!walkInLoyaltyAccount) {
-        walkInLoyaltyResult.hidden = true;
-        walkInLoyaltyResult.innerHTML = '';
-        if (walkInLoyaltyRedeemRow) walkInLoyaltyRedeemRow.hidden = true;
-        walkInLoyaltyDiscount = 0;
-        return;
-    }
-
-    walkInLoyaltyResult.hidden = false;
-    walkInLoyaltyResult.innerHTML = `
-        <p><strong>${escapeHtml(walkInLoyaltyAccount.name || 'Loyalty member')}</strong> · ${escapeHtml(walkInLoyaltyAccount.phone)}</p>
-        <p class="walkin-loyalty-points">Balance: <strong>${Number(walkInLoyaltyAccount.points) || 0} pts</strong></p>
-    `;
-    if (walkInLoyaltyRedeemRow) {
-        walkInLoyaltyRedeemRow.hidden = (Number(walkInLoyaltyAccount.points) || 0) < (Number(walkInLoyaltyAccount.redemptionPoints) || 100);
-    }
-    if (walkInLoyaltyRedeemInput && walkInLoyaltyRedeemInput.value === '0') {
-        const maxBlocks = Math.floor((Number(walkInLoyaltyAccount.points) || 0) / (Number(walkInLoyaltyAccount.redemptionPoints) || 100));
-        walkInLoyaltyRedeemInput.max = String(Math.max(0, maxBlocks));
-    }
-    updateWalkInLoyaltyDiscountText();
-}
-
-function updateWalkInLoyaltyDiscountText() {
-    if (!walkInLoyaltyDiscountText) return;
-    if (!walkInLoyaltyAccount) {
-        walkInLoyaltyDiscountText.textContent = '';
-        return;
-    }
-    const blocks = Math.max(0, Math.floor(Number(walkInLoyaltyRedeemInput ? walkInLoyaltyRedeemInput.value : 0) || 0));
-    const value = Number(walkInLoyaltyAccount.redemptionValue) || 50;
-    const maxBlocks = Math.floor((Number(walkInLoyaltyAccount.points) || 0) / (Number(walkInLoyaltyAccount.redemptionPoints) || 100));
-    const capped = Math.min(blocks, maxBlocks);
-    walkInLoyaltyRedeemedBlocks = capped;
-    walkInLoyaltyDiscount = capped * value;
-    walkInLoyaltyDiscountText.textContent = capped > 0
-        ? `−${formatCurrency(walkInLoyaltyDiscount)} off total`
-        : '';
-}
-
-function normalizeWalkInLoyaltyPhone(value) {
-    const digits = String(value || '').replace(/\D+/g, '');
-    if (digits.length === 13 && digits.startsWith('63')) return '6' + digits.slice(2);
-    if (digits.length === 11 && digits.startsWith('0')) return '63' + digits.slice(1);
-    if (digits.length === 10 && digits.startsWith('9')) return '639' + digits;
-    return digits;
-}
-
-async function lookupWalkInLoyaltyAccount() {
-    if (!isStaffPage || !walkInLoyaltyPhoneInput) return;
-    const phone = normalizeWalkInLoyaltyPhone(walkInLoyaltyPhoneInput.value);
-    if (walkInLoyaltyPhoneInput) {
-        walkInLoyaltyPhoneInput.value = phone;
-    }
-    console.log('[loyalty] lookup input:', JSON.stringify(walkInLoyaltyPhoneInput.value), '-> normalized:', JSON.stringify(phone));
-    if (!phone) {
-        walkInLoyaltyAccount = null;
-        renderWalkInLoyaltyResult();
-        return;
-    }
-    if (!/^639\d{9}$/.test(phone)) {
-        walkInLoyaltyAccount = null;
-        renderWalkInLoyaltyResult();
-        setWalkInOrderMessage('Enter a valid PH mobile number (12 digits starting with 639, e.g. 639XXXXXXXXX).', true);
-        return;
-    }
-
-    if (walkInLoyaltyLookupBtn) {
-        walkInLoyaltyLookupBtn.disabled = true;
-        walkInLoyaltyLookupBtn.textContent = '…';
-    }
-    try {
-        const response = await fetch(getApiUrl(`api/get_loyalty_account.php?phone=${encodeURIComponent(phone)}&_=${Date.now()}`), {
-            cache: 'no-store',
-            credentials: 'same-origin'
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || !payload.success) {
-            throw new Error(payload.error || `HTTP ${response.status}`);
-        }
-        if (payload.found && payload.account) {
-            walkInLoyaltyAccount = payload.account;
-            if (walkInLoyaltyRedeemInput) walkInLoyaltyRedeemInput.value = '0';
-            setWalkInOrderMessage(`Loyalty account found for ${escapeHtml(payload.account.phone)}.`);
-        } else {
-            walkInLoyaltyAccount = null;
-            if (walkInLoyaltyRedeemInput) walkInLoyaltyRedeemInput.value = '0';
-            setWalkInOrderMessage('No loyalty account found for that number yet. Points will be created on first completed order.', true);
-        }
-    } catch (error) {
-        walkInLoyaltyAccount = null;
-        setWalkInOrderMessage(`Loyalty lookup failed: ${error.message || 'Unexpected error'}`, true);
-    } finally {
-        renderWalkInLoyaltyResult();
-        if (walkInLoyaltyLookupBtn) {
-            walkInLoyaltyLookupBtn.disabled = false;
-            walkInLoyaltyLookupBtn.textContent = 'Look Up';
-        }
-    }
-}
-
 async function placeWalkInOrder() {
     if (!canManageOrders()) {
         setWalkInOrderMessage('Only cashier/admin can place walk-in orders.', true);
@@ -9361,12 +9325,10 @@ async function placeWalkInOrder() {
             quantity: Number(item.quantity) || 0,
             components: getOrderComponents(item.components)
         })),
-        total: Math.max(0, getWalkInDraftTotal() - walkInLoyaltyDiscount),
+        total: Math.max(0, getWalkInDraftTotal()),
         paymentMethod: walkInPaymentMethodSelect ? walkInPaymentMethodSelect.value || 'Cash' : 'Cash',
         orderType: walkInOrderTypeSelect ? walkInOrderTypeSelect.value || 'Walk-in Dine In' : 'Walk-in Dine In',
-        customerPhone: walkInLoyaltyAccount ? walkInLoyaltyAccount.phone : '',
-        loyaltyDiscount: walkInLoyaltyDiscount,
-        loyaltyPointsRedeemed: walkInLoyaltyRedeemedBlocks
+        customerPhone: ''
     };
 
     const syncedOrder = await submitOrderToServer(order);
@@ -9380,12 +9342,7 @@ async function placeWalkInOrder() {
     renderPendingOrders();
     renderOrderNotifications();
     walkInDraftItems = [];
-    walkInLoyaltyAccount = null;
-    walkInLoyaltyDiscount = 0;
-    if (walkInLoyaltyPhoneInput) walkInLoyaltyPhoneInput.value = '';
-    if (walkInLoyaltyRedeemInput) walkInLoyaltyRedeemInput.value = '0';
     renderWalkInOrderBuilder();
-    renderWalkInLoyaltyResult();
     setOrdersTab('pending');
     setWalkInOrderMessage(`Walk-in order #${syncedOrder.orderNumber} created and moved to pending.`);
     void loadPendingOrdersFromServer();
@@ -10945,37 +10902,6 @@ if (pendingOrdersTabBtn) {
     });
 }
 
-if (walkInLoyaltyLookupBtn) {
-    walkInLoyaltyLookupBtn.addEventListener('click', () => void lookupWalkInLoyaltyAccount());
-}
-if (walkInLoyaltyPhoneInput) {
-    walkInLoyaltyPhoneInput.addEventListener('input', () => {
-        const raw = walkInLoyaltyPhoneInput.value;
-        const digitsOnly = raw.replace(/[^0-9]/g, '');
-        // Enforce the 639 prefix automatically as the user types.
-        let normalized = digitsOnly;
-        if (normalized.length === 11 && normalized.startsWith('09')) {
-            normalized = '639' + normalized.slice(1);
-        } else if (normalized.length === 10 && normalized.startsWith('9')) {
-            normalized = '639' + normalized;
-        }
-        if (normalized.length > 12) {
-            normalized = normalized.slice(0, 12);
-        }
-        if (normalized !== raw) {
-            walkInLoyaltyPhoneInput.value = normalized;
-        }
-    });
-    walkInLoyaltyPhoneInput.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            void lookupWalkInLoyaltyAccount();
-        }
-    });
-}
-if (walkInLoyaltyRedeemInput) {
-    walkInLoyaltyRedeemInput.addEventListener('input', updateWalkInLoyaltyDiscountText);
-}
 if (walkInAddItemBtn) {
     walkInAddItemBtn.addEventListener('click', addWalkInDraftItem);
 }
@@ -11293,10 +11219,185 @@ function renderDashboardKpis(summary) {
     }
 }
 
+// ============================================================
+// Data Retention banner (admin only)
+// ============================================================
+const retentionBanner = document.getElementById('retentionBanner');
+const retentionBannerText = document.getElementById('retentionBannerText');
+const retentionExportBtn = document.getElementById('retentionExportBtn');
+const retentionClearBtn = document.getElementById('retentionClearBtn');
+const retentionBannerMessage = document.getElementById('retentionBannerMessage');
+let retentionPendingBatches = [];
+let retentionSelectedBatch = null;
+
+function setRetentionMessage(text, isError = false) {
+    if (!retentionBannerMessage) return;
+    retentionBannerMessage.textContent = text;
+    retentionBannerMessage.style.color = isError ? '#dc2626' : '';
+}
+
+const RETENTION_TYPE_LABELS = {
+    logs: 'System Logs',
+    login_history: 'Staff Login History',
+    orders: 'Sales & Order History (6-month retention)'
+};
+
+function retentionTypeLabel(type) {
+    return RETENTION_TYPE_LABELS[type] || String(type || '');
+}
+
+function formatRetentionDate(value) {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+async function loadRetentionBatches() {
+    if (!isStaffPage || !canManageAccounts()) {
+        if (retentionBanner) retentionBanner.hidden = true;
+        return;
+    }
+    if (!retentionBanner) return;
+
+    try {
+        await ensureStaffServerSession();
+        const response = await fetch(getApiUrl(`api/get_retention_batches.php?_=${Date.now()}`), {
+            cache: 'no-store',
+            credentials: 'same-origin'
+        });
+        if (!response.ok) {
+            retentionBanner.hidden = true;
+            return;
+        }
+        const payload = await response.json().catch(() => ({}));
+        const batches = Array.isArray(payload.batches) ? payload.batches : [];
+
+        // Only surface batches that still have something to do (pending or
+        // exported but not yet cleared).
+        retentionPendingBatches = batches.filter((batch) => {
+            const status = String(batch.status || 'pending');
+            return status !== 'cleared';
+        });
+
+        if (!retentionPendingBatches.length) {
+            retentionBanner.hidden = true;
+            return;
+        }
+
+        const latest = retentionPendingBatches[0];
+        retentionSelectedBatch = latest;
+        retentionBannerText.textContent =
+            `${retentionTypeLabel(latest.batch_type)} from ${formatRetentionDate(latest.period_start)} to `
+            + `${formatRetentionDate(latest.period_end)} (${latest.record_count} records) is ready to archive. `
+            + `Export a copy to Excel, then clear the records from the database to free storage.`;
+        retentionBanner.hidden = false;
+    } catch (error) {
+        console.debug('Unable to load retention batches', error);
+        retentionBanner.hidden = true;
+    }
+}
+
+function downloadRetentionCsv(batch, headers, rows) {
+    const csvRows = rows.map((row) => headers.map((header) => {
+        const value = row && Object.prototype.hasOwnProperty.call(row, header) ? row[header] : '';
+        const text = String(value === null || value === undefined ? '' : value);
+        if (/[,"\n]/.test(text)) {
+            return `"${text.replace(/"/g, '""')}"`;
+        }
+        return text;
+    }));
+    const csv = '\uFEFF' + [headers].concat(csvRows)
+        .map((line) => line.join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `MOTASTE-${batch.batch_type}-${batch.period_label}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
+async function exportRetentionBatch() {
+    if (!retentionSelectedBatch) return;
+    setRetentionMessage('Exporting...');
+    if (retentionExportBtn) retentionExportBtn.disabled = true;
+    try {
+        const response = await fetch(getApiUrl(`api/export_retention_batch.php?id=${retentionSelectedBatch.id}&_=${Date.now()}`), {
+            cache: 'no-store',
+            credentials: 'same-origin'
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const payload = await response.json().catch(() => ({}));
+        if (!payload.success) {
+            throw new Error(payload.error || 'Export failed');
+        }
+
+        downloadRetentionCsv(
+            payload.batch || retentionSelectedBatch,
+            Array.isArray(payload.headers) ? payload.headers : [],
+            Array.isArray(payload.rows) ? payload.rows : []
+        );
+        setRetentionMessage(`Exported ${payload.rows ? payload.rows.length : 0} record(s). You can now clear them from the database.`);
+        void loadRetentionBatches();
+    } catch (error) {
+        setRetentionMessage(`Export failed: ${error.message || 'Unexpected error'}`, true);
+    } finally {
+        if (retentionExportBtn) retentionExportBtn.disabled = false;
+    }
+}
+
+async function clearRetentionBatch() {
+    if (!retentionSelectedBatch) return;
+    const typeLabel = retentionTypeLabel(retentionSelectedBatch.batch_type);
+    const confirmed = window.confirm(
+        `Permanently delete ${retentionSelectedBatch.record_count} archived ${typeLabel} record(s) from the database? `
+        + 'This cannot be undone — export first if you need a copy.'
+    );
+    if (!confirmed) return;
+
+    setRetentionMessage('Clearing records...');
+    if (retentionClearBtn) retentionClearBtn.disabled = true;
+    try {
+        const headers = await withCsrfHeaders({ 'Content-Type': 'application/json' });
+        const response = await fetch(getApiUrl('api/clear_retention_batch.php'), {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                batchId: retentionSelectedBatch.id,
+                confirmed: true
+            })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || `HTTP ${response.status}`);
+        }
+        setRetentionMessage(`Cleared ${payload.deleted || 0} record(s) from the database.`);
+        void loadRetentionBatches();
+    } catch (error) {
+        setRetentionMessage(`Clear failed: ${error.message || 'Unexpected error'}`, true);
+    } finally {
+        if (retentionClearBtn) retentionClearBtn.disabled = false;
+    }
+}
+
+if (retentionExportBtn) {
+    retentionExportBtn.addEventListener('click', () => void exportRetentionBatch());
+}
+if (retentionClearBtn) {
+    retentionClearBtn.addEventListener('click', () => void clearRetentionBatch());
+}
+
 // Initial fetch + periodic refresh
 document.addEventListener('DOMContentLoaded', () => {
     void fetchOverviewMetrics();
+    void loadRetentionBatches();
     setInterval(() => void fetchOverviewMetrics(), 15000);
+    setInterval(() => void loadRetentionBatches(), 300000);
 });// ============================================================
 // PWA service worker registration
 // ============================================================

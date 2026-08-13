@@ -49,10 +49,9 @@ $customerName = trim((string)($input['customerName'] ?? ''));
 $deliveryAddress = trim((string)($input['deliveryAddress'] ?? ''));
 $customerEmail = trim((string)($input['customerEmail'] ?? ''));
 $customerPhone = trim((string)($input['customerPhone'] ?? ''));
-// Discounts are ONLY ever computed server-side from loyalty redemptions;
-// a client-supplied discount is never trusted (see loyalty block below).
+// A client-supplied discount is never trusted; only server-computed
+// adjustments are applied (none remain now that loyalty is removed).
 $discountAmount = 0;
-$loyaltyPointsRedeemed = max(0, (int)($input['loyaltyPointsRedeemed'] ?? 0));
 
 // Resolve catalog prices once so line totals use server-authoritative prices
 // instead of whatever the client sent (price tampering protection). If the
@@ -75,28 +74,6 @@ function resolveCatalogPrice(string $itemName, float $clientPrice, array $invent
     }
     // Unrecognized/legacy menu entries: fall back to the submitted price.
     return $clientPrice;
-}
-
-// Loyalty redemption: validate against the customer's balance BEFORE the order
-// is inserted, so the discount amount and stored points are authoritative and
-// consistent. The actual point deduction happens after the order is created.
-$loyaltyRedemptionPending = false;
-if ($loyaltyPointsRedeemed > 0 && trim((string)($input['customerPhone'] ?? '')) !== '') {
-    require_once __DIR__ . '/_staff_auth_helpers.php';
-
-    $loyaltyAccount = getLoyaltyAccount(trim((string)$input['customerPhone']));
-    $requiredPoints = $loyaltyPointsRedeemed * LOYALTY_REDEMPTION_POINTS;
-    $availablePoints = $loyaltyAccount ? (int)($loyaltyAccount->points ?? 0) : 0;
-
-    if ($loyaltyAccount && $availablePoints >= $requiredPoints) {
-        // Recompute the discount authoritatively from the redeemed blocks.
-        $discountAmount = $loyaltyPointsRedeemed * LOYALTY_REDEMPTION_VALUE;
-        $loyaltyRedemptionPending = true;
-    } else {
-        // Insufficient points: ignore the redemption request entirely.
-        $loyaltyPointsRedeemed = 0;
-        $discountAmount = 0;
-    }
 }
 
 $subtotal = 0;
@@ -130,7 +107,7 @@ try {
     $orderId = null;
     $insertedItems = 0;
 
-    DB::transaction(function () use (&$orderId, &$insertedItems, $orderNumber, $paymentMethod, $orderType, $customerName, $deliveryAddress, $customerEmail, $customerPhone, $discountAmount, $loyaltyPointsRedeemed, $subtotal, $total, $items, $inventoryPriceMap) {
+    DB::transaction(function () use (&$orderId, &$insertedItems, $orderNumber, $paymentMethod, $orderType, $customerName, $deliveryAddress, $customerEmail, $customerPhone, $discountAmount, $subtotal, $total, $items, $inventoryPriceMap) {
         $now = now();
         $finalTotal = max(0, $total - $discountAmount);
         $orderId = DB::table('orders')->insertGetId([
@@ -146,7 +123,6 @@ try {
             'customer_phone' => $customerPhone !== '' ? $customerPhone : null,
             'subtotal' => $subtotal,
             'discount' => $discountAmount,
-            'loyalty_points_redeemed' => $loyaltyPointsRedeemed,
             'total_amount' => $finalTotal,
             'created_at' => $now,
             'updated_at' => $now,
@@ -201,21 +177,6 @@ try {
             error_log('order_events insert failed: ' . $__e->getMessage());
         }
     });
-
-    // Deduct the loyalty points after the order exists (best-effort).
-    if ($loyaltyRedemptionPending) {
-        try {
-            require_once __DIR__ . '/_staff_auth_helpers.php';
-            redeemLoyaltyPoints(
-                trim((string)($input['customerPhone'] ?? '')),
-                $loyaltyPointsRedeemed,
-                $orderId,
-                $orderNumber
-            );
-        } catch (Throwable $redeemError) {
-            error_log('loyalty redemption failed: ' . $redeemError->getMessage());
-        }
-    }
 
     echo json_encode(['success' => true, 'orderId' => $orderId, 'insertedItems' => $insertedItems, 'discount' => $discountAmount]);
 } catch (Throwable $error) {

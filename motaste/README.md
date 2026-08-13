@@ -16,7 +16,6 @@ An online ordering and restaurant-management platform for **MOTASTE** (Batchoy, 
 - Cart + online ordering with order tracking (status + preparation countdown via Server-Sent Events)
 - Star reviews with daily per-customer limits
 - Homepage highlights slideshow (admin-managed)
-- Loyalty points lookup/redemption (points per peso)
 
 ### Staff dashboard (`staff.html`)
 - **Roles:** Admin, Cashier, Inventory Manager (role-based access to sections)
