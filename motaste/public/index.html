@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <base href="/">
+    <!-- The homepage is served directly from the static-file layer (no PHP
+         middleware), so it never receives the Content-Security-Policy header
+         the rest of the site gets. Mirror that policy here so the landing page
+         keeps the same XSS protection. Must stay in sync with
+         app/Http/Middleware/SecurityHeaders.php. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' data: https://maps.google.com; frame-src https://maps.google.com; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; base-uri 'self'; form-action 'self'; object-src 'none'">
     <meta name="description" content="Motaste Restaurant serves crafted silog, batchoy, fried chicken and more. Order online for dine-in, take-out, or rider pick-up delivery.">
     <meta name="theme-color" content="#0d0f1c">
     <meta property="og:type" content="restaurant">
