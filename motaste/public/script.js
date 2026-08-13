@@ -5108,8 +5108,8 @@ function updatePendingOrdersCountdowns() {
         countdownEl.classList.toggle('is-done', details.progress <= 0);
 
         // Overdue detection: when the prep timer reaches 00:00, highlight the
-        // order card and raise the visual + audio alert exactly once per prep
-        // session (a fresh expiry after staff adds minutes re-triggers it).
+        // order card and raise the visual alert exactly once per prep session
+        // (a fresh expiry after staff adds minutes re-triggers it).
         const card = countdownEl.closest('.pending-order-card');
         if (!card) return;
         const orderId = Number(card.dataset.orderId || 0);
@@ -5192,7 +5192,6 @@ function handleOrderPreparationExpired(orderId) {
     overdueAlertQueue.push(key);
 
     if (!overdueAlertActive) {
-        playPendingOrderSound();
         showNextOverdueAlert();
     }
 }
@@ -11025,7 +11024,6 @@ if (isStaffPage) {
 
 // Real-time order events via Server-Sent Events
 let orderEventsSource = null;
-let pendingOrderAudio = null;
 let unseenPendingCount = 0;
 function updateOverviewBadge() {
     const badge = document.getElementById('overviewOrderBadge');
@@ -11044,19 +11042,6 @@ function updateOverviewBadge() {
     }
 }
 
-function playPendingOrderSound() {
-    try {
-        // create ephemeral audio so it plays once
-        pendingOrderAudio = new Audio(getApiUrl('order_aud_notif.mp3'));
-        pendingOrderAudio.preload = 'auto';
-        pendingOrderAudio.loop = false;
-        pendingOrderAudio.volume = 1;
-        const p = pendingOrderAudio.play();
-        if (p && typeof p.catch === 'function') p.catch(() => {});
-    } catch (e) {
-        console.debug('pending order audio failed', e);
-    }
-}
 function initOrderEvents() {
     if (!isStaffPage) {
         return;
@@ -11084,10 +11069,9 @@ function initOrderEvents() {
                     lastOrderSyncAt = now;
                     // reload pending orders to get full order details and update notifications
                     void loadPendingOrdersFromServer();
-                    // visual + audible alert for new order
+                    // visual alert for new order
                     unseenPendingCount = (unseenPendingCount || 0) + 1;
                     updateOverviewBadge();
-                    playPendingOrderSound();
                     void fetchOverviewMetrics();
                 } else {
                     // schedule a short delayed sync
