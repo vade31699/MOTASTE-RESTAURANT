@@ -58,6 +58,15 @@ try {
             ->limit(1)
             ->first();
 
+        // Low-stock count is computed server-side here so the Overview KPI card
+        // renders instantly instead of waiting for the async inventory fetch on
+        // the client (which previously showed stale data until the inventory
+        // refresh completed). Threshold matches LOW_STOCK_THRESHOLD (20) used
+        // by the low-stock email alerts and the client-side list.
+        $lowStockCount = (int)DB::table('inventory_items')
+            ->where('stock', '<=', 20)
+            ->count();
+
         echo json_encode([
             'success' => true,
             'summary' => [
@@ -67,6 +76,7 @@ try {
                 'todayRevenue' => $todayRevenue,
                 'avgPrepMinutes' => $avgPrepMinutes,
                 'bestSeller' => $bestSeller ? ['name' => $bestSeller->name, 'qty' => (int)$bestSeller->qty] : null,
+                'lowStockCount' => $lowStockCount,
             ],
         ]);
         exit;
