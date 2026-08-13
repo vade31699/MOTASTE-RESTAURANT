@@ -17,6 +17,11 @@ class SecurityHeaders
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
+        // Force HTTPS in browsers for a year (and all subdomains). The platform
+        // already serves everything over HTTPS, so this only hardens clients
+        // against downgrade/stripping attacks.
+        $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+
         // Content-Security-Policy for the routed HTML pages (index.html,
         // staff.html, Inertia pages). Scripts/styles are same-origin by
         // default; CDN allowances cover Font Awesome / Boxicons / Google Fonts

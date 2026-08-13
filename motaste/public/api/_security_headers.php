@@ -14,6 +14,8 @@ function sendSecurityHeaders(): void
     header('X-Frame-Options: SAMEORIGIN');
     header('Referrer-Policy: strict-origin-when-cross-origin');
     header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+    // Force HTTPS in browsers for a year (and all subdomains).
+    header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
 
     // Blunt any script-injection / data-exfiltration attempts. Scripts and
     // styles are same-origin only; inline styles are allowed because the app
