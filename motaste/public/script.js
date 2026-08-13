@@ -3385,6 +3385,16 @@ function closeInventoryModal(event) {
 window.openInventoryModal = openInventoryModal;
 window.closeInventoryModal = closeInventoryModal;
 
+// The page's strict CSP (script-src without 'unsafe-inline') blocks inline
+// onclick attributes, so the inventory FAB and modal close button are wired
+// up here with addEventListener instead of inline handlers.
+if (inventoryAddFab) {
+    inventoryAddFab.addEventListener('click', openInventoryModal);
+}
+if (inventoryModalCloseBtn) {
+    inventoryModalCloseBtn.addEventListener('click', closeInventoryModal);
+}
+
 if (overviewAnalyticsSelect) {
     overviewAnalyticsSelect.addEventListener('change', renderOverviewAnalytics);
 }

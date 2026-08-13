@@ -13,6 +13,8 @@ if (!requireInventoryAuth()) {
     abortStaffAuthRequired();
 }
 
+require_once __DIR__ . '/csrf_guard.php';
+validateCsrfOrExit();
 
 try {
     if (!isset($_FILES['image']) || !is_array($_FILES['image'])) {
