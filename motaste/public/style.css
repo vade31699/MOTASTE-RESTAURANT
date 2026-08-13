@@ -2339,6 +2339,10 @@ body.modal-open {
     opacity: 0.86;
     filter: grayscale(0.2);
 }
+.special-food-card.is-out-of-stock {
+    pointer-events: none;
+    cursor: default;
+}
 .special-food-card.is-out-of-stock .special-food-add:disabled,
 .menu-item-qty-btn:disabled {
     opacity: 0.55;
@@ -2664,6 +2668,14 @@ body.modal-open {
     background: #111;
     color: #fff;
 }
+.checkout-option-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+.checkout-option-btn:disabled.active {
+    background: #111;
+    color: #fff;
+}
 .order-checkout-items {
     display: grid;
     gap: 10px;
@@ -2712,6 +2724,21 @@ body.modal-open {
     outline: none;
     border-color: #111;
     box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.12);
+}
+.checkout-text-input.is-invalid {
+    border-color: #b00020;
+}
+.checkout-text-input.is-invalid:focus {
+    border-color: #b00020;
+    box-shadow: 0 0 0 3px rgba(176, 0, 32, 0.12);
+}
+.checkout-field-error {
+    display: block;
+    font-size: 0.78rem;
+    color: #b00020;
+    line-height: 1.35;
+    margin-top: 6px;
+    min-height: 1em;
 }
 .checkout-textarea {
     resize: vertical;

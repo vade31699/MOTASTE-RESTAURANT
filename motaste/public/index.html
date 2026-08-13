@@ -269,10 +269,12 @@
                             type="tel"
                             id="customerPhoneInput"
                             class="checkout-text-input"
-                            placeholder="09XX XXX XXXX"
+                            placeholder="639XXXXXXXXX"
                             autocomplete="tel"
-                            maxlength="20"
+                            inputmode="numeric"
+                            maxlength="12"
                         >
+                        <small class="checkout-field-error" id="customerPhoneError" aria-live="polite"></small>
                     </div>
                     <div class="order-checkout-section">
                         <p class="checkout-label">Email <small class="checkout-hint">(optional — get an email when your order is ready)</small></p>
@@ -284,12 +286,13 @@
                             autocomplete="email"
                             maxlength="191"
                         >
+                        <small class="checkout-field-error" id="customerEmailError" aria-live="polite"></small>
                     </div>
                     <div class="order-checkout-section">
                         <p class="checkout-label">Payment Method</p>
                         <div class="checkout-options" id="paymentMethodOptions">
                             <button type="button" class="checkout-option-btn active" data-payment="Cash">Cash</button>
-                            <button type="button" class="checkout-option-btn" data-payment="GCash">GCash</button>
+                            <button type="button" class="checkout-option-btn hidden" id="codPaymentOption" data-payment="Cash On Delivery">Cash On Delivery (COD)</button>
                         </div>
                     </div>
                     <div class="order-checkout-section">

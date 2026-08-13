@@ -4122,10 +4122,13 @@ const orderCheckoutBackBtn = document.getElementById('orderCheckoutBackBtn');
 const orderCheckoutExitBtn = document.getElementById('orderCheckoutExitBtn');
 const confirmOrderBtn = document.getElementById('confirmOrderBtn');
 const paymentMethodOptions = document.getElementById('paymentMethodOptions');
+const codPaymentOption = document.getElementById('codPaymentOption');
 const orderTypeOptions = document.getElementById('orderTypeOptions');
 const customerNameInput = document.getElementById('customerNameInput');
 const customerPhoneInput = document.getElementById('customerPhoneInput');
 const customerEmailInput = document.getElementById('customerEmailInput');
+const customerPhoneError = document.getElementById('customerPhoneError');
+const customerEmailError = document.getElementById('customerEmailError');
 const deliveryAddressSection = document.getElementById('deliveryAddressSection');
 const deliveryAddressInput = document.getElementById('deliveryAddressInput');
 const orderCheckoutItems = document.getElementById('orderCheckoutItems');
@@ -8545,8 +8548,8 @@ function renderSpecialFoods() {
         const description = getInventoryDescription(item.name, item.description || 'Tap the image to view full details.');
         const isOutOfStock = isItemOutOfStock(item.name);
         return `
-        <article class="special-food-card${isOutOfStock ? ' is-out-of-stock' : ''}" data-name="${item.name}">
-            <button type="button" class="special-food-view-btn" data-name="${item.name}" aria-label="View ${item.name} details">
+        <article class="special-food-card${isOutOfStock ? ' is-out-of-stock' : ''}" data-name="${item.name}"${isOutOfStock ? ' aria-disabled="true"' : ''}>
+            <button type="button" class="special-food-view-btn" data-name="${item.name}" aria-label="View ${item.name} details"${isOutOfStock ? ' disabled' : ''}>
                 <img src="${imageSrc}" alt="${item.name}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='img1.jpg';">
                 <div class="special-food-image-meta">
                     <span class="special-food-image-name">${item.name}</span>
@@ -9446,6 +9449,34 @@ function syncDeliveryAddressFieldVisibility() {
     }
 }
 
+/**
+ * Cash On Delivery only exists for SakayKo rider deliveries. When SakayKo is
+ * the active order type, COD is revealed, auto-selected, and locked so the
+ * customer cannot switch away from it. For any other order type COD is hidden
+ * and the payment method falls back to Cash.
+ */
+function syncPaymentMethodOptions() {
+    if (!paymentMethodOptions) return;
+    const buttons = Array.from(paymentMethodOptions.querySelectorAll('.checkout-option-btn'));
+    const isSakayKo = isSakayKoOrderType(selectedOrderType);
+
+    if (codPaymentOption) {
+        codPaymentOption.classList.toggle('hidden', !isSakayKo);
+    }
+
+    if (isSakayKo) {
+        selectedPaymentMethod = 'Cash On Delivery';
+        buttons.forEach((button) => { button.disabled = true; });
+    } else {
+        if (selectedPaymentMethod === 'Cash On Delivery') {
+            selectedPaymentMethod = 'Cash';
+        }
+        buttons.forEach((button) => { button.disabled = false; });
+    }
+
+    selectCheckoutOption(paymentMethodOptions, 'payment', selectedPaymentMethod);
+}
+
 function resetCartAddOnDraft() {
     cartAddOnDraftQuantities = {};
 }
@@ -9754,6 +9785,7 @@ function openCheckoutScreen() {
     orderCheckoutScreen.classList.remove('hidden');
     orderCheckoutScreen.setAttribute('aria-hidden', 'false');
     syncDeliveryAddressFieldVisibility();
+    syncPaymentMethodOptions();
     renderCheckoutSummary();
     setMenuOverlayMenuVisibility(false);
     // hide the top menu tab while on checkout/payment
@@ -9916,9 +9948,13 @@ function openPaymentScreen(order) {
         orderPaymentAddress.textContent = hasAddress ? order.deliveryAddress : '';
     }
 
-    if (selectedPaymentMethod === 'Cash') {
+    if (selectedPaymentMethod === 'Cash' || selectedPaymentMethod === 'Cash On Delivery') {
         if (orderPaymentMessage) {
-            orderPaymentMessage.textContent = 'Cash payment selected. Your dishes will start to cook once they are already paid at the cashier.';
+            if (selectedPaymentMethod === 'Cash On Delivery') {
+                orderPaymentMessage.textContent = 'Cash On Delivery selected. Please prepare the exact amount for the SakayKo rider upon delivery.';
+            } else {
+                orderPaymentMessage.textContent = 'Cash payment selected. Your dishes will start to cook once they are already paid at the cashier.';
+            }
         }
         if (paymentQrPlaceholder) {
             paymentQrPlaceholder.classList.add('hidden');
@@ -9974,6 +10010,49 @@ function hidePaymentSuccessMessage() {
     paymentSuccessModal.setAttribute('aria-hidden', 'true');
 }
 
+function setCheckoutFieldError(input, errorEl, message) {
+    if (input) input.classList.toggle('is-invalid', Boolean(message));
+    if (errorEl) errorEl.textContent = message || '';
+}
+
+function validateCheckoutPhone() {
+    if (!customerPhoneInput) return true;
+    const value = customerPhoneInput.value.trim();
+    if (!value) {
+        setCheckoutFieldError(customerPhoneInput, customerPhoneError, 'Please enter your mobile number.');
+        return false;
+    }
+    // Strict Philippine mobile format: exactly 12 digits starting with 639.
+    if (!/^639\d{9}$/.test(value)) {
+        setCheckoutFieldError(customerPhoneInput, customerPhoneError, 'Enter a valid PH mobile number starting with 639 (12 digits, e.g. 639XXXXXXXXX).');
+        return false;
+    }
+    setCheckoutFieldError(customerPhoneInput, customerPhoneError, '');
+    return true;
+}
+
+function validateCheckoutEmail() {
+    if (!customerEmailInput) return true;
+    const value = customerEmailInput.value.trim();
+    if (!value) {
+        // Email is optional — an empty field is always valid.
+        setCheckoutFieldError(customerEmailInput, customerEmailError, '');
+        return true;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        setCheckoutFieldError(customerEmailInput, customerEmailError, 'Enter a valid email address (e.g. you@example.com).');
+        return false;
+    }
+    setCheckoutFieldError(customerEmailInput, customerEmailError, '');
+    return true;
+}
+
+function validateCheckoutContactFields() {
+    const phoneOk = validateCheckoutPhone();
+    const emailOk = validateCheckoutEmail();
+    return phoneOk && emailOk;
+}
+
 async function confirmOrder() {
     if (!cartItems.length) return;
     // Close the cart modal if it is still open — but do NOT use closeCartModal(),
@@ -10018,6 +10097,14 @@ async function confirmOrder() {
 
     selectedCustomerPhone = customerPhoneInput ? customerPhoneInput.value.trim() : '';
     selectedCustomerEmail = customerEmailInput ? customerEmailInput.value.trim() : '';
+
+    // Strict contact validation: phone must be a 12-digit 639 number, and the
+    // optional email (if filled in) must be a valid address. Blocks submission
+    // until the highlighted fields are corrected or the email is cleared.
+    if (!validateCheckoutContactFields()) {
+        setCheckoutMessage('Please fix the highlighted contact fields before continuing.');
+        return;
+    }
 
     selectedDeliveryAddress = isSakayKoOrderType(selectedOrderType) && deliveryAddressInput
         ? deliveryAddressInput.value.trim()
@@ -10364,6 +10451,10 @@ if (specialFoodsList) {
         const item = specialFoods.find((food) => food.name === card.dataset.name);
         if (!item) return;
 
+        // Out-of-stock special foods are non-interactive: the card is disabled
+        // visually (CSS) and must never open the product detail modal.
+        if (isItemOutOfStock(item.name)) return;
+
         openProductDetailModal({
             name: item.name,
             price: Number(item.price) || 0,
@@ -10651,10 +10742,44 @@ if (paymentSuccessCloseBtn) {
     paymentSuccessCloseBtn.addEventListener('click', hidePaymentSuccessMessage);
 }
 
+if (customerPhoneInput) {
+    // Block letters, symbols, and spaces dynamically — digits only, so the
+    // field can only ever hold the numeric 639XXXXXXXXX format.
+    customerPhoneInput.addEventListener('input', () => {
+        const sanitized = customerPhoneInput.value.replace(/[^0-9]/g, '');
+        if (sanitized !== customerPhoneInput.value) {
+            customerPhoneInput.value = sanitized;
+        }
+        if (!sanitized) {
+            setCheckoutFieldError(customerPhoneInput, customerPhoneError, '');
+        } else if (sanitized.length === 12) {
+            validateCheckoutPhone();
+        } else {
+            setCheckoutFieldError(customerPhoneInput, customerPhoneError, '');
+        }
+    });
+    customerPhoneInput.addEventListener('blur', () => {
+        if (customerPhoneInput.value.trim()) validateCheckoutPhone();
+    });
+}
+
+if (customerEmailInput) {
+    customerEmailInput.addEventListener('input', () => {
+        if (customerEmailInput.value.trim()) {
+            validateCheckoutEmail();
+        } else {
+            setCheckoutFieldError(customerEmailInput, customerEmailError, '');
+        }
+    });
+}
+
 if (paymentMethodOptions) {
     paymentMethodOptions.addEventListener('click', (event) => {
         const button = event.target.closest('.checkout-option-btn');
         if (!button) return;
+        // Locked payment options (e.g. COD while SakayKo delivery is active)
+        // cannot be deselected — ignore clicks on disabled buttons.
+        if (button.disabled) return;
         selectedPaymentMethod = button.dataset.payment || 'Cash';
         selectCheckoutOption(paymentMethodOptions, 'payment', selectedPaymentMethod);
     });
@@ -10667,6 +10792,7 @@ if (orderTypeOptions) {
         selectedOrderType = button.dataset.order || 'Dine In';
         selectCheckoutOption(orderTypeOptions, 'order', selectedOrderType);
         syncDeliveryAddressFieldVisibility();
+        syncPaymentMethodOptions();
     });
 }
 
