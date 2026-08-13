@@ -15,6 +15,7 @@ if (!requireStaffAuth()) {
 }
 require_once __DIR__ . '/csrf_guard.php';
 validateCsrfOrExit();
+require_once __DIR__ . '/_helpers.php';
 
 use Illuminate\Support\Facades\DB;
 

@@ -6935,7 +6935,7 @@ function updateCartDisplay() {
         total += itemTotal;
         const customizeOptions = getCartItemCustomizeOptions(item);
         const hasCustomizeOptions = customizeOptions.length > 0;
-        const customizeExpanded = hasCustomizeOptions && (item.componentsOpen !== false);
+        const customizeExpanded = hasCustomizeOptions && item.componentsOpen === true;
         const componentRows = hasCustomizeOptions
             ? customizeOptions.map((componentName) => {
                 const quantity = getCartItemComponentQuantity(item, componentName);
@@ -6959,7 +6959,7 @@ function updateCartDisplay() {
                     <div>
                         <div class="menu-cart-item-title-row">
                             <strong>${item.name}</strong>
-                            ${hasCustomizeOptions ? `<button type="button" class="menu-cart-components-toggle" data-index="${index}" aria-expanded="${customizeExpanded ? 'true' : 'false'}" aria-label="Toggle customize options">${customizeExpanded ? '▾' : '▸'}</button>` : ''}
+                            ${hasCustomizeOptions ? `<button type="button" class="menu-cart-components-toggle" data-index="${index}" aria-expanded="${customizeExpanded ? 'true' : 'false'}" aria-label="Toggle customize options">${customizeExpanded ? 'Hide ▾' : 'Customize ▸'}</button>` : ''}
                         </div>
                         <div class="menu-cart-item-qty-controls">
                             <button type="button" class="menu-cart-item-quantity-btn" data-action="decrease" data-index="${index}" aria-label="Decrease ${item.name} quantity"${item.quantity === 1 ? ' disabled' : ''}>
@@ -8608,7 +8608,7 @@ function addToCart(item, quantityToAdd = 1) {
             existing.baseComponents = normalizeSpecialComponents(specialComponents);
         }
         applyBaseComponentsDeltaToCartItem(existing, quantity);
-        existing.componentsOpen = Array.isArray(existing.components) && existing.components.length > 0;
+        existing.componentsOpen = existing.componentsOpen === true;
         existing.componentsMode = 'total';
         existing.quantity += quantity;
     } else {
@@ -8618,7 +8618,7 @@ function addToCart(item, quantityToAdd = 1) {
             baseComponents: normalizeSpecialComponents(specialComponents),
             components: buildInitialCartComponents(specialComponents, quantity),
             componentsMode: 'total',
-            componentsOpen: specialComponents.length > 0
+            componentsOpen: false
         });
     }
     saveCart();
@@ -8948,7 +8948,7 @@ function hydrateWalkInDraftItemsFromSpecialFoods() {
         if (!Array.isArray(item.components) || !item.components.length) {
             item.components = buildInitialCartComponents(specialComponents, Number(item.quantity) || 0);
             item.componentsMode = 'total';
-            item.componentsOpen = specialComponents.length > 0;
+            item.componentsOpen = false;
         }
     });
 }
@@ -9314,12 +9314,30 @@ function updateWalkInLoyaltyDiscountText() {
         : '';
 }
 
+function normalizeWalkInLoyaltyPhone(value) {
+    const digits = String(value || '').replace(/\D+/g, '');
+    if (digits.length === 13 && digits.startsWith('63')) return '6' + digits.slice(2);
+    if (digits.length === 11 && digits.startsWith('0')) return '63' + digits.slice(1);
+    if (digits.length === 10 && digits.startsWith('9')) return '639' + digits;
+    return digits;
+}
+
 async function lookupWalkInLoyaltyAccount() {
     if (!isStaffPage || !walkInLoyaltyPhoneInput) return;
-    const phone = walkInLoyaltyPhoneInput.value.trim();
+    const phone = normalizeWalkInLoyaltyPhone(walkInLoyaltyPhoneInput.value);
+    if (walkInLoyaltyPhoneInput) {
+        walkInLoyaltyPhoneInput.value = phone;
+    }
+    console.log('[loyalty] lookup input:', JSON.stringify(walkInLoyaltyPhoneInput.value), '-> normalized:', JSON.stringify(phone));
     if (!phone) {
         walkInLoyaltyAccount = null;
         renderWalkInLoyaltyResult();
+        return;
+    }
+    if (!/^639\d{9}$/.test(phone)) {
+        walkInLoyaltyAccount = null;
+        renderWalkInLoyaltyResult();
+        setWalkInOrderMessage('Enter a valid PH mobile number (12 digits starting with 639, e.g. 639XXXXXXXXX).', true);
         return;
     }
 
@@ -10983,6 +11001,23 @@ if (walkInLoyaltyLookupBtn) {
     walkInLoyaltyLookupBtn.addEventListener('click', () => void lookupWalkInLoyaltyAccount());
 }
 if (walkInLoyaltyPhoneInput) {
+    walkInLoyaltyPhoneInput.addEventListener('input', () => {
+        const raw = walkInLoyaltyPhoneInput.value;
+        const digitsOnly = raw.replace(/[^0-9]/g, '');
+        // Enforce the 639 prefix automatically as the user types.
+        let normalized = digitsOnly;
+        if (normalized.length === 11 && normalized.startsWith('09')) {
+            normalized = '639' + normalized.slice(1);
+        } else if (normalized.length === 10 && normalized.startsWith('9')) {
+            normalized = '639' + normalized;
+        }
+        if (normalized.length > 12) {
+            normalized = normalized.slice(0, 12);
+        }
+        if (normalized !== raw) {
+            walkInLoyaltyPhoneInput.value = normalized;
+        }
+    });
     walkInLoyaltyPhoneInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
             event.preventDefault();

@@ -331,12 +331,52 @@ const LOYALTY_POINTS_PER_PESO = 1;          // 1 point per full peso spent
 const LOYALTY_REDEMPTION_POINTS = 100;      // points needed per redemption
 const LOYALTY_REDEMPTION_VALUE = 50;        // peso value per redemption
 
+/**
+ * Normalize a Philippine mobile number to its canonical 639XXXXXXXXX form
+ * (12 digits). Accepts +63..., 09XXXXXXXXX, 9XXXXXXXXX and 639XXXXXXXXX with
+ * spaces/dashes/parentheses stripped, so numbers typed during checkout and
+ * during staff loyalty lookups always compare equal.
+ */
+function normalizePhilippinePhone(string $phone): string
+{
+    $digits = preg_replace('/\D+/', '', $phone) ?? '';
+
+    // +63 9XX XXX XXXX (13 digits) -> 639XXXXXXXXX
+    if (strlen($digits) === 13 && strpos($digits, '63') === 0) {
+        return '6' . substr($digits, 2);
+    }
+    // 09XXXXXXXXX (11 digits) -> 639XXXXXXXXX
+    if (strlen($digits) === 11 && strpos($digits, '0') === 0) {
+        return '63' . substr($digits, 1);
+    }
+    // 9XXXXXXXXX (10 digits) -> 639XXXXXXXXX
+    if (strlen($digits) === 10 && strpos($digits, '9') === 0) {
+        return '639' . $digits;
+    }
+    // 639XXXXXXXXX (12 digits) or anything unrecognized: digits as-is
+    return $digits;
+}
+
 function getLoyaltyAccount(string $phone): ?object
 {
     ensureStaffEnhancementSchema();
 
+    $canonical = normalizePhilippinePhone($phone);
+    if ($canonical === '') {
+        return null;
+    }
+
+    // Also try the legacy 09XXXXXXXXX form so accounts that were created before
+    // phone normalization still resolve regardless of the input format.
+    $legacy = (strlen($canonical) === 12 && strpos($canonical, '639') === 0)
+        ? '0' . substr($canonical, 2)
+        : null;
+
     return DB::table('loyalty_accounts')
-        ->whereRaw('phone = ?', [trim($phone)])
+        ->where('phone', $canonical)
+        ->when($legacy !== null, function ($query) use ($legacy) {
+            $query->orWhere('phone', $legacy);
+        })
         ->first();
 }
 
@@ -344,7 +384,7 @@ function ensureLoyaltyAccount(string $phone, ?string $name = null): object
 {
     ensureStaffEnhancementSchema();
 
-    $phone = trim($phone);
+    $phone = normalizePhilippinePhone($phone);
     $existing = getLoyaltyAccount($phone);
     if ($existing) {
         if ($name !== null && trim($name) !== '') {
@@ -377,7 +417,7 @@ function awardLoyaltyPoints(int $orderId, string $orderNumber, float $total, ?st
     }
 
     ensureStaffEnhancementSchema();
-    $phone = trim($phone);
+    $phone = normalizePhilippinePhone($phone);
 
     try {
         $account = ensureLoyaltyAccount($phone, $name);
@@ -418,7 +458,7 @@ function redeemLoyaltyPoints(string $phone, int $redeemBlocks, int $orderId, str
     }
 
     ensureStaffEnhancementSchema();
-    $phone = trim($phone);
+    $phone = normalizePhilippinePhone($phone);
 
     try {
         $account = getLoyaltyAccount($phone);
