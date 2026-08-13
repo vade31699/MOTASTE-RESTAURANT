@@ -1318,17 +1318,28 @@ if (trustedDevicesList) {
 
 /* ---- Login history audit trail (Credentials section) ---- */
 const loginHistoryList = document.getElementById('loginHistoryList');
+const loginOnlineList = document.getElementById('loginOnlineList');
+const loginHistoryDateInput = document.getElementById('loginHistoryDateInput');
+const loginHistoryClearDateBtn = document.getElementById('loginHistoryClearDateBtn');
 
 async function loadLoginHistory() {
     if (!loginHistoryList) return;
 
+    const dateValue = loginHistoryDateInput ? loginHistoryDateInput.value : '';
+    const query = new URLSearchParams();
+    if (dateValue) {
+        query.set('date', dateValue);
+    }
+    query.set('_', Date.now());
+
     try {
-        const response = await fetch(getApiUrl(`api/get_login_history.php?_=${Date.now()}`), { cache: 'no-store' });
+        const response = await fetch(getApiUrl(`api/get_login_history.php?${query.toString()}`), { cache: 'no-store' });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload.success) {
             throw new Error(payload.error || 'Unable to load login history');
         }
-        renderLoginHistory(Array.isArray(payload.history) ? payload.history : []);
+        renderLoginOnline(Array.isArray(payload.online) ? payload.online : []);
+        renderLoginHistory(Array.isArray(payload.history) ? payload.history : [], dateValue);
     } catch (error) {
         console.error('Unable to load login history', error);
         if (loginHistoryList) {
@@ -1337,15 +1348,44 @@ async function loadLoginHistory() {
     }
 }
 
-function renderLoginHistory(history) {
+function renderLoginOnline(online) {
+    if (!loginOnlineList) return;
+
+    if (!Array.isArray(online) || !online.length) {
+        loginOnlineList.innerHTML = '<p class="login-online-empty">No staff currently online.</p>';
+        return;
+    }
+
+    loginOnlineList.innerHTML = online.map((account) => {
+        const name = String(account.name || '').trim() || 'Staff';
+        const role = String(account.role || '').trim() || 'Staff';
+        const lastActive = account.last_active_at ? formatRealtimeDate(account.last_active_at) : '';
+        return `
+            <div class="login-online-item">
+                <span class="login-online-dot" aria-hidden="true"></span>
+                <strong>${escapeHtml(name)}</strong>
+                <span class="login-online-email">${escapeHtml(account.email || '')}</span>
+                <span class="login-online-role">${escapeHtml(role)}</span>
+                <span class="login-online-time">${lastActive ? `Active ${escapeHtml(lastActive)}` : 'Active now'}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderLoginHistory(history, dateValue = '') {
     if (!loginHistoryList) return;
 
+    const filterNote = dateValue
+        ? `<p class="login-history-filter-note">Showing logins for ${escapeHtml(formatRealtimeDate(dateValue))}.</p>`
+        : '';
+
     if (!history.length) {
-        loginHistoryList.innerHTML = '<p class="trusted-devices-empty">No login history recorded yet. Successful staff logins will appear here with their date, time, and role.</p>';
+        loginHistoryList.innerHTML = `${filterNote}<p class="trusted-devices-empty">${dateValue ? 'No logins recorded for this date.' : 'No login history recorded yet. Successful staff logins will appear here with their date, time, and role.'}</p>`;
         return;
     }
 
     loginHistoryList.innerHTML = `
+        ${filterNote}
         <div class="login-history-table-wrap">
             <table class="login-history-table">
                 <thead>
@@ -1370,6 +1410,23 @@ function renderLoginHistory(history) {
         </div>
     `;
 }
+
+if (loginHistoryDateInput) {
+    loginHistoryDateInput.addEventListener('change', () => void loadLoginHistory());
+}
+if (loginHistoryClearDateBtn) {
+    loginHistoryClearDateBtn.addEventListener('click', () => {
+        if (loginHistoryDateInput) loginHistoryDateInput.value = '';
+        void loadLoginHistory();
+    });
+}
+
+// Keep the online status + history fresh while the credentials section is open.
+window.setInterval(() => {
+    if (typeof credentialsSection !== 'undefined' && credentialsSection && !credentialsSection.hidden && loginHistoryList) {
+        void loadLoginHistory();
+    }
+}, 30000);
 
 function attachStaffLoginHandler() {
     if (!staffForm) return;
@@ -2580,8 +2637,6 @@ const overviewMonthSelect = document.getElementById('overviewMonthSelect');
 const overviewOrderNotificationList = document.getElementById('overviewOrderNotificationList');
 const overviewOrderRevenue = document.getElementById('overviewOrderRevenue');
 const inventoryAdminPanel = document.getElementById('inventoryAdminPanel');
-const reorderSuggestionsPanel = document.getElementById('reorderSuggestionsPanel');
-const reorderSuggestionsList = document.getElementById('reorderSuggestionsList');
 const inventoryForm = document.getElementById('inventoryForm');
 const inventoryNameInput = document.getElementById('inventoryNameInput');
 const inventoryCategoryInput = document.getElementById('inventoryCategoryInput');
@@ -2590,7 +2645,6 @@ const inventoryPriceInput = document.getElementById('inventoryPriceInput');
 const inventoryStockInput = document.getElementById('inventoryStockInput');
 const inventoryStatusInput = document.getElementById('inventoryStatusInput');
 const inventoryUnitCostInput = document.getElementById('inventoryUnitCostInput');
-const inventoryReorderLevelInput = document.getElementById('inventoryReorderLevelInput');
 const inventoryAvailabilityInput = document.getElementById('inventoryAvailabilityInput');
 const specialFoodImageField = document.getElementById('specialFoodImageField');
 const specialFoodImageInput = document.getElementById('specialFoodImageInput');
@@ -7644,7 +7698,7 @@ document.querySelectorAll('.export-mode-tab').forEach((tab) => {
 function getLowStockItems() {
     if (!Array.isArray(inventoryData)) return [];
     return inventoryData
-        .filter((item) => Number(item.stock) < 20)
+        .filter((item) => Number(item.stock) <= 20)
         .sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0));
 }
 
@@ -7853,14 +7907,11 @@ function renderInventoryManagement() {
         const description = item.description || '';
 
         const unitCost = Number(item.unitCost) || 0;
-        const reorderLevel = Number(item.reorderLevel) || 0;
         const marginPct = item.price > 0 && unitCost > 0
             ? Math.round(((item.price - unitCost) / item.price) * 100)
             : null;
-        const isBelowReorder = reorderLevel > 0 && item.stock <= reorderLevel;
         const isHidden = item.isAvailable === false;
         const badgeHtml = [
-            isBelowReorder ? '<span class="inventory-badge badge-reorder"><i class="fa-solid fa-triangle-exclamation"></i> Reorder</span>' : '',
             isHidden ? '<span class="inventory-badge badge-hidden"><i class="fa-solid fa-eye-slash"></i> Hidden</span>' : '',
             unitCost > 0 ? `<span class="inventory-badge badge-cost">Cost ${formatCurrency(unitCost)} · Margin ${marginPct}%</span>` : ''
         ].filter(Boolean).join('');
@@ -7920,10 +7971,6 @@ function renderInventoryManagement() {
                         <input type="number" min="0" step="0.01" data-field="unitCost" value="${Number(item.unitCost) || 0}">
                     </label>
                     <label>
-                        Reorder Level
-                        <input type="number" min="0" step="1" data-field="reorderLevel" value="${Number(item.reorderLevel) || 0}">
-                    </label>
-                    <label>
                         Availability
                         <select data-field="isAvailable">
                             <option value="1" ${item.isAvailable !== false ? 'selected' : ''}>Available on menu</option>
@@ -7951,45 +7998,6 @@ function renderInventoryManagement() {
         `;
     }).join('');
 
-    renderReorderSuggestions();
-}
-
-function renderReorderSuggestions() {
-    if (!reorderSuggestionsPanel || !reorderSuggestionsList) return;
-
-    const suggestions = Array.isArray(inventoryData)
-        ? inventoryData
-            .filter((item) => {
-                const reorderLevel = Number(item.reorderLevel) || 0;
-                const stock = Number(item.stock) || 0;
-                return reorderLevel > 0 && stock <= reorderLevel && item.isAvailable !== false;
-            })
-            .sort((a, b) => (Number(a.stock) || 0) - (Number(b.stock) || 0))
-        : [];
-
-    const hasSuggestions = suggestions.length > 0;
-    reorderSuggestionsPanel.hidden = !hasSuggestions;
-    if (!hasSuggestions) {
-        reorderSuggestionsList.innerHTML = '';
-        return;
-    }
-
-    reorderSuggestionsList.innerHTML = suggestions.map((item) => {
-        const reorderLevel = Number(item.reorderLevel) || 0;
-        const stock = Number(item.stock) || 0;
-        const unitCost = Number(item.unitCost) || 0;
-        const restockCost = Math.max(0, (reorderLevel * 2) - stock) * unitCost;
-        return `
-            <div class="reorder-suggestion-card">
-                <div class="reorder-suggestion-info">
-                    <strong>${item.name}</strong>
-                    <span class="reorder-suggestion-meta">Stock ${stock} / reorder at ${reorderLevel}</span>
-                </div>
-                ${unitCost > 0 ? `<span class="reorder-suggestion-cost">Est. restock ≈ ${formatCurrency(restockCost)}</span>` : ''}
-                <button type="button" class="reorder-suggestion-btn" data-reorder-name="${item.name}">Restock +</button>
-            </div>
-        `;
-    }).join('');
 }
 
 function saveMenuCatalogItem(item, previousName = null) {
@@ -8077,63 +8085,6 @@ function removeMenuItemByName(itemName) {
     }
 
     return removed;
-}
-
-async function restockInventoryItem(name) {
-    const item = inventoryData.find((inventoryItem) => inventoryItem.name === name);
-    if (!item) return;
-
-    const reorderLevel = Number(item.reorderLevel) || 0;
-    const targetStock = Math.max(reorderLevel * 2, 1);
-    if (!window.confirm(`Mark "${item.name}" as restocked to ${targetStock} units?`)) return;
-
-    const previousStock = item.stock;
-    item.stock = targetStock;
-    item.status = 'In stock';
-    saveInventoryData();
-
-    try {
-        const actor = getCurrentStaffActor();
-        const headers = await withCsrfHeaders({
-            'Content-Type': 'application/json'
-        });
-        const response = await fetch(getApiUrl('api/update_inventory.php'), {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-                name: item.name,
-                previousName: item.name,
-                price: Number(item.price) || 0,
-                stock: targetStock,
-                status: 'In stock',
-                category: item.category || 'specials',
-                description: item.description || '',
-                image: item.image || '',
-                unitCost: Number(item.unitCost) || 0,
-                reorderLevel,
-                isAvailable: item.isAvailable ? 1 : 0,
-                actorRole: actor.role,
-                actorEmail: actor.email
-            })
-        });
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        const payload = await response.json();
-        if (!payload || payload.success !== true) {
-            throw new Error(payload?.error || 'Unknown server response');
-        }
-    } catch (error) {
-        item.stock = previousStock;
-        item.status = 'Out of stock';
-        saveInventoryData();
-        window.alert(`Restock failed on server. ${error?.message || ''}`);
-    }
-
-    renderInventoryManagement();
-    renderSpecialFoods();
-    void initializeInventoryData(true);
-    void loadOrderLogsFromServer(true);
 }
 
 async function deleteInventoryItem(name) {
@@ -8228,7 +8179,6 @@ async function saveInventoryItem(event) {
     }
 
     const unitCost = Math.max(0, Number(inventoryUnitCostInput?.value) || 0);
-    const reorderLevel = Math.max(0, Number(inventoryReorderLevelInput?.value) || 0);
     const isAvailable = inventoryAvailabilityInput ? inventoryAvailabilityInput.value !== '0' : true;
 
     if (existingItem) {
@@ -8240,7 +8190,6 @@ async function saveInventoryItem(event) {
         existingItem.components = specialComponents;
         existingItem.image = imageUrl;
         existingItem.unitCost = unitCost;
-        existingItem.reorderLevel = reorderLevel;
         existingItem.isAvailable = isAvailable;
         saveMenuCatalogItem({ ...existingItem, description, image: imageUrl, components: specialComponents });
     } else {
@@ -8254,7 +8203,6 @@ async function saveInventoryItem(event) {
             components: specialComponents,
             image: imageUrl,
             unitCost,
-            reorderLevel,
             isAvailable
         });
         saveMenuCatalogItem({ name, price, stock, status, category, description, image: imageUrl, components: specialComponents });
@@ -8286,7 +8234,6 @@ async function saveInventoryItem(event) {
                 description,
                 image: imageUrl,
                 unitCost: Number(inventoryUnitCostInput?.value) || 0,
-                reorderLevel: Number(inventoryReorderLevelInput?.value) || 0,
                 isAvailable: inventoryAvailabilityInput ? (inventoryAvailabilityInput.value !== '0' ? 1 : 0) : 1,
                 actorRole: actor.role,
                 actorEmail: actor.email
@@ -8354,7 +8301,6 @@ async function commitInlineInventoryEdit(card) {
     const priceInput = card.querySelector('[data-field="price"]');
     const stockInput = card.querySelector('[data-field="stock"]');
     const unitCostInput = card.querySelector('[data-field="unitCost"]');
-    const reorderLevelInput = card.querySelector('[data-field="reorderLevel"]');
     const isAvailableInput = card.querySelector('[data-field="isAvailable"]');
     const descriptionInput = card.querySelector('[data-field="description"]');
     const statusInput = card.querySelector('[data-field="status"]');
@@ -8368,7 +8314,6 @@ async function commitInlineInventoryEdit(card) {
     const description = descriptionInput.value.trim();
     const status = stock <= 0 ? 'Out of stock' : statusInput.value;
     const unitCost = unitCostInput ? Math.max(0, Number(unitCostInput.value) || 0) : (previousItem.unitCost || 0);
-    const reorderLevel = reorderLevelInput ? Math.max(0, Number(reorderLevelInput.value) || 0) : (previousItem.reorderLevel || 0);
     const isAvailable = isAvailableInput ? isAvailableInput.value !== '0' : (previousItem.isAvailable !== false);
 
     if (!nextName || Number.isNaN(price) || Number.isNaN(stock)) return;
@@ -8389,7 +8334,6 @@ async function commitInlineInventoryEdit(card) {
     previousItem.category = category;
     previousItem.description = description;
     previousItem.unitCost = unitCost;
-    previousItem.reorderLevel = reorderLevel;
     previousItem.isAvailable = isAvailable;
 
     saveMenuCatalogItem(previousItem, itemName);
@@ -8412,7 +8356,6 @@ async function commitInlineInventoryEdit(card) {
                 category,
                 description,
                 unitCost: previousItem.unitCost,
-                reorderLevel: previousItem.reorderLevel,
                 isAvailable: previousItem.isAvailable ? 1 : 0,
                 actorRole: actor.role,
                 actorEmail: actor.email
@@ -10520,12 +10463,6 @@ if (inventoryItemsWrapper) {
             return;
         }
 
-        const restockButton = event.target.closest('.reorder-suggestion-btn');
-        if (restockButton) {
-            const itemName = restockButton.dataset.reorderName;
-            restockInventoryItem(itemName);
-            return;
-        }
     });
 }
 
@@ -11335,13 +11272,12 @@ function renderDashboardKpis(completedOrdersData) {
     const avgEl = document.getElementById('avgPrepCount');
     if (avgEl) avgEl.textContent = prepCount ? `${(prepTotal / prepCount).toFixed(1)} min` : '—';
 
-    // Low-stock count from current inventory
+    // Low-stock count from current inventory (any item with 20 units or less)
     let lowStockCount = 0;
     if (Array.isArray(inventoryData)) {
         inventoryData.forEach((item) => {
-            const reorderLevel = Number(item.reorderLevel) || 0;
             const stock = Number(item.stock) || 0;
-            if (reorderLevel > 0 && stock <= reorderLevel) lowStockCount += 1;
+            if (stock <= 20) lowStockCount += 1;
         });
     }
     const lowEl = document.getElementById('lowStockCount');

@@ -9807,11 +9807,6 @@ body.staff-app .export-summary-item strong {
     border-radius: 999px;
 }
 
-.badge-reorder {
-    background: #fef3c7;
-    color: #92400e;
-}
-
 .badge-hidden {
     background: #fee2e2;
     color: #991b1b;
@@ -9824,109 +9819,6 @@ body.staff-app .export-summary-item strong {
 
 .inventory-item-card.is-hidden .inventory-item-main > strong {
     opacity: 0.6;
-}
-
-/* ============ Reorder suggestions ============ */
-.reorder-suggestions-panel {
-    border: 1px solid rgba(251, 191, 36, 0.35);
-    background: rgba(255, 251, 235, 0.6);
-    border-radius: 14px;
-    padding: 14px;
-    margin: 12px 0 16px;
-}
-
-body.staff-app .reorder-suggestions-panel {
-    background: rgba(255, 247, 225, 0.08);
-    border-color: var(--staff-accent);
-}
-
-.reorder-suggestions-header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 10px;
-}
-
-.reorder-suggestions-header h4 {
-    margin: 0;
-    font-size: 1rem;
-    color: #92400e;
-}
-
-body.staff-app .reorder-suggestions-header h4 {
-    color: var(--staff-text);
-}
-
-.reorder-suggestions-hint {
-    font-size: 0.78rem;
-    color: #a16207;
-}
-
-body.staff-app .reorder-suggestions-hint {
-    color: var(--staff-muted);
-}
-
-.reorder-suggestions-list {
-    display: grid;
-    gap: 8px;
-}
-
-.reorder-suggestion-card {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    background: #fff;
-    border: 1px solid rgba(217, 119, 6, 0.2);
-    border-radius: 10px;
-    padding: 10px 12px;
-}
-
-body.staff-app .reorder-suggestion-card {
-    background: var(--staff-surface);
-    border-color: var(--staff-border);
-    color: var(--staff-text);
-}
-
-.reorder-suggestion-info {
-    display: flex;
-    flex-direction: column;
-    min-width: 180px;
-    flex: 1;
-}
-
-.reorder-suggestion-meta {
-    font-size: 0.78rem;
-    color: #a16207;
-}
-
-body.staff-app .reorder-suggestion-meta {
-    color: var(--staff-muted);
-}
-
-.reorder-suggestion-cost {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #64748b;
-}
-
-.reorder-suggestion-btn {
-    background: #d97706;
-    color: #fff;
-    border: none;
-    border-radius: 999px;
-    padding: 6px 14px;
-    font-weight: 700;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: background 0.2s ease, transform 0.15s ease;
-}
-
-.reorder-suggestion-btn:hover {
-    background: #b45309;
-    transform: translateY(-1px);
 }
 
 /* ============ Walk-in loyalty panel ============ */
@@ -10228,11 +10120,6 @@ body.staff-app .insight-card h4 {
     border-radius: 999px;
 }
 
-.badge-reorder {
-    background: #fef3c7;
-    color: #92400e;
-}
-
 .badge-hidden {
     background: #fee2e2;
     color: #991b1b;
@@ -10245,109 +10132,6 @@ body.staff-app .insight-card h4 {
 
 .inventory-item-card.is-hidden .inventory-item-main > strong {
     opacity: 0.6;
-}
-
-/* ============ Reorder suggestions ============ */
-.reorder-suggestions-panel {
-    border: 1px solid rgba(251, 191, 36, 0.35);
-    background: rgba(255, 251, 235, 0.6);
-    border-radius: 14px;
-    padding: 14px;
-    margin: 12px 0 16px;
-}
-
-body.staff-app .reorder-suggestions-panel {
-    background: rgba(255, 247, 225, 0.08);
-    border-color: var(--staff-accent);
-}
-
-.reorder-suggestions-header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 10px;
-}
-
-.reorder-suggestions-header h4 {
-    margin: 0;
-    font-size: 1rem;
-    color: #92400e;
-}
-
-body.staff-app .reorder-suggestions-header h4 {
-    color: var(--staff-text);
-}
-
-.reorder-suggestions-hint {
-    font-size: 0.78rem;
-    color: #a16207;
-}
-
-body.staff-app .reorder-suggestions-hint {
-    color: var(--staff-muted);
-}
-
-.reorder-suggestions-list {
-    display: grid;
-    gap: 8px;
-}
-
-.reorder-suggestion-card {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    background: #fff;
-    border: 1px solid rgba(217, 119, 6, 0.2);
-    border-radius: 10px;
-    padding: 10px 12px;
-}
-
-body.staff-app .reorder-suggestion-card {
-    background: var(--staff-surface);
-    border-color: var(--staff-border);
-    color: var(--staff-text);
-}
-
-.reorder-suggestion-info {
-    display: flex;
-    flex-direction: column;
-    min-width: 180px;
-    flex: 1;
-}
-
-.reorder-suggestion-meta {
-    font-size: 0.78rem;
-    color: #a16207;
-}
-
-body.staff-app .reorder-suggestion-meta {
-    color: var(--staff-muted);
-}
-
-.reorder-suggestion-cost {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #64748b;
-}
-
-.reorder-suggestion-btn {
-    background: #d97706;
-    color: #fff;
-    border: none;
-    border-radius: 999px;
-    padding: 6px 14px;
-    font-weight: 700;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: background 0.2s ease, transform 0.15s ease;
-}
-
-.reorder-suggestion-btn:hover {
-    background: #b45309;
-    transform: translateY(-1px);
 }
 
 /* ============ Walk-in loyalty panel ============ */
@@ -10696,11 +10480,123 @@ body.staff-app .insight-card h4 {
 
 @media (prefers-reduced-motion: reduce) {
     .insights-hourly-bar,
-    .reorder-suggestion-btn,
     .lang-toggle-btn,
     .order-cancel-btn,
     .order-print-btn,
     .order-refund-btn {
         transition: none;
     }
+}
+
+/* ============ Login history: online status + date filter ============ */
+.login-online-list {
+    margin-bottom: 14px;
+}
+.login-online-empty {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin: 0 0 12px;
+}
+.login-online-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 10px;
+    margin-bottom: 6px;
+    background: #fff;
+    font-size: 0.85rem;
+}
+body.staff-app .login-online-item {
+    background: var(--staff-surface);
+    border-color: var(--staff-border);
+    color: var(--staff-text);
+}
+.login-online-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+    flex-shrink: 0;
+}
+.login-online-email {
+    color: #6b7280;
+}
+body.staff-app .login-online-email {
+    color: var(--staff-muted);
+}
+.login-online-role {
+    margin-left: auto;
+    background: #dcfce7;
+    color: #166534;
+    border-radius: 999px;
+    padding: 2px 9px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+body.staff-app .login-online-role {
+    background: var(--staff-accent-soft);
+    color: var(--staff-accent-strong);
+}
+.login-online-time {
+    color: #6b7280;
+    font-size: 0.75rem;
+}
+body.staff-app .login-online-time {
+    color: var(--staff-muted);
+}
+.login-history-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 0 0 12px;
+}
+.login-history-filter-row label {
+    font-size: 0.8rem;
+    color: #374151;
+    font-weight: 600;
+}
+body.staff-app .login-history-filter-row label {
+    color: var(--staff-text);
+}
+.login-history-filter-row input[type="date"] {
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    background: #fff;
+    color: #111;
+}
+body.staff-app .login-history-filter-row input[type="date"] {
+    background: var(--staff-surface);
+    color: var(--staff-text);
+    border-color: var(--staff-border);
+}
+.login-history-clear-btn {
+    border: none;
+    background: transparent;
+    color: #4f46e5;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 6px;
+}
+body.staff-app .login-history-clear-btn {
+    color: var(--staff-accent-strong);
+}
+.login-history-clear-btn:hover {
+    text-decoration: underline;
+}
+.login-history-filter-note {
+    font-size: 0.78rem;
+    color: #6b7280;
+    margin: 0 0 8px;
+}
+body.staff-app .login-history-filter-note {
+    color: var(--staff-muted);
 }

@@ -125,6 +125,18 @@ function ensureStaffEnhancementSchema(): void
             });
         }
 
+        // Track per-account last activity so the credentials section can show
+        // which staff members are currently online (heartbeat updates this on
+        // every authenticated staff API request).
+        if (!Schema::hasTable('staff')) {
+            return;
+        }
+        if (!Schema::hasColumn('staff', 'last_active_at')) {
+            Schema::table('staff', function (Blueprint $table) {
+                $table->timestamp('last_active_at')->nullable();
+            });
+        }
+
         if (!Schema::hasTable('orders')) {
             return;
         }
@@ -206,10 +218,62 @@ function requireStaffAuth(): ?array
 
     if (!empty($_SESSION['staff']) && is_array($_SESSION['staff'])) {
         logStaffApiRequest((string)($_SERVER['REQUEST_URI'] ?? basename((string)($_SERVER['SCRIPT_NAME'] ?? 'api'))));
+        touchStaffLastActive((string)($_SESSION['staff']['email'] ?? ''));
         return $_SESSION['staff'];
     }
 
     return null;
+}
+
+/**
+ * Record the staff member's last activity timestamp (heartbeat). Best-effort;
+ * never blocks the request.
+ */
+function touchStaffLastActive(string $email): void
+{
+    if (trim($email) === '') {
+        return;
+    }
+
+    try {
+        ensureStaffEnhancementSchema();
+        DB::table('staff')
+            ->whereRaw('LOWER(email) = ?', [strtolower(trim($email))])
+            ->update(['last_active_at' => now()->toDateTimeString()]);
+    } catch (Throwable $error) {
+        error_log('touchStaffLastActive failed: ' . $error->getMessage());
+    }
+}
+
+/**
+ * Staff accounts that have been active within the last 5 minutes — used to
+ * render the "online now" indicator in the credentials section.
+ */
+function getOnlineStaffAccounts(): array
+{
+    ensureStaffEnhancementSchema();
+
+    try {
+        $rows = DB::table('staff')
+            ->where('last_active_at', '>=', now()->subMinutes(5)->toDateTimeString())
+            ->orderByDesc('last_active_at')
+            ->get(['email', 'full_name', 'role', 'last_active_at'])
+            ->all();
+
+        $online = [];
+        foreach ($rows as $row) {
+            $online[] = [
+                'email' => (string)($row->email ?? ''),
+                'name' => trim((string)($row->full_name ?? '')) ?: 'Staff',
+                'role' => trim((string)($row->role ?? '')) ?: 'Staff',
+                'last_active_at' => (string)($row->last_active_at ?? ''),
+            ];
+        }
+        return $online;
+    } catch (Throwable $error) {
+        error_log('getOnlineStaffAccounts failed: ' . $error->getMessage());
+        return [];
+    }
 }
 
 /**
@@ -755,10 +819,12 @@ function revokeAllStaffSessionTokens(string $email): void
 /* Low-stock email alert                                               */
 /* ------------------------------------------------------------------ */
 
+const LOW_STOCK_THRESHOLD = 20; // units at or below which an item is low stock
+
 /**
- * Send a low-stock/reorder alert email to the admin address when inventory
- * items drop to (or below) their reorder level. Runs at most once per item
- * per 6-hour window (tracked in api_event_logs) to avoid email spam.
+ * Send a low-stock alert email to the admin address when inventory items drop
+ * to (or below) 20 units. Runs at most once per item per 6-hour window
+ * (tracked in api_event_logs) to avoid email spam.
  */
 function notifyLowStockAlerts(): void
 {
@@ -766,10 +832,9 @@ function notifyLowStockAlerts(): void
 
     try {
         $lowItems = DB::table('inventory_items')
-            ->where('reorder_level', '>', 0)
-            ->whereColumn('stock', '<=', 'reorder_level')
+            ->where('stock', '<=', LOW_STOCK_THRESHOLD)
             ->orderBy('stock', 'asc')
-            ->get(['name', 'stock', 'reorder_level', 'updated_at'])
+            ->get(['name', 'stock', 'updated_at'])
             ->all();
 
         if (!$lowItems) {
@@ -798,7 +863,7 @@ function notifyLowStockAlerts(): void
         }
 
         $lines = array_map(function ($item) {
-            return '- ' . $item->name . ': ' . (int)$item->stock . ' left (reorder at ' . (int)$item->reorder_level . ')';
+            return '- ' . $item->name . ': ' . (int)$item->stock . ' left';
         }, $freshItems);
 
         $adminEmail = (string)DB::table('staff')->where('role', 'Admin')->value('email');
@@ -809,14 +874,14 @@ function notifyLowStockAlerts(): void
         $result = sendSystemEmail(
             $adminEmail,
             'MOTASTE Low Stock Alert',
-            "The following items are at or below their reorder level:\n\n" . implode("\n", $lines) . "\n\nPlease restock soon.\n\nThis message was sent automatically by the MOTASTE ordering system."
+            "The following items are at or below " . LOW_STOCK_THRESHOLD . " units in stock:\n\n" . implode("\n", $lines) . "\n\nPlease restock soon.\n\nThis message was sent automatically by the MOTASTE ordering system."
         );
 
         foreach ($freshItems as $item) {
             logApiEvent('low_stock_alert_' . md5(strtolower(trim((string)($item->name ?? '')))), [
                 'name' => $item->name,
                 'stock' => (int)$item->stock,
-                'reorder_level' => (int)$item->reorder_level,
+                'threshold' => LOW_STOCK_THRESHOLD,
                 'email_delivered' => ($result['success'] ?? false),
             ]);
         }

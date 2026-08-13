@@ -21,10 +21,20 @@ use Illuminate\Support\Facades\DB;
 try {
     ensureStaffLoginHistoryTable();
 
-    $rows = DB::table('staff_login_history')
-        ->orderByDesc('logged_in_at')
-        ->limit(100)
-        ->get();
+    // Optional date filter (?date=YYYY-MM-DD) limits the history to one day's
+    // logins, keeping the credentials section clean and performant.
+    $dateFilter = trim((string)($_GET['date'] ?? ''));
+    if ($dateFilter !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFilter)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid date. Use YYYY-MM-DD.']);
+        exit;
+    }
+
+    $query = DB::table('staff_login_history');
+    if ($dateFilter !== '') {
+        $query->whereDate('logged_in_at', $dateFilter);
+    }
+    $rows = $query->orderByDesc('logged_in_at')->limit(100)->get();
 
     $history = $rows->map(static function ($row) {
         return [
@@ -38,7 +48,11 @@ try {
         ];
     })->values()->all();
 
-    echo json_encode(['success' => true, 'history' => $history]);
+    echo json_encode([
+        'success' => true,
+        'history' => $history,
+        'online' => getOnlineStaffAccounts(),
+    ]);
 } catch (Throwable $error) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Unable to load login history', 'details' => $error->getMessage()]);

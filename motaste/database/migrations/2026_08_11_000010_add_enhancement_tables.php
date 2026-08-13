@@ -103,10 +103,24 @@ return new class extends Migration
                 });
             }
         }
+
+        if (Schema::hasTable('staff')) {
+            if (!Schema::hasColumn('staff', 'last_active_at')) {
+                Schema::table('staff', function (Blueprint $table) {
+                    $table->timestamp('last_active_at')->nullable();
+                });
+            }
+        }
     }
 
     public function down(): void
     {
+        if (Schema::hasTable('staff') && Schema::hasColumn('staff', 'last_active_at')) {
+            Schema::table('staff', function (Blueprint $table) {
+                $table->dropColumn('last_active_at');
+            });
+        }
+
         if (Schema::hasTable('orders')) {
             foreach (['refunded_at', 'cancelled_at', 'loyalty_points_redeemed', 'discount', 'customer_email', 'customer_phone'] as $column) {
                 if (Schema::hasColumn('orders', $column)) {

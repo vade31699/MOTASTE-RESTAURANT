@@ -143,7 +143,7 @@
             <div class="metric-card" id="metricLowStock" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
                 <div style="font-size:13px;color:#666;margin-bottom:6px;">Low-Stock Items</div>
                 <div id="lowStockCount" style="font-size:28px;font-weight:700;color:#dc2626;">0</div>
-                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">At or below reorder level</div>
+                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Stock at or below 20 units</div>
             </div>
 
             <div class="metric-card" id="metricBestSeller" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
@@ -404,14 +404,6 @@
                     <span id="inventoryAccessNote" class="inventory-access-note"></span>
                 </div>
 
-                <div id="reorderSuggestionsPanel" class="reorder-suggestions-panel" hidden>
-                    <div class="reorder-suggestions-header">
-                        <h4><i class="fa-solid fa-cart-arrow-down" aria-hidden="true"></i> Reorder Suggestions</h4>
-                        <span class="reorder-suggestions-hint">Items at or below their reorder level. Low-stock email alerts are sent automatically.</span>
-                    </div>
-                    <div id="reorderSuggestionsList" class="reorder-suggestions-list"></div>
-                </div>
-
                 <div class="inventory-action-row">
                     <button type="button" id="inventoryAddFab" class="inventory-add-fab" aria-label="Add new inventory product" onclick="openInventoryModal()">+</button>
                 </div>
@@ -451,10 +443,6 @@
                             <label>
                                 Unit Cost (₱)
                                 <input id="inventoryUnitCostInput" type="number" min="0" step="0.01" placeholder="Cost per unit" value="0">
-                            </label>
-                            <label>
-                                Reorder Level
-                                <input id="inventoryReorderLevelInput" type="number" min="0" step="1" placeholder="Reorder at (stock)" value="0">
                             </label>
                             <label>
                                 Availability
@@ -740,6 +728,12 @@
             <div class="trusted-devices-header">
                 <h3>Login History</h3>
                 <p>Audit trail of successful staff logins with date, time, and role.</p>
+            </div>
+            <div id="loginOnlineList" class="login-online-list"></div>
+            <div class="login-history-filter-row">
+                <label for="loginHistoryDateInput">Filter by date</label>
+                <input type="date" id="loginHistoryDateInput" aria-label="Filter login history by date">
+                <button type="button" id="loginHistoryClearDateBtn" class="login-history-clear-btn">Show all</button>
             </div>
             <div id="loginHistoryList" class="login-history-list"></div>
         </div>
