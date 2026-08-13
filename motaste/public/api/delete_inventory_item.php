@@ -21,6 +21,7 @@ validateCsrfOrExit();
 require_once __DIR__ . '/_helpers.php';
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 function ensureOrderLogsTable(): void
 {
@@ -146,6 +147,15 @@ try {
         'created_at' => now(),
         'updated_at' => now(),
     ]);
+
+    // Item was removed — drop the short-lived inventory cache so the next load
+    // no longer shows it.
+    try {
+        Cache::forget('inventory_staff_v1');
+        Cache::forget('inventory_public_v1');
+    } catch (Throwable $cacheError) {
+        error_log('inventory cache invalidate failed: ' . $cacheError->getMessage());
+    }
 
     echo json_encode([
         'success' => true,

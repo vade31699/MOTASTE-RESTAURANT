@@ -18,6 +18,7 @@ validateCsrfOrExit();
 require_once __DIR__ . '/_helpers.php';
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 function ensureOrderLogsTable(): void
 {
@@ -154,6 +155,15 @@ try {
     // alert email (deduped to once per item per 6-hour window). This runs only
     // on an admin save action, never on an inventory page load.
     notifyLowStockAlerts();
+
+    // Drop the short-lived inventory cache so the next page load sees the new
+    // stock immediately instead of waiting out the TTL.
+    try {
+        Cache::forget('inventory_staff_v1');
+        Cache::forget('inventory_public_v1');
+    } catch (Throwable $cacheError) {
+        error_log('inventory cache invalidate failed: ' . $cacheError->getMessage());
+    }
 
     echo json_encode([
         'success' => true,

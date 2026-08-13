@@ -13,6 +13,7 @@ require_once __DIR__ . '/_security_headers.php';
 sendSecurityHeaders();
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 try {
     // Staff scope includes cost/reorder/availability fields and requires the
@@ -29,6 +30,24 @@ try {
         // from the stock-changing write endpoints instead (mark_order_complete,
         // update_inventory), where the dedup keeps them at one email per item
         // per 6-hour window.
+    }
+
+    // Short-lived cache so repeated inventory loads (the customer page refreshes
+    // every 10s, plus staff page loads and several open tabs) share one query
+    // result instead of re-running the full query + name normalization per
+    // request. Cache access is best-effort: if the cache store is unavailable,
+    // fall through to the query so inventory always loads. The staff/public
+    // payloads differ (staff includes cost fields), so each gets its own key.
+    $cacheKey = 'inventory_' . ($isStaffScope ? 'staff' : 'public') . '_v1';
+    $cacheTtlSeconds = 5;
+    try {
+        $cachedPayload = Cache::get($cacheKey);
+        if ($cachedPayload !== null) {
+            echo $cachedPayload;
+            exit;
+        }
+    } catch (Throwable $cacheError) {
+        error_log('get_inventory cache read failed: ' . $cacheError->getMessage());
     }
 
     $rawItems = DB::table('inventory_items')
@@ -65,7 +84,14 @@ try {
 
     $items = array_values($itemsByName);
 
-    echo json_encode(['success' => true, 'items' => $items]);
+    $payload = json_encode(['success' => true, 'items' => $items]);
+    try {
+        Cache::put($cacheKey, $payload, $cacheTtlSeconds);
+    } catch (Throwable $cacheError) {
+        error_log('get_inventory cache write failed: ' . $cacheError->getMessage());
+    }
+
+    echo $payload;
 } catch (Throwable $error) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Database query failed']);

@@ -22,6 +22,7 @@ require_once __DIR__ . '/_helpers.php';
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Database\Schema\Blueprint;
 
 function ensureOrderLogsTable(): void
@@ -204,6 +205,15 @@ try {
         notifyLowStockAlerts();
     } catch (Throwable $benefitError) {
         error_log('order completion benefits failed: ' . $benefitError->getMessage());
+    }
+
+    // Stock was decremented for this completed order — drop the short-lived
+    // inventory cache so the next load shows the updated stock right away.
+    try {
+        Cache::forget('inventory_staff_v1');
+        Cache::forget('inventory_public_v1');
+    } catch (Throwable $cacheError) {
+        error_log('inventory cache invalidate failed: ' . $cacheError->getMessage());
     }
 
     echo json_encode([
