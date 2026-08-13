@@ -17,6 +17,19 @@ class SecurityHeaders
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
+        // Content-Security-Policy for the routed HTML pages (index.html,
+        // staff.html, Inertia pages). Scripts/styles are same-origin by
+        // default; CDN allowances cover Font Awesome / Boxicons / Google Fonts
+        // / xlsx used by the pages, and the embedded Google Maps iframe.
+        $response->headers->set('Content-Security-Policy', "default-src 'self'; "
+            . "script-src 'self' https://cdnjs.cloudflare.com; "
+            . "style-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
+            . "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com https://unpkg.com; "
+            . "img-src 'self' data: https://maps.google.com; "
+            . "frame-src https://maps.google.com; "
+            . "connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; "
+            . "base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'self'");
+
         return $response;
     }
 }

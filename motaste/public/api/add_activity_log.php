@@ -12,6 +12,8 @@ require_once __DIR__ . '/_staff_auth_helpers.php';
 if (!requireStaffAuth()) {
     abortStaffAuthRequired();
 }
+require_once __DIR__ . '/csrf_guard.php';
+validateCsrfOrExit();
 
 
 use Illuminate\Support\Facades\DB;
@@ -69,5 +71,5 @@ try {
     echo json_encode(['success' => true]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to save activity log', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Unable to save activity log']);
 }

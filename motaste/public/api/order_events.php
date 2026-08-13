@@ -13,8 +13,13 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_security_headers.php';
 sendSecurityHeaders();
 
-// Provides IP-based rate limiting (recordOrderApiRequest / isOrderApiRateLimited).
+// Provides IP-based rate limiting (recordOrderApiRequest / isOrderApiRateLimited)
+// plus the staff session gate. The live order stream contains every order's
+// items, so it is restricted to authenticated staff only.
 require_once __DIR__ . '/_staff_auth_helpers.php';
+if (!requireStaffAuth()) {
+    abortStaffAuthRequired();
+}
 
 use Illuminate\Support\Facades\DB;
 

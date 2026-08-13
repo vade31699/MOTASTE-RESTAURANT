@@ -29,6 +29,18 @@ try {
         exit;
     }
 
+    // Brute-force protection: apply the same per-account lockout as the
+    // login endpoint so verification codes cannot be mass-guessed.
+    if (isLoginRateLimited($email)) {
+        http_response_code(429);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Too many failed login attempts. Please try again in 15 minutes.',
+            'rateLimited' => true,
+        ]);
+        exit;
+    }
+
     // Re-confirm the credentials on this step before trusting the device.
     $staffRow = DB::table('staff')
         ->whereRaw('LOWER(email) = ?', [$email])
@@ -119,5 +131,5 @@ try {
     ]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to verify device login', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Unable to verify device login']);
 }

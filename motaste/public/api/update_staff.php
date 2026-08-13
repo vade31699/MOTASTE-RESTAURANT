@@ -95,5 +95,5 @@ try {
     echo json_encode(['success' => true, 'updated' => $updated]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['error' => 'Update failed', 'details' => $error->getMessage()]);
+    echo json_encode(['error' => 'Update failed']);
 }

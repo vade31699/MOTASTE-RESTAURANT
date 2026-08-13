@@ -10,7 +10,7 @@ $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 require_once __DIR__ . '/_staff_auth_helpers.php';
-if (!requireStaffAuth()) {
+if (!requireOrderManagerAuth()) {
     abortStaffAuthRequired();
 }
 require_once __DIR__ . '/csrf_guard.php';
@@ -112,5 +112,5 @@ try {
     ]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to cancel order', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Unable to cancel order']);
 }

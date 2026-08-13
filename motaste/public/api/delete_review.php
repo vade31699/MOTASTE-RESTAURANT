@@ -9,7 +9,7 @@ require __DIR__ . '/../../vendor/autoload.php';
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_staff_auth_helpers.php';
-if (!requireStaffAuth()) {
+if (!requireAdminAuth()) {
     abortStaffAuthRequired();
 }
 
@@ -83,5 +83,5 @@ try {
     echo json_encode(['success' => true]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to delete review', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Unable to delete review']);
 }

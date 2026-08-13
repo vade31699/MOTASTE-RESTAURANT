@@ -84,5 +84,5 @@ try {
     echo json_encode(['success' => true, 'id' => $insertId]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['error' => 'Insert failed', 'details' => $error->getMessage()]);
+    echo json_encode(['error' => 'Insert failed']);
 }

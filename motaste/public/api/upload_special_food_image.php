@@ -9,7 +9,7 @@ require __DIR__ . '/../../vendor/autoload.php';
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_staff_auth_helpers.php';
-if (!requireStaffAuth()) {
+if (!requireInventoryAuth()) {
     abortStaffAuthRequired();
 }
 
@@ -34,10 +34,26 @@ try {
         exit;
     }
 
-    $extension = strtolower(pathinfo((string)$file['name'], PATHINFO_EXTENSION)) ?: 'jpg';
-    $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-    if (!in_array($extension, $allowed, true)) {
-        $extension = 'jpg';
+    // Validate the file is a real image and derive the extension from its
+    // actual content (never from the client-supplied filename), so a file
+    // disguised as an image is rejected before it is stored.
+    $imageInfo = @getimagesize($file['tmp_name']);
+    if ($imageInfo === false || !isset($imageInfo[2])) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Uploaded file is not a valid image']);
+        exit;
+    }
+    $mimeToExtension = [
+        IMAGETYPE_JPEG => 'jpg',
+        IMAGETYPE_PNG => 'png',
+        IMAGETYPE_GIF => 'gif',
+        IMAGETYPE_WEBP => 'webp',
+    ];
+    $extension = $mimeToExtension[$imageInfo[2]] ?? null;
+    if ($extension === null) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Unsupported image type']);
+        exit;
     }
 
     $fileName = 'special-food-' . time() . '-' . bin2hex(random_bytes(6)) . '.' . $extension;
@@ -63,5 +79,5 @@ try {
     ]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Image upload failed', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Image upload failed']);
 }

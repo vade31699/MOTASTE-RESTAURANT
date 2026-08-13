@@ -9,7 +9,8 @@ require __DIR__ . '/../../vendor/autoload.php';
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_staff_auth_helpers.php';
-if (!requireStaffAuth()) {
+$actor = requireStaffAuth();
+if (!$actor) {
     abortStaffAuthRequired();
 }
 
@@ -25,7 +26,13 @@ try {
     $body = is_array($input) ? $input : [];
     $email = strtolower(trim((string)($_GET['email'] ?? ($body['email'] ?? ''))));
     $deviceToken = trim((string)($_GET['deviceToken'] ?? ($body['deviceToken'] ?? '')));
-    $includeAll = !empty($_GET['includeAll']) || !empty($body['includeAll']);
+    // Only an Admin may list every staff member's devices; everyone else is
+    // scoped to their own account regardless of what the client requests.
+    $isAdmin = strtolower(trim((string)($actor['role'] ?? ''))) === 'admin';
+    $includeAll = $isAdmin && (!empty($_GET['includeAll']) || !empty($body['includeAll']));
+    if (!$isAdmin) {
+        $email = strtolower(trim((string)($actor['email'] ?? '')));
+    }
 
     if ($email === '') {
         http_response_code(400);
@@ -68,5 +75,5 @@ try {
     echo json_encode(['success' => true, 'devices' => $list]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to load trusted devices', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Unable to load trusted devices']);
 }

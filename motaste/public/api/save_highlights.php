@@ -9,7 +9,7 @@ require __DIR__ . '/../../vendor/autoload.php';
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_staff_auth_helpers.php';
-if (!requireStaffAuth()) {
+if (!requireAdminAuth()) {
     abortStaffAuthRequired();
 }
 
@@ -65,6 +65,5 @@ try {
     echo json_encode([
         'success' => false,
         'error' => 'Unable to save highlights snapshot',
-        'details' => $error->getMessage(),
     ]);
 }

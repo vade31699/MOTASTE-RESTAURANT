@@ -614,6 +614,34 @@ function requireAdminAuth(): ?array
 }
 
 /**
+ * Returns the authenticated staff array for Admin or Cashier accounts, or
+ * null. Guards order-management endpoints (create/complete/cancel/refund).
+ */
+function requireOrderManagerAuth(): ?array
+{
+    $staff = requireStaffAuth();
+    if (!$staff) {
+        return null;
+    }
+    $role = strtolower(trim((string)($staff['role'] ?? '')));
+    return in_array($role, ['admin', 'cashier'], true) ? $staff : null;
+}
+
+/**
+ * Returns the authenticated staff array for Admin or Inventory Manager
+ * accounts, or null. Guards inventory/catalog endpoints.
+ */
+function requireInventoryAuth(): ?array
+{
+    $staff = requireStaffAuth();
+    if (!$staff) {
+        return null;
+    }
+    $role = strtolower(trim((string)($staff['role'] ?? '')));
+    return in_array($role, ['admin', 'inventory manager'], true) ? $staff : null;
+}
+
+/**
  * Ensure the order_request_log table used to rate-limit public order APIs.
  */
 function ensureOrderRequestLogTable(): void

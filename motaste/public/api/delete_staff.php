@@ -52,5 +52,5 @@ try {
     echo json_encode(['success' => true, 'deleted' => $deleted]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['error' => 'Delete failed', 'details' => $error->getMessage()]);
+    echo json_encode(['error' => 'Delete failed']);
 }

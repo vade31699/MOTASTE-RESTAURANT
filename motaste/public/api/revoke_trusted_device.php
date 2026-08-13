@@ -9,7 +9,8 @@ require __DIR__ . '/../../vendor/autoload.php';
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_staff_auth_helpers.php';
-if (!requireStaffAuth()) {
+$actor = requireStaffAuth();
+if (!$actor) {
     abortStaffAuthRequired();
 }
 
@@ -23,6 +24,10 @@ try {
 
     $input = json_decode(file_get_contents('php://input'), true);
     $email = strtolower(trim((string)($input['email'] ?? '')));
+    // Non-admins may only revoke their own devices; admins may revoke any.
+    if (strtolower(trim((string)($actor['role'] ?? ''))) !== 'admin') {
+        $email = strtolower(trim((string)($actor['email'] ?? '')));
+    }
     $fingerprint = trim((string)($input['fingerprint'] ?? ''));
     $deviceToken = trim((string)($input['deviceToken'] ?? ''));
 
@@ -57,5 +62,5 @@ try {
     echo json_encode(['success' => true, 'revoked' => (int)$deleted]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to revoke trusted device', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Unable to revoke trusted device']);
 }

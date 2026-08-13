@@ -35,8 +35,10 @@ if (isOrderApiRateLimited('create_order', 12, 60)) {
     exit;
 }
 
+// Order numbers are only ever shown to staff/customers; restrict them to
+// digits so they cannot smuggle markup into the staff dashboard (stored XSS).
 $orderNumber = trim((string)($input['orderNumber'] ?? ''));
-if ($orderNumber === '') {
+if (!preg_match('/^\d{4,20}$/', $orderNumber)) {
     $orderNumber = (string)time();
 }
 
@@ -47,8 +49,33 @@ $customerName = trim((string)($input['customerName'] ?? ''));
 $deliveryAddress = trim((string)($input['deliveryAddress'] ?? ''));
 $customerEmail = trim((string)($input['customerEmail'] ?? ''));
 $customerPhone = trim((string)($input['customerPhone'] ?? ''));
-$discountAmount = max(0, (float)($input['discount'] ?? 0));
+// Discounts are ONLY ever computed server-side from loyalty redemptions;
+// a client-supplied discount is never trusted (see loyalty block below).
+$discountAmount = 0;
 $loyaltyPointsRedeemed = max(0, (int)($input['loyaltyPointsRedeemed'] ?? 0));
+
+// Resolve catalog prices once so line totals use server-authoritative prices
+// instead of whatever the client sent (price tampering protection). If the
+// catalog is unavailable (fresh deployment), fall back to submitted prices.
+require_once __DIR__ . '/_helpers.php';
+$inventoryPriceMap = [];
+try {
+    foreach (DB::table('inventory_items')->get(['name', 'price']) as $row) {
+        $inventoryPriceMap[normalizeInventoryName((string)$row->name)] = (float)($row->price ?? 0);
+    }
+} catch (Throwable $priceLookupError) {
+    $inventoryPriceMap = [];
+}
+
+function resolveCatalogPrice(string $itemName, float $clientPrice, array $inventoryPriceMap): float
+{
+    $normalizedName = normalizeInventoryName($itemName);
+    if ($normalizedName !== '' && isset($inventoryPriceMap[$normalizedName])) {
+        return (float)$inventoryPriceMap[$normalizedName];
+    }
+    // Unrecognized/legacy menu entries: fall back to the submitted price.
+    return $clientPrice;
+}
 
 // Loyalty redemption: validate against the customer's balance BEFORE the order
 // is inserted, so the discount amount and stored points are authoritative and
@@ -74,7 +101,9 @@ if ($loyaltyPointsRedeemed > 0 && trim((string)($input['customerPhone'] ?? '')) 
 
 $subtotal = 0;
 foreach ($items as $it) {
-    $subtotal += (float)($it['price'] ?? 0) * (int)($it['quantity'] ?? 0);
+    $itemName = trim((string)($it['name'] ?? 'Menu item'));
+    $price = resolveCatalogPrice($itemName, (float)($it['price'] ?? 0), $inventoryPriceMap);
+    $subtotal += $price * max(0, (int)($it['quantity'] ?? 0));
 }
 $total = $subtotal;
 
@@ -101,7 +130,7 @@ try {
     $orderId = null;
     $insertedItems = 0;
 
-    DB::transaction(function () use (&$orderId, &$insertedItems, $orderNumber, $paymentMethod, $orderType, $customerName, $deliveryAddress, $customerEmail, $customerPhone, $discountAmount, $loyaltyPointsRedeemed, $subtotal, $total, $items) {
+    DB::transaction(function () use (&$orderId, &$insertedItems, $orderNumber, $paymentMethod, $orderType, $customerName, $deliveryAddress, $customerEmail, $customerPhone, $discountAmount, $loyaltyPointsRedeemed, $subtotal, $total, $items, $inventoryPriceMap) {
         $now = now();
         $finalTotal = max(0, $total - $discountAmount);
         $orderId = DB::table('orders')->insertGetId([
@@ -125,8 +154,8 @@ try {
 
         foreach ($items as $it) {
             $itemName = trim((string)($it['name'] ?? 'Menu item'));
-            $price = (float)($it['price'] ?? 0);
-            $qty = (int)($it['quantity'] ?? 0);
+            $price = resolveCatalogPrice($itemName, (float)($it['price'] ?? 0), $inventoryPriceMap);
+            $qty = max(0, (int)($it['quantity'] ?? 0));
             $lineTotal = $price * $qty;
             $components = is_array($it['components'] ?? null) ? array_values($it['components']) : null;
 
@@ -191,5 +220,5 @@ try {
     echo json_encode(['success' => true, 'orderId' => $orderId, 'insertedItems' => $insertedItems, 'discount' => $discountAmount]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Insert order failed', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Insert order failed']);
 }

@@ -5985,13 +5985,13 @@ function renderOrderLogs() {
     logsList.innerHTML = filteredLogs.map((log) => {
         const showOrderLabel = String(log.action || '') === 'order_completed';
         const orderLabel = log.order_number
-            ? `Order #${log.order_number}`
+            ? `Order #${escapeHtml(String(log.order_number))}`
             : '';
         const actorParts = [log.actor_role || 'Staff', log.actor_email || ''];
-        const actorText = actorParts.filter(Boolean).join(' · ');
+        const actorText = actorParts.filter(Boolean).map((part) => escapeHtml(String(part))).join(' · ');
         const details = log.details && typeof log.details === 'object' ? log.details : null;
         const qtyText = details && details.previous_quantity !== undefined && details.new_quantity !== undefined
-            ? `<p><strong>Qty:</strong> ${details.previous_quantity} → ${details.new_quantity}</p>`
+            ? `<p><strong>Qty:</strong> ${escapeHtml(String(details.previous_quantity))} → ${escapeHtml(String(details.new_quantity))}</p>`
             : '';
 
         let summaryText = log.summary || 'No summary.';
@@ -6046,14 +6046,14 @@ function renderOrderLogs() {
         return `
             <article class="order-log-card">
                 <div class="order-log-top-row">
-                    <strong>${formatOrderLogAction(log.action)}</strong>
-                    <span>${formatOrderLogTimestamp(log.created_at_iso || log.created_at)}</span>
+                    <strong>${escapeHtml(String(formatOrderLogAction(log.action)))}</strong>
+                    <span>${escapeHtml(String(formatOrderLogTimestamp(log.created_at_iso || log.created_at)))}</span>
                 </div>
                 ${showOrderLabel && orderLabel ? `<p><strong>${orderLabel}</strong></p>` : ''}
                 <p><strong>By:</strong> ${actorText || 'Staff'}</p>
                 ${qtyText}
-                ${reviewCommentText ? `<p class="review-log-comment"><strong>Comment:</strong> <span class="review-log-comment-text">${reviewCommentText}</span></p>` : ''}
-                <p><strong>Summary:</strong> ${summaryText}</p>
+                ${reviewCommentText ? `<p class="review-log-comment"><strong>Comment:</strong> <span class="review-log-comment-text">${escapeHtml(String(reviewCommentText))}</span></p>` : ''}
+                <p><strong>Summary:</strong> ${escapeHtml(String(summaryText))}</p>
             </article>
         `;
     }).join('');
@@ -11121,6 +11121,9 @@ function playPendingOrderSound() {
     }
 }
 function initOrderEvents() {
+    if (!isStaffPage) {
+        return;
+    }
     if (typeof EventSource === 'undefined') {
         console.debug('EventSource not supported; falling back to polling');
         return;

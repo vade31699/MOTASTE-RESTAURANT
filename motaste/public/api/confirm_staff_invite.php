@@ -12,7 +12,7 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_security_headers.php';
 sendSecurityHeaders();
 require_once __DIR__ . '/_staff_auth_helpers.php';
-if (!requireStaffAuth()) {
+if (!requireAdminAuth()) {
     abortStaffAuthRequired();
 }
 
@@ -89,5 +89,5 @@ try {
     ]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to confirm invite', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Unable to confirm invite']);
 }

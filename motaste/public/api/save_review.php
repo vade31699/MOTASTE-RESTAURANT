@@ -128,5 +128,5 @@ try {
     ]);
 } catch (Throwable $error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Unable to save review', 'details' => $error->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Unable to save review']);
 }
