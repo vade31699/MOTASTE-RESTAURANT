@@ -9947,8 +9947,9 @@ function validateCheckoutPhone() {
     if (!customerPhoneInput) return true;
     const value = customerPhoneInput.value.trim();
     if (!value) {
-        setCheckoutFieldError(customerPhoneInput, customerPhoneError, 'Please enter your mobile number.');
-        return false;
+        // Phone is optional — an empty field is always valid (mirrors email).
+        setCheckoutFieldError(customerPhoneInput, customerPhoneError, '');
+        return true;
     }
     // Strict Philippine mobile format: exactly 12 digits starting with 639.
     if (!/^639\d{9}$/.test(value)) {
@@ -10026,9 +10027,9 @@ async function confirmOrder() {
     selectedCustomerPhone = customerPhoneInput ? customerPhoneInput.value.trim() : '';
     selectedCustomerEmail = customerEmailInput ? customerEmailInput.value.trim() : '';
 
-    // Strict contact validation: phone must be a 12-digit 639 number, and the
-    // optional email (if filled in) must be a valid address. Blocks submission
-    // until the highlighted fields are corrected or the email is cleared.
+    // Contact validation: the phone is optional but, if filled in, must be a
+    // 12-digit 639 number; the email is optional and must be valid when filled.
+    // Blocks submission until the highlighted fields are corrected or cleared.
     if (!validateCheckoutContactFields()) {
         setCheckoutMessage('Please fix the highlighted contact fields before continuing.');
         return;
