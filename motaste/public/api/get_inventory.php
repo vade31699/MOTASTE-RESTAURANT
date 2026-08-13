@@ -24,7 +24,11 @@ try {
         if (!requireStaffAuth()) {
             abortStaffAuthRequired();
         }
-        notifyLowStockAlerts();
+        // NOTE: low-stock alert emails are deliberately NOT sent from this read
+        // path — the SMTP round-trip would delay every inventory load. They fire
+        // from the stock-changing write endpoints instead (mark_order_complete,
+        // update_inventory), where the dedup keeps them at one email per item
+        // per 6-hour window.
     }
 
     $rawItems = DB::table('inventory_items')

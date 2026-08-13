@@ -150,6 +150,11 @@ try {
         'updated_at' => now(),
     ]);
 
+    // Stock just changed, so this is the right moment to fire any low-stock
+    // alert email (deduped to once per item per 6-hour window). This runs only
+    // on an admin save action, never on an inventory page load.
+    notifyLowStockAlerts();
+
     echo json_encode([
         'success' => true,
         'itemId' => $itemId,
