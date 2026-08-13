@@ -125,16 +125,12 @@ function ensureStaffEnhancementSchema(): void
             });
         }
 
-        // Track per-account last activity so the credentials section can show
-        // which staff members are currently online (heartbeat updates this on
-        // every authenticated staff API request).
+        // NOTE: the `staff.last_active_at` column used by the online-status
+        // heartbeat is intentionally NOT created here. It is managed by the
+        // Laravel migration only, so web requests can never issue ALTER TABLE
+        // against the production `staff` table (which could lock under load).
         if (!Schema::hasTable('staff')) {
             return;
-        }
-        if (!Schema::hasColumn('staff', 'last_active_at')) {
-            Schema::table('staff', function (Blueprint $table) {
-                $table->timestamp('last_active_at')->nullable();
-            });
         }
 
         if (!Schema::hasTable('orders')) {
@@ -235,8 +231,11 @@ function touchStaffLastActive(string $email): void
         return;
     }
 
+    // NOTE: this runs on the hot path of every staff API request, so it must
+    // NEVER trigger schema DDL. The `last_active_at` column is created by the
+    // migration (and the on-demand schema check); until it exists the UPDATE
+    // simply fails here and is logged, and the online indicator stays empty.
     try {
-        ensureStaffEnhancementSchema();
         DB::table('staff')
             ->whereRaw('LOWER(email) = ?', [strtolower(trim($email))])
             ->update(['last_active_at' => now()->toDateTimeString()]);
@@ -251,8 +250,8 @@ function touchStaffLastActive(string $email): void
  */
 function getOnlineStaffAccounts(): array
 {
-    ensureStaffEnhancementSchema();
-
+    // No schema DDL here either: if `last_active_at` is missing the query
+    // fails and we return an empty online list until the migration runs.
     try {
         $rows = DB::table('staff')
             ->where('last_active_at', '>=', now()->subMinutes(5)->toDateTimeString())
