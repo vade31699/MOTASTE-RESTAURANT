@@ -6617,12 +6617,10 @@ async function initializeInventoryData(forceRefresh = false) {
 
         const latestInventory = merged.map((item) => ({ ...item }));
         inventoryData = latestInventory;
-        updateLowStockKpiFromInventory();
         debugInventory('Applied server inventory', 'server');
     } catch (error) {
         inventoryData = inventoryData.length ? inventoryData : defaults;
         saveInventoryData();
-        updateLowStockKpiFromInventory();
         debugInventory('initializeInventoryData error — kept local or defaults', 'server-error');
     } finally {
         inventorySyncInFlight = false;
@@ -6639,20 +6637,6 @@ async function initializeInventoryData(forceRefresh = false) {
         showMenuCategory(currentMenuCategoryId);
     }
     updateCartDisplay();
-}
-
-function updateLowStockKpiFromInventory() {
-    // Refresh the Overview low-stock KPI card immediately after an inventory
-    // sync, instead of waiting for the next 15s metrics tick. This is what
-    // removes the stale count that previously lingered until the tick fired.
-    const lowEl = document.getElementById('lowStockCount');
-    if (!lowEl || !Array.isArray(inventoryData)) return;
-    let count = 0;
-    inventoryData.forEach((item) => {
-        const stock = Number(item.stock) || 0;
-        if (stock <= 20) count += 1;
-    });
-    lowEl.textContent = String(count);
 }
 
 function saveInventoryData() {
@@ -9964,9 +9948,8 @@ function validateCheckoutPhone() {
     if (!customerPhoneInput) return true;
     const value = customerPhoneInput.value.trim();
     if (!value) {
-        // Phone is optional — an empty field is always valid (mirrors email).
-        setCheckoutFieldError(customerPhoneInput, customerPhoneError, '');
-        return true;
+        setCheckoutFieldError(customerPhoneInput, customerPhoneError, 'Please enter your mobile number.');
+        return false;
     }
     // Strict Philippine mobile format: exactly 12 digits starting with 639.
     if (!/^639\d{9}$/.test(value)) {
@@ -10044,9 +10027,9 @@ async function confirmOrder() {
     selectedCustomerPhone = customerPhoneInput ? customerPhoneInput.value.trim() : '';
     selectedCustomerEmail = customerEmailInput ? customerEmailInput.value.trim() : '';
 
-    // Contact validation: the phone is optional but, if filled in, must be a
-    // 12-digit 639 number; the email is optional and must be valid when filled.
-    // Blocks submission until the highlighted fields are corrected or cleared.
+    // Strict contact validation: phone must be a 12-digit 639 number, and the
+    // optional email (if filled in) must be a valid address. Blocks submission
+    // until the highlighted fields are corrected or the email is cleared.
     if (!validateCheckoutContactFields()) {
         setCheckoutMessage('Please fix the highlighted contact fields before continuing.');
         return;
@@ -11217,16 +11200,9 @@ function renderDashboardKpis(summary) {
     const avgPrep = Number(s.avgPrepMinutes ?? 0) || 0;
     if (avgEl) avgEl.textContent = avgPrep > 0 ? `${avgPrep.toFixed(1)} min` : '—';
 
-    // Low-stock count: prefer the server-computed value from the summary
-    // endpoint (renders instantly on the 15s refresh tick, no dependency on the
-    // async inventory fetch). Falls back to the client-side inventory snapshot
-    // only when the summary payload lacks the field (e.g. an older cached
-    // response) — never when the server legitimately reports 0, since the
-    // client's not-yet-loaded defaults would otherwise inflate the count.
+    // Low-stock count from current inventory (any item with 20 units or less)
     let lowStockCount = 0;
-    if (typeof s.lowStockCount === 'number') {
-        lowStockCount = Math.max(0, Math.round(s.lowStockCount));
-    } else if (Array.isArray(inventoryData)) {
+    if (Array.isArray(inventoryData)) {
         inventoryData.forEach((item) => {
             const stock = Number(item.stock) || 0;
             if (stock <= 20) lowStockCount += 1;
