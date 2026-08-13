@@ -40,11 +40,24 @@ if (isset($_GET['lastId'])) {
     $lastId = max($lastId, (int) $_GET['lastId']);
 }
 
-echo "retry: 2000\n\n"; // ask client to retry after 2s on disconnect
+echo "retry: 4000\n\n"; // ask client to retry after 4s on disconnect
 ob_flush();
 flush();
 
-while (!connection_aborted()) {
+// IMPORTANT: keep each connection SHORT-LIVED. The hosting gateway terminates
+// long-lived requests after ~20s, so an infinite SSE loop would hold a PHP-FPM
+// worker (and a database connection) forever — the browser's EventSource
+// reconnects the moment the proxy kills the stream, which permanently exhausts
+// the worker pool and makes every other request (login, inventory, health)
+// time out with a 504. Each connection streams for at most this many seconds
+// and then closes cleanly; the client reconnects after the `retry: 4000`
+// above, and the existing 10s pending-orders poller covers the gap. New-order
+// notifications are still delivered within ~6s, and each staff tab now uses a
+// worker only ~60% of the time instead of permanently.
+$streamStartedAt = microtime(true);
+$streamMaxSeconds = 6;
+
+while (!connection_aborted() && (microtime(true) - $streamStartedAt) < $streamMaxSeconds) {
     try {
         $events = DB::table('order_events')
             ->where('id', '>', $lastId)
