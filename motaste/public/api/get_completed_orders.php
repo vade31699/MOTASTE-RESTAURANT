@@ -17,9 +17,61 @@ if (!requireStaffAuth()) {
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
+require_once __DIR__ . '/_helpers.php';
+
 try {
-    
-    
+    // Lightweight summary mode for the overview KPI cards. The metrics refresh
+    // only needs counts + aggregates, so avoid shipping up to 500 completed
+    // orders with all their items over the wire every 15 seconds. The client
+    // passes its local UTC offset so "today's revenue" matches what the old
+    // client-side bucketing produced (order_date is stored in UTC).
+    if ((int)($_GET['summary'] ?? 0) === 1) {
+        ensureOrderPrepTimerColumns();
+
+        $utcOffsetMinutes = max(-840, min(840, (int)($_GET['utcOffset'] ?? 0)));
+        $clientNow = now()->addMinutes($utcOffsetMinutes);
+        $dayStartUtc = $clientNow->copy()->startOfDay()->subMinutes($utcOffsetMinutes);
+        $dayEndUtc = $clientNow->copy()->endOfDay()->subMinutes($utcOffsetMinutes);
+
+        $total = (int)DB::table('orders')->where('status', 'completed')->count();
+        $walkin = (int)DB::table('orders')
+            ->where('status', 'completed')
+            ->where('order_type', 'ilike', '%walk%')
+            ->count();
+        $todayRevenue = (float)DB::table('orders')
+            ->where('status', 'completed')
+            ->whereBetween('order_date', [$dayStartUtc, $dayEndUtc])
+            ->sum('total_amount');
+        $avgPrepMinutes = (float)DB::table('orders')
+            ->where('status', 'completed')
+            ->whereNotNull('prep_minutes')
+            ->where('prep_minutes', '>', 0)
+            ->avg('prep_minutes');
+
+        $bestSeller = DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->where('orders.status', 'completed')
+            ->whereNotNull('order_items.notes')
+            ->selectRaw('TRIM(order_items.notes) AS name, SUM(order_items.quantity) AS qty')
+            ->groupBy(DB::raw('TRIM(order_items.notes)'))
+            ->orderByDesc('qty')
+            ->limit(1)
+            ->first();
+
+        echo json_encode([
+            'success' => true,
+            'summary' => [
+                'total' => $total,
+                'walkin' => $walkin,
+                'online' => max(0, $total - $walkin),
+                'todayRevenue' => $todayRevenue,
+                'avgPrepMinutes' => $avgPrepMinutes,
+                'bestSeller' => $bestSeller ? ['name' => $bestSeller->name, 'qty' => (int)$bestSeller->qty] : null,
+            ],
+        ]);
+        exit;
+    }
+
     $orders = DB::table('orders')
         ->where('status', 'completed')
         ->orderByDesc('order_date')

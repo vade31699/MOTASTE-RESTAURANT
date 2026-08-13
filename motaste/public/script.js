@@ -11199,14 +11199,22 @@ async function fetchOverviewMetrics() {
             await ensureStaffServerSession();
         }
 
+        // Lightweight summary endpoints: the overview KPI cards only need
+        // counts and aggregates, so fetch those in parallel instead of
+        // shipping the full pending (100 orders + items) and completed (500
+        // orders + items) payloads over the wire on every 15s refresh.
+        const utcOffset = new Date().getTimezoneOffset() * -1; // minutes east of UTC
+        const [pendingRes, summaryRes] = await Promise.all([
+            fetch(getApiUrl(`api/get_pending_orders.php?count=1&_=${Date.now()}`), { cache: 'no-store', credentials: 'same-origin' }),
+            fetch(getApiUrl(`api/get_completed_orders.php?summary=1&utcOffset=${utcOffset}&_=${Date.now()}`), { cache: 'no-store', credentials: 'same-origin' })
+        ]);
+
         // Pending orders count
         let pendingCount = 0;
         try {
-            const r = await fetch(getApiUrl(`api/get_pending_orders.php?_=${Date.now()}`), { cache: 'no-store', credentials: 'same-origin' });
-            if (r.ok) {
-                const p = await r.json().catch(() => ({}));
-                const orders = Array.isArray(p.orders) ? p.orders : [];
-                pendingCount = orders.length;
+            if (pendingRes.ok) {
+                const p = await pendingRes.json().catch(() => ({}));
+                pendingCount = Number(p.count ?? 0) || 0;
             }
         } catch (e) {
             console.debug('Unable to load pending orders count', e);
@@ -11215,15 +11223,15 @@ async function fetchOverviewMetrics() {
         const pendingEl = document.getElementById('pendingOrdersCount');
         if (pendingEl) pendingEl.textContent = String(pendingCount);
 
-        // Completed orders: use existing endpoint and split by order_type
+        // Completed orders summary (counts by type, today's revenue, best seller)
         try {
-            const r2 = await fetch(getApiUrl(`api/get_completed_orders.php?_=${Date.now()}`), { cache: 'no-store' });
-            if (r2.ok) {
-                const payload = await r2.json().catch(() => ({}));
-                const orders = Array.isArray(payload.orders) ? payload.orders : [];
-                const total = orders.length;
-                const walkin = orders.filter((o) => String(o.order_type || '').toLowerCase().includes('walk')).length;
-                const online = Math.max(0, total - walkin);
+            if (summaryRes.ok) {
+                const payload = await summaryRes.json().catch(() => ({}));
+                const summary = payload.summary || {};
+
+                const total = Number(summary.total ?? 0) || 0;
+                const walkin = Number(summary.walkin ?? 0) || 0;
+                const online = Number(summary.online ?? 0) || 0;
 
                 const totalEl = document.getElementById('ordersCompletedCount');
                 const walkinEl = document.getElementById('walkinCompletedCount');
@@ -11233,47 +11241,27 @@ async function fetchOverviewMetrics() {
                 if (walkinEl) walkinEl.textContent = String(walkin);
                 if (onlineEl) onlineEl.textContent = String(online);
 
-                renderDashboardKpis(orders);
+                renderDashboardKpis(summary);
             }
         } catch (e) {
-            console.debug('Unable to load completed orders for metrics', e);
+            console.debug('Unable to load completed orders summary', e);
         }
     } catch (error) {
         console.error('fetchOverviewMetrics error', error);
     }
 }
 
-function renderDashboardKpis(completedOrdersData) {
-    const orders = Array.isArray(completedOrdersData) ? completedOrdersData : completedOrders;
+function renderDashboardKpis(summary) {
+    const s = summary && typeof summary === 'object' ? summary : {};
 
-    // Today's revenue (local-timezone day)
-    const now = new Date();
-    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    let todayRevenue = 0;
-    orders.forEach((order) => {
-        const ts = order.order_date ? Date.parse(order.order_date) : NaN;
-        if (Number.isNaN(ts)) return;
-        const d = new Date(ts);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        if (key === todayKey) {
-            todayRevenue += Number(order.total_amount ?? order.total ?? 0) || 0;
-        }
-    });
+    // Today's revenue — computed server-side using this browser's UTC offset
     const revenueEl = document.getElementById('todayRevenueCount');
-    if (revenueEl) revenueEl.textContent = formatCurrency(todayRevenue);
+    if (revenueEl) revenueEl.textContent = formatCurrency(Number(s.todayRevenue ?? 0) || 0);
 
-    // Average prep time from prepMinutes on completed orders that carried one
-    let prepTotal = 0;
-    let prepCount = 0;
-    orders.forEach((order) => {
-        const mins = Number(order.prep_minutes ?? order.prepMinutes ?? 0) || 0;
-        if (mins > 0) {
-            prepTotal += mins;
-            prepCount += 1;
-        }
-    });
+    // Average prep time from completed orders that carried one
     const avgEl = document.getElementById('avgPrepCount');
-    if (avgEl) avgEl.textContent = prepCount ? `${(prepTotal / prepCount).toFixed(1)} min` : '—';
+    const avgPrep = Number(s.avgPrepMinutes ?? 0) || 0;
+    if (avgEl) avgEl.textContent = avgPrep > 0 ? `${avgPrep.toFixed(1)} min` : '—';
 
     // Low-stock count from current inventory (any item with 20 units or less)
     let lowStockCount = 0;
@@ -11286,25 +11274,12 @@ function renderDashboardKpis(completedOrdersData) {
     const lowEl = document.getElementById('lowStockCount');
     if (lowEl) lowEl.textContent = String(lowStockCount);
 
-    // Best seller by total units sold
-    const units = new Map();
-    orders.forEach((order) => {
-        (Array.isArray(order.items) ? order.items : []).forEach((item) => {
-            const name = String(item.name || item.notes || '').trim();
-            if (!name) return;
-            units.set(name, (units.get(name) || 0) + (Number(item.quantity) || 0));
-        });
-    });
-    let bestSeller = null;
-    let bestQty = 0;
-    units.forEach((qty, name) => {
-        if (qty > bestQty) {
-            bestQty = qty;
-            bestSeller = name;
-        }
-    });
+    // Best seller by total units sold (computed server-side)
     const bestEl = document.getElementById('bestSellerCount');
-    if (bestEl) bestEl.textContent = bestSeller ? `${bestSeller} (${bestQty})` : '—';
+    if (bestEl) {
+        const best = s.bestSeller;
+        bestEl.textContent = best && best.name ? `${best.name} (${Number(best.qty) || 0})` : '—';
+    }
 }
 
 // Initial fetch + periodic refresh

@@ -20,6 +20,15 @@ use Carbon\Carbon;
 require_once __DIR__ . '/_helpers.php';
 
 try {
+    // Lightweight count-only mode for the overview KPI. The metrics refresh
+    // only needs the pending count, so avoid the full orders+items payload
+    // (and the auto-expiry UPDATE below, which the 10s poller still runs).
+    if ((int)($_GET['count'] ?? 0) === 1) {
+        $pendingCount = DB::table('orders')->where('status', 'pending')->count();
+        echo json_encode(['success' => true, 'count' => $pendingCount]);
+        exit;
+    }
+
     ensureOrderPrepTimerColumns();
 
     // Only pending orders that have not started preparation are auto-expired.
