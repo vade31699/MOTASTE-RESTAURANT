@@ -10,7 +10,10 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return response()->file(public_path('index.html'));
+    // Served via PHP (public/home.html) rather than the platform's static-file
+    // layer so the SecurityHeaders middleware applies CSP/HSTS to the homepage
+    // like every other routed page.
+    return response()->file(public_path('home.html'));
 });
 
 Route::get('/staff', function () {

@@ -4249,7 +4249,8 @@ let walkInDraftItems = [];
 let activeOrdersTab = 'walk-in';
 const isCustomerPage = (() => {
     const pathname = window.location.pathname.toLowerCase();
-    return pathname.endsWith('/index.html') || pathname === '/' || (!pathname.includes('staff'));
+    // The homepage is served at '/' (public/home.html) via the PHP route.
+    return pathname === '/' || (!pathname.includes('staff'));
 })();
 
 function loadIgnoredPendingOrders() {

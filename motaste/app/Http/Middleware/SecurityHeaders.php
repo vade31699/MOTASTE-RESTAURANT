@@ -22,7 +22,7 @@ class SecurityHeaders
         // against downgrade/stripping attacks.
         $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 
-        // Content-Security-Policy for the routed HTML pages (index.html,
+        // Content-Security-Policy for the routed HTML pages (home.html,
         // staff.html, Inertia pages). Scripts/styles are same-origin by
         // default; CDN allowances cover Font Awesome / Boxicons / Google Fonts
         // / xlsx used by the pages, and the embedded Google Maps iframe.

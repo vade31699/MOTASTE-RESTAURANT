@@ -1,8 +1,7 @@
 /* Motaste service worker — offline menu shell with network-first strategy for pages */
-const CACHE_NAME = 'motaste-cache-v2';
+const CACHE_NAME = 'motaste-cache-v3';
 const SHELL_ASSETS = [
     '/',
-    '/index.html',
     '/style.css',
     '/script.js',
     '/manifest.json'
@@ -41,7 +40,7 @@ self.addEventListener('fetch', (event) => {
                     caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
                     return response;
                 })
-                .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/index.html')))
+                .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/')))
         );
         return;
     }

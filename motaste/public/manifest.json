@@ -2,7 +2,7 @@
     "name": "Motaste Restaurant — Crafted Silog",
     "short_name": "Motaste",
     "description": "Order crafted silog, batchoy, fried chicken and more online at Motaste.",
-    "start_url": "/index.html",
+    "start_url": "/",
     "scope": "/",
     "display": "standalone",
     "orientation": "portrait",
