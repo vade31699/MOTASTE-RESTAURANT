@@ -1315,6 +1315,18 @@ if (noticeModalCloseBtn) {
     noticeModalCloseBtn.addEventListener('click', closeNoticeModal);
 }
 
+if (noticeModal) {
+    noticeModal.addEventListener('click', (event) => {
+        if (event.target === noticeModal) closeNoticeModal();
+    });
+}
+
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && noticeModal && !noticeModal.hidden) {
+        closeNoticeModal();
+    }
+});
+
 /* ---- Trusted devices management ---- */
 const trustedDevicesList = document.getElementById('trustedDevicesList');
 const trustedDevicesMessage = document.getElementById('trustedDevicesMessage');
@@ -3144,7 +3156,7 @@ function renderInsightsComparison() {
 function exportInsightsReport() {
     if (!isStaffPage) return;
     if (typeof XLSX === 'undefined') {
-        window.alert('Excel library is not loaded. Check your connection and refresh the page.');
+        showStaffNotice('Excel library is not loaded. Check your connection and refresh the page.', true);
         return;
     }
 
@@ -3821,9 +3833,7 @@ if (specialFoodImageInput) {
             selectedSpecialFoodImageData = '';
             selectedSpecialFoodImageFile = null;
             setSpecialFoodImagePreview('');
-            if (typeof window !== 'undefined' && window.alert) {
-                window.alert('Unable to process the selected image. Please choose another image.');
-            }
+            await showStaffNotice('Unable to process the selected image. Please choose another image.', true);
         }
     });
 }
@@ -4114,7 +4124,7 @@ salesTabBtns.forEach((btn) => {
 if (toggleAccountFormBtn) {
     toggleAccountFormBtn.addEventListener('click', () => {
         if (!document.body.classList.contains('auth') || !(selectedRoleInput && selectedRoleInput.value === 'Admin')) {
-            alert('Only the admin can manage accounts.');
+            showStaffNotice('Only the admin can manage accounts.', true);
             return;
         }
         accountEditIndex = null;
@@ -4137,7 +4147,7 @@ if (accountForm) {
         event.preventDefault();
 
         if (!document.body.classList.contains('auth') || !(selectedRoleInput && selectedRoleInput.value === 'Admin')) {
-            alert('Only the admin can manage accounts.');
+            await showStaffNotice('Only the admin can manage accounts.', true);
             return;
         }
 
@@ -4154,18 +4164,18 @@ if (accountForm) {
         }
 
         if (account.role !== 'Cashier' && account.role !== 'Inventory Manager') {
-            alert('Only Cashier and Inventory Manager accounts can be managed here.');
+            await showStaffNotice('Only Cashier and Inventory Manager accounts can be managed here.', true);
             return;
         }
 
         if (!isGmailAddress(account.email)) {
-            alert('Only Gmail addresses are allowed for cashier/inventory accounts.');
+            await showStaffNotice('Only Gmail addresses are allowed for cashier/inventory accounts.', true);
             return;
         }
 
         const duplicateIndex = accounts.findIndex((entry, idx) => idx !== accountEditIndex && (entry.email || '').toLowerCase() === account.email);
         if (duplicateIndex >= 0) {
-            alert('This email is already registered.');
+            await showStaffNotice('This email is already registered.', true);
             return;
         }
 
@@ -4180,7 +4190,7 @@ if (accountForm) {
             try {
                 invitePayload = await sendStaffInviteEmail(account);
             } catch (error) {
-                alert(error.message || 'Unable to send invite email.');
+                await showStaffNotice(error.message || 'Unable to send invite email.', true);
                 return;
             }
         }
@@ -4210,18 +4220,18 @@ if (accountForm) {
         window.motasteStaffAccounts = accounts;
         const syncResult = await saveStaffAccountsToServer();
         if (!syncResult.success) {
-            alert(`Unable to save staff account to the server. ${syncResult.error || 'Please try again or contact support.'}`);
+            await showStaffNotice(`Unable to save staff account to the server. ${syncResult.error || 'Please try again or contact support.'}`, true);
             return;
         }
 
         renderAccounts();
         toggleAccountForm(false);
         if (accountEditIndex !== null) {
-            alert('Staff account updated successfully.');
+            await showStaffNotice('Staff account updated successfully.');
         } else if (invitePayload && invitePayload.delivered === false) {
-            alert(invitePayload.error || 'Invite email was not delivered. Check Laravel SMTP settings and try again.');
+            await showStaffNotice(invitePayload.error || 'Invite email was not delivered. Check Laravel SMTP settings and try again.', true);
         } else {
-            alert('Invite email sent. The staff account can login after confirming the email verification code.');
+            await showStaffNotice('Invite email sent. The staff account can login after confirming the email verification code.');
         }
     });
 }
@@ -4252,23 +4262,23 @@ if (accountList) {
             };
 
             if (!updatedAccount.name || !updatedAccount.role || !updatedAccount.email || !updatedAccount.password) {
-                alert('Please complete all staff account fields.');
+                await showStaffNotice('Please complete all staff account fields.', true);
                 return;
             }
 
             if (updatedAccount.role !== 'Cashier' && updatedAccount.role !== 'Inventory Manager') {
-                alert('Only Cashier and Inventory Manager accounts can be managed here.');
+                await showStaffNotice('Only Cashier and Inventory Manager accounts can be managed here.', true);
                 return;
             }
 
             if (!isGmailAddress(updatedAccount.email)) {
-                alert('Only Gmail addresses are allowed for cashier/inventory accounts.');
+                await showStaffNotice('Only Gmail addresses are allowed for cashier/inventory accounts.', true);
                 return;
             }
 
             const duplicateIndex = accounts.findIndex((entry, idx) => idx !== index && (entry.email || '').toLowerCase() === updatedAccount.email);
             if (duplicateIndex >= 0) {
-                alert('This email is already registered.');
+                await showStaffNotice('This email is already registered.', true);
                 return;
             }
 
@@ -4290,27 +4300,27 @@ if (accountList) {
             window.motasteStaffAccounts = accounts;
             const syncResult = await saveStaffAccountsToServer();
             if (!syncResult.success) {
-                alert(`Unable to save staff account to the server. ${syncResult.error || 'Please try again or contact support.'}`);
+                await showStaffNotice(`Unable to save staff account to the server. ${syncResult.error || 'Please try again or contact support.'}`, true);
                 return;
             }
 
             accountEditIndex = null;
             renderAccounts();
-            alert('Staff account updated successfully.');
+            await showStaffNotice('Staff account updated successfully.');
             return;
         }
 
         if (button.classList.contains('delete-btn')) {
             const removedAccount = accounts[index];
             if (removedAccount && removedAccount.role === 'Admin') {
-                alert('Admin account is managed through Credentials only.');
+                await showStaffNotice('Admin account is managed through Credentials only.', true);
                 return;
             }
             accounts.splice(index, 1);
             window.motasteStaffAccounts = accounts;
             const saveResult = await saveStaffAccountsToServer();
             if (!saveResult.success) {
-                alert(`Unable to delete staff account on the server. ${saveResult.error || 'Please try again.'}`);
+                await showStaffNotice(`Unable to delete staff account on the server. ${saveResult.error || 'Please try again.'}`, true);
                 accounts.splice(index, 0, removedAccount);
                 window.motasteStaffAccounts = accounts;
                 renderAccounts();
@@ -4349,7 +4359,7 @@ if (accountList) {
             const selectedAccount = accounts[index];
             if (selectedAccount) {
                 if (selectedAccount.role === 'Admin') {
-                    alert('Admin account is managed through Credentials only.');
+                    await showStaffNotice('Admin account is managed through Credentials only.', true);
                     return;
                 }
                 accountEditIndex = index;
@@ -6244,9 +6254,7 @@ async function changePendingOrderItemComponentQuantity(orderIndex, itemId, compo
         console.error('Unable to edit pending order component quantity', error);
         item.components = previousComponents;
         renderPendingOrders();
-        if (typeof window !== 'undefined' && window.alert) {
-            window.alert(error.message || 'Unable to edit component quantity');
-        }
+        await showStaffNotice(error.message || 'Unable to edit component quantity', true);
         return;
     }
 
@@ -6292,9 +6300,7 @@ async function changePendingOrderItemQuantity(orderIndex, itemId, direction) {
         item.quantity = previousQuantity;
         order.total = previousTotal;
         renderPendingOrders();
-        if (typeof window !== 'undefined' && window.alert) {
-            window.alert(error.message || 'Unable to edit order quantity');
-        }
+        await showStaffNotice(error.message || 'Unable to edit order quantity', true);
         return;
     }
 
@@ -6314,9 +6320,7 @@ async function startOrderPreparation(orderIndex, minutes) {
         await startOrderPreparationOnServer(targetOrder.id, safeMinutes);
     } catch (error) {
         console.error('Unable to start order preparation', error);
-        if (typeof window !== 'undefined' && window.alert) {
-            window.alert(error.message || 'Unable to start order preparation');
-        }
+        await showStaffNotice(error.message || 'Unable to start order preparation', true);
         return false;
     }
 
@@ -6382,7 +6386,7 @@ function printOrderReceipt(orderIndex) {
     const address = String(order.deliveryAddress || order.delivery_address || '').trim();
     const printWindow = window.open('', '_blank', 'width=400,height=600');
     if (!printWindow) {
-        window.alert('Please allow pop-ups to print the receipt.');
+        showStaffNotice('Please allow pop-ups to print the receipt.', true);
         return;
     }
 
@@ -6458,7 +6462,7 @@ async function cancelPendingOrder(orderIndex) {
         }
     } catch (error) {
         console.error('Unable to cancel order on server', error);
-        window.alert(`Order cancel failed. ${error.message || 'Unexpected error'}`);
+        await showStaffNotice(`Order cancel failed. ${error.message || 'Unexpected error'}`, true);
         return false;
     }
 
@@ -6473,7 +6477,7 @@ async function cancelPendingOrder(orderIndex) {
     void initializeInventoryData(true);
     void loadOrderLogsFromServer(true);
     setOrdersTab('pending');
-    window.alert(`Order #${cancelledOrder.orderNumber || cancelledOrder.id} was cancelled and stock restored.`);
+    await showStaffNotice(`Order #${cancelledOrder.orderNumber || cancelledOrder.id} was cancelled and stock restored.`);
     return true;
 }
 
@@ -6505,7 +6509,7 @@ async function refundCompletedOrder(orderId) {
         }
     } catch (error) {
         console.error('Unable to refund order on server', error);
-        window.alert(`Refund failed. ${error.message || 'Unexpected error'}`);
+        await showStaffNotice(`Refund failed. ${error.message || 'Unexpected error'}`, true);
         return false;
     }
 
@@ -6525,7 +6529,7 @@ async function refundCompletedOrder(orderId) {
     void initializeInventoryData(true);
     void loadCompletedOrdersFromServer(true);
     void loadOrderLogsFromServer(true);
-    window.alert(`Order #${orderId} was refunded and stock restored.`);
+    await showStaffNotice(`Order #${orderId} was refunded and stock restored.`);
     return true;
 }
 
@@ -7028,9 +7032,7 @@ if (staffReviewList) {
             void loadOrderLogsFromServer(true);
         } catch (error) {
             console.error('Unable to update review status', error);
-            if (typeof window !== 'undefined' && window.alert) {
-                window.alert(error.message || 'Unable to update review status');
-            }
+            await showStaffNotice(error.message || 'Unable to update review status', true);
         }
     });
 }
@@ -9211,9 +9213,7 @@ async function deleteInventoryItem(name) {
 
         shouldContinueDelete = true;
     } catch (error) {
-        if (typeof window !== 'undefined' && window.alert) {
-            window.alert(error.message || 'Unable to delete inventory item');
-        }
+        await showStaffNotice(error.message || 'Unable to delete inventory item', true);
         return;
     }
 
@@ -9258,7 +9258,7 @@ async function saveInventoryItem(event) {
     }
 
     if (category === 'specials' && !specialComponents.length) {
-        window.alert('Special food price is calculated from added components. Add at least one component to save.');
+        await showStaffNotice('Special food price is calculated from added components. Add at least one component to save.', true);
         return;
     }
 
@@ -9345,7 +9345,7 @@ async function saveInventoryItem(event) {
         syncSucceeded = true;
     } catch (error) {
         console.error('Unable to sync inventory with server', error);
-        window.alert(`Inventory update failed on server. ${error?.message || ''}`);
+        await showStaffNotice(`Inventory update failed on server. ${error?.message || ''}`, true);
     }
 
     if (!syncSucceeded) {
@@ -9478,7 +9478,7 @@ async function commitInlineInventoryEdit(card) {
         inventoryEditLock = false;
         renderInventoryManagement();
         renderSpecialFoods();
-        window.alert(`Inventory update failed on server. ${error?.message || ''}`);
+        await showStaffNotice(`Inventory update failed on server. ${error?.message || ''}`, true);
         return;
     }
 

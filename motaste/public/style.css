@@ -8656,6 +8656,47 @@ body.staff-app .device-verify-modal .menu-order-message.is-error {
     font-weight: 600;
 }
 
+/* ---------- Reusable notice modal (replaces native alert) ---------- */
+body.staff-app .notice-modal {
+    background: #ffffff;
+    border: 1px solid var(--staff-border);
+    border-radius: 18px;
+    color: var(--staff-text);
+    box-shadow: var(--staff-shadow-lg);
+}
+
+body.staff-app .notice-modal h2 {
+    color: var(--staff-text);
+}
+
+body.staff-app .notice-modal p {
+    color: var(--staff-muted);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+body.staff-app .notice-modal p.is-error {
+    color: var(--staff-danger);
+    font-weight: 600;
+}
+
+body.staff-app .notice-modal .device-verify-actions {
+    justify-content: flex-end;
+}
+
+body.staff-app .notice-modal .device-verify-actions button {
+    flex: 0 0 auto;
+    min-width: 96px;
+}
+
+body.staff-app .notice-modal .modal-close {
+    color: var(--staff-muted);
+}
+
+body.staff-app .notice-modal .modal-close:hover {
+    color: var(--staff-danger);
+}
+
 /* ---------- Shared buttons / inputs ---------- */
 body.staff-app .add-staff-btn,
 body.staff-app .account-form button,
