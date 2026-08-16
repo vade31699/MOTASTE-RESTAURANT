@@ -1878,8 +1878,18 @@ async function handleStaffLogin(email, password, role, remember) {
         staffServerSessionRenewal = null;
     }
 
-    // Show the loading overlay while the dashboard data settles so the first
-    // paint is fully populated (orders, inventory, reviews, charts).
+    // The page-load fetch of completed orders ran BEFORE this login (when no
+    // server session existed yet), so it skipped the request — without this,
+    // the Overview profit/analytics stay empty until the next manual refresh.
+    // Re-fetch now that the session is live and re-gate the loading overlay on
+    // the refreshed data so the first paint is fully populated.
+    staffInitialDataReady = Promise.allSettled([
+        loadCompletedOrdersFromServer(true),
+        loadPendingOrdersFromServer(),
+        loadReviewsFromServer(true)
+    ]);
+
+    // Show the loading overlay while the dashboard data settles.
     showStaffLoadingOverlay();
 
     // The login regenerated the server session; adopt its CSRF token so every
