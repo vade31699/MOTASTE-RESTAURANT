@@ -7771,17 +7771,6 @@ body.staff-app .overview-grid {
     gap: 18px;
 }
 
-/* Today's Profit summary card — full width row under the analysis/notifications panels */
-body.staff-app .overview-profit-card {
-    grid-column: 1 / -1;
-    padding: 20px 22px;
-}
-
-body.staff-app .overview-profit-card h3 i {
-    color: var(--staff-accent);
-    margin-right: 6px;
-}
-
 body.staff-app .sales-analytics-placeholder,
 body.staff-app .overview-analytics-panel,
 body.staff-app .overview-order-notification-box,

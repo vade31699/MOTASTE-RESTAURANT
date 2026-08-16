@@ -693,7 +693,6 @@ function restoreStaffSession() {
         if (targetSectionId === 'overview') {
             renderOverviewAnalytics();
             renderOrderNotifications();
-            renderOverviewProfitCard();
         } else if (targetSectionId === 'pending-orders') {
             void loadPendingOrdersFromServer();
             setOrdersTab('pending');
@@ -710,7 +709,6 @@ function restoreStaffSession() {
     } else {
         showDashboardSection(overviewSection);
         renderOverviewAnalytics();
-        renderOverviewProfitCard();
     }
 
     setDashboardPanelState(false);
@@ -1928,7 +1926,6 @@ async function handleStaffLogin(email, password, role, remember) {
         if (overviewSection) {
             showDashboardSection(overviewSection);
             renderOverviewAnalytics();
-            renderOverviewProfitCard();
             showLowStockAlertIfNeeded();
         }
         // Ensure dashboard panel is closed (main content visible)
@@ -2704,9 +2701,6 @@ const profitMonthSelect = document.getElementById('profitMonthSelect');
 const profitRevenueValue = document.getElementById('profitRevenueValue');
 const profitCogsValue = document.getElementById('profitCogsValue');
 const profitNetValue = document.getElementById('profitNetValue');
-const overviewProfitRevenueValue = document.getElementById('overviewProfitRevenueValue');
-const overviewProfitCogsValue = document.getElementById('overviewProfitCogsValue');
-const overviewProfitNetValue = document.getElementById('overviewProfitNetValue');
 
 // Buckets mirror the sales buckets: per-month days/weeks plus a 12-month view.
 const profitDailyByMonth = {
@@ -2902,22 +2896,6 @@ function updateProfitView(animate = true) {
     }
 
     updateProfitSummary(view);
-}
-
-// Today's profit summary for the Overview dashboard card — reads the same daily
-// profit bucket used by the Sales page so both views always agree.
-function renderOverviewProfitCard() {
-    if (!overviewProfitRevenueValue || !overviewProfitCogsValue || !overviewProfitNetValue) return;
-
-    const monthKey = getCurrentMonthKey();
-    const monthBuckets = profitDailyByMonth[monthKey] || [];
-    const todayIndex = Math.max(0, Math.min(monthBuckets.length - 1, new Date().getDate() - 1));
-    const today = monthBuckets[todayIndex] || { revenue: 0, cost: 0, profit: 0 };
-
-    overviewProfitRevenueValue.textContent = formatCurrency(roundMoney(today.revenue));
-    overviewProfitCogsValue.textContent = formatCurrency(roundMoney(today.cost));
-    overviewProfitNetValue.textContent = formatCurrency(roundMoney(today.profit));
-    overviewProfitNetValue.classList.toggle('is-negative', today.profit < 0);
 }
 
 if (analyticsSelect) {
@@ -6515,7 +6493,6 @@ async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
     updateAnalyticsView();
     updateProfitView(false);
     renderOverviewAnalytics();
-    renderOverviewProfitCard();
     renderInsights();
     void initializeInventoryData(true);
     void loadOrderLogsFromServer(true);
@@ -6681,7 +6658,6 @@ async function refundCompletedOrder(orderId) {
     updateAnalyticsView();
     updateProfitView(false);
     renderOverviewAnalytics();
-    renderOverviewProfitCard();
     renderInsights();
     void initializeInventoryData(true);
     void loadCompletedOrdersFromServer(true);
@@ -7264,7 +7240,6 @@ async function loadCompletedOrdersFromServer(forceRefresh = false) {
         updateAnalyticsView(false);
         updateProfitView(false);
         renderOverviewAnalytics(false);
-        renderOverviewProfitCard();
         renderInsights();
         // Keep the server-filtered Insights cache in sync when a period filter
         // is active (e.g. after an order is completed/refunded).
@@ -7463,7 +7438,6 @@ async function initializeInventoryData(forceRefresh = false) {
     // latest cost of goods sold (no-op on the customer page).
     recalculateProfitAnalytics();
     updateProfitView(false);
-    renderOverviewProfitCard();
 }
 
 function saveInventoryData() {
@@ -11828,7 +11802,6 @@ if (dashboardPanel) {
             showDashboardSection(overviewSection);
             renderOrderNotifications();
             renderOverviewAnalytics();
-            renderOverviewProfitCard();
         } else if (href === '#inventory') {
             if (!canAccessInventory()) return;
             showDashboardSection(inventorySection);
@@ -12097,7 +12070,6 @@ function initOrders() {
     updateAnalyticsView();
     updateProfitView();
     renderOverviewAnalytics();
-    renderOverviewProfitCard();
     renderInsights();
     updateLiveClock();
     setInterval(updateLiveClock, 1000);
