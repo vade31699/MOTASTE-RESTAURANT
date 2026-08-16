@@ -700,6 +700,7 @@ function restoreStaffSession() {
             renderPendingOrders();
         } else if (targetSectionId === 'sales') {
             updateAnalyticsView();
+            updateProfitView();
         } else if (targetSectionId === 'inventory') {
         } else if (targetSectionId === 'logs') {
             void loadOrderLogsFromServer(true);
@@ -1321,6 +1322,22 @@ const loginHistoryList = document.getElementById('loginHistoryList');
 const loginOnlineList = document.getElementById('loginOnlineList');
 const loginHistoryDateInput = document.getElementById('loginHistoryDateInput');
 const loginHistoryClearDateBtn = document.getElementById('loginHistoryClearDateBtn');
+
+// The login history filter defaults to today so the section opens showing the
+// current day's logins (mirrors the logs date filter behavior).
+function syncLoginHistoryDateToToday() {
+    if (!loginHistoryDateInput) return;
+
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const isoDate = `${year}-${month}-${day}`;
+
+    if (!loginHistoryDateInput.value || loginHistoryDateInput.value !== isoDate) {
+        loginHistoryDateInput.value = isoDate;
+    }
+}
 
 async function loadLoginHistory() {
     if (!loginHistoryList) return;
@@ -2093,20 +2110,6 @@ const analyticsSelect = document.getElementById('analyticsSelect');
 const analyticsChart = document.getElementById('salesAnalyticsChart');
 const analyticsMonthWrapper = document.getElementById('analyticsMonthWrapper');
 const analyticsMonthSelect = document.getElementById('analyticsMonthSelect');
-const dailySalesList = document.getElementById('daily-sales-list');
-const weeklySalesList = document.getElementById('weekly-sales-list');
-
-const viewToTabId = {
-    daily: 'daily-sales',
-    weekly: 'weekly-sales',
-    monthly: 'monthly-sales'
-};
-
-const tabIdToView = {
-    'daily-sales': 'daily',
-    'weekly-sales': 'weekly',
-    'monthly-sales': 'monthly'
-};
 
 function setActiveSalesTab(tabName) {
     salesTabBtns.forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tabName));
@@ -2159,6 +2162,9 @@ function syncAnalyticsMonthSelectorsToCurrentMonth() {
     }
     if (overviewMonthSelect) {
         overviewMonthSelect.value = monthKey;
+    }
+    if (profitMonthSelect) {
+        profitMonthSelect.value = monthKey;
     }
 }
 
@@ -2328,80 +2334,23 @@ function renderDetailChart(container, chartData, title, animate = true) {
     container.innerHTML = svg;
 }
 
-function renderSalesList(container, items, firstCol = 'Period', secondCol = 'Sales') {
-    if (!container) return;
-    if (!items || !items.length) {
-        container.innerHTML = '<p>No sales data available.</p>';
-        return;
-    }
-
-    container.innerHTML = `
-        <table class="sales-example-table">
-            <thead>
-                <tr>
-                    <th>${firstCol}</th>
-                    <th>${secondCol}</th>
-                    <th>Order completes</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${items.map((item) => `
-                    <tr>
-                        <td>${item.label}</td>
-                        <td>${formatCurrency(item.value || 0)}</td>
-                        <td>${Number(item.orders || 0)}</td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    `;
-}
-
-function updateDailySalesList() {
-    if (!dailySalesList || !analyticsMonthSelect) return;
-    const month = analyticsMonthSelect.value;
-    const monthData = monthlySalesByMonth[month] || monthlySalesByMonth.jan;
-    renderSalesList(dailySalesList, monthData, 'Day', 'Revenue');
-}
-
-function updateWeeklySalesList() {
-    if (!weeklySalesList || !analyticsMonthSelect) return;
-    const month = analyticsMonthSelect.value;
-    const monthData = weeklySalesByMonth[month] || weeklySalesByMonth.jan;
-    renderSalesList(weeklySalesList, monthData, 'Week', 'Revenue');
-}
-
-function updateMonthlySalesList() {
-    const monthlySalesList = document.getElementById('monthly-sales-list');
-    if (!monthlySalesList) return;
-
-    const data = analyticsData.monthly.items;
-    renderSalesList(monthlySalesList, data, 'Month', 'Revenue');
-}
-
 function updateAnalyticsView(animate = true) {
     if (!analyticsSelect || !analyticsChart || !analyticsMonthWrapper || !analyticsMonthSelect) return;
 
     const view = analyticsSelect.value;
-    const activeTab = viewToTabId[view] || 'daily-sales';
     analyticsMonthWrapper.style.display = view === 'monthly' ? 'none' : 'inline-flex';
-
-    setActiveSalesTab(activeTab);
 
     if (view === 'daily') {
         const month = analyticsMonthSelect.value;
         const monthData = monthlySalesByMonth[month] || monthlySalesByMonth.jan;
         renderDetailChart(analyticsChart, monthData, `Daily Sales — ${analyticsMonthSelect.options[analyticsMonthSelect.selectedIndex].text}`, animate);
         autoScrollChartToCurrentDay(analyticsChart, month, monthData.length);
-        updateDailySalesList();
     } else if (view === 'weekly') {
         const month = analyticsMonthSelect.value;
         const monthData = weeklySalesByMonth[month] || weeklySalesByMonth.jan;
         renderDetailChart(analyticsChart, monthData, `Weekly Sales — ${analyticsMonthSelect.options[analyticsMonthSelect.selectedIndex].text}`, animate);
-        updateWeeklySalesList();
     } else {
         renderAnalytics('monthly', animate);
-        updateMonthlySalesList();
     }
 }
 
@@ -2427,11 +2376,245 @@ function autoScrollChartToCurrentDay(chartContainer, monthKey, pointCount) {
     setTimeout(applyScroll, 0);
 }
 
+/* ================= Profit analytics (daily / weekly / monthly) =================
+   Mirrors the sales analysis charts: same styling, same month selector, and a
+   daily view centered on the current day. Profit = revenue - cost of goods
+   sold, where COGS uses each item's inventory unit cost (and its customize
+   components when present). */
+const profitAnalyticsSelect = document.getElementById('profitAnalyticsSelect');
+const profitAnalyticsChart = document.getElementById('profitAnalyticsChart');
+const profitMonthWrapper = document.getElementById('profitMonthWrapper');
+const profitMonthSelect = document.getElementById('profitMonthSelect');
+const profitRevenueValue = document.getElementById('profitRevenueValue');
+const profitCogsValue = document.getElementById('profitCogsValue');
+const profitNetValue = document.getElementById('profitNetValue');
+const overviewProfitRevenueValue = document.getElementById('overviewProfitRevenueValue');
+const overviewProfitCogsValue = document.getElementById('overviewProfitCogsValue');
+const overviewProfitNetValue = document.getElementById('overviewProfitNetValue');
+
+// Buckets mirror the sales buckets: per-month days/weeks plus a 12-month view.
+const profitDailyByMonth = {
+    jan: [], feb: [], mar: [], apr: [], may: [], jun: [],
+    jul: [], aug: [], sep: [], oct: [], nov: [], dec: []
+};
+const profitWeeklyByMonth = {
+    jan: [], feb: [], mar: [], apr: [], may: [], jun: [],
+    jul: [], aug: [], sep: [], oct: [], nov: [], dec: []
+};
+const profitMonthlyItems = [];
+
+function initializeProfitBuckets() {
+    monthKeys.forEach((monthKey) => {
+        const year = new Date().getFullYear();
+        const monthIndex = monthKeys.indexOf(monthKey);
+        const days = Math.max(28, daysInMonth(year, monthIndex));
+        profitDailyByMonth[monthKey] = Array.from({ length: days }, (_, index) => ({
+            label: `${index + 1}`,
+            revenue: 0,
+            cost: 0,
+            profit: 0
+        }));
+        const weeks = Math.ceil(days / 7);
+        profitWeeklyByMonth[monthKey] = Array.from({ length: weeks }, (_, index) => ({
+            label: `W${index + 1}`,
+            revenue: 0,
+            cost: 0,
+            profit: 0
+        }));
+    });
+
+    profitMonthlyItems.length = 0;
+    monthKeys.forEach((monthKey, index) => {
+        profitMonthlyItems.push({ label: monthLabels[index], revenue: 0, cost: 0, profit: 0 });
+    });
+}
+
+function getOrderItemCost(item) {
+    if (!item) return 0;
+    let cost = 0;
+
+    const components = Array.isArray(item.components) ? item.components : [];
+    if (components.length) {
+        // Special dishes are priced as the sum of their components, so the
+        // components ARE the ingredients — use their costs only (the dish's own
+        // unit cost would double-count the same items).
+        components.forEach((component) => {
+            const componentItem = getInventoryItem(component && component.name);
+            if (componentItem) {
+                cost += (Number(componentItem.unitCost) || 0) * Math.max(0, Number(component && component.quantity) || 0);
+            }
+        });
+        return cost;
+    }
+
+    const inventoryItem = getInventoryItem(item.name);
+    if (inventoryItem) {
+        cost += (Number(inventoryItem.unitCost) || 0) * Math.max(0, Number(item.quantity) || 0);
+    }
+
+    return cost;
+}
+
+function getOrderProfitBreakdown(order) {
+    const revenue = Math.max(0, Number(order.total) || 0);
+    let cost = 0;
+    (Array.isArray(order.items) ? order.items : []).forEach((item) => {
+        cost += getOrderItemCost(item);
+    });
+    return { revenue, cost, profit: revenue - cost };
+}
+
+function roundMoney(value) {
+    return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+function recalculateProfitAnalytics() {
+    initializeProfitBuckets();
+
+    completedOrders.forEach((order) => {
+        const orderDate = new Date(order.timestamp);
+        const monthIndex = orderDate.getMonth();
+        const monthKey = monthKeys[monthIndex];
+        const breakdown = getOrderProfitBreakdown(order);
+
+        const daysInThisMonth = (profitDailyByMonth[monthKey] || []).length || 30;
+        const dayIndex = Math.min(Math.max(0, orderDate.getDate() - 1), daysInThisMonth - 1);
+        const weeksForMonth = (profitWeeklyByMonth[monthKey] || []).length || 5;
+        const weekIndex = Math.min(weeksForMonth - 1, Math.floor(dayIndex / 7));
+
+        if (monthKey && profitDailyByMonth[monthKey] && profitDailyByMonth[monthKey][dayIndex]) {
+            profitDailyByMonth[monthKey][dayIndex].revenue += breakdown.revenue;
+            profitDailyByMonth[monthKey][dayIndex].cost += breakdown.cost;
+            profitDailyByMonth[monthKey][dayIndex].profit += breakdown.profit;
+        }
+        if (monthKey && profitWeeklyByMonth[monthKey] && profitWeeklyByMonth[monthKey][weekIndex]) {
+            profitWeeklyByMonth[monthKey][weekIndex].revenue += breakdown.revenue;
+            profitWeeklyByMonth[monthKey][weekIndex].cost += breakdown.cost;
+            profitWeeklyByMonth[monthKey][weekIndex].profit += breakdown.profit;
+        }
+        if (profitMonthlyItems[monthIndex]) {
+            profitMonthlyItems[monthIndex].revenue += breakdown.revenue;
+            profitMonthlyItems[monthIndex].cost += breakdown.cost;
+            profitMonthlyItems[monthIndex].profit += breakdown.profit;
+        }
+    });
+}
+
+function profitChartData(buckets) {
+    return (Array.isArray(buckets) ? buckets : []).map((bucket) => ({
+        label: bucket.label,
+        value: roundMoney(bucket.profit)
+    }));
+}
+
+// Scroll the daily profit chart so today's column sits in the middle of the
+// visible area (the default view is centered on the current day).
+function centerChartOnCurrentDay(chartContainer, monthKey, pointCount) {
+    if (!chartContainer || !monthKey || monthKey !== getCurrentMonthKey()) return;
+    const wrapper = chartContainer.closest('.sales-analytics-chart-wrapper');
+    if (!wrapper) return;
+
+    const totalPoints = Math.max(1, Number(pointCount) || 30);
+    const currentDayIndex = Math.max(0, Math.min(totalPoints - 1, new Date().getDate() - 1));
+
+    const applyScroll = () => {
+        const maxScroll = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
+        if (maxScroll <= 0) return;
+
+        const dayRatio = totalPoints > 1 ? currentDayIndex / (totalPoints - 1) : 0;
+        const target = Math.max(0, Math.min(maxScroll, Math.round(wrapper.scrollWidth * dayRatio - wrapper.clientWidth / 2)));
+        wrapper.scrollLeft = target;
+    };
+
+    applyScroll();
+    requestAnimationFrame(applyScroll);
+    setTimeout(applyScroll, 0);
+}
+
+function updateProfitSummary(view) {
+    if (!profitRevenueValue || !profitCogsValue || !profitNetValue) return;
+
+    let revenue = 0;
+    let cost = 0;
+    let profit = 0;
+
+    if (view === 'daily') {
+        const month = profitMonthSelect.value;
+        (profitDailyByMonth[month] || []).forEach((bucket) => {
+            revenue += bucket.revenue;
+            cost += bucket.cost;
+            profit += bucket.profit;
+        });
+    } else if (view === 'weekly') {
+        const month = profitMonthSelect.value;
+        (profitWeeklyByMonth[month] || []).forEach((bucket) => {
+            revenue += bucket.revenue;
+            cost += bucket.cost;
+            profit += bucket.profit;
+        });
+    } else {
+        profitMonthlyItems.forEach((bucket) => {
+            revenue += bucket.revenue;
+            cost += bucket.cost;
+            profit += bucket.profit;
+        });
+    }
+
+    profitRevenueValue.textContent = formatCurrency(roundMoney(revenue));
+    profitCogsValue.textContent = formatCurrency(roundMoney(cost));
+    profitNetValue.textContent = formatCurrency(roundMoney(profit));
+    profitNetValue.classList.toggle('is-negative', profit < 0);
+}
+
+function updateProfitView(animate = true) {
+    if (!profitAnalyticsSelect || !profitAnalyticsChart || !profitMonthWrapper || !profitMonthSelect) return;
+
+    const view = profitAnalyticsSelect.value;
+    profitMonthWrapper.style.display = view === 'monthly' ? 'none' : 'inline-flex';
+
+    if (view === 'daily') {
+        const month = profitMonthSelect.value;
+        const monthData = profitChartData(profitDailyByMonth[month] || profitDailyByMonth.jan);
+        renderDetailChart(profitAnalyticsChart, monthData, `Daily Profit — ${profitMonthSelect.options[profitMonthSelect.selectedIndex].text}`, animate);
+        centerChartOnCurrentDay(profitAnalyticsChart, month, monthData.length);
+    } else if (view === 'weekly') {
+        const month = profitMonthSelect.value;
+        const monthData = profitChartData(profitWeeklyByMonth[month] || profitWeeklyByMonth.jan);
+        renderDetailChart(profitAnalyticsChart, monthData, `Weekly Profit — ${profitMonthSelect.options[profitMonthSelect.selectedIndex].text}`, animate);
+    } else {
+        renderDetailChart(profitAnalyticsChart, profitChartData(profitMonthlyItems), 'Monthly Profit', animate);
+    }
+
+    updateProfitSummary(view);
+}
+
+// Today's profit summary for the Overview dashboard card — reads the same daily
+// profit bucket used by the Sales page so both views always agree.
+function renderOverviewProfitCard() {
+    if (!overviewProfitRevenueValue || !overviewProfitCogsValue || !overviewProfitNetValue) return;
+
+    const monthKey = getCurrentMonthKey();
+    const monthBuckets = profitDailyByMonth[monthKey] || [];
+    const todayIndex = Math.max(0, Math.min(monthBuckets.length - 1, new Date().getDate() - 1));
+    const today = monthBuckets[todayIndex] || { revenue: 0, cost: 0, profit: 0 };
+
+    overviewProfitRevenueValue.textContent = formatCurrency(roundMoney(today.revenue));
+    overviewProfitCogsValue.textContent = formatCurrency(roundMoney(today.cost));
+    overviewProfitNetValue.textContent = formatCurrency(roundMoney(today.profit));
+    overviewProfitNetValue.classList.toggle('is-negative', today.profit < 0);
+}
+
 if (analyticsSelect) {
     analyticsSelect.addEventListener('change', updateAnalyticsView);
 }
 if (analyticsMonthSelect) {
     analyticsMonthSelect.addEventListener('change', updateAnalyticsView);
+}
+if (profitAnalyticsSelect) {
+    profitAnalyticsSelect.addEventListener('change', () => updateProfitView());
+}
+if (profitMonthSelect) {
+    profitMonthSelect.addEventListener('change', () => updateProfitView());
 }
 
 /* ================= Insights (hourly / best sellers / period compare / PDF) ================= */
@@ -3470,6 +3653,7 @@ if (salesLink && salesSection) {
         event.preventDefault();
         showDashboardSection(salesSection);
         updateAnalyticsView();
+        updateProfitView();
     });
 }
 
@@ -3480,15 +3664,7 @@ salesTabBtns.forEach((btn) => {
 
         if (tabName === 'insights') {
             renderInsights();
-            return;
         }
-
-        const view = tabIdToView[tabName] || 'daily';
-        if (analyticsSelect) {
-            analyticsSelect.value = view;
-        }
-
-        updateAnalyticsView();
     });
 });
 
@@ -5731,12 +5907,15 @@ async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
     overdueAlertQueue = overdueAlertQueue.filter((key) => key !== String(completedOrder.id));
     completedOrders.unshift(completedOrder);
     recalculateSalesAnalytics();
+    recalculateProfitAnalytics();
     savePendingOrders();
     renderPendingOrders();
     renderWalkInOrderBuilder();
     renderOrderNotifications();
     updateAnalyticsView();
+    updateProfitView(false);
     renderOverviewAnalytics();
+    renderOverviewProfitCard();
     void initializeInventoryData(true);
     void loadOrderLogsFromServer(true);
     void loadCompletedOrdersFromServer(true);
@@ -5891,10 +6070,13 @@ async function refundCompletedOrder(orderId) {
         completedOrders.splice(completedIndex, 1)[0];
     }
     recalculateSalesAnalytics();
+    recalculateProfitAnalytics();
     saveCompletedOrders();
     renderOrderNotifications();
     updateAnalyticsView();
+    updateProfitView(false);
     renderOverviewAnalytics();
+    renderOverviewProfitCard();
     void initializeInventoryData(true);
     void loadCompletedOrdersFromServer(true);
     void loadOrderLogsFromServer(true);
@@ -6464,11 +6646,14 @@ async function loadCompletedOrdersFromServer(forceRefresh = false) {
         completedOrders.sort((a, b) => b.timestamp - a.timestamp);
         saveCompletedOrders();
         recalculateSalesAnalytics();
+        recalculateProfitAnalytics();
         // Background refreshes re-render the charts without replaying the
         // left-to-right draw animation; the animation is reserved for when a
         // staff member opens or switches to the Sales/Overview tab.
         updateAnalyticsView(false);
+        updateProfitView(false);
         renderOverviewAnalytics(false);
+        renderOverviewProfitCard();
         return true;
     } catch (error) {
         console.error('Unable to load completed orders from server', error);
@@ -6529,6 +6714,17 @@ function resolveInventoryCategory(itemName) {
     return 'specials';
 }
 
+// Standard restaurant food-cost ratio used to ESTIMATE a default unit cost for
+// items that have no recorded cost yet (menu defaults and inventory rows whose
+// unit cost was never set). This keeps profit figures meaningful out of the box;
+// staff can replace any estimate with the real cost in Inventory Manager.
+const DEFAULT_FOOD_COST_RATIO = 0.4;
+
+function estimateDefaultUnitCost(price) {
+    const parsed = Math.max(0, Number(price) || 0);
+    return Math.round(parsed * DEFAULT_FOOD_COST_RATIO * 100) / 100;
+}
+
 function buildDefaultInventoryFromMenu() {
     const items = [];
     const seen = new Set();
@@ -6538,13 +6734,15 @@ function buildDefaultInventoryFromMenu() {
             if (blockedProductNames.has(normalizeInventoryName(item.name))) return;
             if (seen.has(item.name)) return;
             seen.add(item.name);
+            const price = parsePrice(item.price);
             items.push({
                 name: item.name,
-                price: parsePrice(item.price),
+                price,
                 stock: 0,
                 status: 'Out of stock',
                 category: categoryKey,
-                description: item.description || ''
+                description: item.description || '',
+                unitCost: estimateDefaultUnitCost(price)
             });
         });
     });
@@ -6560,7 +6758,10 @@ function buildDefaultInventoryFromMenu() {
             status: 'Out of stock',
             category: 'specials',
             description: food.description || '',
-            components: normalizeSpecialComponents(food.components)
+            components: normalizeSpecialComponents(food.components),
+            // Specials are priced as the sum of their components, so their cost
+            // is captured through the components — no separate estimate here.
+            unitCost: 0
         });
     });
 
@@ -6600,7 +6801,12 @@ async function initializeInventoryData(forceRefresh = false) {
                 category: item.category || localMatch?.category || resolveInventoryCategory(item.name),
                 description: item.description || localMatch?.description || '',
                 image: normalizeImageUrl(item.image || localMatch?.image || ''),
-                unitCost: item.unit_cost != null ? Number(item.unit_cost) || 0 : (localMatch?.unitCost || 0),
+                // Prefer a real recorded cost; fall back to an estimate when
+                // the DB row has no cost yet (0/null) so profit is meaningful
+                // for every item out of the box.
+                unitCost: item.unit_cost != null && Number(item.unit_cost) > 0
+                    ? Number(item.unit_cost)
+                    : estimateDefaultUnitCost(item.price),
                 reorderLevel: item.reorder_level != null ? Number(item.reorder_level) || 0 : (localMatch?.reorderLevel || 0),
                 isAvailable: item.is_available !== false && item.is_available !== 'false' && item.is_available !== 0 && item.is_available !== '0'
             };
@@ -6636,6 +6842,11 @@ async function initializeInventoryData(forceRefresh = false) {
         showMenuCategory(currentMenuCategoryId);
     }
     updateCartDisplay();
+    // Unit costs just arrived — refresh the profit figures so they reflect the
+    // latest cost of goods sold (no-op on the customer page).
+    recalculateProfitAnalytics();
+    updateProfitView(false);
+    renderOverviewProfitCard();
 }
 
 function saveInventoryData() {
@@ -7772,6 +7983,356 @@ document.querySelectorAll('.export-mode-tab').forEach((tab) => {
     tab.addEventListener('click', () => switchExportMode(tab.dataset.exportMode || 'daily'));
 });
 
+/* ================= Profit report export (Sales page) ================= */
+const profitExportDateInput = document.getElementById('profitExportDate');
+const profitExportWeekInput = document.getElementById('profitExportWeek');
+const profitExportMonthSelect = document.getElementById('profitExportMonth');
+const profitExportYearSelect = document.getElementById('profitExportYear');
+const profitExportDailyControls = document.getElementById('profitExportDailyControls');
+const profitExportWeeklyControls = document.getElementById('profitExportWeeklyControls');
+const profitExportMonthlyControls = document.getElementById('profitExportMonthlyControls');
+const profitExportDailyBtn = document.getElementById('profitExportDailyBtn');
+const profitExportWeeklyBtn = document.getElementById('profitExportWeeklyBtn');
+const profitExportMonthlyBtn = document.getElementById('profitExportMonthlyBtn');
+const profitExportMessage = document.getElementById('profitExportMessage');
+
+const PROFIT_EXPORT_COLUMNS = ['Order Number', 'Date & Time', 'Items', 'Revenue (₱)', 'COGS (₱)', 'Profit (₱)'];
+const PROFIT_PERIOD_COLUMNS = ['Period', 'Orders', 'Revenue (₱)', 'COGS (₱)', 'Profit (₱)'];
+
+function setProfitExportMessage(text, isError = false) {
+    if (!profitExportMessage) return;
+    profitExportMessage.textContent = text || '';
+    profitExportMessage.classList.toggle('is-error', Boolean(isError));
+}
+
+function populateProfitExportYearSelect() {
+    if (!profitExportYearSelect) return;
+    const currentYear = new Date().getFullYear();
+    const fragment = document.createDocumentFragment();
+    for (let year = currentYear; year >= currentYear - 6; year -= 1) {
+        const option = document.createElement('option');
+        option.value = String(year);
+        option.textContent = String(year);
+        if (year === currentYear) option.selected = true;
+        fragment.appendChild(option);
+    }
+    profitExportYearSelect.innerHTML = '';
+    profitExportYearSelect.appendChild(fragment);
+}
+
+// ISO week key (YYYY-Www) for a date — matches <input type="week"> values.
+function getIsoWeekKey(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+    return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+function getSelectedProfitExportWeek() {
+    let raw = profitExportWeekInput ? profitExportWeekInput.value.trim() : '';
+    if (!/^\d{4}-W\d{2}$/.test(raw)) {
+        raw = getIsoWeekKey(new Date());
+        if (profitExportWeekInput) profitExportWeekInput.value = raw;
+    }
+
+    const match = raw.match(/^(\d{4})-W(\d{2})$/);
+    const year = Number(match[1]);
+    const week = Number(match[2]);
+    // Monday of the requested ISO week.
+    const jan4 = new Date(year, 0, 4);
+    const jan4Dow = (jan4.getDay() + 6) % 7; // 0 = Monday
+    const monday = new Date(year, 0, 4 - jan4Dow + (week - 1) * 7);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return {
+        label: `Week ${week} of ${year}`,
+        from: toLocalDateInputValue(monday),
+        to: toLocalDateInputValue(sunday)
+    };
+}
+
+function getSelectedProfitExportMonth() {
+    const monthIndex = profitExportMonthSelect
+        ? Math.max(0, Math.min(11, parseInt(profitExportMonthSelect.value, 10) || 0))
+        : new Date().getMonth();
+    const year = profitExportYearSelect
+        ? parseInt(profitExportYearSelect.value, 10) || new Date().getFullYear()
+        : new Date().getFullYear();
+    const firstDay = new Date(year, monthIndex, 1);
+    const lastDay = new Date(year, monthIndex + 1, 0);
+    return {
+        label: `${firstDay.toLocaleString('en-US', { month: 'long' })} ${year}`,
+        from: toLocalDateInputValue(firstDay),
+        to: toLocalDateInputValue(lastDay)
+    };
+}
+
+// Same cost model as the Profit analytics section: revenue from the order
+// total, COGS from inventory unit costs (components-only for special dishes).
+function computeOrderProfitExport(order) {
+    const revenue = Math.max(0, Number(order.total_amount ?? order.total) || 0);
+    let cost = 0;
+    (Array.isArray(order.items) ? order.items : []).forEach((item) => {
+        cost += getOrderItemCost(item);
+    });
+    return { revenue, cost, profit: revenue - cost };
+}
+
+function buildProfitOrderRows(orders) {
+    return orders.map((order) => {
+        const breakdown = computeOrderProfitExport(order);
+        return [
+            excelSafe(String(order.order_number || order.id || '—')),
+            excelSafe(formatExportTimestamp(order)),
+            excelSafe(buildCustomerOrderList(order)),
+            Number(breakdown.revenue.toFixed(2)),
+            Number(breakdown.cost.toFixed(2)),
+            Number(breakdown.profit.toFixed(2))
+        ];
+    });
+}
+
+function appendProfitTotalsRow(rows, orders) {
+    let revenue = 0;
+    let cost = 0;
+    orders.forEach((order) => {
+        const breakdown = computeOrderProfitExport(order);
+        revenue += breakdown.revenue;
+        cost += breakdown.cost;
+    });
+    rows.push(['TOTAL', '', '', Number(revenue.toFixed(2)), Number(cost.toFixed(2)), Number((revenue - cost).toFixed(2))]);
+}
+
+function groupOrdersByLocalDay(orders) {
+    const dayMap = new Map();
+    orders.forEach((order) => {
+        const day = toLocalDateKey(order.order_date_iso);
+        if (!dayMap.has(day)) dayMap.set(day, { orders: 0, revenue: 0, cost: 0 });
+        const entry = dayMap.get(day);
+        const breakdown = computeOrderProfitExport(order);
+        entry.orders += 1;
+        entry.revenue += breakdown.revenue;
+        entry.cost += breakdown.cost;
+    });
+    return [...dayMap.entries()]
+        .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+        .map(([day, entry]) => [
+            day,
+            entry.orders,
+            Number(entry.revenue.toFixed(2)),
+            Number(entry.cost.toFixed(2)),
+            Number((entry.revenue - entry.cost).toFixed(2))
+        ]);
+}
+
+function appendProfitPeriodTotals(rows, orders) {
+    let revenue = 0;
+    let cost = 0;
+    orders.forEach((order) => {
+        const breakdown = computeOrderProfitExport(order);
+        revenue += breakdown.revenue;
+        cost += breakdown.cost;
+    });
+    rows.push(['TOTAL', orders.length, Number(revenue.toFixed(2)), Number(cost.toFixed(2)), Number((revenue - cost).toFixed(2))]);
+}
+
+async function exportProfitDaily() {
+    if (!isStaffPage) return;
+    if (typeof XLSX === 'undefined') {
+        setProfitExportMessage('Excel library is not loaded. Check your connection and refresh the page.', true);
+        return;
+    }
+
+    const date = profitExportDateInput && profitExportDateInput.value
+        ? profitExportDateInput.value
+        : toLocalDateInputValue(new Date());
+    setProfitExportMessage('Fetching completed orders...');
+    if (profitExportDailyBtn) profitExportDailyBtn.disabled = true;
+    try {
+        const orders = await fetchSalesReport(date, date);
+        if (!orders.length) {
+            setProfitExportMessage(`No completed orders found for ${date}.`);
+            return;
+        }
+
+        const rows = buildProfitOrderRows(orders);
+        appendProfitTotalsRow(rows, orders);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, buildExcelSheet(rows, PROFIT_EXPORT_COLUMNS, [16, 22, 55, 14, 14, 14]), 'Daily Profit');
+        XLSX.writeFile(workbook, `MOTASTE-Daily-Profit-${date}.xlsx`);
+
+        let revenue = 0;
+        let cost = 0;
+        orders.forEach((order) => {
+            const breakdown = computeOrderProfitExport(order);
+            revenue += breakdown.revenue;
+            cost += breakdown.cost;
+        });
+        setProfitExportMessage(`Exported ${orders.length} completed order(s) for ${date} — net profit ${formatCurrency(roundMoney(revenue - cost))}.`);
+    } catch (error) {
+        setProfitExportMessage(`Export failed: ${error.message || 'Unexpected error'}`, true);
+    } finally {
+        if (profitExportDailyBtn) profitExportDailyBtn.disabled = false;
+    }
+}
+
+async function exportProfitWeekly() {
+    if (!isStaffPage) return;
+    if (typeof XLSX === 'undefined') {
+        setProfitExportMessage('Excel library is not loaded. Check your connection and refresh the page.', true);
+        return;
+    }
+
+    const { label, from, to } = getSelectedProfitExportWeek();
+    setProfitExportMessage(`Fetching completed orders for ${label}...`);
+    if (profitExportWeeklyBtn) profitExportWeeklyBtn.disabled = true;
+    try {
+        const orders = await fetchSalesReport(from, to);
+        if (!orders.length) {
+            setProfitExportMessage(`No completed orders found for ${label}.`);
+            return;
+        }
+
+        const rows = groupOrdersByLocalDay(orders);
+        appendProfitPeriodTotals(rows, orders);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, buildExcelSheet(rows, PROFIT_PERIOD_COLUMNS, [14, 12, 14, 14, 14]), 'Weekly Profit');
+        XLSX.writeFile(workbook, `MOTASTE-Weekly-Profit-${from}.xlsx`);
+
+        let revenue = 0;
+        let cost = 0;
+        orders.forEach((order) => {
+            const breakdown = computeOrderProfitExport(order);
+            revenue += breakdown.revenue;
+            cost += breakdown.cost;
+        });
+        setProfitExportMessage(`Exported ${orders.length} completed order(s) for ${label} — net profit ${formatCurrency(roundMoney(revenue - cost))}.`);
+    } catch (error) {
+        setProfitExportMessage(`Export failed: ${error.message || 'Unexpected error'}`, true);
+    } finally {
+        if (profitExportWeeklyBtn) profitExportWeeklyBtn.disabled = false;
+    }
+}
+
+// Per-food-item profit rows: revenue from the item line total, COGS from
+// getOrderItemCost() so the sums match the Monthly Profit sheet exactly. A
+// special dish absorbs its components' costs into its own row.
+function buildProfitItemRows(orders) {
+    const itemMap = new Map();
+    orders.forEach((order) => {
+        (Array.isArray(order.items) ? order.items : []).forEach((item) => {
+            const name = String(item.name || item.notes || 'Menu item').trim() || 'Menu item';
+            if (!itemMap.has(name)) itemMap.set(name, { qty: 0, revenue: 0, cost: 0 });
+            const entry = itemMap.get(name);
+            entry.qty += Number(item.quantity) || 0;
+            entry.revenue += Number(item.line_total) || 0;
+            entry.cost += getOrderItemCost(item);
+        });
+    });
+
+    const rows = [...itemMap.entries()]
+        .sort((a, b) => b[1].qty - a[1].qty)
+        .map(([name, entry]) => [
+            excelSafe(name),
+            entry.qty,
+            Number(entry.revenue.toFixed(2)),
+            Number(entry.cost.toFixed(2)),
+            Number((entry.revenue - entry.cost).toFixed(2))
+        ]);
+
+    const totals = rows.reduce((acc, row) => {
+        acc.qty += row[1];
+        acc.revenue += row[2];
+        acc.cost += row[3];
+        return acc;
+    }, { qty: 0, revenue: 0, cost: 0 });
+    rows.push(['TOTAL', totals.qty, Number(totals.revenue.toFixed(2)), Number(totals.cost.toFixed(2)), Number((totals.revenue - totals.cost).toFixed(2))]);
+
+    return rows;
+}
+
+async function exportProfitMonthly() {
+    if (!isStaffPage) return;
+    if (typeof XLSX === 'undefined') {
+        setProfitExportMessage('Excel library is not loaded. Check your connection and refresh the page.', true);
+        return;
+    }
+
+    const { label, from, to } = getSelectedProfitExportMonth();
+    setProfitExportMessage(`Fetching completed orders for ${label}...`);
+    if (profitExportMonthlyBtn) profitExportMonthlyBtn.disabled = true;
+    try {
+        const orders = await fetchSalesReport(from, to);
+        if (!orders.length) {
+            setProfitExportMessage(`No completed orders found for ${label}.`);
+            return;
+        }
+
+        const rows = groupOrdersByLocalDay(orders);
+        appendProfitPeriodTotals(rows, orders);
+        const itemRows = buildProfitItemRows(orders);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, buildExcelSheet(rows, PROFIT_PERIOD_COLUMNS, [14, 12, 14, 14, 14]), 'Monthly Profit');
+        XLSX.utils.book_append_sheet(workbook, buildExcelSheet(itemRows, ['Food Item', 'Qty Sold', 'Revenue (₱)', 'COGS (₱)', 'Profit (₱)'], [40, 12, 14, 14, 14]), 'Item Profit Breakdown');
+        XLSX.writeFile(workbook, `MOTASTE-Monthly-Profit-${from.slice(0, 7)}.xlsx`);
+
+        let revenue = 0;
+        let cost = 0;
+        orders.forEach((order) => {
+            const breakdown = computeOrderProfitExport(order);
+            revenue += breakdown.revenue;
+            cost += breakdown.cost;
+        });
+        setProfitExportMessage(`Exported ${orders.length} completed order(s) for ${label} — net profit ${formatCurrency(roundMoney(revenue - cost))}.`);
+    } catch (error) {
+        setProfitExportMessage(`Export failed: ${error.message || 'Unexpected error'}`, true);
+    } finally {
+        if (profitExportMonthlyBtn) profitExportMonthlyBtn.disabled = false;
+    }
+}
+
+function switchProfitExportMode(mode) {
+    const isDaily = mode === 'daily';
+    if (profitExportDailyControls) profitExportDailyControls.hidden = !isDaily;
+    if (profitExportWeeklyControls) profitExportWeeklyControls.hidden = mode !== 'weekly';
+    if (profitExportMonthlyControls) profitExportMonthlyControls.hidden = mode !== 'monthly';
+    document.querySelectorAll('.profit-export-tab').forEach((tab) => {
+        const active = tab.dataset.profitExportMode === mode;
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', String(active));
+    });
+    setProfitExportMessage('');
+}
+
+function initProfitExportModule() {
+    if (!isStaffPage) return;
+    if (profitExportDateInput && !profitExportDateInput.value) {
+        profitExportDateInput.value = toLocalDateInputValue(new Date());
+    }
+    if (profitExportWeekInput && !profitExportWeekInput.value) {
+        profitExportWeekInput.value = getIsoWeekKey(new Date());
+    }
+    populateProfitExportYearSelect();
+    if (profitExportMonthSelect && profitExportMonthSelect.value === '') {
+        profitExportMonthSelect.value = String(new Date().getMonth());
+    }
+}
+
+if (profitExportDailyBtn) {
+    profitExportDailyBtn.addEventListener('click', () => void exportProfitDaily());
+}
+if (profitExportWeeklyBtn) {
+    profitExportWeeklyBtn.addEventListener('click', () => void exportProfitWeekly());
+}
+if (profitExportMonthlyBtn) {
+    profitExportMonthlyBtn.addEventListener('click', () => void exportProfitMonthly());
+}
+document.querySelectorAll('.profit-export-tab').forEach((tab) => {
+    tab.addEventListener('click', () => switchProfitExportMode(tab.dataset.profitExportMode || 'daily'));
+});
+
 function getLowStockItems() {
     if (!Array.isArray(inventoryData)) return [];
     return inventoryData
@@ -8519,6 +9080,7 @@ function showDashboardSection(section) {
     });
 
     if (section === credentialsSection) {
+        syncLoginHistoryDateToToday();
         void loadTrustedDevices();
         void loadLoginHistory();
     }
@@ -10961,10 +11523,12 @@ function initOrders() {
     loadIgnoredPendingOrders();
     loadCompletedOrders();
     initSalesExportModule();
+    initProfitExportModule();
     syncAnalyticsMonthSelectorsToCurrentMonth();
     loadCustomMenuData();
     void initializeInventoryData();
     recalculateSalesAnalytics();
+    recalculateProfitAnalytics();
     renderSpecialFoods();
     updateCartDisplay();
     renderWalkInOrderBuilder();
@@ -10973,7 +11537,9 @@ function initOrders() {
     renderOrderNotifications();
     renderInventoryManagement();
     updateAnalyticsView();
+    updateProfitView();
     renderOverviewAnalytics();
+    renderOverviewProfitCard();
     updateLiveClock();
     setInterval(updateLiveClock, 1000);
     void loadPendingOrdersFromServer();

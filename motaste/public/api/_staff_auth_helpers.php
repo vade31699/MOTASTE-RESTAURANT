@@ -246,6 +246,29 @@ function getOnlineStaffAccounts(): array
 }
 
 /**
+ * Clear a staff member's last-active timestamp so they drop out of the
+ * "online now" list immediately (e.g. on logout) instead of lingering for
+ * the 5-minute activity window. Best-effort; never blocks the request.
+ */
+function markStaffOffline(string $email): void
+{
+    if (trim($email) === '') {
+        return;
+    }
+
+    // Same no-DDL constraint as touchStaffLastActive(): if `last_active_at`
+    // does not exist yet the UPDATE fails silently and the online list stays
+    // unchanged until the migration runs.
+    try {
+        DB::table('staff')
+            ->whereRaw('LOWER(email) = ?', [strtolower(trim($email))])
+            ->update(['last_active_at' => null]);
+    } catch (Throwable $error) {
+        error_log('markStaffOffline failed: ' . $error->getMessage());
+    }
+}
+
+/**
  * Structured request log for gated API endpoints. Best-effort; never blocks.
  */
 function logStaffApiRequest(string $endpoint): void

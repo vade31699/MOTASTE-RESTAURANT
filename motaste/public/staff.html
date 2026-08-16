@@ -215,6 +215,25 @@
                 </div>
             </div>
 
+            <div class="overview-analytics-panel overview-profit-card">
+                <h3><i class="fa-solid fa-coins" aria-hidden="true"></i> Today's Profit</h3>
+                <p>Net profit from today's completed orders after cost of goods sold.</p>
+                <div class="profit-summary-row">
+                    <div class="profit-summary-chip">
+                        <span>Revenue</span>
+                        <strong id="overviewProfitRevenueValue">₱0</strong>
+                    </div>
+                    <div class="profit-summary-chip">
+                        <span>Cost of Goods Sold</span>
+                        <strong id="overviewProfitCogsValue">₱0</strong>
+                    </div>
+                    <div class="profit-summary-chip">
+                        <span>Net Profit</span>
+                        <strong id="overviewProfitNetValue">₱0</strong>
+                    </div>
+                </div>
+            </div>
+
             <div class="overview-export-module" id="salesExportModule">
                 <div class="export-panel-header">
                     <div>
@@ -336,14 +355,113 @@
                 </div>
         </div>
 
-        <div class="sales-tabs">
-            <button type="button" class="sales-tab-btn active" data-tab="daily-sales">Daily Sales</button>
-            <button type="button" class="sales-tab-btn" data-tab="weekly-sales">Weekly Sales</button>
-            <button type="button" class="sales-tab-btn" data-tab="monthly-sales">Monthly Sales</button>
-            <button type="button" class="sales-tab-btn" data-tab="insights">Insights</button>
+        <div class="sales-analytics-placeholder profit-analytics-panel">
+            <h3>Profit</h3>
+            <p>Net profit from completed orders after cost of goods sold.</p>
+            <div class="profit-summary-row">
+                <div class="profit-summary-chip">
+                    <span>Revenue</span>
+                    <strong id="profitRevenueValue">₱0</strong>
+                </div>
+                <div class="profit-summary-chip">
+                    <span>Cost of Goods Sold</span>
+                    <strong id="profitCogsValue">₱0</strong>
+                </div>
+                <div class="profit-summary-chip">
+                    <span>Net Profit</span>
+                    <strong id="profitNetValue">₱0</strong>
+                </div>
+            </div>
+            <div class="sales-analytics-select-wrapper">
+                <label for="profitAnalyticsSelect">View:</label>
+                <select id="profitAnalyticsSelect" class="analytics-select">
+                    <option value="daily">Daily Profit</option>
+                    <option value="weekly">Weekly Profit</option>
+                    <option value="monthly">Monthly Profit</option>
+                </select>
+                <div id="profitMonthWrapper" class="nested-selector">
+                    <label for="profitMonthSelect">Month:</label>
+                    <select id="profitMonthSelect" class="nested-select">
+                        <option value="jan">January</option>
+                        <option value="feb">February</option>
+                        <option value="mar">March</option>
+                        <option value="apr">April</option>
+                        <option value="may">May</option>
+                        <option value="jun">June</option>
+                        <option value="jul">July</option>
+                        <option value="aug">August</option>
+                        <option value="sep">September</option>
+                        <option value="oct">October</option>
+                        <option value="nov">November</option>
+                        <option value="dec">December</option>
+                    </select>
+                </div>
+            </div>
+            <div class="sales-analytics-chart-wrapper">
+                <div id="profitAnalyticsChart" class="sales-analytics-chart" aria-label="Profit analytics chart"></div>
+            </div>
         </div>
 
-        <div id="insights" class="sales-tab-content" hidden>
+        <div class="sales-analytics-placeholder profit-export-panel">
+            <h3>Profit Report Export</h3>
+            <p>Export profit reports (revenue, cost of goods sold, and net profit) as Excel. Costs use the inventory unit costs.</p>
+            <div class="export-mode-tabs" role="tablist" aria-label="Profit report type">
+                <button type="button" class="profit-export-tab active" data-profit-export-mode="daily" role="tab" aria-selected="true">Daily Report</button>
+                <button type="button" class="profit-export-tab" data-profit-export-mode="weekly" role="tab" aria-selected="false">Weekly Report</button>
+                <button type="button" class="profit-export-tab" data-profit-export-mode="monthly" role="tab" aria-selected="false">Monthly Report</button>
+            </div>
+            <div class="export-controls" id="profitExportDailyControls">
+                <label class="export-field" for="profitExportDate">
+                    <span>Report Date</span>
+                    <input type="date" id="profitExportDate">
+                </label>
+                <button type="button" id="profitExportDailyBtn" class="menu-place-order-btn">
+                    <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export Daily Profit
+                </button>
+            </div>
+            <div class="export-controls" id="profitExportWeeklyControls" hidden>
+                <label class="export-field" for="profitExportWeek">
+                    <span>Week</span>
+                    <input type="week" id="profitExportWeek">
+                </label>
+                <button type="button" id="profitExportWeeklyBtn" class="menu-place-order-btn">
+                    <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export Weekly Profit
+                </button>
+            </div>
+            <div class="export-controls" id="profitExportMonthlyControls" hidden>
+                <label class="export-field" for="profitExportMonth">
+                    <span>Month</span>
+                    <select id="profitExportMonth">
+                        <option value="0">January</option>
+                        <option value="1">February</option>
+                        <option value="2">March</option>
+                        <option value="3">April</option>
+                        <option value="4">May</option>
+                        <option value="5">June</option>
+                        <option value="6">July</option>
+                        <option value="7">August</option>
+                        <option value="8">September</option>
+                        <option value="9">October</option>
+                        <option value="10">November</option>
+                        <option value="11">December</option>
+                    </select>
+                </label>
+                <label class="export-field" for="profitExportYear">
+                    <span>Year</span>
+                    <select id="profitExportYear"></select>
+                </label>
+                <button type="button" id="profitExportMonthlyBtn" class="menu-place-order-btn">
+                    <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export Monthly Profit
+                </button>
+            </div>
+            <p id="profitExportMessage" class="menu-order-message" aria-live="polite"></p>
+        </div>
+
+        <div class="sales-tabs">
+            <button type="button" class="sales-tab-btn active" data-tab="insights">Insights</button>
+        </div>
+
+        <div id="insights" class="sales-tab-content">
             <div class="insights-toolbar">
                 <h3>Insights</h3>
                 <button type="button" id="insightsExportPdfBtn" class="menu-place-order-btn"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> Export Report</button>
@@ -390,25 +508,6 @@
             </div>
         </div>
 
-        <div id="daily-sales" class="sales-tab-content">
-            <h3>Daily Sales</h3>
-            <p>Daily sales list for the month selected in the Analysis bar above.</p>
-            <div id="daily-sales-list" class="sales-list-panel"></div>
-        </div>
-
-        <div id="weekly-sales" class="sales-tab-content" hidden>
-            <h3>Weekly Sales</h3>
-            <p>Weekly sales list for the month selected in the Analysis bar above.</p>
-            <div id="weekly-sales-list" class="sales-list-panel"></div>
-        </div>
-
-        <div id="monthly-sales" class="sales-tab-content" hidden>
-            <h3>Monthly Sales</h3>
-            <p>Monthly sales list for the year displayed in the Analysis graph above.</p>
-            <div id="monthly-sales-detail" class="sales-detail-panel">
-                <div id="monthly-sales-list" class="sales-list-panel"></div>
-            </div>
-        </div>
     </section>
 
     <section id="inventory" class="inventory-section" hidden>
@@ -459,6 +558,7 @@
                             <label>
                                 Unit Cost (₱)
                                 <input id="inventoryUnitCostInput" type="number" min="0" step="0.01" placeholder="Cost per unit" value="0">
+                                <small class="field-helper">Blank costs are estimated at 40% of the selling price for profit reports. Enter the real cost to override.</small>
                             </label>
                             <label>
                                 Availability

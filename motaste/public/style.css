@@ -5512,30 +5512,6 @@ body.site-home .special-food-card:hover {
     box-shadow: 0 26px 52px rgba(255, 216, 181, 0.65), 0 10px 26px rgba(17, 24, 39, 0.10);
 }
 
-/* Signature (first) dish tile — glowing sunburst outline */
-body.site-home .special-food-card:first-child {
-    border: 2px solid rgba(255, 107, 0, 0.9);
-    box-shadow: 0 0 0 5px rgba(255, 107, 0, 0.16), 0 18px 44px rgba(255, 107, 0, 0.24);
-}
-
-body.site-home .special-food-card:first-child::after {
-    content: "Signature";
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    z-index: 3;
-    padding: 5px 12px;
-    border-radius: 999px;
-    background: #FF6B00;
-    color: #fff;
-    font-family: "Montserrat", sans-serif;
-    font-size: 0.66rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    box-shadow: 0 6px 16px rgba(255, 107, 0, 0.4);
-}
-
 body.site-home .special-food-view-btn {
     height: 62%;
     background: #fff;
@@ -6370,13 +6346,6 @@ body.site-home .payment-success-card {
         padding: 10px 12px 12px;
     }
 
-    body.site-home .special-food-card:first-child::after {
-        top: 8px;
-        right: 8px;
-        font-size: 0.58rem;
-        padding: 4px 9px;
-    }
-
     body.site-home .about-content,
     body.site-home .contact-form {
         padding: 24px;
@@ -6402,10 +6371,6 @@ body.site-home .top-bar:has(.top-nav.open) {
     z-index: 2100;
 }
 
-/* Hide the Signature badge when the featured dish is out of stock */
-body.site-home .special-food-card.is-out-of-stock:first-child::after {
-    display: none;
-}
 /* ============================================================
    HOME PAGE REFINEMENT v2 — "Crafted Silog" polish pass
    Deepens the palette with dark/ember orange (#C2410C, #9A3412)
@@ -6570,17 +6535,6 @@ body.site-home .special-food-card {
 body.site-home .special-food-card:hover {
     border-color: rgba(194, 65, 12, 0.65);
     box-shadow: 0 26px 52px rgba(154, 52, 18, 0.24), 0 10px 26px rgba(17, 24, 39, 0.1);
-}
-
-/* Signature tile — ember orange ring + deep glow */
-body.site-home .special-food-card:first-child {
-    border: 2px solid #C2410C;
-    box-shadow: 0 0 0 5px rgba(194, 65, 12, 0.16), 0 18px 44px rgba(154, 52, 18, 0.3);
-}
-
-body.site-home .special-food-card:first-child::after {
-    background: linear-gradient(135deg, #FF7A1A, #C2410C);
-    box-shadow: 0 6px 16px rgba(194, 65, 12, 0.5);
 }
 
 /* ---------- 4. FLOATING CART — ember FAB with soft ping ---------- */
@@ -7773,6 +7727,17 @@ body.staff-app .overview-grid {
     gap: 18px;
 }
 
+/* Today's Profit summary card — full width row under the analysis/notifications panels */
+body.staff-app .overview-profit-card {
+    grid-column: 1 / -1;
+    padding: 20px 22px;
+}
+
+body.staff-app .overview-profit-card h3 i {
+    color: var(--staff-accent);
+    margin-right: 6px;
+}
+
 body.staff-app .sales-analytics-placeholder,
 body.staff-app .overview-analytics-panel,
 body.staff-app .overview-order-notification-box,
@@ -7873,6 +7838,45 @@ body.staff-app .sales-detail-panel {
     border: 1px solid var(--staff-border) !important;
     border-radius: 14px !important;
     color: var(--staff-text) !important;
+}
+
+/* ---------- Profit section ---------- */
+body.staff-app .profit-summary-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+body.staff-app .profit-summary-chip {
+    flex: 1 1 160px;
+    background: var(--staff-surface-2);
+    border: 1px solid var(--staff-border);
+    border-left: 4px solid var(--staff-accent);
+    border-radius: 12px;
+    padding: 12px 14px;
+}
+
+body.staff-app .profit-summary-chip span {
+    display: block;
+    color: var(--staff-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+body.staff-app .profit-summary-chip strong {
+    display: block;
+    font-family: "Montserrat", sans-serif;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--staff-text);
+}
+
+body.staff-app .profit-summary-chip strong.is-negative {
+    color: var(--staff-danger);
 }
 
 /* Sales analytics chart: green line + dots + clean canvas (CSS overrides inline SVG colors) */
@@ -9701,7 +9705,8 @@ body.staff-app .export-mode-tabs {
     background: var(--staff-accent-soft);
 }
 
-.export-mode-tab {
+.export-mode-tab,
+.profit-export-tab {
     padding: 8px 16px;
     border: none;
     background: transparent;
@@ -9713,21 +9718,25 @@ body.staff-app .export-mode-tabs {
     transition: all 0.18s ease;
 }
 
-.export-mode-tab:hover {
+.export-mode-tab:hover,
+.profit-export-tab:hover {
     color: #1f2937;
 }
 
-.export-mode-tab.active {
+.export-mode-tab.active,
+.profit-export-tab.active {
     background: #ffffff;
     color: #1f2937;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.10);
 }
 
-body.staff-app .export-mode-tab {
+body.staff-app .export-mode-tab,
+body.staff-app .profit-export-tab {
     color: var(--staff-muted);
 }
 
-body.staff-app .export-mode-tab.active {
+body.staff-app .export-mode-tab.active,
+body.staff-app .profit-export-tab.active {
     background: #ffffff;
     color: var(--staff-accent-strong);
     box-shadow: 0 4px 12px rgba(43, 174, 102, 0.18);
@@ -9812,7 +9821,8 @@ body.staff-app .export-summary-item strong {
     color: var(--staff-text);
 }
 
-#exportMessage.is-error {
+#exportMessage.is-error,
+#profitExportMessage.is-error {
     color: #dc2626;
     font-weight: 600;
 }

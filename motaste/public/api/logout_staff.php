@@ -25,6 +25,11 @@ if ($token !== '') {
     revokeStaffSessionToken($token);
 }
 
+// Drop the staff member from the live "online now" list right away. Without
+// this, logout leaves `last_active_at` fresh and they stay listed as online
+// for the full 5-minute activity window.
+markStaffOffline((string)($_SESSION['staff']['email'] ?? ''));
+
 // Clear the PHP session data and expire the session cookie.
 if (session_status() === PHP_SESSION_ACTIVE) {
     $_SESSION = [];
