@@ -888,6 +888,32 @@
         </div>
     </div>
 
+    <div id="inviteVerifyModal" class="modal-overlay" hidden aria-hidden="true">
+        <div class="modal-box device-verify-modal invite-verify-modal" role="dialog" aria-modal="true" aria-labelledby="inviteVerifyTitle">
+            <button type="button" class="modal-close" id="inviteVerifyCloseBtn" aria-label="Close invite verification prompt">×</button>
+            <h2 id="inviteVerifyTitle">Invite verification required</h2>
+            <p id="inviteVerifyText">Enter the invite verification code sent to your Gmail to finish setting up your account.</p>
+            <label for="inviteVerifyCodeInput">Invite verification code</label>
+            <input type="text" id="inviteVerifyCodeInput" inputmode="numeric" maxlength="8" placeholder="6-digit code" autocomplete="one-time-code">
+            <div class="device-verify-actions">
+                <button type="button" id="inviteVerifyCancelBtn" class="secondary-btn">Cancel</button>
+                <button type="button" id="inviteVerifySubmitBtn" class="menu-place-order-btn">Verify</button>
+            </div>
+            <p id="inviteVerifyMessage" class="menu-order-message" aria-live="polite"></p>
+        </div>
+    </div>
+
+    <div id="noticeModal" class="modal-overlay" hidden aria-hidden="true">
+        <div class="modal-box notice-modal" role="alertdialog" aria-modal="true" aria-labelledby="noticeModalTitle" aria-describedby="noticeModalText">
+            <button type="button" class="modal-close" id="noticeModalCloseBtn" aria-label="Dismiss notice">×</button>
+            <h2 id="noticeModalTitle">Notice</h2>
+            <p id="noticeModalText"></p>
+            <div class="device-verify-actions">
+                <button type="button" id="noticeModalOkBtn" class="menu-place-order-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
     <div class="login-dark-overlay" aria-hidden="true"></div>
     <div class="staff-login-page">
         <div class="modal-box staff-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">

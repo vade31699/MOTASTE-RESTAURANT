@@ -1168,6 +1168,153 @@ if (deviceVerifyCodeInput) {
     });
 }
 
+/* ---- Invite verification modal (replaces native prompt) ---- */
+const inviteVerifyModal = document.getElementById('inviteVerifyModal');
+const inviteVerifyTitle = document.getElementById('inviteVerifyTitle');
+const inviteVerifyText = document.getElementById('inviteVerifyText');
+const inviteVerifyCancelBtn = document.getElementById('inviteVerifyCancelBtn');
+const inviteVerifySubmitBtn = document.getElementById('inviteVerifySubmitBtn');
+const inviteVerifyCloseBtn = document.getElementById('inviteVerifyCloseBtn');
+const inviteVerifyCodeInput = document.getElementById('inviteVerifyCodeInput');
+const inviteVerifyMessage = document.getElementById('inviteVerifyMessage');
+
+let inviteVerifyResolver = null;
+
+function openInviteVerifyModal() {
+    if (!inviteVerifyModal) return;
+    inviteVerifyModal.hidden = false;
+    inviteVerifyModal.classList.add('active');
+    inviteVerifyModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeInviteVerifyModal() {
+    if (!inviteVerifyModal) return;
+    inviteVerifyModal.hidden = true;
+    inviteVerifyModal.classList.remove('active');
+    inviteVerifyModal.setAttribute('aria-hidden', 'true');
+}
+
+function resetInviteVerifyModal() {
+    if (inviteVerifyCodeInput) inviteVerifyCodeInput.value = '';
+    if (inviteVerifyMessage) {
+        inviteVerifyMessage.textContent = '';
+        inviteVerifyMessage.classList.remove('is-error');
+    }
+}
+
+/**
+ * Promise-based replacement for window.prompt() during staff invite
+ * confirmation. Resolves with the entered code string, or null when the user
+ * cancels. Pass an errorMessage to surface a previous failed attempt.
+ */
+function requestInviteVerificationCode(errorMessage) {
+    if (!inviteVerifyModal) return Promise.resolve(null);
+    return new Promise((resolve) => {
+        inviteVerifyResolver = resolve;
+        resetInviteVerifyModal();
+        if (errorMessage && inviteVerifyMessage) {
+            inviteVerifyMessage.textContent = errorMessage;
+            inviteVerifyMessage.classList.add('is-error');
+        }
+        openInviteVerifyModal();
+        if (inviteVerifyCodeInput) inviteVerifyCodeInput.focus();
+    });
+}
+
+function resolveInviteVerify(value) {
+    closeInviteVerifyModal();
+    resetInviteVerifyModal();
+    const resolve = inviteVerifyResolver;
+    inviteVerifyResolver = null;
+    if (resolve) resolve(value);
+}
+
+if (inviteVerifyCancelBtn) {
+    inviteVerifyCancelBtn.addEventListener('click', () => resolveInviteVerify(null));
+}
+
+if (inviteVerifyCloseBtn) {
+    inviteVerifyCloseBtn.addEventListener('click', () => resolveInviteVerify(null));
+}
+
+if (inviteVerifySubmitBtn) {
+    inviteVerifySubmitBtn.addEventListener('click', () => {
+        const code = inviteVerifyCodeInput ? inviteVerifyCodeInput.value.trim() : '';
+        if (!code) {
+            if (inviteVerifyMessage) {
+                inviteVerifyMessage.textContent = 'Enter the code sent to your email.';
+                inviteVerifyMessage.classList.add('is-error');
+            }
+            return;
+        }
+        resolveInviteVerify(code);
+    });
+}
+
+if (inviteVerifyCodeInput) {
+    inviteVerifyCodeInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            if (inviteVerifySubmitBtn) inviteVerifySubmitBtn.click();
+        }
+    });
+}
+
+/* ---- Reusable notice modal (replaces native alert) ---- */
+const noticeModal = document.getElementById('noticeModal');
+const noticeModalTitle = document.getElementById('noticeModalTitle');
+const noticeModalText = document.getElementById('noticeModalText');
+const noticeModalOkBtn = document.getElementById('noticeModalOkBtn');
+const noticeModalCloseBtn = document.getElementById('noticeModalCloseBtn');
+
+let noticeModalResolver = null;
+
+function openNoticeModal() {
+    if (!noticeModal) return;
+    noticeModal.hidden = false;
+    noticeModal.classList.add('active');
+    noticeModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeNoticeModal() {
+    if (!noticeModal) return;
+    noticeModal.hidden = true;
+    noticeModal.classList.remove('active');
+    noticeModal.setAttribute('aria-hidden', 'true');
+    const resolve = noticeModalResolver;
+    noticeModalResolver = null;
+    if (resolve) resolve();
+}
+
+/**
+ * Promise-based replacement for window.alert(). Shows a styled modal with the
+ * given message (red text when isError is true) and an OK button. Resolves
+ * once the modal is dismissed.
+ */
+function showStaffNotice(message, isError = false) {
+    if (!noticeModal) return Promise.resolve();
+    if (noticeModalTitle) {
+        noticeModalTitle.textContent = isError ? 'Error' : 'Notice';
+    }
+    if (noticeModalText) {
+        noticeModalText.textContent = message;
+        noticeModalText.classList.toggle('is-error', isError);
+    }
+    return new Promise((resolve) => {
+        noticeModalResolver = resolve;
+        openNoticeModal();
+        if (noticeModalOkBtn) noticeModalOkBtn.focus();
+    });
+}
+
+if (noticeModalOkBtn) {
+    noticeModalOkBtn.addEventListener('click', closeNoticeModal);
+}
+
+if (noticeModalCloseBtn) {
+    noticeModalCloseBtn.addEventListener('click', closeNoticeModal);
+}
+
 /* ---- Trusted devices management ---- */
 const trustedDevicesList = document.getElementById('trustedDevicesList');
 const trustedDevicesMessage = document.getElementById('trustedDevicesMessage');
@@ -1552,21 +1699,24 @@ async function handleStaffLogin(email, password, role, remember) {
     }
 
     if ((detectedRole === 'Cashier' || detectedRole === 'Inventory Manager') && !authResult.inviteConfirmed) {
-        const inviteCode = typeof window !== 'undefined' ? window.prompt('Enter the invite verification code sent to your Gmail:') : '';
-        if (!inviteCode) {
-            if (modalTitle) {
-                modalTitle.textContent = 'Invite confirmation required';
+        let inviteError = '';
+        // Loop so a wrong code re-opens the modal with the error instead of
+        // dumping the user back to a plain login screen.
+        for (;;) {
+            const inviteCode = await requestInviteVerificationCode(inviteError);
+            if (!inviteCode) {
+                if (modalTitle) {
+                    modalTitle.textContent = 'Invite confirmation required';
+                }
+                return;
             }
-            return;
-        }
 
-        try {
-            await confirmStaffInviteCode(email, detectedRole, inviteCode);
-        } catch (error) {
-            if (modalTitle) {
-                modalTitle.textContent = error.message || 'Invite verification failed';
+            try {
+                await confirmStaffInviteCode(email, detectedRole, inviteCode);
+                break;
+            } catch (error) {
+                inviteError = error.message || 'Invite verification failed';
             }
-            return;
         }
     }
 
