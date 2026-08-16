@@ -701,6 +701,7 @@ function restoreStaffSession() {
         } else if (targetSectionId === 'sales') {
             updateAnalyticsView();
             updateProfitView();
+            renderInsights();
         } else if (targetSectionId === 'inventory') {
         } else if (targetSectionId === 'logs') {
             void loadOrderLogsFromServer(true);
@@ -2624,7 +2625,7 @@ const insightsComparePeriodA = document.getElementById('insightsComparePeriodA')
 const insightsComparePeriodB = document.getElementById('insightsComparePeriodB');
 const insightsCompareBtn = document.getElementById('insightsCompareBtn');
 const insightsCompareResult = document.getElementById('insightsCompareResult');
-const insightsExportPdfBtn = document.getElementById('insightsExportPdfBtn');
+const insightsExportBtn = document.getElementById('insightsExportBtn');
 
 function getCompletedOrdersForInsights() {
     return Array.isArray(completedOrders) ? completedOrders : [];
@@ -2729,11 +2730,22 @@ function summarizeOrdersForPeriod(orders, from, to) {
     return { orders: filtered.length, revenue, items };
 }
 
+const INSIGHT_PERIOD_LABELS = {
+    today: 'Today',
+    yesterday: 'Yesterday',
+    thisweek: 'This Week',
+    lastweek: 'Last Week',
+    thismonth: 'This Month',
+    lastmonth: 'Last Month'
+};
+
 function renderInsightsComparison() {
     if (!insightsCompareResult) return;
     const orders = getCompletedOrdersForInsights();
     const periodA = insightsComparePeriodA ? insightsComparePeriodA.value || 'today' : 'today';
     const periodB = insightsComparePeriodB ? insightsComparePeriodB.value || 'yesterday' : 'yesterday';
+    const labelA = INSIGHT_PERIOD_LABELS[periodA] || periodA;
+    const labelB = INSIGHT_PERIOD_LABELS[periodB] || periodB;
     const now = new Date();
     const [aFrom, aTo] = getInsightPeriodRange(periodA, now);
     const [bFrom, bTo] = getInsightPeriodRange(periodB, now);
@@ -2743,27 +2755,35 @@ function renderInsightsComparison() {
         if (!previous) return current > 0 ? 100 : 0;
         return Math.round(((current - previous) / previous) * 100);
     };
+    const changeCell = (current, previous) => {
+        const pct = changePct(current, previous);
+        const cls = pct >= 0 ? 'is-up' : 'is-down';
+        const sign = pct >= 0 ? '+' : '';
+        return `<td class="${cls}">${sign}${pct}%</td>`;
+    };
     insightsCompareResult.innerHTML = `
         <table class="insights-compare-table">
             <thead>
-                <tr><th></th><th>${periodA}</th><th>${periodB}</th><th>Change</th></tr>
+                <tr><th></th><th>${labelA}</th><th>${labelB}</th><th>Change</th></tr>
             </thead>
             <tbody>
-                <tr><td>Orders</td><td>${a.orders}</td><td>${b.orders}</td><td class="${changePct(a.orders, b.orders) >= 0 ? 'is-up' : 'is-down'}">${changePct(a.orders, b.orders) >= 0 ? '+' : ''}${changePct(a.orders, b.orders)}%</td></tr>
-                <tr><td>Revenue</td><td>${formatCurrency(a.revenue)}</td><td>${formatCurrency(b.revenue)}</td><td class="${changePct(a.revenue, b.revenue) >= 0 ? 'is-up' : 'is-down'}">${changePct(a.revenue, b.revenue) >= 0 ? '+' : ''}${changePct(a.revenue, b.revenue)}%</td></tr>
-                <tr><td>Items sold</td><td>${a.items}</td><td>${b.items}</td><td class="${changePct(a.items, b.items) >= 0 ? 'is-up' : 'is-down'}">${changePct(a.items, b.items) >= 0 ? '+' : ''}${changePct(a.items, b.items)}%</td></tr>
+                <tr><td>Orders</td><td>${a.orders}</td><td>${b.orders}</td>${changeCell(a.orders, b.orders)}</tr>
+                <tr><td>Revenue</td><td>${formatCurrency(a.revenue)}</td><td>${formatCurrency(b.revenue)}</td>${changeCell(a.revenue, b.revenue)}</tr>
+                <tr><td>Items sold</td><td>${a.items}</td><td>${b.items}</td>${changeCell(a.items, b.items)}</tr>
             </tbody>
         </table>
     `;
 }
 
-function exportInsightsPdf() {
+function exportInsightsReport() {
+    if (!isStaffPage) return;
+    if (typeof XLSX === 'undefined') {
+        window.alert('Excel library is not loaded. Check your connection and refresh the page.');
+        return;
+    }
+
     const orders = getCompletedOrdersForInsights();
-    const lines = [];
-    lines.push('MOTASTE — SALES INSIGHTS REPORT');
-    lines.push(`Generated: ${new Date().toLocaleString()}`);
-    lines.push(`Completed orders: ${orders.length}`);
-    lines.push('');
+    const now = new Date();
 
     const hourly = new Array(24).fill(0);
     const units = new Map();
@@ -2778,35 +2798,63 @@ function exportInsightsPdf() {
         });
     });
 
-    lines.push(`Total revenue: ${formatCurrency(revenue)}`);
-    lines.push('');
-    lines.push('--- Busiest hours ---');
+    const periodA = insightsComparePeriodA ? insightsComparePeriodA.value || 'today' : 'today';
+    const periodB = insightsComparePeriodB ? insightsComparePeriodB.value || 'yesterday' : 'yesterday';
+    const [aFrom, aTo] = getInsightPeriodRange(periodA, now);
+    const [bFrom, bTo] = getInsightPeriodRange(periodB, now);
+    const a = summarizeOrdersForPeriod(orders, aFrom, aTo);
+    const b = summarizeOrdersForPeriod(orders, bFrom, bTo);
+    const changePct = (current, previous) => {
+        if (!previous) return current > 0 ? 100 : 0;
+        return Math.round(((current - previous) / previous) * 100);
+    };
+
+    const summaryRows = [
+        ['MOTASTE Sales Insights'],
+        [],
+        ['Generated', now.toLocaleString()],
+        ['Completed orders (latest 500)', orders.length],
+        ['Total revenue (₱)', Number(revenue.toFixed(2))],
+        [],
+        [INSIGHT_PERIOD_LABELS[periodA] || periodA],
+        ['Orders', a.orders],
+        ['Revenue (₱)', Number(a.revenue.toFixed(2))],
+        ['Items sold', a.items],
+        [],
+        [INSIGHT_PERIOD_LABELS[periodB] || periodB],
+        ['Orders', b.orders],
+        ['Revenue (₱)', Number(b.revenue.toFixed(2))],
+        ['Items sold', b.items],
+        [],
+        ['Orders change (%)', changePct(a.orders, b.orders)],
+        ['Revenue change (%)', changePct(a.revenue, b.revenue)],
+        ['Items change (%)', changePct(a.items, b.items)],
+    ];
+
+    const hourlyRows = [];
     hourly.forEach((count, hour) => {
-        if (count > 0) lines.push(`${String(hour).padStart(2, '0')}:00 — ${count} order(s)`);
-    });
-    lines.push('');
-    lines.push('--- Best sellers ---');
-    [...units.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15).forEach(([name, qty]) => {
-        lines.push(`${name}: ${qty}`);
+        if (count > 0) hourlyRows.push([`${String(hour).padStart(2, '0')}:00`, count]);
     });
 
-    const content = lines.join('\n');
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `MOTASTE-Insights-${new Date().toISOString().slice(0, 10)}.txt`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    URL.revokeObjectURL(url);
+    const bestSellerRows = [...units.entries()]
+        .sort((x, y) => y[1] - x[1])
+        .slice(0, 15)
+        .map(([name, qty], index) => [index + 1, excelSafe(name), qty]);
+
+    const workbook = XLSX.utils.book_new();
+    const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
+    summarySheet['!cols'] = [{ wch: 34 }, { wch: 24 }];
+    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+    XLSX.utils.book_append_sheet(workbook, buildExcelSheet(hourlyRows, ['Hour', 'Orders'], [12, 12]), 'Busiest Hours');
+    XLSX.utils.book_append_sheet(workbook, buildExcelSheet(bestSellerRows, ['Rank', 'Food Item', 'Qty Sold'], [8, 40, 12]), 'Best Sellers');
+    XLSX.writeFile(workbook, `MOTASTE-Insights-${now.toISOString().slice(0, 10)}.xlsx`);
 }
 
 if (insightsCompareBtn) {
     insightsCompareBtn.addEventListener('click', renderInsightsComparison);
 }
-if (insightsExportPdfBtn) {
-    insightsExportPdfBtn.addEventListener('click', exportInsightsPdf);
+if (insightsExportBtn) {
+    insightsExportBtn.addEventListener('click', exportInsightsReport);
 }
 
 const overviewLink = document.getElementById('overviewLink');
@@ -3654,6 +3702,7 @@ if (salesLink && salesSection) {
         showDashboardSection(salesSection);
         updateAnalyticsView();
         updateProfitView();
+        renderInsights();
     });
 }
 
@@ -5916,6 +5965,7 @@ async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
     updateProfitView(false);
     renderOverviewAnalytics();
     renderOverviewProfitCard();
+    renderInsights();
     void initializeInventoryData(true);
     void loadOrderLogsFromServer(true);
     void loadCompletedOrdersFromServer(true);
@@ -6077,6 +6127,7 @@ async function refundCompletedOrder(orderId) {
     updateProfitView(false);
     renderOverviewAnalytics();
     renderOverviewProfitCard();
+    renderInsights();
     void initializeInventoryData(true);
     void loadCompletedOrdersFromServer(true);
     void loadOrderLogsFromServer(true);
@@ -6654,6 +6705,7 @@ async function loadCompletedOrdersFromServer(forceRefresh = false) {
         updateProfitView(false);
         renderOverviewAnalytics(false);
         renderOverviewProfitCard();
+        renderInsights();
         return true;
     } catch (error) {
         console.error('Unable to load completed orders from server', error);
@@ -11540,6 +11592,7 @@ function initOrders() {
     updateProfitView();
     renderOverviewAnalytics();
     renderOverviewProfitCard();
+    renderInsights();
     updateLiveClock();
     setInterval(updateLiveClock, 1000);
     void loadPendingOrdersFromServer();
