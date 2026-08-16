@@ -12,10 +12,6 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_security_headers.php';
 sendSecurityHeaders();
 require_once __DIR__ . '/_staff_auth_helpers.php';
-if (!requireAdminAuth()) {
-    abortStaffAuthRequired();
-}
-
 
 use Illuminate\Support\Facades\DB;
 
@@ -36,6 +32,17 @@ if ($email === '' || $role === '' || $code === '') {
 }
 
 try {
+    // Who may confirm an invite:
+    //  - an Admin (creating/managing invites from the Account Management page), or
+    //  - the invited staff member themselves, mid first-time login. The invite
+    //    code was emailed to the invitee, so the code itself is the proof of
+    //    possession — requiring admin auth here would lock every first-time
+    //    Cashier/Inventory Manager out of their own login.
+    $staff = requireStaffAuth();
+    $sessionRole = strtolower(trim((string)($staff['role'] ?? '')));
+    $sessionEmail = strtolower(trim((string)($staff['email'] ?? '')));
+    $isAdmin = $sessionRole === 'admin';
+
     ensureStaffInviteTokensTable();
 
     $token = DB::table('staff_invite_tokens')
@@ -48,6 +55,14 @@ try {
         http_response_code(404);
         echo json_encode(['success' => false, 'error' => 'No invite verification found']);
         exit;
+    }
+
+    // Only an Admin may confirm someone else's invite; a staff member may only
+    // confirm their OWN invite (email + role must match their session).
+    $isSelf = $sessionEmail !== '' && $sessionEmail === $email
+        && $sessionRole === strtolower($role);
+    if (!$isAdmin && !$isSelf) {
+        abortStaffAuthRequired();
     }
 
     if (now()->greaterThan($token->expires_at)) {
