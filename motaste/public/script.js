@@ -693,6 +693,7 @@ function restoreStaffSession() {
         if (targetSectionId === 'overview') {
             renderOverviewAnalytics();
             renderOrderNotifications();
+            renderOverviewProfitCard();
         } else if (targetSectionId === 'pending-orders') {
             void loadPendingOrdersFromServer();
             setOrdersTab('pending');
@@ -709,6 +710,7 @@ function restoreStaffSession() {
     } else {
         showDashboardSection(overviewSection);
         renderOverviewAnalytics();
+        renderOverviewProfitCard();
     }
 
     setDashboardPanelState(false);
@@ -1262,12 +1264,18 @@ if (inviteVerifyCodeInput) {
 
 /* ---- Reusable notice modal (replaces native alert) ---- */
 const noticeModal = document.getElementById('noticeModal');
+const noticeModalIcon = document.getElementById('noticeModalIcon');
 const noticeModalTitle = document.getElementById('noticeModalTitle');
 const noticeModalText = document.getElementById('noticeModalText');
 const noticeModalOkBtn = document.getElementById('noticeModalOkBtn');
 const noticeModalCloseBtn = document.getElementById('noticeModalCloseBtn');
+const noticeAutoCloseBar = document.getElementById('noticeAutoCloseBar');
 
 let noticeModalResolver = null;
+let noticeAutoCloseTimer = null;
+
+// Success notices auto-dismiss after this many ms; errors stay until dismissed.
+const NOTICE_AUTO_CLOSE_MS = 4000;
 
 function openNoticeModal() {
     if (!noticeModal) return;
@@ -1277,6 +1285,14 @@ function openNoticeModal() {
 }
 
 function closeNoticeModal() {
+    if (noticeAutoCloseTimer) {
+        window.clearTimeout(noticeAutoCloseTimer);
+        noticeAutoCloseTimer = null;
+    }
+    if (noticeAutoCloseBar) {
+        noticeAutoCloseBar.hidden = true;
+        noticeAutoCloseBar.classList.remove('animating');
+    }
     if (!noticeModal) return;
     noticeModal.hidden = true;
     noticeModal.classList.remove('active');
@@ -1288,13 +1304,21 @@ function closeNoticeModal() {
 
 /**
  * Promise-based replacement for window.alert(). Shows a styled modal with the
- * given message (red text when isError is true) and an OK button. Resolves
- * once the modal is dismissed.
+ * given message, an icon (check for success / warning for errors), and an OK
+ * button. Success notices auto-dismiss after NOTICE_AUTO_CLOSE_MS; errors stay
+ * until dismissed. Resolves once the modal is dismissed.
  */
 function showStaffNotice(message, isError = false) {
     if (!noticeModal) return Promise.resolve();
     if (noticeModalTitle) {
         noticeModalTitle.textContent = isError ? 'Error' : 'Notice';
+    }
+    if (noticeModalIcon) {
+        noticeModalIcon.classList.toggle('is-error', isError);
+        const iconEl = noticeModalIcon.querySelector('i');
+        if (iconEl) {
+            iconEl.className = isError ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-circle-check';
+        }
     }
     if (noticeModalText) {
         noticeModalText.textContent = message;
@@ -1304,6 +1328,17 @@ function showStaffNotice(message, isError = false) {
         noticeModalResolver = resolve;
         openNoticeModal();
         if (noticeModalOkBtn) noticeModalOkBtn.focus();
+        if (!isError) {
+            // Animated countdown bar + auto-close for success notices.
+            if (noticeAutoCloseBar) {
+                noticeAutoCloseBar.hidden = false;
+                noticeAutoCloseBar.classList.remove('animating');
+                // Restart the animation on every open.
+                void noticeAutoCloseBar.offsetWidth;
+                noticeAutoCloseBar.classList.add('animating');
+            }
+            noticeAutoCloseTimer = window.setTimeout(closeNoticeModal, NOTICE_AUTO_CLOSE_MS);
+        }
     });
 }
 
@@ -1324,6 +1359,87 @@ if (noticeModal) {
 document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && noticeModal && !noticeModal.hidden) {
         closeNoticeModal();
+    }
+});
+
+/* ---- Reusable confirm modal (replaces native confirm) ---- */
+const confirmModal = document.getElementById('confirmModal');
+const confirmModalIcon = document.getElementById('confirmModalIcon');
+const confirmModalTitle = document.getElementById('confirmModalTitle');
+const confirmModalText = document.getElementById('confirmModalText');
+const confirmModalCancelBtn = document.getElementById('confirmModalCancelBtn');
+const confirmModalConfirmBtn = document.getElementById('confirmModalConfirmBtn');
+const confirmModalCloseBtn = document.getElementById('confirmModalCloseBtn');
+
+let confirmModalResolver = null;
+
+function openConfirmModal() {
+    if (!confirmModal) return;
+    confirmModal.hidden = false;
+    confirmModal.classList.add('active');
+    confirmModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeConfirmModal() {
+    if (!confirmModal) return;
+    confirmModal.hidden = true;
+    confirmModal.classList.remove('active');
+    confirmModal.setAttribute('aria-hidden', 'true');
+    const resolve = confirmModalResolver;
+    confirmModalResolver = null;
+    if (resolve) resolve(false);
+}
+
+/**
+ * Promise-based replacement for window.confirm(). Shows a styled modal with a
+ * warning icon, a Cancel button and a destructive Confirm button. Resolves
+ * true when confirmed, false when cancelled/closed.
+ */
+function showStaffConfirm(message, options = {}) {
+    if (!confirmModal) return Promise.resolve(false);
+    const { title = 'Are you sure?', confirmLabel = 'Confirm' } = options;
+    if (confirmModalTitle) confirmModalTitle.textContent = title;
+    if (confirmModalText) confirmModalText.textContent = message;
+    if (confirmModalConfirmBtn) confirmModalConfirmBtn.textContent = confirmLabel;
+    if (confirmModalIcon) {
+        const iconEl = confirmModalIcon.querySelector('i');
+        if (iconEl) iconEl.className = 'fa-solid fa-triangle-exclamation';
+    }
+    return new Promise((resolve) => {
+        confirmModalResolver = resolve;
+        openConfirmModal();
+        if (confirmModalCancelBtn) confirmModalCancelBtn.focus();
+    });
+}
+
+function resolveConfirm(value) {
+    closeConfirmModal();
+    const resolve = confirmModalResolver;
+    confirmModalResolver = null;
+    if (resolve) resolve(value);
+}
+
+if (confirmModalConfirmBtn) {
+    confirmModalConfirmBtn.addEventListener('click', () => resolveConfirm(true));
+}
+
+if (confirmModalCancelBtn) {
+    confirmModalCancelBtn.addEventListener('click', () => resolveConfirm(false));
+}
+
+if (confirmModalCloseBtn) {
+    confirmModalCloseBtn.addEventListener('click', () => resolveConfirm(false));
+}
+
+if (confirmModal) {
+    confirmModal.addEventListener('click', (event) => {
+        if (event.target === confirmModal) resolveConfirm(false);
+    });
+}
+
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && confirmModal && !confirmModal.hidden) {
+        resolveConfirm(false);
     }
 });
 
@@ -1776,6 +1892,7 @@ async function handleStaffLogin(email, password, role, remember) {
         if (overviewSection) {
             showDashboardSection(overviewSection);
             renderOverviewAnalytics();
+            renderOverviewProfitCard();
             showLowStockAlertIfNeeded();
         }
         // Ensure dashboard panel is closed (main content visible)
@@ -6438,9 +6555,11 @@ async function cancelPendingOrder(orderIndex) {
     if (orderIndex < 0 || orderIndex >= pendingOrders.length) return false;
 
     const targetOrder = pendingOrders[orderIndex];
-    if (!window.confirm(`Cancel order #${targetOrder.orderNumber || targetOrder.id}? Stock will be restored and the order removed from the pending queue.`)) {
-        return false;
-    }
+    const cancelConfirmed = await showStaffConfirm(
+        `Cancel order #${targetOrder.orderNumber || targetOrder.id}? Stock will be restored and the order removed from the pending queue.`,
+        { title: 'Cancel order?', confirmLabel: 'Cancel Order' }
+    );
+    if (!cancelConfirmed) return false;
 
     try {
         const actor = getCurrentStaffActor();
@@ -6485,9 +6604,11 @@ async function refundCompletedOrder(orderId) {
     if (!canManageOrders()) return false;
     if (!orderId) return false;
 
-    if (!window.confirm('Refund this completed order? Stock will be restored and the order marked as refunded. This cannot be undone.')) {
-        return false;
-    }
+    const refundConfirmed = await showStaffConfirm(
+        'Refund this completed order? Stock will be restored and the order marked as refunded. This cannot be undone.',
+        { title: 'Refund order?', confirmLabel: 'Refund Order' }
+    );
+    if (!refundConfirmed) return false;
 
     try {
         const actor = getCurrentStaffActor();
@@ -6991,9 +7112,12 @@ if (staffReviewList) {
         const reviewId = Number(actionButton.dataset.reviewId || 0);
         if (!reviewId) return;
 
-        if (deleteButton && typeof window !== 'undefined' && window.confirm
-            && !window.confirm('Delete this review permanently? This action cannot be undone.')) {
-            return;
+        if (deleteButton) {
+            const deleteConfirmed = await showStaffConfirm(
+                'Delete this review permanently? This action cannot be undone.',
+                { title: 'Delete review?', confirmLabel: 'Delete Review' }
+            );
+            if (!deleteConfirmed) return;
         }
 
         const actor = getCurrentStaffActor();
@@ -8442,14 +8566,11 @@ document.querySelectorAll('.export-mode-tab').forEach((tab) => {
 
 /* ================= Profit report export (Sales page) ================= */
 const profitExportDateInput = document.getElementById('profitExportDate');
-const profitExportWeekInput = document.getElementById('profitExportWeek');
 const profitExportMonthSelect = document.getElementById('profitExportMonth');
 const profitExportYearSelect = document.getElementById('profitExportYear');
 const profitExportDailyControls = document.getElementById('profitExportDailyControls');
-const profitExportWeeklyControls = document.getElementById('profitExportWeeklyControls');
 const profitExportMonthlyControls = document.getElementById('profitExportMonthlyControls');
 const profitExportDailyBtn = document.getElementById('profitExportDailyBtn');
-const profitExportWeeklyBtn = document.getElementById('profitExportWeeklyBtn');
 const profitExportMonthlyBtn = document.getElementById('profitExportMonthlyBtn');
 const profitExportMessage = document.getElementById('profitExportMessage');
 
@@ -8475,39 +8596,6 @@ function populateProfitExportYearSelect() {
     }
     profitExportYearSelect.innerHTML = '';
     profitExportYearSelect.appendChild(fragment);
-}
-
-// ISO week key (YYYY-Www) for a date — matches <input type="week"> values.
-function getIsoWeekKey(date) {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    const weekNo = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
-    return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
-}
-
-function getSelectedProfitExportWeek() {
-    let raw = profitExportWeekInput ? profitExportWeekInput.value.trim() : '';
-    if (!/^\d{4}-W\d{2}$/.test(raw)) {
-        raw = getIsoWeekKey(new Date());
-        if (profitExportWeekInput) profitExportWeekInput.value = raw;
-    }
-
-    const match = raw.match(/^(\d{4})-W(\d{2})$/);
-    const year = Number(match[1]);
-    const week = Number(match[2]);
-    // Monday of the requested ISO week.
-    const jan4 = new Date(year, 0, 4);
-    const jan4Dow = (jan4.getDay() + 6) % 7; // 0 = Monday
-    const monday = new Date(year, 0, 4 - jan4Dow + (week - 1) * 7);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    return {
-        label: `Week ${week} of ${year}`,
-        from: toLocalDateInputValue(monday),
-        to: toLocalDateInputValue(sunday)
-    };
 }
 
 function getSelectedProfitExportMonth() {
@@ -8635,44 +8723,6 @@ async function exportProfitDaily() {
     }
 }
 
-async function exportProfitWeekly() {
-    if (!isStaffPage) return;
-    if (typeof XLSX === 'undefined') {
-        setProfitExportMessage('Excel library is not loaded. Check your connection and refresh the page.', true);
-        return;
-    }
-
-    const { label, from, to } = getSelectedProfitExportWeek();
-    setProfitExportMessage(`Fetching completed orders for ${label}...`);
-    if (profitExportWeeklyBtn) profitExportWeeklyBtn.disabled = true;
-    try {
-        const orders = await fetchSalesReport(from, to);
-        if (!orders.length) {
-            setProfitExportMessage(`No completed orders found for ${label}.`);
-            return;
-        }
-
-        const rows = groupOrdersByLocalDay(orders);
-        appendProfitPeriodTotals(rows, orders);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, buildExcelSheet(rows, PROFIT_PERIOD_COLUMNS, [14, 12, 14, 14, 14]), 'Weekly Profit');
-        XLSX.writeFile(workbook, `MOTASTE-Weekly-Profit-${from}.xlsx`);
-
-        let revenue = 0;
-        let cost = 0;
-        orders.forEach((order) => {
-            const breakdown = computeOrderProfitExport(order);
-            revenue += breakdown.revenue;
-            cost += breakdown.cost;
-        });
-        setProfitExportMessage(`Exported ${orders.length} completed order(s) for ${label} — net profit ${formatCurrency(roundMoney(revenue - cost))}.`);
-    } catch (error) {
-        setProfitExportMessage(`Export failed: ${error.message || 'Unexpected error'}`, true);
-    } finally {
-        if (profitExportWeeklyBtn) profitExportWeeklyBtn.disabled = false;
-    }
-}
-
 // Per-food-item profit rows: revenue from the item line total, COGS from
 // getOrderItemCost() so the sums match the Monthly Profit sheet exactly. A
 // special dish absorbs its components' costs into its own row.
@@ -8753,7 +8803,6 @@ async function exportProfitMonthly() {
 function switchProfitExportMode(mode) {
     const isDaily = mode === 'daily';
     if (profitExportDailyControls) profitExportDailyControls.hidden = !isDaily;
-    if (profitExportWeeklyControls) profitExportWeeklyControls.hidden = mode !== 'weekly';
     if (profitExportMonthlyControls) profitExportMonthlyControls.hidden = mode !== 'monthly';
     document.querySelectorAll('.profit-export-tab').forEach((tab) => {
         const active = tab.dataset.profitExportMode === mode;
@@ -8768,9 +8817,6 @@ function initProfitExportModule() {
     if (profitExportDateInput && !profitExportDateInput.value) {
         profitExportDateInput.value = toLocalDateInputValue(new Date());
     }
-    if (profitExportWeekInput && !profitExportWeekInput.value) {
-        profitExportWeekInput.value = getIsoWeekKey(new Date());
-    }
     populateProfitExportYearSelect();
     if (profitExportMonthSelect && profitExportMonthSelect.value === '') {
         profitExportMonthSelect.value = String(new Date().getMonth());
@@ -8779,9 +8825,6 @@ function initProfitExportModule() {
 
 if (profitExportDailyBtn) {
     profitExportDailyBtn.addEventListener('click', () => void exportProfitDaily());
-}
-if (profitExportWeeklyBtn) {
-    profitExportWeeklyBtn.addEventListener('click', () => void exportProfitWeekly());
 }
 if (profitExportMonthlyBtn) {
     profitExportMonthlyBtn.addEventListener('click', () => void exportProfitMonthly());
@@ -11749,6 +11792,7 @@ if (dashboardPanel) {
             showDashboardSection(overviewSection);
             renderOrderNotifications();
             renderOverviewAnalytics();
+            renderOverviewProfitCard();
         } else if (href === '#inventory') {
             if (!canAccessInventory()) return;
             showDashboardSection(inventorySection);
@@ -12361,9 +12405,10 @@ async function exportRetentionBatch() {
 async function clearRetentionBatch() {
     if (!retentionSelectedBatch) return;
     const typeLabel = retentionTypeLabel(retentionSelectedBatch.batch_type);
-    const confirmed = window.confirm(
+    const confirmed = await showStaffConfirm(
         `Permanently delete ${retentionSelectedBatch.record_count} archived ${typeLabel} record(s) from the database? `
-        + 'This cannot be undone — export first if you need a copy.'
+        + 'This cannot be undone — export first if you need a copy.',
+        { title: 'Clear archived records?', confirmLabel: 'Delete Records' }
     );
     if (!confirmed) return;
 

@@ -407,7 +407,6 @@
             <p>Export profit reports (revenue, cost of goods sold, and net profit) as Excel. Costs use the inventory unit costs.</p>
             <div class="export-mode-tabs" role="tablist" aria-label="Profit report type">
                 <button type="button" class="profit-export-tab active" data-profit-export-mode="daily" role="tab" aria-selected="true">Daily Report</button>
-                <button type="button" class="profit-export-tab" data-profit-export-mode="weekly" role="tab" aria-selected="false">Weekly Report</button>
                 <button type="button" class="profit-export-tab" data-profit-export-mode="monthly" role="tab" aria-selected="false">Monthly Report</button>
             </div>
             <div class="export-controls" id="profitExportDailyControls">
@@ -417,15 +416,6 @@
                 </label>
                 <button type="button" id="profitExportDailyBtn" class="menu-place-order-btn">
                     <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export Daily Profit
-                </button>
-            </div>
-            <div class="export-controls" id="profitExportWeeklyControls" hidden>
-                <label class="export-field" for="profitExportWeek">
-                    <span>Week</span>
-                    <input type="week" id="profitExportWeek">
-                </label>
-                <button type="button" id="profitExportWeeklyBtn" class="menu-place-order-btn">
-                    <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export Weekly Profit
                 </button>
             </div>
             <div class="export-controls" id="profitExportMonthlyControls" hidden>
@@ -906,10 +896,29 @@
     <div id="noticeModal" class="modal-overlay" hidden aria-hidden="true">
         <div class="modal-box notice-modal" role="alertdialog" aria-modal="true" aria-labelledby="noticeModalTitle" aria-describedby="noticeModalText">
             <button type="button" class="modal-close" id="noticeModalCloseBtn" aria-label="Dismiss notice">×</button>
+            <div class="notice-modal-icon" id="noticeModalIcon" aria-hidden="true">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
             <h2 id="noticeModalTitle">Notice</h2>
             <p id="noticeModalText"></p>
             <div class="device-verify-actions">
                 <button type="button" id="noticeModalOkBtn" class="menu-place-order-btn">OK</button>
+            </div>
+            <div class="notice-auto-close-bar" id="noticeAutoCloseBar" hidden aria-hidden="true"></div>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="modal-overlay" hidden aria-hidden="true">
+        <div class="modal-box notice-modal confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirmModalTitle" aria-describedby="confirmModalText">
+            <button type="button" class="modal-close" id="confirmModalCloseBtn" aria-label="Dismiss confirmation">×</button>
+            <div class="notice-modal-icon confirm-modal-icon" id="confirmModalIcon" aria-hidden="true">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h2 id="confirmModalTitle">Are you sure?</h2>
+            <p id="confirmModalText"></p>
+            <div class="device-verify-actions">
+                <button type="button" id="confirmModalCancelBtn" class="secondary-btn">Cancel</button>
+                <button type="button" id="confirmModalConfirmBtn" class="menu-place-order-btn confirm-danger-btn">Confirm</button>
             </div>
         </div>
     </div>

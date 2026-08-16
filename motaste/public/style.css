@@ -8663,6 +8663,7 @@ body.staff-app .notice-modal {
     border-radius: 18px;
     color: var(--staff-text);
     box-shadow: var(--staff-shadow-lg);
+    text-align: center;
 }
 
 body.staff-app .notice-modal h2 {
@@ -8681,7 +8682,7 @@ body.staff-app .notice-modal p.is-error {
 }
 
 body.staff-app .notice-modal .device-verify-actions {
-    justify-content: flex-end;
+    justify-content: center;
 }
 
 body.staff-app .notice-modal .device-verify-actions button {
@@ -8695,6 +8696,69 @@ body.staff-app .notice-modal .modal-close {
 
 body.staff-app .notice-modal .modal-close:hover {
     color: var(--staff-danger);
+}
+
+/* Icon inside the notice / confirm modals. */
+body.staff-app .notice-modal-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 14px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    background: rgba(16, 185, 129, 0.14);
+    color: #10b981;
+}
+
+body.staff-app .notice-modal-icon.is-error {
+    background: rgba(220, 38, 38, 0.12);
+    color: var(--staff-danger);
+}
+
+body.staff-app .confirm-modal-icon {
+    background: rgba(220, 38, 38, 0.12);
+    color: var(--staff-danger);
+}
+
+/* Destructive confirm button (red instead of the green primary). */
+body.staff-app .confirm-danger-btn {
+    background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+}
+
+body.staff-app .confirm-danger-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+}
+
+/* Countdown bar shown on auto-dismissing success notices. */
+body.staff-app .notice-auto-close-bar {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 4px;
+    border-radius: 0 0 18px 18px;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    transform-origin: left;
+}
+
+body.staff-app .notice-auto-close-bar.animating {
+    animation: notice-auto-close 4s linear forwards;
+}
+
+@keyframes notice-auto-close {
+    from {
+        transform: scaleX(1);
+    }
+    to {
+        transform: scaleX(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.staff-app .notice-auto-close-bar.animating {
+        animation-duration: 0.001s;
+    }
 }
 
 /* ---------- Shared buttons / inputs ---------- */
