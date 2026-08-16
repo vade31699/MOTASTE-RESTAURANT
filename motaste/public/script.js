@@ -2626,6 +2626,127 @@ const insightsComparePeriodB = document.getElementById('insightsComparePeriodB')
 const insightsCompareBtn = document.getElementById('insightsCompareBtn');
 const insightsCompareResult = document.getElementById('insightsCompareResult');
 const insightsExportBtn = document.getElementById('insightsExportBtn');
+const insightsPeriodFilter = document.getElementById('insightsPeriodFilter');
+const insightsCustomRange = document.getElementById('insightsCustomRange');
+const insightsCustomFrom = document.getElementById('insightsCustomFrom');
+const insightsCustomTo = document.getElementById('insightsCustomTo');
+
+// Server-filtered completed orders for the active Insights period filter.
+// 'all' keeps using the client-side latest-500 list; any other period fetches
+// the full range from the server so insights can reach orders older than 500.
+let insightsOrdersCache = [];
+let insightsOrdersCacheKey = 'all';
+let insightsOrdersSyncInFlight = false;
+
+function getInsightsFilterKey() {
+    return insightsPeriodFilter ? insightsPeriodFilter.value || 'all' : 'all';
+}
+
+function parseLocalDateInput(value) {
+    const parts = String(value || '').split('-');
+    if (parts.length !== 3) return null;
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+    const day = Number(parts[2]);
+    if (!year || !month || !day) return null;
+    const date = new Date(year, month - 1, day);
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+// Returns [from, to] local-midnight Dates for a custom range, or null when
+// either end is missing/invalid. 'to' is the midnight AFTER the chosen end day
+// so the whole day is included (the filter uses [from, to) comparisons).
+function getInsightsCustomRange() {
+    if (!insightsCustomFrom || !insightsCustomTo) return null;
+    const from = parseLocalDateInput(insightsCustomFrom.value);
+    const toRaw = parseLocalDateInput(insightsCustomTo.value);
+    if (!from || !toRaw) return null;
+    return [from, new Date(toRaw.getTime() + 86400000)];
+}
+
+// Cache key that also encodes the exact custom dates, so changing the range
+// invalidates the previously fetched server cache.
+function getInsightsCacheKey() {
+    const key = getInsightsFilterKey();
+    if (key !== 'custom') return key;
+    const range = getInsightsCustomRange();
+    return range && range[0] && range[1]
+        ? `custom:${range[0].toISOString()}:${range[1].toISOString()}`
+        : 'custom:invalid';
+}
+
+function getInsightsFilterLabel() {
+    const key = getInsightsFilterKey();
+    if (key === 'all') return 'All time';
+    if (key === 'custom') {
+        const range = getInsightsCustomRange();
+        if (range && range[0] && range[1]) {
+            const fmt = (d) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+            return `${fmt(range[0])} – ${fmt(new Date(range[1].getTime() - 86400000))}`;
+        }
+        return 'Custom Range';
+    }
+    return INSIGHT_PERIOD_LABELS[key] || key;
+}
+
+function getFilteredOrdersForInsights() {
+    const key = getInsightsFilterKey();
+    const cacheKey = getInsightsCacheKey();
+    if (key === 'all') return getCompletedOrdersForInsights();
+    if (insightsOrdersCacheKey === cacheKey && Array.isArray(insightsOrdersCache)) {
+        return insightsOrdersCache;
+    }
+    // Fallback while the server fetch is in flight (or if it failed): filter
+    // whatever the client already has loaded.
+    const orders = getCompletedOrdersForInsights();
+    const now = new Date();
+    const [from, to] = getInsightPeriodRange(key, now);
+    if (!from || !to) return orders;
+    return orders.filter((order) => {
+        const ms = parseOrderDateMs(order);
+        return !Number.isNaN(ms) && ms >= from.getTime() && ms < to.getTime();
+    });
+}
+
+function syncInsightsCustomRangeVisibility() {
+    if (!insightsCustomRange) return;
+    insightsCustomRange.hidden = getInsightsFilterKey() !== 'custom';
+}
+
+async function refreshInsightsOrdersFromServer() {
+    const key = getInsightsFilterKey();
+    const cacheKey = getInsightsCacheKey();
+    if (!isStaffPage || key === 'all' || cacheKey === 'custom:invalid') {
+        insightsOrdersCache = [];
+        insightsOrdersCacheKey = 'all';
+        renderInsights();
+        return;
+    }
+    if (insightsOrdersSyncInFlight) return;
+    insightsOrdersSyncInFlight = true;
+    try {
+        await ensureStaffServerSession();
+        const now = new Date();
+        const [from, to] = getInsightPeriodRange(key, now);
+        if (!from || !to) return;
+        const url = getApiUrl(`api/get_completed_orders.php?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}&_=${Date.now()}`);
+        const response = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
+        if (!response.ok) return;
+        const payload = await response.json();
+        if (!payload || payload.success !== true || !Array.isArray(payload.orders)) return;
+        // Only apply the result if the filter hasn't changed while fetching.
+        if (getInsightsCacheKey() !== cacheKey) return;
+        const normalized = payload.orders.map(normalizeCompletedOrder);
+        normalized.sort((a, b) => b.timestamp - a.timestamp);
+        insightsOrdersCache = normalized;
+        insightsOrdersCacheKey = cacheKey;
+    } catch (error) {
+        console.error('Unable to load filtered completed orders', error);
+    } finally {
+        insightsOrdersSyncInFlight = false;
+    }
+    renderInsights();
+}
 
 function getCompletedOrdersForInsights() {
     return Array.isArray(completedOrders) ? completedOrders : [];
@@ -2644,11 +2765,13 @@ function parseOrderDateMs(order) {
 }
 
 function renderInsights() {
-    const orders = getCompletedOrdersForInsights();
+    const orders = getFilteredOrdersForInsights();
     renderInsightsHourlyChart(orders);
     renderInsightsBestSellers(orders);
     renderInsightsComparison();
 }
+
+let insightsHourlyChartInstance = null;
 
 function renderInsightsHourlyChart(orders) {
     if (!insightsHourlyChart) return;
@@ -2659,18 +2782,91 @@ function renderInsightsHourlyChart(orders) {
         const hour = new Date(ms).getHours();
         if (hour >= 0 && hour <= 23) hourly[hour] += 1;
     });
-    const max = Math.max(1, ...hourly);
-    insightsHourlyChart.innerHTML = `
-        <div class="insights-hourly-bars">
-            ${hourly.map((count, hour) => `
-                <div class="insights-hourly-col" title="${hour}:00 — ${count} order(s)">
-                    <div class="insights-hourly-bar" style="height:${Math.round((count / max) * 100)}%"></div>
-                    <span class="insights-hourly-label">${hour}:00</span>
-                </div>
-            `).join('')}
-        </div>
-        <p class="insights-hourly-note">Orders by hour of day (completed orders). Hover a bar for details.</p>
-    `;
+    const labels = Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, '0')}:00`);
+    const note = `<p class="insights-hourly-note">Orders by hour of day — ${escapeHtml(getInsightsFilterLabel())}. Hover a bar for details.</p>`;
+
+    // Fallback: the old CSS bar chart when the Chart.js CDN didn't load.
+    if (typeof Chart === 'undefined') {
+        insightsHourlyChartInstance = null;
+        const max = Math.max(1, ...hourly);
+        insightsHourlyChart.innerHTML = `
+            <div class="insights-hourly-bars">
+                ${hourly.map((count, hour) => `
+                    <div class="insights-hourly-col" title="${hour}:00 — ${count} order(s)">
+                        <div class="insights-hourly-bar" style="height:${Math.round((count / max) * 100)}%"></div>
+                        <span class="insights-hourly-label">${hour}:00</span>
+                    </div>
+                `).join('')}
+            </div>
+            ${note}
+        `;
+        return;
+    }
+
+    // Chart.js rendering. Reuse the canvas/instance across renders so the
+    // animation isn't replayed every background refresh.
+    let canvas = insightsHourlyChart.querySelector('canvas');
+    if (!canvas) {
+        insightsHourlyChart.innerHTML = '<div class="insights-hourly-chart-canvas"><canvas></canvas></div>' + note;
+        canvas = insightsHourlyChart.querySelector('canvas');
+    }
+    if (!canvas) return;
+
+    const isDark = document.body.classList.contains('staff-app');
+    const gridColor = isDark ? 'rgba(148, 163, 184, 0.18)' : 'rgba(148, 163, 184, 0.25)';
+    const tickColor = isDark ? '#94a3b8' : '#64748b';
+
+    const dataset = {
+        label: 'Orders',
+        data: hourly,
+        backgroundColor: 'rgba(99, 102, 241, 0.75)',
+        borderColor: '#6366f1',
+        borderWidth: 1,
+        borderRadius: 4,
+        maxBarThickness: 18
+    };
+
+    if (insightsHourlyChartInstance) {
+        insightsHourlyChartInstance.data.labels = labels;
+        insightsHourlyChartInstance.data.datasets[0].data = hourly;
+        insightsHourlyChartInstance.options.scales.x.ticks.color = tickColor;
+        insightsHourlyChartInstance.options.scales.y.ticks.color = tickColor;
+        insightsHourlyChartInstance.options.scales.y.grid.color = gridColor;
+        insightsHourlyChartInstance.update();
+        const noteEl = insightsHourlyChart.querySelector('.insights-hourly-note');
+        if (noteEl) noteEl.outerHTML = note;
+        return;
+    }
+
+    insightsHourlyChartInstance = new Chart(canvas, {
+        type: 'bar',
+        data: { labels, datasets: [dataset] },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 350 },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        title: (items) => (items.length ? `${items[0].label} — orders` : ''),
+                        label: (ctx) => `${ctx.parsed.y} order(s)`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { color: tickColor, font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: tickColor, precision: 0, font: { size: 10 } },
+                    grid: { color: gridColor }
+                }
+            }
+        }
+    });
 }
 
 function renderInsightsBestSellers(orders) {
@@ -2685,7 +2881,7 @@ function renderInsightsBestSellers(orders) {
     });
     const ranked = [...units.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
     if (!ranked.length) {
-        insightsBestSellers.innerHTML = '<p class="menu-cart-empty">No completed orders yet.</p>';
+        insightsBestSellers.innerHTML = `<p class="menu-cart-empty">No completed orders for ${escapeHtml(getInsightsFilterLabel())}.</p>`;
         return;
     }
     const max = ranked[0][1];
@@ -2704,6 +2900,10 @@ function getInsightPeriodRange(periodKey, now = new Date()) {
     const startOfWeek = new Date(startOfDay);
     startOfWeek.setDate(startOfWeek.getDate() - ((startOfWeek.getDay() + 6) % 7));
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    if (periodKey === 'custom') {
+        const range = getInsightsCustomRange();
+        return range || [null, null];
+    }
     switch (periodKey) {
         case 'today': return [startOfDay, new Date(startOfDay.getTime() + 86400000)];
         case 'yesterday': return [new Date(startOfDay.getTime() - 86400000), startOfDay];
@@ -2722,12 +2922,22 @@ function summarizeOrdersForPeriod(orders, from, to) {
     });
     const revenue = filtered.reduce((sum, order) => sum + (Number(order.total_amount ?? order.total) || 0), 0);
     let items = 0;
+    let cost = 0;
     filtered.forEach((order) => {
         (Array.isArray(order.items) ? order.items : []).forEach((item) => {
             items += Number(item.quantity) || 0;
         });
+        cost += getOrderProfitBreakdown(order).cost;
     });
-    return { orders: filtered.length, revenue, items };
+    const count = filtered.length;
+    return {
+        orders: count,
+        revenue,
+        items,
+        cost,
+        profit: revenue - cost,
+        avgOrderValue: count > 0 ? revenue / count : 0
+    };
 }
 
 const INSIGHT_PERIOD_LABELS = {
@@ -2761,6 +2971,10 @@ function renderInsightsComparison() {
         const sign = pct >= 0 ? '+' : '';
         return `<td class="${cls}">${sign}${pct}%</td>`;
     };
+    const profitLabel = (summary) => {
+        if (summary.cost > 0) return `${formatCurrency(summary.profit)} <span class="compare-sub">(COGS ${formatCurrency(summary.cost)})</span>`;
+        return formatCurrency(summary.profit);
+    };
     insightsCompareResult.innerHTML = `
         <table class="insights-compare-table">
             <thead>
@@ -2769,6 +2983,8 @@ function renderInsightsComparison() {
             <tbody>
                 <tr><td>Orders</td><td>${a.orders}</td><td>${b.orders}</td>${changeCell(a.orders, b.orders)}</tr>
                 <tr><td>Revenue</td><td>${formatCurrency(a.revenue)}</td><td>${formatCurrency(b.revenue)}</td>${changeCell(a.revenue, b.revenue)}</tr>
+                <tr><td>Profit</td><td>${profitLabel(a)}</td><td>${profitLabel(b)}</td>${changeCell(a.profit, b.profit)}</tr>
+                <tr><td>Avg order value</td><td>${formatCurrency(a.avgOrderValue)}</td><td>${formatCurrency(b.avgOrderValue)}</td>${changeCell(a.avgOrderValue, b.avgOrderValue)}</tr>
                 <tr><td>Items sold</td><td>${a.items}</td><td>${b.items}</td>${changeCell(a.items, b.items)}</tr>
             </tbody>
         </table>
@@ -2782,7 +2998,8 @@ function exportInsightsReport() {
         return;
     }
 
-    const orders = getCompletedOrdersForInsights();
+    const allOrders = getCompletedOrdersForInsights();
+    const orders = getFilteredOrdersForInsights();
     const now = new Date();
 
     const hourly = new Array(24).fill(0);
@@ -2802,8 +3019,8 @@ function exportInsightsReport() {
     const periodB = insightsComparePeriodB ? insightsComparePeriodB.value || 'yesterday' : 'yesterday';
     const [aFrom, aTo] = getInsightPeriodRange(periodA, now);
     const [bFrom, bTo] = getInsightPeriodRange(periodB, now);
-    const a = summarizeOrdersForPeriod(orders, aFrom, aTo);
-    const b = summarizeOrdersForPeriod(orders, bFrom, bTo);
+    const a = summarizeOrdersForPeriod(allOrders, aFrom, aTo);
+    const b = summarizeOrdersForPeriod(allOrders, bFrom, bTo);
     const changePct = (current, previous) => {
         if (!previous) return current > 0 ? 100 : 0;
         return Math.round(((current - previous) / previous) * 100);
@@ -2813,21 +3030,30 @@ function exportInsightsReport() {
         ['MOTASTE Sales Insights'],
         [],
         ['Generated', now.toLocaleString()],
-        ['Completed orders (latest 500)', orders.length],
+        ['Filter', getInsightsFilterLabel()],
+        ['Orders in view', orders.length],
         ['Total revenue (₱)', Number(revenue.toFixed(2))],
         [],
         [INSIGHT_PERIOD_LABELS[periodA] || periodA],
         ['Orders', a.orders],
         ['Revenue (₱)', Number(a.revenue.toFixed(2))],
+        ['Profit (₱)', Number(a.profit.toFixed(2))],
+        ['COGS (₱)', Number(a.cost.toFixed(2))],
+        ['Avg order value (₱)', Number(a.avgOrderValue.toFixed(2))],
         ['Items sold', a.items],
         [],
         [INSIGHT_PERIOD_LABELS[periodB] || periodB],
         ['Orders', b.orders],
         ['Revenue (₱)', Number(b.revenue.toFixed(2))],
+        ['Profit (₱)', Number(b.profit.toFixed(2))],
+        ['COGS (₱)', Number(b.cost.toFixed(2))],
+        ['Avg order value (₱)', Number(b.avgOrderValue.toFixed(2))],
         ['Items sold', b.items],
         [],
         ['Orders change (%)', changePct(a.orders, b.orders)],
         ['Revenue change (%)', changePct(a.revenue, b.revenue)],
+        ['Profit change (%)', changePct(a.profit, b.profit)],
+        ['Avg order value change (%)', changePct(a.avgOrderValue, b.avgOrderValue)],
         ['Items change (%)', changePct(a.items, b.items)],
     ];
 
@@ -2856,6 +3082,24 @@ if (insightsCompareBtn) {
 if (insightsExportBtn) {
     insightsExportBtn.addEventListener('click', exportInsightsReport);
 }
+if (insightsPeriodFilter) {
+    insightsPeriodFilter.addEventListener('change', () => {
+        syncInsightsCustomRangeVisibility();
+        // Render immediately from whatever the client has (fallback filter),
+        // then let the server fetch refine it with the full date range.
+        renderInsights();
+        void refreshInsightsOrdersFromServer();
+    });
+}
+[insightsCustomFrom, insightsCustomTo].forEach((input) => {
+    if (input) {
+        input.addEventListener('change', () => {
+            renderInsights();
+            void refreshInsightsOrdersFromServer();
+        });
+    }
+});
+syncInsightsCustomRangeVisibility();
 
 const overviewLink = document.getElementById('overviewLink');
 const inventoryLink = document.getElementById('inventoryLink');
@@ -6666,6 +6910,21 @@ function saveCompletedOrders() {
     // Completed orders are persisted on the server; no client-side storage.
 }
 
+function normalizeCompletedOrder(order) {
+    return {
+        ...order,
+        // Normalize the order number so the notifications feed never renders
+        // "Order #undefined" for completed orders after a page refresh.
+        orderNumber: order.order_number || order.orderNumber || String(order.id),
+        total: Number(order.total_amount ?? order.total ?? 0),
+        timestamp: order.order_date ? Date.parse(order.order_date) || Date.now() : Date.now(),
+        items: Array.isArray(order.items) ? order.items.map((item) => ({
+            ...item,
+            components: Array.isArray(item.components) ? item.components : []
+        })) : []
+    };
+}
+
 async function loadCompletedOrdersFromServer(forceRefresh = false) {
     if (completedOrdersSyncInFlight && !forceRefresh) return false;
 
@@ -6682,18 +6941,7 @@ async function loadCompletedOrdersFromServer(forceRefresh = false) {
         const payload = await response.json();
         if (!payload || payload.success !== true || !Array.isArray(payload.orders)) return false;
 
-        completedOrders = payload.orders.map((order) => ({
-            ...order,
-            // Normalize the order number so the notifications feed never renders
-            // "Order #undefined" for completed orders after a page refresh.
-            orderNumber: order.order_number || order.orderNumber || String(order.id),
-            total: Number(order.total_amount ?? order.total ?? 0),
-            timestamp: order.order_date ? Date.parse(order.order_date) || Date.now() : Date.now(),
-            items: Array.isArray(order.items) ? order.items.map((item) => ({
-                ...item,
-                components: Array.isArray(item.components) ? item.components : []
-            })) : []
-        }));
+        completedOrders = payload.orders.map(normalizeCompletedOrder);
         completedOrders.sort((a, b) => b.timestamp - a.timestamp);
         saveCompletedOrders();
         recalculateSalesAnalytics();
@@ -6706,6 +6954,11 @@ async function loadCompletedOrdersFromServer(forceRefresh = false) {
         renderOverviewAnalytics(false);
         renderOverviewProfitCard();
         renderInsights();
+        // Keep the server-filtered Insights cache in sync when a period filter
+        // is active (e.g. after an order is completed/refunded).
+        if (getInsightsFilterKey() !== 'all') {
+            void refreshInsightsOrdersFromServer();
+        }
         return true;
     } catch (error) {
         console.error('Unable to load completed orders from server', error);

@@ -464,7 +464,32 @@
         <div id="insights" class="sales-tab-content">
             <div class="insights-toolbar">
                 <h3>Insights</h3>
-                <button type="button" id="insightsExportBtn" class="menu-place-order-btn"><i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export Report</button>
+                <div class="insights-toolbar-actions">
+                    <label class="insights-period-filter" for="insightsPeriodFilter">
+                        <span>Period</span>
+                        <select id="insightsPeriodFilter">
+                            <option value="all">All time</option>
+                            <option value="today">Today</option>
+                            <option value="yesterday">Yesterday</option>
+                            <option value="thisweek">This Week</option>
+                            <option value="lastweek">Last Week</option>
+                            <option value="thismonth">This Month</option>
+                            <option value="lastmonth">Last Month</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </label>
+                    <div class="insights-custom-range" id="insightsCustomRange" hidden>
+                        <label class="insights-period-filter" for="insightsCustomFrom">
+                            <span>From</span>
+                            <input type="date" id="insightsCustomFrom">
+                        </label>
+                        <label class="insights-period-filter" for="insightsCustomTo">
+                            <span>To</span>
+                            <input type="date" id="insightsCustomTo">
+                        </label>
+                    </div>
+                    <button type="button" id="insightsExportBtn" class="menu-place-order-btn"><i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export Report</button>
+                </div>
             </div>
             <p>Busiest hours, best-selling dishes, and period comparison across completed orders.</p>
             <div class="insights-grid">
@@ -895,6 +920,7 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="./script.js?v=20260817"></script>
 </body>
 </html>

@@ -19,6 +19,20 @@ use Carbon\Carbon;
 
 require_once __DIR__ . '/_helpers.php';
 
+/**
+ * Validate an optional from/to date param. Returns a normalized 'Y-m-d H:i:s'
+ * string (in the app timezone, matching how order_date is stored) when the
+ * value parses, or null when absent/unparsable (callers fall back unfiltered).
+ */
+function validDateParam($value) {
+    if ($value === null || $value === '') return null;
+    try {
+        return Carbon::parse($value)->toDateTimeString();
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
 try {
     // Lightweight summary mode for the overview KPI cards. The metrics refresh
     // only needs counts + aggregates, so avoid shipping up to 500 completed
@@ -72,10 +86,36 @@ try {
         exit;
     }
 
-    $orders = DB::table('orders')
-        ->where('status', 'completed')
+    // Optional from/to date filter (ISO 8601 / UTC datetime strings). The
+    // client passes these for the Insights period filter so it can reach
+    // completed orders older than the latest 500. When filtering, the 500-row
+    // cap is lifted so a full day/week/month can be analysed.
+    $fromParam = isset($_GET['from']) && $_GET['from'] !== '' ? trim($_GET['from']) : null;
+    $toParam = isset($_GET['to']) && $_GET['to'] !== '' ? trim($_GET['to']) : null;
+
+    $isDateFiltered = $fromParam !== null || $toParam !== null;
+    if ($isDateFiltered) {
+        $validFrom = validDateParam($fromParam);
+        $validTo = validDateParam($toParam);
+        // Fall back to the unfiltered path if a date param is unparsable.
+        $isDateFiltered = $validFrom !== null || $validTo !== null;
+        $fromParam = $validFrom;
+        $toParam = $validTo;
+    }
+
+    $query = DB::table('orders')->where('status', 'completed');
+    if ($fromParam !== null) {
+        $query->where('order_date', '>=', $fromParam);
+    }
+    if ($toParam !== null) {
+        $query->where('order_date', '<', $toParam);
+    }
+    if (!$isDateFiltered) {
+        $query->limit(500);
+    }
+
+    $orders = $query
         ->orderByDesc('order_date')
-        ->limit(500)
         ->get();
 
     $result = $orders->map(function ($order) {
