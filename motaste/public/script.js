@@ -714,7 +714,29 @@ function restoreStaffSession() {
     }
 
     setDashboardPanelState(false);
+
+    // Restored sessions land directly on the dashboard — cover the reveal
+    // with the loading overlay until the initial data has settled.
+    showStaffLoadingOverlay();
+
     return true;
+}
+
+// Full-screen loading overlay shown after login / session restore until the
+// initial dashboard fetches settle. Falls back to a short timeout so the
+// overlay can never block the dashboard indefinitely.
+function showStaffLoadingOverlay() {
+    const overlay = document.getElementById('staffLoadingOverlay');
+    if (!overlay) return;
+
+    overlay.hidden = false;
+    Promise.resolve(staffInitialDataReady).then(() => {
+        // Only hide if the overlay is still visible (e.g. a later login did
+        // not re-show it while this one was settling).
+        if (!overlay.hidden) {
+            overlay.hidden = true;
+        }
+    });
 }
 
 function syncSelectedRoleWithTypedEmail(email) {
@@ -1855,6 +1877,10 @@ async function handleStaffLogin(email, password, role, remember) {
         // stale cached renewal so future calls re-check against the server.
         staffServerSessionRenewal = null;
     }
+
+    // Show the loading overlay while the dashboard data settles so the first
+    // paint is fully populated (orders, inventory, reviews, charts).
+    showStaffLoadingOverlay();
 
     // The login regenerated the server session; adopt its CSRF token so every
     // later POST validates against the current session.
@@ -12014,6 +12040,29 @@ if (walkInPlaceOrderBtn) {
     });
 }
 
+// Resolves once the initial dashboard data fetches have settled (loaded or
+// failed) so the post-login loading overlay can be dismissed. Reassigned on
+// every initOrders() call; never rejects (allSettled + timeout fallback).
+let staffInitialDataReady = Promise.resolve();
+
+function buildStaffInitialDataReady() {
+    const initialLoads = [
+        loadPendingOrdersFromServer(),
+        loadCompletedOrdersFromServer(),
+        loadReviewsFromServer(),
+        initializeInventoryData(),
+        loadCustomMenuData(),
+        loadHighlightsFromServer(),
+        ensureCsrfToken(),
+        ensureStaffServerSession()
+    ];
+    // A hard cap so the overlay can never hang the dashboard if a fetch stalls.
+    return Promise.race([
+        Promise.allSettled(initialLoads),
+        new Promise((resolve) => setTimeout(resolve, 8000))
+    ]);
+}
+
 function initOrders() {
     void ensureCsrfToken();
     void loadHighlightsFromServer();
@@ -12048,6 +12097,11 @@ function initOrders() {
     startReviewRefresh();
     loadStaffOrderTimerCache();
     startPendingOrdersCountdownTicker();
+
+    // The initial fetches above may still be in flight when a login (or a
+    // restored session) reveals the dashboard — gate the loading overlay on
+    // them so the dashboard appears fully populated.
+    staffInitialDataReady = buildStaffInitialDataReady();
 
     if (isCustomerPage) {
         initializeOrderNotificationAudio();
