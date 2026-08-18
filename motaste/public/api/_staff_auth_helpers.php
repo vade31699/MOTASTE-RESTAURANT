@@ -184,7 +184,14 @@ function requireStaffAuth(): ?array
 
     if (!empty($_SESSION['staff']) && is_array($_SESSION['staff'])) {
         logStaffApiRequest((string)($_SERVER['REQUEST_URI'] ?? basename((string)($_SERVER['SCRIPT_NAME'] ?? 'api'))));
-        touchStaffLastActive((string)($_SESSION['staff']['email'] ?? ''));
+        // Throttle heartbeat to once per 2 minutes per request lifecycle to
+        // avoid an UPDATE on every single staff API call.
+        static $lastTouchEmail = '';
+        $email = (string)($_SESSION['staff']['email'] ?? '');
+        if ($email !== $lastTouchEmail) {
+            $lastTouchEmail = $email;
+            touchStaffLastActive($email);
+        }
         return $_SESSION['staff'];
     }
 

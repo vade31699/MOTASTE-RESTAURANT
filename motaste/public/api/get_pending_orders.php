@@ -15,6 +15,7 @@ if (!requireStaffAuth()) {
 
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 
 require_once __DIR__ . '/_helpers.php';
@@ -32,15 +33,31 @@ try {
     ensureOrderPrepTimerColumns();
 
     // Only pending orders that have not started preparation are auto-expired.
-    // Accepted orders (prep timer running) must stay visible until completed.
-    DB::table('orders')
-        ->where('status', 'pending')
-        ->whereNull('prep_started_at')
-        ->whereRaw("COALESCE(updated_at, order_date) <= NOW() - INTERVAL '10 minutes'")
-        ->update([
-            'status' => 'expired',
-            'updated_at' => now(),
-        ]);
+    // Throttle the UPDATE to at most once per minute to avoid running it on
+    // every single poller request.
+    try {
+        $expireCacheKey = 'pending_orders_last_expire_v1';
+        $shouldExpire = true;
+        try {
+            if (Cache::get($expireCacheKey)) {
+                $shouldExpire = false;
+            }
+        } catch (Throwable $e) { /* cache unavailable */ }
+
+        if ($shouldExpire) {
+            DB::table('orders')
+                ->where('status', 'pending')
+                ->whereNull('prep_started_at')
+                ->whereRaw("COALESCE(updated_at, order_date) <= NOW() - INTERVAL '10 minutes'")
+                ->update([
+                    'status' => 'expired',
+                    'updated_at' => now(),
+                ]);
+            try {
+                Cache::put($expireCacheKey, true, 60);
+            } catch (Throwable $e) { /* cache unavailable */ }
+        }
+    } catch (Throwable $e) { /* best effort */ }
 
     $orders = DB::table('orders')
         ->where('status', 'pending')
