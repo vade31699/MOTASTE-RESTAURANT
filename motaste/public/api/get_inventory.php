@@ -39,7 +39,7 @@ try {
     // fall through to the query so inventory always loads. The staff/public
     // payloads differ (staff includes cost fields), so each gets its own key.
     $cacheKey = 'inventory_' . ($isStaffScope ? 'staff' : 'public') . '_v1';
-    $cacheTtlSeconds = 5;
+    $cacheTtlSeconds = 15;
     try {
         $cachedPayload = Cache::get($cacheKey);
         if ($cachedPayload !== null) {

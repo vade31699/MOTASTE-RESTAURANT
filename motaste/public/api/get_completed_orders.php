@@ -118,32 +118,37 @@ try {
         ->orderByDesc('order_date')
         ->get();
 
-    $result = $orders->map(function ($order) {
-        $items = DB::table('order_items')
-            ->where('order_id', $order->id)
-            ->get()
-            ->map(function ($item) {
+    // Batch-fetch all order items in one query (avoids N+1).
+    $orderIds = $orders->pluck('id')->all();
+    $allItems = [];
+    if (!empty($orderIds)) {
+        $rawItems = DB::table('order_items')
+            ->whereIn('order_id', $orderIds)
+            ->get();
+        foreach ($rawItems as $item) {
+            $oid = (int)($item->order_id ?? 0);
+            $components = null;
+            try {
+                $components = json_decode((string)($item->components ?? ''), true);
+            } catch (Throwable $e) {
                 $components = null;
-                try {
-                    $components = json_decode((string)($item->components ?? ''), true);
-                } catch (Throwable $e) {
-                    $components = null;
-                }
+            }
+            $allItems[$oid][] = [
+                'id' => (int)($item->id ?? 0),
+                'order_id' => $oid,
+                'name' => $item->notes ?: 'Menu item',
+                'notes' => $item->notes,
+                'price' => (float)($item->unit_price ?? 0),
+                'unit_price' => (float)($item->unit_price ?? 0),
+                'quantity' => (int)($item->quantity ?? 0),
+                'line_total' => (float)($item->line_total ?? 0),
+                'components' => is_array($components) ? $components : [],
+            ];
+        }
+    }
 
-                return [
-                    'id' => (int)($item->id ?? 0),
-                    'order_id' => (int)($item->order_id ?? 0),
-                    'name' => $item->notes ?: 'Menu item',
-                    'notes' => $item->notes,
-                    'price' => (float)($item->unit_price ?? 0),
-                    'unit_price' => (float)($item->unit_price ?? 0),
-                    'quantity' => (int)($item->quantity ?? 0),
-                    'line_total' => (float)($item->line_total ?? 0),
-                    'components' => is_array($components) ? $components : [],
-                ];
-            })
-            ->values()
-            ->all();
+    $result = $orders->map(function ($order) use ($allItems) {
+        $items = $allItems[(int)$order->id] ?? [];
 
         return [
             'id' => (int)$order->id,

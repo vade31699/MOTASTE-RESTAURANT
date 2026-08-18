@@ -48,31 +48,36 @@ try {
         ->limit(100)
         ->get();
 
-    $result = $orders->map(function ($order) {
-        $items = DB::table('order_items')
-            ->where('order_id', $order->id)
-            ->get()
-            ->map(function ($it) {
+    // Batch-fetch all order items in one query (avoids N+1).
+    $orderIds = $orders->pluck('id')->all();
+    $allItems = [];
+    if (!empty($orderIds)) {
+        $rawItems = DB::table('order_items')
+            ->whereIn('order_id', $orderIds)
+            ->get();
+        foreach ($rawItems as $it) {
+            $oid = (int)$it->order_id;
+            $components = null;
+            try {
+                $components = json_decode((string)($it->components ?? ''), true);
+            } catch (Throwable $e) {
                 $components = null;
-                try {
-                    $components = json_decode((string)($it->components ?? ''), true);
-                } catch (Throwable $e) {
-                    $components = null;
-                }
+            }
+            $allItems[$oid][] = [
+                'id' => (int)$it->id,
+                'order_id' => $oid,
+                'name' => $it->notes ?: 'Menu item',
+                'notes' => $it->notes,
+                'price' => (float)($it->unit_price ?? 0),
+                'unit_price' => (float)($it->unit_price ?? 0),
+                'quantity' => (int)($it->quantity ?? 0),
+                'components' => is_array($components) ? $components : [],
+            ];
+        }
+    }
 
-                return [
-                    'id' => (int)$it->id,
-                    'order_id' => (int)$it->order_id,
-                    'name' => $it->notes ?: 'Menu item',
-                    'notes' => $it->notes,
-                    'price' => (float)($it->unit_price ?? 0),
-                    'unit_price' => (float)($it->unit_price ?? 0),
-                    'quantity' => (int)($it->quantity ?? 0),
-                    'components' => is_array($components) ? $components : [],
-                ];
-            })
-            ->values()
-            ->all();
+    $result = $orders->map(function ($order) use ($allItems) {
+        $items = $allItems[(int)$order->id] ?? [];
 
         return [
             'id' => (int)$order->id,

@@ -9283,8 +9283,6 @@ async function deleteInventoryItem(name) {
     if (currentMenuCategoryId) {
         showMenuCategory(currentMenuCategoryId);
     }
-    void initializeInventoryData(true);
-    void loadOrderLogsFromServer(true);
 }
 
 async function saveInventoryItem(event) {
@@ -12027,15 +12025,15 @@ if (walkInPlaceOrderBtn) {
 // every initOrders() call; never rejects (allSettled + timeout fallback).
 let staffInitialDataReady = Promise.resolve();
 
-function buildStaffInitialDataReady() {
+function buildStaffInitialDataReady(existingPromises = {}) {
     const initialLoads = [
-        loadPendingOrdersFromServer(),
-        loadCompletedOrdersFromServer(),
-        loadReviewsFromServer(),
-        initializeInventoryData(),
-        loadCustomMenuData(),
-        loadHighlightsFromServer(),
-        ensureCsrfToken(),
+        existingPromises.pendingPromise || loadPendingOrdersFromServer(),
+        existingPromises.completedPromise || loadCompletedOrdersFromServer(),
+        existingPromises.reviewsPromise || loadReviewsFromServer(),
+        existingPromises.inventoryPromise || initializeInventoryData(),
+        existingPromises.customMenuPromise || loadCustomMenuData(),
+        existingPromises.highlightsPromise || loadHighlightsFromServer(),
+        existingPromises.csrfPromise || ensureCsrfToken(),
         ensureStaffServerSession()
     ];
     // A hard cap so the overlay can never hang the dashboard if a fetch stalls.
@@ -12046,8 +12044,8 @@ function buildStaffInitialDataReady() {
 }
 
 function initOrders() {
-    void ensureCsrfToken();
-    void loadHighlightsFromServer();
+    const csrfPromise = ensureCsrfToken();
+    const highlightsPromise = loadHighlightsFromServer();
     loadCart();
     loadPendingOrders();
     loadIgnoredPendingOrders();
@@ -12055,8 +12053,8 @@ function initOrders() {
     initSalesExportModule();
     initProfitExportModule();
     syncAnalyticsMonthSelectorsToCurrentMonth();
-    loadCustomMenuData();
-    void initializeInventoryData();
+    const customMenuPromise = loadCustomMenuData();
+    const inventoryPromise = initializeInventoryData();
     recalculateSalesAnalytics();
     recalculateProfitAnalytics();
     renderSpecialFoods();
@@ -12072,17 +12070,23 @@ function initOrders() {
     renderInsights();
     updateLiveClock();
     setInterval(updateLiveClock, 1000);
-    void loadPendingOrdersFromServer();
-    void loadCompletedOrdersFromServer();
-    void loadReviewsFromServer();
+    const pendingPromise = loadPendingOrdersFromServer();
+    const completedPromise = loadCompletedOrdersFromServer();
+    const reviewsPromise = loadReviewsFromServer();
     startReviewRefresh();
     loadStaffOrderTimerCache();
     startPendingOrdersCountdownTicker();
 
-    // The initial fetches above may still be in flight when a login (or a
-    // restored session) reveals the dashboard — gate the loading overlay on
-    // them so the dashboard appears fully populated.
-    staffInitialDataReady = buildStaffInitialDataReady();
+    // Reuse the promises already in flight instead of re-fetching.
+    staffInitialDataReady = buildStaffInitialDataReady({
+        csrfPromise,
+        highlightsPromise,
+        customMenuPromise,
+        inventoryPromise,
+        pendingPromise,
+        completedPromise,
+        reviewsPromise
+    });
 
     if (isCustomerPage) {
         initializeOrderNotificationAudio();
