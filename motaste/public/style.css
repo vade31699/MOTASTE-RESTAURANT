@@ -5592,14 +5592,13 @@ body.site-home .menu-category-btn {
     font-size: 0.82rem;
     font-weight: 700;
     letter-spacing: 0.06em;
-    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
 body.site-home .menu-category-btn:hover,
 body.site-home .menu-category-btn:focus-visible {
     background: #FF6B00;
     color: #fff;
-    transform: translateY(-2px);
     box-shadow: 0 12px 26px rgba(255, 107, 0, 0.32);
 }
 

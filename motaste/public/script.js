@@ -7833,42 +7833,17 @@ async function loadCustomMenuData() {
         const payload = await response.json();
         if (payload && payload.success && payload.snapshot) {
             const changed = applyCustomMenuSnapshot(payload.snapshot);
-            if (changed || inventoryLoadedFromServer) {
-                // Reconcile snapshot against actual inventory — remove any
-                // menu/special items that no longer exist in the DB.
-                if (inventoryLoadedFromServer) {
-                    const invNames = new Set(
-                        inventoryData.map((item) => normalizeInventoryName(item.name))
-                    );
-                    let reconciled = false;
-                    Object.values(menuData).forEach((cat) => {
-                        if (!cat || !Array.isArray(cat.items)) return;
-                        const b = cat.items.length;
-                        cat.items = cat.items.filter((it) =>
-                            invNames.has(normalizeInventoryName(it.name))
-                        );
-                        if (cat.items.length !== b) reconciled = true;
-                    });
-                    const sfBefore = specialFoods.length;
-                    for (let i = specialFoods.length - 1; i >= 0; i--) {
-                        if (!invNames.has(normalizeInventoryName(specialFoods[i].name))) {
-                            specialFoods.splice(i, 1);
-                        }
-                    }
-                    if (specialFoods.length !== sfBefore) reconciled = true;
-                    if (reconciled) {
-                        saveCustomMenuData();
-                    }
-                }
-
-                syncMenuPricesWithInventory();
-                renderSpecialFoods();
-                renderInventoryManagement();
-                hydrateWalkInDraftItemsFromSpecialFoods();
-                renderWalkInOrderBuilder();
-                if (currentMenuCategoryId) {
-                    showMenuCategory(currentMenuCategoryId);
-                }
+            // Reconciliation against inventory is handled exclusively by
+            // initializeInventoryData() — not here — because this function
+            // can run before inventoryData has been fetched, which would
+            // incorrectly remove newly added items.
+            syncMenuPricesWithInventory();
+            renderSpecialFoods();
+            renderInventoryManagement();
+            hydrateWalkInDraftItemsFromSpecialFoods();
+            renderWalkInOrderBuilder();
+            if (currentMenuCategoryId) {
+                showMenuCategory(currentMenuCategoryId);
             }
         }
     } catch (error) {
