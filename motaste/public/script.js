@@ -34,6 +34,7 @@ const staffActiveSectionStorageKey = 'motasteStaffActiveSection';
 const staffAccountsStorageKey = 'motasteStaffAccounts';
 const lastLoginRoleStorageKey = 'motasteLastLoginRole';
 let inventorySyncInFlight = false;
+let inventoryLoadedFromServer = false;
 let lastInventoryUpdateAt = 0;
 let staffAccountsSyncInFlight = false;
 let staffAccountsRefreshTimer = null;
@@ -7410,6 +7411,7 @@ async function initializeInventoryData(forceRefresh = false) {
         // on the customer page.
         const latestInventory = merged.map((item) => ({ ...item }));
         inventoryData = latestInventory;
+        inventoryLoadedFromServer = true;
         debugInventory('Applied server inventory', 'server');
     } catch (error) {
         inventoryData = inventoryData.length ? inventoryData : defaults;
@@ -7424,28 +7426,33 @@ async function initializeInventoryData(forceRefresh = false) {
     // Reconcile menuData and specialFoods against the actual server inventory.
     // If the snapshot still contains items that no longer exist in the DB,
     // remove them so the customer page stays in sync with inventory.
-    const inventoryNames = new Set(
-        (inventoryData || []).map((item) => normalizeInventoryName(item.name))
-    );
-    let menuChanged = false;
-    Object.values(menuData).forEach((category) => {
-        if (!category || !Array.isArray(category.items)) return;
-        const before = category.items.length;
-        category.items = category.items.filter((item) =>
-            inventoryNames.has(normalizeInventoryName(item.name))
+    // Only reconcile after the server inventory has been fetched at least
+    // once. On a fresh page load inventoryData is [] which would incorrectly
+    // wipe all menu/special items.
+    if (inventoryLoadedFromServer) {
+        const inventoryNames = new Set(
+            inventoryData.map((item) => normalizeInventoryName(item.name))
         );
-        if (category.items.length !== before) menuChanged = true;
-    });
-    const specialBefore = specialFoods.length;
-    for (let i = specialFoods.length - 1; i >= 0; i--) {
-        if (!inventoryNames.has(normalizeInventoryName(specialFoods[i].name))) {
-            specialFoods.splice(i, 1);
+        let menuChanged = false;
+        Object.values(menuData).forEach((category) => {
+            if (!category || !Array.isArray(category.items)) return;
+            const before = category.items.length;
+            category.items = category.items.filter((item) =>
+                inventoryNames.has(normalizeInventoryName(item.name))
+            );
+            if (category.items.length !== before) menuChanged = true;
+        });
+        const specialBefore = specialFoods.length;
+        for (let i = specialFoods.length - 1; i >= 0; i--) {
+            if (!inventoryNames.has(normalizeInventoryName(specialFoods[i].name))) {
+                specialFoods.splice(i, 1);
+            }
         }
-    }
-    if (specialFoods.length !== specialBefore) menuChanged = true;
-    if (menuChanged) {
-        saveCustomMenuData();
-        renderSpecialFoods();
+        if (specialFoods.length !== specialBefore) menuChanged = true;
+        if (menuChanged) {
+            saveCustomMenuData();
+            renderSpecialFoods();
+        }
     }
 
     renderInventoryManagement();
@@ -7826,30 +7833,32 @@ async function loadCustomMenuData() {
         const payload = await response.json();
         if (payload && payload.success && payload.snapshot) {
             const changed = applyCustomMenuSnapshot(payload.snapshot);
-            if (changed || inventoryData.length) {
+            if (changed || inventoryLoadedFromServer) {
                 // Reconcile snapshot against actual inventory — remove any
                 // menu/special items that no longer exist in the DB.
-                const invNames = new Set(
-                    inventoryData.map((item) => normalizeInventoryName(item.name))
-                );
-                let reconciled = false;
-                Object.values(menuData).forEach((cat) => {
-                    if (!cat || !Array.isArray(cat.items)) return;
-                    const b = cat.items.length;
-                    cat.items = cat.items.filter((it) =>
-                        invNames.has(normalizeInventoryName(it.name))
+                if (inventoryLoadedFromServer) {
+                    const invNames = new Set(
+                        inventoryData.map((item) => normalizeInventoryName(item.name))
                     );
-                    if (cat.items.length !== b) reconciled = true;
-                });
-                const sfBefore = specialFoods.length;
-                for (let i = specialFoods.length - 1; i >= 0; i--) {
-                    if (!invNames.has(normalizeInventoryName(specialFoods[i].name))) {
-                        specialFoods.splice(i, 1);
+                    let reconciled = false;
+                    Object.values(menuData).forEach((cat) => {
+                        if (!cat || !Array.isArray(cat.items)) return;
+                        const b = cat.items.length;
+                        cat.items = cat.items.filter((it) =>
+                            invNames.has(normalizeInventoryName(it.name))
+                        );
+                        if (cat.items.length !== b) reconciled = true;
+                    });
+                    const sfBefore = specialFoods.length;
+                    for (let i = specialFoods.length - 1; i >= 0; i--) {
+                        if (!invNames.has(normalizeInventoryName(specialFoods[i].name))) {
+                            specialFoods.splice(i, 1);
+                        }
                     }
-                }
-                if (specialFoods.length !== sfBefore) reconciled = true;
-                if (reconciled) {
-                    saveCustomMenuData();
+                    if (specialFoods.length !== sfBefore) reconciled = true;
+                    if (reconciled) {
+                        saveCustomMenuData();
+                    }
                 }
 
                 syncMenuPricesWithInventory();
