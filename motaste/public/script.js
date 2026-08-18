@@ -7404,14 +7404,10 @@ async function initializeInventoryData(forceRefresh = false) {
             };
         }).filter((item) => !blockedProductNames.has(normalizeInventoryName(item.name)));
 
-        const mergedNames = new Set(merged.map((item) => normalizeInventoryName(item.name)));
-        defaults.forEach((item) => {
-            if (!mergedNames.has(normalizeInventoryName(item.name))) {
-                merged.push(item);
-                mergedNames.add(normalizeInventoryName(item.name));
-            }
-        });
-
+        // On success, trust the server exclusively — do NOT merge defaults
+        // back in. Defaults are only used when the server fetch fails (see
+        // catch block below). This prevents deleted items from re-appearing
+        // on the customer page.
         const latestInventory = merged.map((item) => ({ ...item }));
         inventoryData = latestInventory;
         debugInventory('Applied server inventory', 'server');
