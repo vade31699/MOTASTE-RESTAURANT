@@ -7424,7 +7424,6 @@ async function initializeInventoryData(forceRefresh = false) {
     }
 
     syncMenuPricesWithInventory();
-    renderSpecialFoods();
     renderInventoryManagement();
     renderWalkInOrderBuilder();
     if (inventoryModal && !inventoryModal.hidden && inventoryCategoryInput && inventoryCategoryInput.value === 'specials') {
