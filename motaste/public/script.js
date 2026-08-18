@@ -7420,6 +7420,34 @@ async function initializeInventoryData(forceRefresh = false) {
     }
 
     syncMenuPricesWithInventory();
+
+    // Reconcile menuData and specialFoods against the actual server inventory.
+    // If the snapshot still contains items that no longer exist in the DB,
+    // remove them so the customer page stays in sync with inventory.
+    const inventoryNames = new Set(
+        (inventoryData || []).map((item) => normalizeInventoryName(item.name))
+    );
+    let menuChanged = false;
+    Object.values(menuData).forEach((category) => {
+        if (!category || !Array.isArray(category.items)) return;
+        const before = category.items.length;
+        category.items = category.items.filter((item) =>
+            inventoryNames.has(normalizeInventoryName(item.name))
+        );
+        if (category.items.length !== before) menuChanged = true;
+    });
+    const specialBefore = specialFoods.length;
+    for (let i = specialFoods.length - 1; i >= 0; i--) {
+        if (!inventoryNames.has(normalizeInventoryName(specialFoods[i].name))) {
+            specialFoods.splice(i, 1);
+        }
+    }
+    if (specialFoods.length !== specialBefore) menuChanged = true;
+    if (menuChanged) {
+        saveCustomMenuData();
+        renderSpecialFoods();
+    }
+
     renderInventoryManagement();
     renderWalkInOrderBuilder();
     if (inventoryModal && !inventoryModal.hidden && inventoryCategoryInput && inventoryCategoryInput.value === 'specials') {
@@ -7798,7 +7826,32 @@ async function loadCustomMenuData() {
         const payload = await response.json();
         if (payload && payload.success && payload.snapshot) {
             const changed = applyCustomMenuSnapshot(payload.snapshot);
-            if (changed) {
+            if (changed || inventoryData.length) {
+                // Reconcile snapshot against actual inventory — remove any
+                // menu/special items that no longer exist in the DB.
+                const invNames = new Set(
+                    inventoryData.map((item) => normalizeInventoryName(item.name))
+                );
+                let reconciled = false;
+                Object.values(menuData).forEach((cat) => {
+                    if (!cat || !Array.isArray(cat.items)) return;
+                    const b = cat.items.length;
+                    cat.items = cat.items.filter((it) =>
+                        invNames.has(normalizeInventoryName(it.name))
+                    );
+                    if (cat.items.length !== b) reconciled = true;
+                });
+                const sfBefore = specialFoods.length;
+                for (let i = specialFoods.length - 1; i >= 0; i--) {
+                    if (!invNames.has(normalizeInventoryName(specialFoods[i].name))) {
+                        specialFoods.splice(i, 1);
+                    }
+                }
+                if (specialFoods.length !== sfBefore) reconciled = true;
+                if (reconciled) {
+                    saveCustomMenuData();
+                }
+
                 syncMenuPricesWithInventory();
                 renderSpecialFoods();
                 renderInventoryManagement();
