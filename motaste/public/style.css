@@ -3574,8 +3574,8 @@ body.modal-open {
     background: rgba(255, 255, 255, 0.1);
     border: 1px dashed rgba(255, 255, 255, 0.35);
     color: #fff;
-    margin-bottom: 20px;
-    padding: 20px;
+    margin-bottom: 12px;
+    padding: 14px 16px;
     border-radius: 12px;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
@@ -3694,8 +3694,8 @@ body.modal-open {
 
 .sales-analytics-chart-wrapper {
     width: 100%;
-    max-height: 260px;
-    overflow-x: auto;
+    max-height: 240px;
+    overflow-x: hidden;
     overflow-y: hidden;
     margin-top: 12px;
     padding-bottom: 6px;
@@ -3703,16 +3703,17 @@ body.modal-open {
 }
 
 .sales-analytics-chart {
-    display: inline-block;
-    min-width: 320px;
-    width: max-content;
+    display: block;
+    width: 100%;
+    overflow: hidden;
 }
 
 .sales-analytics-chart svg {
     display: block;
-    border-radius: 16px;
+    width: 100%;
+    height: auto;
+    border-radius: 14px;
     overflow: hidden;
-    max-width: 100%;
 }
 
 .overview-section,
@@ -3758,11 +3759,11 @@ body.modal-open {
     gap: 14px;
     grid-template-columns: 1fr 1fr;
     align-items: stretch;
-    overflow: hidden;
 }
 
 .overview-grid > * {
     min-width: 0;
+    overflow: hidden;
 }
 
 .overview-analytics-panel,
@@ -3844,10 +3845,14 @@ body.staff-app .retention-clear-btn {
 
 .overview-analytics-panel {
     min-height: 0;
+    max-height: 340px;
+    overflow: hidden;
 }
 
 .overview-order-notification-box {
     min-height: 0;
+    max-height: 340px;
+    overflow: hidden;
 }
 
 .overview-analytics-panel h3,
@@ -4619,7 +4624,8 @@ body.staff-app .retention-clear-btn {
 
 .sales-analytics-chart-wrapper {
     width: 100%;
-    overflow-x: auto;
+    max-height: 240px;
+    overflow-x: hidden;
     overflow-y: hidden;
     margin-top: 18px;
     padding-bottom: 6px;
@@ -5084,7 +5090,7 @@ body.staff-app .retention-clear-btn {
     }
 
     .sales-analytics-chart {
-        min-width: 620px;
+        min-width: 420px;
     }
 }
 
@@ -5121,7 +5127,7 @@ body.staff-app .retention-clear-btn {
     }
 
     .sales-analytics-chart {
-        min-width: 560px;
+        min-width: 340px;
     }
 }
 
@@ -7792,11 +7798,11 @@ body.staff-app #onlineCompletedCount { color: #4338CA !important; }
 
 body.staff-app .overview-grid {
     gap: 18px;
-    overflow: hidden;
 }
 
 body.staff-app .overview-grid > * {
     min-width: 0;
+    overflow: hidden;
 }
 
 body.staff-app .sales-analytics-placeholder,
@@ -9879,7 +9885,7 @@ body.staff-app .overview-export-module p {
 .export-mode-tabs {
     display: inline-flex;
     gap: 4px;
-    margin: 14px 0 16px;
+    margin: 8px 0 10px;
     padding: 4px;
     background: rgba(148, 163, 184, 0.10);
     border-radius: 12px;
@@ -9930,14 +9936,14 @@ body.staff-app .profit-export-tab.active {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
-    gap: 14px;
+    gap: 10px;
 }
 
 .export-field {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    font-size: 0.85rem;
+    gap: 4px;
+    font-size: 0.82rem;
     font-weight: 600;
     color: #475569;
 }
@@ -9948,13 +9954,13 @@ body.staff-app .export-field {
 
 .export-field input,
 .export-field select {
-    padding: 9px 12px;
+    padding: 7px 10px;
     border: 1px solid rgba(148, 163, 184, 0.35);
     border-radius: 10px;
     background: #f8fafc;
     color: #1f2937;
-    font-size: 0.9rem;
-    min-width: 180px;
+    font-size: 0.85rem;
+    min-width: 160px;
 }
 
 body.staff-app .export-field input,
