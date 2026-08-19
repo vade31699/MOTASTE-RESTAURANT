@@ -7415,7 +7415,21 @@ async function initializeInventoryData(forceRefresh = false) {
         // catch block below). This prevents deleted items from re-appearing
         // on the customer page.
         const latestInventory = merged.map((item) => ({ ...item }));
-        inventoryData = latestInventory;
+
+        // Preserve locally-added items that the server response hasn't caught
+        // up to yet (e.g. the server-side 15-second cache in get_inventory.php
+        // still serves stale data, or the initial page-load fetch completes
+        // after a save). Merge them into the server response so the UI
+        // reflects what the staff member just saved.
+        const serverNames = new Set(
+            latestInventory.map((item) => normalizeInventoryName(item.name))
+        );
+        const localOnlyItems = inventoryData.filter(
+            (item) => !serverNames.has(normalizeInventoryName(item.name))
+        );
+        inventoryData = localOnlyItems.length
+            ? [...latestInventory, ...localOnlyItems]
+            : latestInventory;
         inventoryLoadedFromServer = true;
         debugInventory('Applied server inventory', 'server');
     } catch (error) {
@@ -9475,7 +9489,11 @@ async function saveInventoryItem(event) {
 
     setInventoryModalVisible(false);
     inventoryEditLock = false;
-    void initializeInventoryData(true);
+    // NOTE: Do NOT call initializeInventoryData(true) here —
+    // renderInventoryManagement() above already shows the correct local
+    // inventory data. A background re-fetch could overwrite locally-added
+    // items with a stale server response (15-second cache / race with the
+    // initial page-load fetch).
     void loadOrderLogsFromServer(true);
     selectedSpecialFoodImageData = '';
 }
@@ -9601,7 +9619,10 @@ async function commitInlineInventoryEdit(card) {
         showMenuCategory(currentMenuCategoryId);
     }
 
-    void initializeInventoryData(true);
+    // NOTE: Do NOT call initializeInventoryData(true) here —
+    // renderInventoryManagement() above already shows the correct local
+    // inventory data. A background re-fetch could overwrite locally-added
+    // items with a stale server response.
     void loadOrderLogsFromServer(true);
 }
 
@@ -11867,6 +11888,7 @@ if (dashboardPanel) {
         } else if (href === '#inventory') {
             if (!canAccessInventory()) return;
             showDashboardSection(inventorySection);
+            renderInventoryManagement();
         } else if (href === '#pending-orders') {
             if (!canManageOrders()) return;
             showDashboardSection(pendingOrdersSection);
