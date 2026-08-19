@@ -9320,6 +9320,7 @@ async function deleteInventoryItem(name) {
     const actor = getCurrentStaffActor();
     let shouldContinueDelete = false;
     try {
+        await ensureStaffServerSession();
         const headers = await withCsrfHeaders({
             'Content-Type': 'application/json'
         });
@@ -9438,6 +9439,7 @@ async function saveInventoryItem(event) {
     let syncSucceeded = false;
 
     try {
+        await ensureStaffServerSession();
         const actor = getCurrentStaffActor();
         const headers = await withCsrfHeaders({
             'Content-Type': 'application/json'
@@ -9565,6 +9567,7 @@ async function commitInlineInventoryEdit(card) {
     saveInventoryData();
     let syncSucceeded = false;
     try {
+        await ensureStaffServerSession();
         const actor = getCurrentStaffActor();
         const headers = await withCsrfHeaders({
             'Content-Type': 'application/json'
@@ -11825,6 +11828,16 @@ if (orderPaymentCloseBtn) {
 
 if (paymentSuccessCloseBtn) {
     paymentSuccessCloseBtn.addEventListener('click', hidePaymentSuccessMessage);
+}
+
+if (customerNameInput) {
+    // Only allow letters, spaces, hyphens, periods, and apostrophes — no digits.
+    customerNameInput.addEventListener('input', () => {
+        const sanitized = customerNameInput.value.replace(/[^A-Za-zÀ-ÿ' \-\.]/g, '');
+        if (sanitized !== customerNameInput.value) {
+            customerNameInput.value = sanitized;
+        }
+    });
 }
 
 if (customerPhoneInput) {
