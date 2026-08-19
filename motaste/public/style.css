@@ -3757,6 +3757,11 @@ body.modal-open {
     gap: 22px;
     grid-template-columns: 1.8fr 1fr;
     align-items: stretch;
+    overflow: hidden;
+}
+
+.overview-grid > * {
+    min-width: 0;
 }
 
 .overview-analytics-panel,
@@ -7776,6 +7781,11 @@ body.staff-app #onlineCompletedCount { color: #4338CA !important; }
 
 body.staff-app .overview-grid {
     gap: 18px;
+    overflow: hidden;
+}
+
+body.staff-app .overview-grid > * {
+    min-width: 0;
 }
 
 body.staff-app .sales-analytics-placeholder,
