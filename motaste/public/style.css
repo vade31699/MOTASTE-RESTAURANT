@@ -1798,7 +1798,6 @@ body.modal-open {
     border-radius: 14px;
     cursor: pointer;
     transition: background-color 0.12s ease, color 0.12s ease;
-    will-change: background-color, color;
     outline: none;
 }
 .menu-category-btn:hover,
@@ -6612,8 +6611,9 @@ body.site-home .menu-category-btn {
 
 body.site-home .menu-category-btn:hover,
 body.site-home .menu-category-btn:focus-visible {
-    background: linear-gradient(135deg, #FF6B00, #C2410C);
-    box-shadow: 0 12px 26px rgba(194, 65, 12, 0.35);
+    background: #FF6B00;
+    color: #fff;
+    box-shadow: 0 12px 26px rgba(255, 107, 0, 0.32);
 }
 
 /* ---------- 6. CONTACT — compact, streamlined ---------- */
