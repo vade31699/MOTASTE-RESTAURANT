@@ -4013,6 +4013,11 @@ function updateSpecialFoodImageFieldVisibility() {
     if (specialCustomizeField) {
         specialCustomizeField.hidden = !isSpecials;
     }
+    // Hide unit cost for specials — cost is derived from component prices.
+    const unitCostField = document.getElementById('inventoryUnitCostField');
+    if (unitCostField) {
+        unitCostField.hidden = isSpecials;
+    }
 
     if (isSpecials) {
         renderSpecialCustomizeControls();
