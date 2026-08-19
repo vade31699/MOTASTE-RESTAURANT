@@ -3757,8 +3757,8 @@ body.modal-open {
 .overview-grid {
     display: grid;
     gap: 14px;
-    grid-template-columns: 1fr 1fr;
-    align-items: stretch;
+    grid-template-columns: 1.4fr 1fr;
+    align-items: start;
 }
 
 .overview-grid > * {
@@ -3845,13 +3845,12 @@ body.staff-app .retention-clear-btn {
 
 .overview-analytics-panel {
     min-height: 0;
-    max-height: 340px;
+    max-height: 380px;
     overflow: hidden;
 }
 
 .overview-order-notification-box {
-    min-height: 0;
-    max-height: 340px;
+    min-height: 200px;
     overflow: hidden;
 }
 
@@ -4031,22 +4030,20 @@ body.staff-app .retention-clear-btn {
 
 .order-notification-list {
     display: grid;
-    gap: 14px;
-    max-height: 420px;
+    gap: 12px;
+    max-height: 300px;
     overflow-y: auto;
     padding-right: 4px;
 }
 
 .order-notification-card {
-    background: rgba(255,255,255,0.04);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    border: 1px solid rgba(255,255,255,0.04);
+    background: #f8fafc;
+    border: 1px solid rgba(148, 163, 184, 0.18);
     border-radius: 14px;
-    padding: 16px;
+    padding: 14px;
     display: grid;
-    gap: 10px;
-    color: #fff;
+    gap: 8px;
+    color: #1f2937;
 }
 
 .order-notification-card.completed {
@@ -7832,6 +7829,20 @@ body.staff-app .overview-order-notification-box p {
 body.staff-app .order-notification-footer {
     border: 1px solid var(--staff-border) !important;
     border-top: 1px solid var(--staff-border) !important;
+}
+
+body.staff-app .menu-cart-empty {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 20px 0;
+    text-align: center;
+}
+
+body.staff-app .overview-order-notification-box .order-notification-hint,
+body.staff-app .overview-order-notification-box .overview-notification-hint {
+    color: var(--staff-muted);
+    font-size: 0.85rem;
 }
 
 body.staff-app .order-notification-footer span {
