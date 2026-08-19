@@ -1410,9 +1410,10 @@ function closeConfirmModal() {
     confirmModal.hidden = true;
     confirmModal.classList.remove('active');
     confirmModal.setAttribute('aria-hidden', 'true');
-    const resolve = confirmModalResolver;
-    confirmModalResolver = null;
-    if (resolve) resolve(false);
+    // NOTE: Do NOT resolve the promise here — resolveConfirm() handles that.
+    // Resolving here caused every confirm to resolve as `false` because
+    // closeConfirmModal() was called first inside resolveConfirm(), consuming
+    // the resolver before the actual value could be passed.
 }
 
 /**
@@ -7022,7 +7023,10 @@ function renderStaffReviews() {
                 </div>
                 <p><strong class="review-stars">${renderStarRating(review.rating)}</strong></p>
                 <p class="review-comment">${safeReviewText}</p>
-                <button type="button" class="staff-review-delete-btn" data-review-id="${review.id}">Delete Review</button>
+                <div class="staff-review-actions">
+                    ${status !== 'published' ? `<button type="button" class="staff-review-publish-btn" data-review-id="${review.id}">Publish</button>` : ''}
+                    <button type="button" class="staff-review-delete-btn" data-review-id="${review.id}">Delete Review</button>
+                </div>
             </article>
         `;
     }).join('');

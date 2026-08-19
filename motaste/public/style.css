@@ -4838,19 +4838,26 @@ body.staff-app .retention-clear-btn {
     color: #7ee787;
 }
 
+.staff-review-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
 .staff-review-publish-btn,
 .staff-review-delete-btn {
-    margin-top: 8px;
     border: none;
     border-radius: 8px;
-    padding: 8px 12px;
+    padding: 8px 14px;
     color: #fff;
     cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
 }
 
 .staff-review-publish-btn {
     background: #2e7d32;
-    margin-right: 8px;
 }
 
 .staff-review-delete-btn {
@@ -8712,11 +8719,14 @@ body.staff-app .device-verify-modal .menu-order-message.is-error {
 /* ---------- Reusable notice modal (replaces native alert) ---------- */
 body.staff-app .notice-modal {
     background: #ffffff;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     border: 1px solid var(--staff-border);
     border-radius: 18px;
     color: var(--staff-text);
     box-shadow: var(--staff-shadow-lg);
     text-align: center;
+    padding: 30px 28px;
 }
 
 body.staff-app .notice-modal h2 {
