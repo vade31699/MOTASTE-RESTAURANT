@@ -29,7 +29,7 @@ class SecurityHeaders
         // maps.google.com redirects (301) to www.google.com/maps/embed, so
         // both hosts must be in frame-src or the map silently fails to load.
         $response->headers->set('Content-Security-Policy', "default-src 'self'; "
-            . "script-src 'self' https://cdnjs.cloudflare.com; "
+            . "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
             . "style-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
             . "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com https://unpkg.com; "
             . "img-src 'self' data: https://maps.google.com https://www.google.com; "
