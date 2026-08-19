@@ -3703,7 +3703,7 @@ body.modal-open {
 
 .sales-analytics-chart {
     display: inline-block;
-    min-width: 720px;
+    min-width: 480px;
     width: max-content;
 }
 
@@ -3754,8 +3754,8 @@ body.modal-open {
 
 .overview-grid {
     display: grid;
-    gap: 22px;
-    grid-template-columns: 1.8fr 1fr;
+    gap: 16px;
+    grid-template-columns: 1.4fr 1fr;
     align-items: stretch;
     overflow: hidden;
 }
@@ -3842,11 +3842,11 @@ body.staff-app .retention-clear-btn {
 }
 
 .overview-analytics-panel {
-    min-height: 380px;
+    min-height: 0;
 }
 
 .overview-order-notification-box {
-    min-height: 380px;
+    min-height: 0;
 }
 
 .overview-analytics-panel h3,
@@ -5161,7 +5161,7 @@ body.staff-app .retention-clear-btn {
     }
 
     .sales-analytics-chart {
-        min-width: 520px;
+        min-width: 400px;
     }
 
     .sales-tabs {
@@ -9840,10 +9840,10 @@ body.staff-app .login-history-role {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     border: 1px solid rgba(148, 163, 184, 0.14);
-    border-radius: 18px;
-    padding: 20px 22px;
+    border-radius: 14px;
+    padding: 14px 16px;
     color: #1f2937;
-    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
 }
 
 .overview-export-module h3 {
