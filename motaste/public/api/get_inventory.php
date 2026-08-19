@@ -38,16 +38,21 @@ try {
     // request. Cache access is best-effort: if the cache store is unavailable,
     // fall through to the query so inventory always loads. The staff/public
     // payloads differ (staff includes cost fields), so each gets its own key.
+    // Staff scope skips the cache entirely — on serverless platforms the
+    // Cache::forget() in the write endpoint may run on a different container,
+    // leaving stale cached data that forces staff to refresh the page.
     $cacheKey = 'inventory_' . ($isStaffScope ? 'staff' : 'public') . '_v1';
-    $cacheTtlSeconds = 15;
-    try {
-        $cachedPayload = Cache::get($cacheKey);
-        if ($cachedPayload !== null) {
-            echo $cachedPayload;
-            exit;
+    $cacheTtlSeconds = $isStaffScope ? 1 : 15;
+    if (!$isStaffScope) {
+        try {
+            $cachedPayload = Cache::get($cacheKey);
+            if ($cachedPayload !== null) {
+                echo $cachedPayload;
+                exit;
+            }
+        } catch (Throwable $cacheError) {
+            error_log('get_inventory cache read failed: ' . $cacheError->getMessage());
         }
-    } catch (Throwable $cacheError) {
-        error_log('get_inventory cache read failed: ' . $cacheError->getMessage());
     }
 
     $rawItems = DB::table('inventory_items')
@@ -85,10 +90,12 @@ try {
     $items = array_values($itemsByName);
 
     $payload = json_encode(['success' => true, 'items' => $items]);
-    try {
-        Cache::put($cacheKey, $payload, $cacheTtlSeconds);
-    } catch (Throwable $cacheError) {
-        error_log('get_inventory cache write failed: ' . $cacheError->getMessage());
+    if (!$isStaffScope) {
+        try {
+            Cache::put($cacheKey, $payload, $cacheTtlSeconds);
+        } catch (Throwable $cacheError) {
+            error_log('get_inventory cache write failed: ' . $cacheError->getMessage());
+        }
     }
 
     echo $payload;
