@@ -5509,7 +5509,6 @@ body.site-home .special-food-card {
     display: flex;
     flex-direction: column;
     min-width: 0;
-    max-width: 260px;
     overflow: hidden;
     border-radius: 16px;
     background: rgba(255, 255, 255, 0.9);
@@ -5525,7 +5524,9 @@ body.site-home .special-food-card:hover {
 }
 
 body.site-home .special-food-view-btn {
-    height: 180px;
+    aspect-ratio: 16 / 10;
+    height: auto;
+    max-height: 220px;
     background: #fff;
 }
 
@@ -5553,13 +5554,13 @@ body.site-home .special-food-details {
 body.site-home .special-food-description {
     color: #4B5563;
     font-family: "Inter", sans-serif;
-    font-size: 0.8rem;
+    font-size: clamp(0.75rem, 1vw, 0.85rem);
     line-height: 1.45;
 }
 
 body.site-home .special-food-details-price {
     color: #FF6B00;
-    font-size: 0.98rem;
+    font-size: clamp(0.9rem, 1.1vw, 1.05rem);
     font-weight: 800;
 }
 
