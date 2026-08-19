@@ -681,7 +681,11 @@ function restoreStaffSession() {
 
     document.body.classList.add('auth');
     updateAccountManagementAccess();
-    renderInventoryManagement();
+    // Skip premature render if inventory hasn't loaded yet —
+    // initializeInventoryData() will call renderInventoryManagement() when ready.
+    if (inventoryData.length > 0) {
+        renderInventoryManagement();
+    }
     setAuthButtonsVisible(true);
     if (dashboardPanel) {
         dashboardPanel.style.display = '';
@@ -12124,7 +12128,8 @@ function initOrders() {
     setOrdersTab('walk-in');
     renderPendingOrders();
     renderOrderNotifications();
-    renderInventoryManagement();
+    // NOTE: renderInventoryManagement() is called by initializeInventoryData()
+    // when the async fetch completes — do NOT call it here with empty inventoryData.
     updateAnalyticsView();
     updateProfitView();
     renderOverviewAnalytics();
