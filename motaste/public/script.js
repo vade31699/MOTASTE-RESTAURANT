@@ -9678,8 +9678,15 @@ function isItemOutOfStock(itemName) {
     return Number(inventoryItem.stock) <= 0;
 }
 
+let _lastSpecialFoodsHash = '';
+
 function renderSpecialFoods() {
     if (!specialFoodsList) return;
+
+    // Build a lightweight signature so we skip the DOM wipe when nothing changed
+    const signature = specialFoods.map((s) => `${s.name}|${s.price}|${s.image || ''}|${s.description || ''}`).join('\n');
+    if (signature === _lastSpecialFoodsHash) return;
+    _lastSpecialFoodsHash = signature;
 
     specialFoodsList.innerHTML = specialFoods.map((item) => {
         const imageSrc = normalizeImageUrl(item.image || 'img1.jpg');

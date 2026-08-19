@@ -3547,6 +3547,14 @@ body.modal-open {
     .special-foods-list {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
+
+    .special-food-card {
+        max-width: none;
+    }
+
+    .special-food-view-btn {
+        height: 140px;
+    }
 }
 
 @media (max-width: 560px) {
@@ -5496,6 +5504,7 @@ body.site-home .special-food-card {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    max-width: 260px;
     overflow: hidden;
     border-radius: 16px;
     background: rgba(255, 255, 255, 0.9);
@@ -5511,12 +5520,12 @@ body.site-home .special-food-card:hover {
 }
 
 body.site-home .special-food-view-btn {
-    height: 62%;
+    height: 180px;
     background: #fff;
 }
 
 body.site-home .special-food-view-btn img {
-    border-radius: 19px 19px 0 0;
+    border-radius: 15px 15px 0 0;
 }
 
 body.site-home .special-food-image-meta {
