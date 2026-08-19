@@ -4979,6 +4979,7 @@ let completedOrders = [];
 let completedOrdersSyncInFlight = false;
 let inventoryData = [];
 let currentMenuCategoryId = null;
+let showMenuCategoryRecursing = false;
 let suppressMenuOverlay = false; // when true, prevent menu overlay from opening
 let inventoryEditItemName = null;
 let inventoryEditLock = false;
@@ -7448,6 +7449,25 @@ async function initializeInventoryData(forceRefresh = false) {
                 specialFoods.splice(i, 1);
             }
         }
+        // Also pull any inventory items with category 'specials' into
+        // specialFoods so they appear even when the custom-menu snapshot
+        // is empty or hasn't been saved yet.
+        inventoryData.forEach((invItem) => {
+            const cat = normalizeMenuCategoryKey(invItem.category || resolveInventoryCategory(invItem.name));
+            if (cat !== 'specials') return;
+            const normName = normalizeInventoryName(invItem.name);
+            const alreadyPresent = specialFoods.some((sf) => normalizeInventoryName(sf.name) === normName);
+            if (!alreadyPresent && invItem.isAvailable !== false) {
+                specialFoods.push({
+                    name: invItem.name,
+                    price: Number(invItem.price) || 0,
+                    image: normalizeImageUrl(invItem.image || 'img1.jpg'),
+                    description: invItem.description || '',
+                    components: normalizeSpecialComponents(invItem.components)
+                });
+                menuChanged = true;
+            }
+        });
         if (specialFoods.length !== specialBefore) menuChanged = true;
         if (menuChanged) {
             saveCustomMenuData();
@@ -7833,16 +7853,14 @@ async function loadCustomMenuData() {
         const payload = await response.json();
         if (payload && payload.success && payload.snapshot) {
             const changed = applyCustomMenuSnapshot(payload.snapshot);
-            // Reconciliation against inventory is handled exclusively by
-            // initializeInventoryData() — not here — because this function
-            // can run before inventoryData has been fetched, which would
-            // incorrectly remove newly added items.
             syncMenuPricesWithInventory();
             renderSpecialFoods();
             renderInventoryManagement();
             hydrateWalkInDraftItemsFromSpecialFoods();
             renderWalkInOrderBuilder();
-            if (currentMenuCategoryId) {
+            // Re-render the currently open category.  Skip if we are already
+            // inside a showMenuCategory call to avoid an infinite loop.
+            if (currentMenuCategoryId && !showMenuCategoryRecursing) {
                 showMenuCategory(currentMenuCategoryId);
             }
         }
@@ -11216,7 +11234,9 @@ function showMenuCategory(categoryId) {
     // Prevent background refreshes from forcing the menu overlay open
     // (also covers checkout/payment screens, not just suppressMenuOverlay)
     if (isUserInCheckoutOrPayment()) return;
-    loadCustomMenuData();
+    if (showMenuCategoryRecursing) return;
+    showMenuCategoryRecursing = true;
+    try {
     syncMenuPricesWithInventory();
 
     const resolvedCategoryId = normalizeMenuCategoryKey(categoryId) || String(categoryId || '').trim();
@@ -11262,6 +11282,7 @@ function showMenuCategory(categoryId) {
     menuCategoryScreen.classList.remove('hidden');
     menuCategoryScreen.setAttribute('aria-hidden', 'false');
     updateCartDisplay();
+    } finally { showMenuCategoryRecursing = false; }
 }
 
 function renderMenuOverlayCategories(activeCategoryId = '') {
