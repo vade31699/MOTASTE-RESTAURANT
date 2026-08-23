@@ -2592,8 +2592,8 @@ function renderDetailChart(container, chartData, title, animate = true) {
     const ticks = 5;
     const pointCount = chartData.length;
     const svgWidth = Math.max(480, pointCount * 26 + 100);
-    const svgHeight = 180;
-    const margin = { top: 28, right: 20, bottom: 48, left: 52 };
+    const svgHeight = 220;
+    const margin = { top: 32, right: 24, bottom: 52, left: 56 };
     const chartWidth = svgWidth - margin.left - margin.right;
     const chartHeight = svgHeight - margin.top - margin.bottom;
     const xStep = pointCount > 1 ? chartWidth / (pointCount - 1) : chartWidth;
@@ -2631,22 +2631,22 @@ function renderDetailChart(container, chartData, title, animate = true) {
             <g>
                 ${yTicks.map((tick) => `
                     <line x1="${margin.left}" y1="${tick.y}" x2="${margin.left + chartWidth}" y2="${tick.y}" stroke="rgba(204,204,204,0.45)" />
-                    <text x="${margin.left - 12}" y="${tick.y + 4}" text-anchor="end" fill="#333" font-size="12">${tick.value}</text>
+                    <text x="${margin.left - 14}" y="${tick.y + 4}" text-anchor="end" fill="#333" font-size="13" font-weight="600">${tick.value}</text>
                 `).join('')}
             </g>
-            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#ff9800" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#ff9800" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
             <g${animate ? ' class="sales-line-dots"' : ''}>
                 ${points.map((point, index) => `
-                    <circle cx="${point.x}" cy="${point.y}" r="5" fill="#ff9800"${animate ? ` style="animation-delay: ${(index * 0.04).toFixed(2)}s"` : ''} />
-                    <text x="${point.x}" y="${point.y - 12}" text-anchor="middle" fill="#111" font-size="12" font-weight="700">${point.display}</text>
+                    <circle cx="${point.x}" cy="${point.y}" r="6" fill="#ff9800"${animate ? ` style="animation-delay: ${(index * 0.04).toFixed(2)}s"` : ''} />
+                    <text x="${point.x}" y="${point.y - 14}" text-anchor="middle" fill="#111" font-size="13" font-weight="800">${point.display}</text>
                 `).join('')}
             </g>
             <g>
                 ${points.map((point) => `
-                    <text x="${point.x}" y="${margin.top + chartHeight + 22}" text-anchor="middle" fill="#333" font-size="12">${point.label}</text>
+                    <text x="${point.x}" y="${margin.top + chartHeight + 24}" text-anchor="middle" fill="#333" font-size="13" font-weight="600">${point.label}</text>
                 `).join('')}
             </g>
-            <text x="${margin.left}" y="20" fill="#333" font-size="14" font-weight="700">${title}</text>
+            <text x="${margin.left}" y="22" fill="#333" font-size="15" font-weight="700">${title}</text>
         </svg>
     `;
 
@@ -2732,6 +2732,26 @@ function setupChartScrollControls() {
     });
 }
 setupChartScrollControls();
+
+/* ================= Sales section scroll-to-top button ================= */
+(function initSalesScrollTopBtn() {
+    const scrollBtn = document.getElementById('salesScrollTopBtn');
+    const salesSection = document.getElementById('sales');
+    if (!scrollBtn || !salesSection) return;
+
+    function toggleScrollBtn() {
+        if (salesSection.hidden) { scrollBtn.classList.remove('is-visible'); return; }
+        const scrolled = salesSection.scrollTop > 180;
+        scrollBtn.classList.toggle('is-visible', scrolled);
+    }
+
+    salesSection.style.overflowY = 'auto';
+    salesSection.addEventListener('scroll', toggleScrollBtn, { passive: true });
+    scrollBtn.addEventListener('click', () => {
+        salesSection.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    toggleScrollBtn();
+})();
 
 /* ================= Profit analytics (daily / weekly / monthly) =================
    Mirrors the sales analysis charts: same styling, same month selector, and a
@@ -4258,22 +4278,22 @@ function renderAnalytics(type, animate = true) {
             <g>
                 ${yTicks.map((tick) => `
                     <line x1="${margin.left}" y1="${tick.y}" x2="${margin.left + chartWidth}" y2="${tick.y}" stroke="rgba(204,204,204,0.45)" />
-                    <text x="${margin.left - 12}" y="${tick.y + 4}" text-anchor="end" fill="#333" font-size="12">${tick.value}</text>
+                    <text x="${margin.left - 14}" y="${tick.y + 4}" text-anchor="end" fill="#333" font-size="13" font-weight="600">${tick.value}</text>
                 `).join('')}
             </g>
             <g${animate ? ' class="sales-line-dots"' : ''}>
                 ${points.map((point, index) => `
-                    <circle cx="${point.x}" cy="${point.y}" r="5" fill="#ff9800"${animate ? ` style="animation-delay: ${(index * 0.05).toFixed(2)}s"` : ''} />
-                    <text x="${point.x}" y="${point.y - 12}" text-anchor="middle" fill="#111" font-size="12" font-weight="700">${point.display}</text>
+                    <circle cx="${point.x}" cy="${point.y}" r="6" fill="#ff9800"${animate ? ` style="animation-delay: ${(index * 0.05).toFixed(2)}s"` : ''} />
+                    <text x="${point.x}" y="${point.y - 14}" text-anchor="middle" fill="#111" font-size="13" font-weight="800">${point.display}</text>
                 `).join('')}
             </g>
-            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#ff9800" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#ff9800" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
             <g>
                 ${points.map((point) => `
-                    <text x="${point.x}" y="${margin.top + chartHeight + 22}" text-anchor="middle" fill="#333" font-size="12">${point.label}</text>
+                    <text x="${point.x}" y="${margin.top + chartHeight + 24}" text-anchor="middle" fill="#333" font-size="13" font-weight="600">${point.label}</text>
                 `).join('')}
             </g>
-            <text x="${margin.left}" y="16" fill="#333" font-size="14" font-weight="700">${data.title}</text>
+            <text x="${margin.left}" y="20" fill="#333" font-size="15" font-weight="700">${data.title}</text>
         </svg>
     `;
 

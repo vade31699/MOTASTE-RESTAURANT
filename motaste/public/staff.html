@@ -65,6 +65,36 @@
             50% { transform: scale(1.18); box-shadow: 0 0 8px 6px rgba(239,68,68, 0.12); }
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68, 0); }
         }
+        /* Scroll-to-top button for Sales Analysis */
+        .sales-scroll-top-btn {
+            position: sticky;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 30;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 999px;
+            background: #ff9800;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(255, 152, 0, 0.35);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            margin-top: 12px;
+        }
+        .sales-scroll-top-btn.is-visible {
+            display: inline-flex;
+        }
+        .sales-scroll-top-btn:hover {
+            background: #e68900;
+            transform: translateX(-50%) translateY(-2px);
+        }
     </style>
 </head>
 <body class="staff-app">
@@ -523,6 +553,9 @@
             </div>
         </div>
 
+        <button type="button" id="salesScrollTopBtn" class="sales-scroll-top-btn" aria-label="Scroll to top of Sales">
+            <i class="fa-solid fa-arrow-up" aria-hidden="true"></i> Scroll to Top
+        </button>
     </section>
 
     <section id="inventory" class="inventory-section" hidden>
