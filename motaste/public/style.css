@@ -3757,8 +3757,14 @@ body.modal-open {
 .overview-grid {
     display: grid;
     gap: 14px;
-    grid-template-columns: 1.4fr 1fr;
+    grid-template-columns: 1fr 1fr;
     align-items: start;
+}
+
+@media (max-width: 1100px) {
+    .overview-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .overview-grid > * {
@@ -3900,6 +3906,12 @@ body.staff-app .retention-clear-btn {
 #overview .sales-analytics-chart {
     border-radius: 14px;
     background: linear-gradient(180deg, rgba(139, 92, 246, 0.04), rgba(16, 185, 129, 0.02));
+}
+
+/* Let the overview chart scroll horizontally on narrow columns instead of
+   being clipped, so both grid panels keep their full width. */
+#overview .sales-analytics-chart-wrapper {
+    overflow-x: auto;
 }
 
 #overview .stats-card,
