@@ -2695,6 +2695,44 @@ function autoScrollChartToCurrentDay(chartContainer, monthKey, pointCount) {
     setTimeout(applyScroll, 0);
 }
 
+/* ================= Chart pan buttons =================
+   Analysis charts keep their full pixel width so day/month labels stay
+   readable; these controls pan the chart wrapper horizontally. */
+function setupChartScrollControls() {
+    document.querySelectorAll('.chart-scroll-controls[data-scroll-target]').forEach((controls) => {
+        const chart = document.getElementById(controls.getAttribute('data-scroll-target'));
+        const wrapper = chart ? chart.closest('.sales-analytics-chart-wrapper') : null;
+        const leftBtn = controls.querySelector('[data-chart-scroll="left"]');
+        const rightBtn = controls.querySelector('[data-chart-scroll="right"]');
+        if (!chart || !wrapper || !leftBtn || !rightBtn) return;
+
+        const updateButtons = () => {
+            const maxScroll = Math.max(0, Math.ceil(wrapper.scrollWidth - wrapper.clientWidth));
+            const position = Math.ceil(wrapper.scrollLeft);
+            const scrollable = maxScroll > 4;
+            controls.classList.toggle('is-scrollable', scrollable);
+            leftBtn.disabled = !scrollable || position <= 4;
+            rightBtn.disabled = !scrollable || position >= maxScroll - 4;
+        };
+
+        if (controls.dataset.scrollBound !== 'true') {
+            controls.dataset.scrollBound = 'true';
+            const panBy = (direction) => {
+                const stepAmount = Math.max(160, Math.round(wrapper.clientWidth * 0.8));
+                wrapper.scrollBy({ left: direction * stepAmount, behavior: 'smooth' });
+            };
+            leftBtn.addEventListener('click', () => panBy(-1));
+            rightBtn.addEventListener('click', () => panBy(1));
+            wrapper.addEventListener('scroll', updateButtons, { passive: true });
+            window.addEventListener('resize', updateButtons);
+            new MutationObserver(updateButtons).observe(chart, { childList: true, subtree: true });
+        }
+
+        updateButtons();
+    });
+}
+setupChartScrollControls();
+
 /* ================= Profit analytics (daily / weekly / monthly) =================
    Mirrors the sales analysis charts: same styling, same month selector, and a
    daily view centered on the current day. Profit = revenue - cost of goods
@@ -9671,6 +9709,9 @@ function showDashboardSection(section) {
         if (!el) return;
         el.hidden = el !== section;
     });
+
+    // Chart pan buttons need a refresh once the section is visible again.
+    setupChartScrollControls();
 
     if (section === credentialsSection) {
         syncLoginHistoryDateToToday();

@@ -3695,7 +3695,7 @@ body.modal-open {
 .sales-analytics-chart-wrapper {
     width: 100%;
     max-height: 240px;
-    overflow-x: hidden;
+    overflow-x: auto;
     overflow-y: hidden;
     margin-top: 12px;
     padding-bottom: 6px;
@@ -3705,15 +3705,67 @@ body.modal-open {
 .sales-analytics-chart {
     display: block;
     width: 100%;
-    overflow: hidden;
+    min-width: fit-content;
+    overflow: visible;
 }
 
+/* Charts render at their natural pixel width so day/month labels stay
+   readable; the wrapper pans horizontally instead of shrinking them. */
 .sales-analytics-chart svg {
     display: block;
-    width: 100%;
+    width: auto;
+    min-width: 100%;
+    max-width: none;
     height: auto;
     border-radius: 14px;
-    overflow: hidden;
+}
+
+/* Horizontal pan controls under each analytics chart */
+.chart-scroll-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.chart-scroll-hint {
+    margin-right: auto;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.chart-scroll-controls:not(.is-scrollable) .chart-scroll-hint {
+    display: none;
+}
+
+.chart-scroll-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    background: #ffffff;
+    color: #334155;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+}
+
+.chart-scroll-btn:hover:not(:disabled) {
+    background: #f1f5f9;
+    border-color: rgba(100, 116, 139, 0.6);
+}
+
+.chart-scroll-btn:active:not(:disabled) {
+    transform: scale(0.94);
+}
+
+.chart-scroll-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
 }
 
 .overview-section,
@@ -3757,7 +3809,7 @@ body.modal-open {
 .overview-grid {
     display: grid;
     gap: 14px;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
     align-items: start;
 }
 
@@ -4634,7 +4686,7 @@ body.staff-app .retention-clear-btn {
 .sales-analytics-chart-wrapper {
     width: 100%;
     max-height: 240px;
-    overflow-x: hidden;
+    overflow-x: auto;
     overflow-y: hidden;
     margin-top: 18px;
     padding-bottom: 6px;
@@ -7812,6 +7864,21 @@ body.staff-app .overview-grid {
 body.staff-app .overview-grid > * {
     min-width: 0;
     overflow: hidden;
+}
+
+body.staff-app .chart-scroll-hint {
+    color: var(--staff-muted);
+}
+
+body.staff-app .chart-scroll-btn {
+    background: var(--staff-surface);
+    border-color: var(--staff-border);
+    color: var(--staff-text);
+}
+
+body.staff-app .chart-scroll-btn:hover:not(:disabled) {
+    background: var(--staff-surface-soft, #eef2f5);
+    border-color: var(--staff-accent);
 }
 
 body.staff-app .sales-analytics-placeholder,
