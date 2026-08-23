@@ -2623,22 +2623,22 @@ function renderDetailChart(container, chartData, title, animate = true) {
 
     const svg = `
         <svg width="${svgWidth}" viewBox="0 0 ${svgWidth} ${svgHeight}" role="img" aria-label="${title} line chart">
-            <rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" fill="#f9f9f9" rx="16" />
+            <rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" fill="#ffffff" rx="16" />
             <g>
-                <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + chartHeight}" stroke="#ccc" />
-                <line x1="${margin.left}" y1="${margin.top + chartHeight}" x2="${margin.left + chartWidth}" y2="${margin.top + chartHeight}" stroke="#ccc" />
+                <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + chartHeight}" stroke="#999" stroke-width="1.5" />
+                <line x1="${margin.left}" y1="${margin.top + chartHeight}" x2="${margin.left + chartWidth}" y2="${margin.top + chartHeight}" stroke="#999" stroke-width="1.5" />
             </g>
             <g>
                 ${yTicks.map((tick) => `
-                    <line x1="${margin.left}" y1="${tick.y}" x2="${margin.left + chartWidth}" y2="${tick.y}" stroke="rgba(204,204,204,0.45)" />
-                    <text x="${margin.left - 14}" y="${tick.y + 4}" text-anchor="end" fill="#333" font-size="13" font-weight="600">${tick.value}</text>
+                    <line x1="${margin.left}" y1="${tick.y}" x2="${margin.left + chartWidth}" y2="${tick.y}" stroke="rgba(150,150,150,0.35)" />
+                    <text x="${margin.left - 14}" y="${tick.y + 4}" text-anchor="end" fill="#111" font-size="13" font-weight="700">${tick.value}</text>
                 `).join('')}
             </g>
-            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#ff9800" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#ff9800" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
             <g${animate ? ' class="sales-line-dots"' : ''}>
                 ${points.map((point, index) => `
-                    <circle cx="${point.x}" cy="${point.y}" r="6" fill="#ff9800"${animate ? ` style="animation-delay: ${(index * 0.04).toFixed(2)}s"` : ''} />
-                    <text x="${point.x}" y="${point.y - 14}" text-anchor="middle" fill="#111" font-size="13" font-weight="800">${point.display}</text>
+                    <circle cx="${point.x}" cy="${point.y}" r="7" fill="#fff" stroke="#ff9800" stroke-width="3"${animate ? ` style="animation-delay: ${(index * 0.04).toFixed(2)}s"` : ''} />
+                    <text x="${point.x}" y="${point.y - 16}" text-anchor="middle" fill="#e65100" font-size="14" font-weight="800">${point.display}</text>
                 `).join('')}
             </g>
             <g>
@@ -4270,24 +4270,24 @@ function renderAnalytics(type, animate = true) {
 
     const svg = `
         <svg width="100%" viewBox="0 0 ${svgWidth} ${svgHeight}" role="img" aria-label="${data.title} line chart">
-            <rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" fill="#f9f9f9" rx="16" />
+            <rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" fill="#ffffff" rx="16" />
             <g>
-                <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + chartHeight}" stroke="#ccc" />
-                <line x1="${margin.left}" y1="${margin.top + chartHeight}" x2="${margin.left + chartWidth}" y2="${margin.top + chartHeight}" stroke="#ccc" />
+                <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + chartHeight}" stroke="#999" stroke-width="1.5" />
+                <line x1="${margin.left}" y1="${margin.top + chartHeight}" x2="${margin.left + chartWidth}" y2="${margin.top + chartHeight}" stroke="#999" stroke-width="1.5" />
             </g>
             <g>
                 ${yTicks.map((tick) => `
-                    <line x1="${margin.left}" y1="${tick.y}" x2="${margin.left + chartWidth}" y2="${tick.y}" stroke="rgba(204,204,204,0.45)" />
-                    <text x="${margin.left - 14}" y="${tick.y + 4}" text-anchor="end" fill="#333" font-size="13" font-weight="600">${tick.value}</text>
+                    <line x1="${margin.left}" y1="${tick.y}" x2="${margin.left + chartWidth}" y2="${tick.y}" stroke="rgba(150,150,150,0.35)" />
+                    <text x="${margin.left - 14}" y="${tick.y + 4}" text-anchor="end" fill="#111" font-size="13" font-weight="700">${tick.value}</text>
                 `).join('')}
             </g>
             <g${animate ? ' class="sales-line-dots"' : ''}>
                 ${points.map((point, index) => `
-                    <circle cx="${point.x}" cy="${point.y}" r="6" fill="#ff9800"${animate ? ` style="animation-delay: ${(index * 0.05).toFixed(2)}s"` : ''} />
-                    <text x="${point.x}" y="${point.y - 14}" text-anchor="middle" fill="#111" font-size="13" font-weight="800">${point.display}</text>
+                    <circle cx="${point.x}" cy="${point.y}" r="7" fill="#fff" stroke="#ff9800" stroke-width="3"${animate ? ` style="animation-delay: ${(index * 0.05).toFixed(2)}s"` : ''} />
+                    <text x="${point.x}" y="${point.y - 16}" text-anchor="middle" fill="#e65100" font-size="14" font-weight="800">${point.display}</text>
                 `).join('')}
             </g>
-            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#ff9800" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#ff9800" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
             <g>
                 ${points.map((point) => `
                     <text x="${point.x}" y="${margin.top + chartHeight + 24}" text-anchor="middle" fill="#333" font-size="13" font-weight="600">${point.label}</text>

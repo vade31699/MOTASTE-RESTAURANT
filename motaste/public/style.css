@@ -3694,9 +3694,8 @@ body.modal-open {
 
 .sales-analytics-chart-wrapper {
     width: 100%;
-    max-height: 240px;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible;
     margin-top: 12px;
     padding-bottom: 6px;
     -webkit-overflow-scrolling: touch;
@@ -3904,7 +3903,10 @@ body.staff-app .retention-clear-btn {
 .overview-analytics-panel {
     min-height: 0;
     max-height: 380px;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148,163,184,0.35) transparent;
 }
 
 .overview-order-notification-box {
@@ -4685,9 +4687,8 @@ body.staff-app .retention-clear-btn {
 
 .sales-analytics-chart-wrapper {
     width: 100%;
-    max-height: 240px;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible;
     margin-top: 18px;
     padding-bottom: 6px;
     -webkit-overflow-scrolling: touch;
