@@ -2634,10 +2634,10 @@ function renderDetailChart(container, chartData, title, animate = true) {
                     <text x="${margin.left - 14}" y="${tick.y + 5}" text-anchor="end" fill="#1e293b" font-size="13" font-weight="700">${tick.value}</text>
                 `).join('')}
             </g>
-            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#334155" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#2BAE66" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
             <g${animate ? ' class="sales-line-dots"' : ''}>
                 ${points.map((point, index) => `
-                    <circle cx="${point.x}" cy="${point.y}" r="6" fill="#fff" stroke="#334155" stroke-width="2.5"${animate ? ` style="animation-delay: ${(index * 0.04).toFixed(2)}s"` : ''} />
+                    <circle cx="${point.x}" cy="${point.y}" r="6" fill="#fff" stroke="#2BAE66" stroke-width="2.5"${animate ? ` style="animation-delay: ${(index * 0.04).toFixed(2)}s"` : ''} />
                     <text x="${point.x}" y="${point.y - 14}" text-anchor="middle" fill="#0f172a" font-size="13" font-weight="800">${point.display}</text>
                 `).join('')}
             </g>
@@ -4319,11 +4319,11 @@ function renderAnalytics(type, animate = true) {
             </g>
             <g${animate ? ' class="sales-line-dots"' : ''}>
                 ${points.map((point, index) => `
-                    <circle cx="${point.x}" cy="${point.y}" r="6" fill="#fff" stroke="#334155" stroke-width="2.5"${animate ? ` style="animation-delay: ${(index * 0.05).toFixed(2)}s"` : ''} />
+                    <circle cx="${point.x}" cy="${point.y}" r="6" fill="#fff" stroke="#2BAE66" stroke-width="2.5"${animate ? ` style="animation-delay: ${(index * 0.05).toFixed(2)}s"` : ''} />
                     <text x="${point.x}" y="${point.y - 14}" text-anchor="middle" fill="#0f172a" font-size="14" font-weight="800">${point.display}</text>
                 `).join('')}
             </g>
-            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#334155" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#2BAE66" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
             <g>
                 ${points.map((point) => `
                     <text x="${point.x}" y="${margin.top + chartHeight + 28}" text-anchor="middle" fill="#475569" font-size="13" font-weight="700">${point.label}</text>
@@ -5934,6 +5934,10 @@ async function loadPendingOrdersFromServer() {
     renderPendingOrders();
     renderWalkInOrderBuilder();
     renderOrderNotifications();
+    if (!pendingOrders.length) {
+        unseenPendingCount = 0;
+        updateOverviewBadge();
+    }
     } catch (error) {
         console.error('Unable to load pending orders from the server', error);
     }

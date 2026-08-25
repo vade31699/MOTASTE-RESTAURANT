@@ -4112,6 +4112,8 @@ body.staff-app .retention-clear-btn {
    being clipped, so both grid panels keep their full width. */
 #overview .sales-analytics-chart-wrapper {
     overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148,163,184,0.40) transparent;
 }
 
 /* Light-theme scrollbar overrides for overview chart wrapper */
@@ -8219,11 +8221,11 @@ body.staff-app .sales-analytics-chart svg rect {
    broad scoped override covers BOTH animated (.sales-line-path) and plain
    (background-refresh) renders, replacing the inline orange stroke/fill. */
 body.staff-app .sales-analytics-chart path {
-    stroke: #334155 !important;
+    stroke: #2BAE66 !important;
 }
 
 body.staff-app .sales-analytics-chart circle {
-    stroke: #334155 !important;
+    stroke: #2BAE66 !important;
     fill: #fff !important;
 }
 
