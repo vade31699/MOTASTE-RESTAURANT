@@ -2702,6 +2702,41 @@ function setupChartScrollControls() {
     document.querySelectorAll('.chart-scroll-controls[data-scroll-target]').forEach((controls) => {
         const chart = document.getElementById(controls.getAttribute('data-scroll-target'));
         const wrapper = chart ? chart.closest('.sales-analytics-chart-wrapper') : null;
+        const isVertical = controls.classList.contains('chart-scroll-vertical');
+
+        if (isVertical) {
+            /* Vertical scroll: the parent panel scrolls up/down */
+            const panel = controls.closest('.overview-analytics-panel') || (chart ? chart.closest('.overview-analytics-panel') : null);
+            const scrollTarget = panel || (wrapper ? wrapper.parentElement : null);
+            const upBtn = controls.querySelector('[data-chart-scroll="up"]');
+            const downBtn = controls.querySelector('[data-chart-scroll="down"]');
+            if (!scrollTarget || !upBtn || !downBtn) return;
+
+            const stepAmount = () => Math.max(180, Math.round(scrollTarget.clientHeight * 0.6));
+
+            const updateButtons = () => {
+                const maxScroll = Math.max(0, Math.ceil(scrollTarget.scrollHeight - scrollTarget.clientHeight));
+                const position = Math.ceil(scrollTarget.scrollTop);
+                const scrollable = maxScroll > 4;
+                controls.classList.toggle('is-scrollable', scrollable);
+                upBtn.disabled = !scrollable || position <= 4;
+                downBtn.disabled = !scrollable || position >= maxScroll - 4;
+            };
+
+            if (controls.dataset.scrollBound !== 'true') {
+                controls.dataset.scrollBound = 'true';
+                upBtn.addEventListener('click', () => scrollTarget.scrollBy({ top: -stepAmount(), behavior: 'smooth' }));
+                downBtn.addEventListener('click', () => scrollTarget.scrollBy({ top: stepAmount(), behavior: 'smooth' }));
+                scrollTarget.addEventListener('scroll', updateButtons, { passive: true });
+                window.addEventListener('resize', updateButtons);
+                new MutationObserver(updateButtons).observe(chart, { childList: true, subtree: true });
+            }
+
+            updateButtons();
+            return;
+        }
+
+        /* Horizontal scroll (original behavior) */
         const leftBtn = controls.querySelector('[data-chart-scroll="left"]');
         const rightBtn = controls.querySelector('[data-chart-scroll="right"]');
         if (!chart || !wrapper || !leftBtn || !rightBtn) return;
@@ -2718,8 +2753,8 @@ function setupChartScrollControls() {
         if (controls.dataset.scrollBound !== 'true') {
             controls.dataset.scrollBound = 'true';
             const panBy = (direction) => {
-                const stepAmount = Math.max(160, Math.round(wrapper.clientWidth * 0.8));
-                wrapper.scrollBy({ left: direction * stepAmount, behavior: 'smooth' });
+                const stepAmt = Math.max(160, Math.round(wrapper.clientWidth * 0.8));
+                wrapper.scrollBy({ left: direction * stepAmt, behavior: 'smooth' });
             };
             leftBtn.addEventListener('click', () => panBy(-1));
             rightBtn.addEventListener('click', () => panBy(1));

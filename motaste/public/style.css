@@ -3767,6 +3767,80 @@ body.modal-open {
     cursor: default;
 }
 
+/* ===== Vertical scroll controls (Overview sales analysis) ===== */
+.chart-scroll-vertical {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 8px 4px;
+    position: sticky;
+    right: 2px;
+    top: 4px;
+    z-index: 5;
+    background: rgba(255, 255, 255, 0.85);
+    border-radius: 10px;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+body.staff-app .chart-scroll-vertical {
+    background: rgba(30, 41, 59, 0.75);
+    border-color: var(--staff-border);
+}
+
+.chart-scroll-vertical .chart-scroll-btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.chart-scroll-vertical .chart-scroll-btn {
+    width: 34px;
+    height: 34px;
+}
+
+.chart-scroll-vertical:not(.is-scrollable) {
+    display: none;
+}
+
+.chart-scroll-vertical.is-scrollable {
+    display: flex;
+}
+
+/* Overview section responsive */
+@media (max-width: 1024px) {
+    .overview-analytics-panel {
+        max-height: none;
+        overflow-y: visible;
+    }
+
+    .chart-scroll-vertical {
+        position: relative;
+        right: auto;
+        top: auto;
+        flex-direction: row;
+        justify-content: center;
+    }
+
+    .chart-scroll-vertical .chart-scroll-btn-group {
+        flex-direction: row;
+    }
+}
+
+@media (max-width: 640px) {
+    .chart-scroll-vertical {
+        padding: 6px 2px;
+    }
+
+    .chart-scroll-vertical .chart-scroll-btn {
+        width: 32px;
+        height: 32px;
+    }
+}
+
 .overview-section,
 .inventory-section,
 .orders-section,
@@ -3807,14 +3881,64 @@ body.modal-open {
 
 .overview-grid {
     display: grid;
-    gap: 14px;
-    grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+    gap: 16px;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
     align-items: start;
 }
 
-@media (max-width: 1100px) {
+/* Tablet breakpoint */
+@media (max-width: 1024px) {
     .overview-grid {
         grid-template-columns: 1fr;
+    }
+
+    .overview-section,
+    .inventory-section,
+    .orders-section,
+    .sales-section,
+    .account-management {
+        padding: 20px;
+        width: calc(100% - 24px);
+    }
+}
+
+/* Mobile breakpoint */
+@media (max-width: 640px) {
+    .overview-grid {
+        gap: 12px;
+    }
+
+    .overview-section,
+    .inventory-section,
+    .orders-section,
+    .sales-section,
+    .account-management {
+        padding: 16px;
+        margin: 12px auto 0;
+        width: calc(100% - 16px);
+        border-radius: 14px;
+    }
+
+    .overview-metrics-row {
+        gap: 10px !important;
+    }
+
+    .metric-card {
+        flex: 1 1 140px !important;
+        padding: 12px !important;
+    }
+
+    .metric-card div:nth-child(2) {
+        font-size: 22px !important;
+    }
+
+    .overview-analytics-panel {
+        padding: 12px !important;
+    }
+
+    .overview-order-notification-box {
+        padding: 14px 16px !important;
+        min-height: 160px;
     }
 }
 
@@ -3901,17 +4025,28 @@ body.staff-app .retention-clear-btn {
 }
 
 .overview-analytics-panel {
+    position: relative;
     min-height: 0;
-    max-height: 380px;
+    max-height: 440px;
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: thin;
     scrollbar-color: rgba(148,163,184,0.35) transparent;
 }
 
+/* Hide the native vertical scrollbar when vertical scroll buttons are present */
+.chart-scroll-vertical ~ .overview-analytics-panel,
+.overview-analytics-panel:has(+ .chart-scroll-vertical) {
+    scrollbar-width: none;
+}
+
 .overview-order-notification-box {
     min-height: 200px;
-    overflow: hidden;
+    max-height: 440px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148,163,184,0.35) transparent;
 }
 
 .overview-analytics-panel h3,
@@ -3966,6 +4101,26 @@ body.staff-app .retention-clear-btn {
    being clipped, so both grid panels keep their full width. */
 #overview .sales-analytics-chart-wrapper {
     overflow-x: auto;
+}
+
+/* Light-theme scrollbar overrides for overview chart wrapper */
+#overview .sales-analytics-chart-wrapper::-webkit-scrollbar {
+    height: 10px;
+}
+
+#overview .sales-analytics-chart-wrapper::-webkit-scrollbar-track {
+    background: rgba(148, 163, 184, 0.10);
+    border-radius: 999px;
+}
+
+#overview .sales-analytics-chart-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.40);
+    border-radius: 999px;
+    border: 2px solid rgba(148, 163, 184, 0.10);
+}
+
+#overview .sales-analytics-chart-wrapper::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.60);
 }
 
 #overview .stats-card,

@@ -153,7 +153,7 @@
             <p id="retentionBannerMessage" class="menu-order-message" aria-live="polite"></p>
         </div>
 
-        <div class="overview-metrics-row" style="display:flex;gap:12px;margin:12px 0 18px;flex-wrap:wrap;">
+        <div class="overview-metrics-row" style="display:flex;gap:12px;margin:12px 0 18px;flex-wrap:wrap;justify-content:stretch;">
             <div class="metric-card" id="metricPendingOrders" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
                 <div style="font-size:13px;color:#666;margin-bottom:6px;">Pending Orders</div>
                 <div id="pendingOrdersCount" style="font-size:28px;font-weight:700;color:#ef4444;">0</div>
@@ -234,10 +234,12 @@
                 <div class="sales-analytics-chart-wrapper">
                     <div id="overviewAnalyticsChart" class="sales-analytics-chart" aria-label="Overview sales analytics chart"></div>
                 </div>
-                <div class="chart-scroll-controls" data-scroll-target="overviewAnalyticsChart">
-                    <span class="chart-scroll-hint">Scroll to see more days</span>
-                    <button type="button" class="chart-scroll-btn" data-chart-scroll="left" aria-label="Scroll chart left"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
-                    <button type="button" class="chart-scroll-btn" data-chart-scroll="right" aria-label="Scroll chart right"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+                <div class="chart-scroll-controls chart-scroll-vertical" data-scroll-target="overviewAnalyticsChart">
+                    <span class="chart-scroll-hint">Scroll to see more</span>
+                    <div class="chart-scroll-btn-group">
+                        <button type="button" class="chart-scroll-btn" data-chart-scroll="up" aria-label="Scroll up"><i class="fa-solid fa-chevron-up" aria-hidden="true"></i></button>
+                        <button type="button" class="chart-scroll-btn" data-chart-scroll="down" aria-label="Scroll down"><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
+                    </div>
                 </div>
             </div>
 
