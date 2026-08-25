@@ -3591,6 +3591,17 @@ body.modal-open {
     line-height: 1.6;
 }
 
+/* Sales section panels: enable vertical scrolling for up/down scroll buttons */
+#sales .sales-analytics-placeholder,
+#sales .profit-analytics-panel {
+    position: relative;
+    max-height: 500px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148,163,184,0.35) transparent;
+}
+
 .sales-analytics-select-wrapper {
     display: inline-flex;
     align-items: center;
@@ -8208,11 +8219,12 @@ body.staff-app .sales-analytics-chart svg rect {
    broad scoped override covers BOTH animated (.sales-line-path) and plain
    (background-refresh) renders, replacing the inline orange stroke/fill. */
 body.staff-app .sales-analytics-chart path {
-    stroke: var(--staff-accent) !important;
+    stroke: #334155 !important;
 }
 
 body.staff-app .sales-analytics-chart circle {
-    fill: var(--staff-accent) !important;
+    stroke: #334155 !important;
+    fill: #fff !important;
 }
 
 body.staff-app .sales-analytics-select-wrapper,

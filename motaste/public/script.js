@@ -2591,9 +2591,9 @@ function renderDetailChart(container, chartData, title, animate = true) {
     const paddedMax = Math.max(1000, Math.ceil(maxValue / 1000) * 1000);
     const ticks = 5;
     const pointCount = chartData.length;
-    const svgWidth = Math.max(480, pointCount * 26 + 100);
-    const svgHeight = 220;
-    const margin = { top: 32, right: 24, bottom: 52, left: 56 };
+    const svgWidth = Math.max(520, pointCount * 30 + 120);
+    const svgHeight = 260;
+    const margin = { top: 36, right: 28, bottom: 60, left: 62 };
     const chartWidth = svgWidth - margin.left - margin.right;
     const chartHeight = svgHeight - margin.top - margin.bottom;
     const xStep = pointCount > 1 ? chartWidth / (pointCount - 1) : chartWidth;
@@ -2630,23 +2630,23 @@ function renderDetailChart(container, chartData, title, animate = true) {
             </g>
             <g>
                 ${yTicks.map((tick) => `
-                    <line x1="${margin.left}" y1="${tick.y}" x2="${margin.left + chartWidth}" y2="${tick.y}" stroke="rgba(150,150,150,0.35)" />
-                    <text x="${margin.left - 14}" y="${tick.y + 4}" text-anchor="end" fill="#111" font-size="13" font-weight="700">${tick.value}</text>
+                    <line x1="${margin.left}" y1="${tick.y}" x2="${margin.left + chartWidth}" y2="${tick.y}" stroke="rgba(150,150,150,0.3)" />
+                    <text x="${margin.left - 14}" y="${tick.y + 5}" text-anchor="end" fill="#1e293b" font-size="13" font-weight="700">${tick.value}</text>
                 `).join('')}
             </g>
-            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#ff9800" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#334155" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
             <g${animate ? ' class="sales-line-dots"' : ''}>
                 ${points.map((point, index) => `
-                    <circle cx="${point.x}" cy="${point.y}" r="7" fill="#fff" stroke="#ff9800" stroke-width="3"${animate ? ` style="animation-delay: ${(index * 0.04).toFixed(2)}s"` : ''} />
-                    <text x="${point.x}" y="${point.y - 16}" text-anchor="middle" fill="#e65100" font-size="14" font-weight="800">${point.display}</text>
+                    <circle cx="${point.x}" cy="${point.y}" r="6" fill="#fff" stroke="#334155" stroke-width="2.5"${animate ? ` style="animation-delay: ${(index * 0.04).toFixed(2)}s"` : ''} />
+                    <text x="${point.x}" y="${point.y - 14}" text-anchor="middle" fill="#0f172a" font-size="13" font-weight="800">${point.display}</text>
                 `).join('')}
             </g>
             <g>
                 ${points.map((point) => `
-                    <text x="${point.x}" y="${margin.top + chartHeight + 24}" text-anchor="middle" fill="#333" font-size="13" font-weight="600">${point.label}</text>
+                    <text x="${point.x}" y="${margin.top + chartHeight + 24}" text-anchor="middle" fill="#475569" font-size="12" font-weight="600">${point.label}</text>
                 `).join('')}
             </g>
-            <text x="${margin.left}" y="22" fill="#333" font-size="15" font-weight="700">${title}</text>
+            <text x="${margin.left}" y="22" fill="#1e293b" font-size="15" font-weight="700">${title}</text>
         </svg>
     `;
 
@@ -2706,7 +2706,8 @@ function setupChartScrollControls() {
 
         if (isVertical) {
             /* Vertical scroll: the parent panel scrolls up/down */
-            const panel = controls.closest('.overview-analytics-panel') || (chart ? chart.closest('.overview-analytics-panel') : null);
+            const panel = controls.closest('.overview-analytics-panel, .sales-analytics-placeholder, .profit-analytics-panel')
+                || (chart ? chart.closest('.overview-analytics-panel, .sales-analytics-placeholder, .profit-analytics-panel') : null);
             const scrollTarget = panel || (wrapper ? wrapper.parentElement : null);
             const upBtn = controls.querySelector('[data-chart-scroll="up"]');
             const downBtn = controls.querySelector('[data-chart-scroll="down"]');
@@ -4278,12 +4279,12 @@ function renderAnalytics(type, animate = true) {
     const maxValue = Math.max(...values);
     const paddedMax = Math.max(5000, Math.ceil(maxValue / 5000) * 5000);
     const ticks = 5;
-    const svgWidth = 520;
-    const svgHeight = 220;
-    const margin = { top: 24, right: 24, bottom: 56, left: 56 };
+    const pointCount = data.items.length;
+    const svgWidth = Math.max(720, pointCount * 70 + 120);
+    const svgHeight = 280;
+    const margin = { top: 36, right: 28, bottom: 64, left: 62 };
     const chartWidth = svgWidth - margin.left - margin.right;
     const chartHeight = svgHeight - margin.top - margin.bottom;
-    const pointCount = data.items.length;
     const xStep = pointCount > 1 ? chartWidth / (pointCount - 1) : chartWidth;
 
     const points = data.items.map((item, index) => {
@@ -4304,7 +4305,7 @@ function renderAnalytics(type, animate = true) {
     }).join(' ');
 
     const svg = `
-        <svg width="100%" viewBox="0 0 ${svgWidth} ${svgHeight}" role="img" aria-label="${data.title} line chart">
+        <svg width="${svgWidth}" viewBox="0 0 ${svgWidth} ${svgHeight}" role="img" aria-label="${data.title} line chart">
             <rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" fill="#ffffff" rx="16" />
             <g>
                 <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + chartHeight}" stroke="#999" stroke-width="1.5" />
@@ -4312,23 +4313,23 @@ function renderAnalytics(type, animate = true) {
             </g>
             <g>
                 ${yTicks.map((tick) => `
-                    <line x1="${margin.left}" y1="${tick.y}" x2="${margin.left + chartWidth}" y2="${tick.y}" stroke="rgba(150,150,150,0.35)" />
-                    <text x="${margin.left - 14}" y="${tick.y + 4}" text-anchor="end" fill="#111" font-size="13" font-weight="700">${tick.value}</text>
+                    <line x1="${margin.left}" y1="${tick.y}" x2="${margin.left + chartWidth}" y2="${tick.y}" stroke="rgba(150,150,150,0.3)" />
+                    <text x="${margin.left - 14}" y="${tick.y + 5}" text-anchor="end" fill="#1e293b" font-size="13" font-weight="700">${tick.value}</text>
                 `).join('')}
             </g>
             <g${animate ? ' class="sales-line-dots"' : ''}>
                 ${points.map((point, index) => `
-                    <circle cx="${point.x}" cy="${point.y}" r="7" fill="#fff" stroke="#ff9800" stroke-width="3"${animate ? ` style="animation-delay: ${(index * 0.05).toFixed(2)}s"` : ''} />
-                    <text x="${point.x}" y="${point.y - 16}" text-anchor="middle" fill="#e65100" font-size="14" font-weight="800">${point.display}</text>
+                    <circle cx="${point.x}" cy="${point.y}" r="6" fill="#fff" stroke="#334155" stroke-width="2.5"${animate ? ` style="animation-delay: ${(index * 0.05).toFixed(2)}s"` : ''} />
+                    <text x="${point.x}" y="${point.y - 14}" text-anchor="middle" fill="#0f172a" font-size="14" font-weight="800">${point.display}</text>
                 `).join('')}
             </g>
-            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#ff9800" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+            <path${animate ? ' class="sales-line-path"' : ''} d="${pathD}"${animate ? ' pathLength="1"' : ''} fill="none" stroke="#334155" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
             <g>
                 ${points.map((point) => `
-                    <text x="${point.x}" y="${margin.top + chartHeight + 24}" text-anchor="middle" fill="#333" font-size="13" font-weight="600">${point.label}</text>
+                    <text x="${point.x}" y="${margin.top + chartHeight + 28}" text-anchor="middle" fill="#475569" font-size="13" font-weight="700">${point.label}</text>
                 `).join('')}
             </g>
-            <text x="${margin.left}" y="20" fill="#333" font-size="15" font-weight="700">${data.title}</text>
+            <text x="${margin.left}" y="22" fill="#1e293b" font-size="15" font-weight="700">${data.title}</text>
         </svg>
     `;
 
