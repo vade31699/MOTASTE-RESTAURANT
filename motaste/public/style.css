@@ -3950,7 +3950,7 @@ body.staff-app .chart-scroll-vertical {
     background: #f5f7fb;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    margin: 28px auto 0;
+    margin: 12px auto 0;
     padding: 28px;
     border-radius: 18px;
     box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
@@ -4054,8 +4054,8 @@ body.staff-app .chart-scroll-vertical {
     background: #fffbeb;
     border: 1px solid rgba(245, 158, 11, 0.35);
     border-radius: 16px;
-    padding: 16px 18px;
-    margin: 4px 0 18px;
+    padding: 14px 16px;
+    margin: 6px 0 10px;
     color: #78350f;
     box-shadow: 0 4px 14px rgba(245, 158, 11, 0.08);
 }
@@ -7821,7 +7821,7 @@ body.staff-app .brand-wordmark {
 }
 
 body.staff-app section[id] {
-    scroll-margin-top: 96px;
+    scroll-margin-top: 60px;
 }
 
 /* ---------- Scrollbars ---------- */
@@ -8040,7 +8040,8 @@ body.staff-app .account-management {
     border-radius: 20px;
     box-shadow: var(--staff-shadow-lg);
     color: var(--staff-text);
-    padding: 28px;
+    padding: 16px 28px 28px;
+    margin-top: 8px !important;
 }
 
 body.staff-app .overview-section > h2,
@@ -8048,11 +8049,12 @@ body.staff-app .inventory-section > h2,
 body.staff-app .orders-section > h2,
 body.staff-app .sales-section > h2,
 body.staff-app .account-management > h2 {
+    margin: 0 0 4px;
     color: var(--staff-text);
     font-weight: 800;
     letter-spacing: -0.01em;
     position: relative;
-    padding-bottom: 14px;
+    padding-bottom: 12px;
 }
 
 body.staff-app .overview-section > h2::after,
@@ -8074,7 +8076,9 @@ body.staff-app .inventory-section > p,
 body.staff-app .orders-section > p,
 body.staff-app .sales-section > p,
 body.staff-app .account-management > p {
+    margin: 0 0 12px;
     color: var(--staff-muted);
+    font-size: 0.9rem;
 }
 
 /* ---------- Overview metric cards ---------- */
@@ -8162,10 +8166,10 @@ body.staff-app .overview-analytics-panel:hover {
 body.staff-app .sales-analytics-placeholder h3,
 body.staff-app .overview-analytics-panel h3,
 body.staff-app .overview-order-notification-box h3 {
+    margin: 0 0 4px;
     color: var(--staff-text);
     font-size: 1.15rem;
     font-weight: 800;
-    margin-bottom: 4px;
 }
 
 body.staff-app .sales-analytics-placeholder > h3::before {
