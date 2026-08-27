@@ -2591,7 +2591,11 @@ function renderDetailChart(container, chartData, title, animate = true) {
     const paddedMax = Math.max(1000, Math.ceil(maxValue / 1000) * 1000);
     const ticks = 5;
     const pointCount = chartData.length;
-    const svgWidth = Math.max(520, pointCount * 30 + 120);
+    /* Weekly (4-5 pts) and monthly (12 pts) need enough room for labels;
+       daily (≈30 pts) scrolls.  Minimum 520 keeps small charts readable;
+       per-point spacing grows with fewer points so bars aren't cramped. */
+    const perPoint = pointCount <= 6 ? 80 : pointCount <= 14 ? 55 : 30;
+    const svgWidth = Math.max(520, Math.min(1400, pointCount * perPoint + 140));
     const svgHeight = 260;
     const margin = { top: 36, right: 28, bottom: 60, left: 62 };
     const chartWidth = svgWidth - margin.left - margin.right;
@@ -4280,7 +4284,7 @@ function renderAnalytics(type, animate = true) {
     const paddedMax = Math.max(5000, Math.ceil(maxValue / 5000) * 5000);
     const ticks = 5;
     const pointCount = data.items.length;
-    const svgWidth = Math.max(720, pointCount * 70 + 120);
+    const svgWidth = Math.max(600, Math.min(1200, pointCount * 55 + 140));
     const svgHeight = 280;
     const margin = { top: 36, right: 28, bottom: 64, left: 62 };
     const chartWidth = svgWidth - margin.left - margin.right;

@@ -3617,11 +3617,9 @@ body.modal-open {
 #sales .sales-analytics-placeholder,
 #sales .profit-analytics-panel {
     position: relative;
-    max-height: 500px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(148,163,184,0.35) transparent;
+    max-height: none;
+    overflow-y: visible;
+    overflow-x: visible;
 }
 
 /* Profit analytics panel: shared styles with sales panel */
@@ -3783,7 +3781,6 @@ body.modal-open {
     display: block;
     width: auto;
     min-width: 100%;
-    max-width: none;
     height: auto;
     border-radius: 14px;
 }
@@ -3808,6 +3805,11 @@ body.modal-open {
 
 .chart-scroll-controls:not(.is-scrollable) .chart-scroll-hint {
     display: none;
+}
+
+.chart-scroll-controls:not(.is-scrollable) .chart-scroll-btn {
+    opacity: 0.35;
+    pointer-events: none;
 }
 
 .chart-scroll-btn {
@@ -4126,11 +4128,8 @@ body.staff-app .retention-clear-btn {
 .overview-analytics-panel {
     position: relative;
     min-height: 0;
-    max-height: 440px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(148,163,184,0.35) transparent;
+    max-height: none;
+    overflow: visible;
 }
 
 /* Hide the native vertical scrollbar when vertical scroll buttons are present */
