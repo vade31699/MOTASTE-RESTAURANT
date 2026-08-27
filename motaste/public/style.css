@@ -3852,6 +3852,29 @@ body.staff-app .chart-scroll-vertical {
     }
 }
 
+/* Horizontal pan controls: stay comfortable to tap on tablet/phone widths.
+   Only layout/tap-target tweaks — chart container sizes are untouched. */
+@media (max-width: 768px) {
+    .chart-scroll-controls {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .chart-scroll-hint {
+        flex: 1 1 100%;
+        text-align: center;
+        margin-right: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-scroll-controls .chart-scroll-btn {
+        width: 44px;
+        height: 38px;
+    }
+}
+
 .overview-section,
 .inventory-section,
 .orders-section,
