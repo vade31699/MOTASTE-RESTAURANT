@@ -204,8 +204,8 @@
         </div>
         <div class="overview-grid">
             <div class="sales-analytics-placeholder overview-analytics-panel">
-                <h3>Sales Analysis</h3>
-                <p>Live sales Analysis with the same chart available in Sales.</p>
+                <h3><i class="fa-solid fa-chart-line" aria-hidden="true" style="margin-right:8px;color:#2BAE66;font-size:0.95em;"></i>Sales Analysis</h3>
+                <p>Live sales overview — track daily, weekly, and monthly performance.</p>
                 <div class="sales-analytics-select-wrapper">
                     <label for="overviewAnalyticsSelect">View:</label>
                     <select id="overviewAnalyticsSelect" class="analytics-select">
@@ -258,7 +258,7 @@
             <div class="overview-export-module" id="salesExportModule">
                 <div class="export-panel-header">
                     <div>
-                        <h3>Sales &amp; Receipt Export</h3>
+                        <h3><i class="fa-solid fa-file-excel" aria-hidden="true" style="margin-right:8px;color:#16A34A;font-size:0.95em;"></i>Sales &amp; Receipt Export</h3>
                         <p>Generate Excel reports of completed orders with order numbers and itemized food lists.</p>
                     </div>
                 </div>
@@ -345,7 +345,8 @@
         <h2>Sales</h2>
 
         <div class="sales-analytics-placeholder">
-            <h3>Analysis</h3>
+            <h3><i class="fa-solid fa-chart-bar" aria-hidden="true" style="margin-right:8px;color:#2BAE66;font-size:0.95em;"></i>Sales Analysis</h3>
+            <p>Analyze daily, weekly, and monthly revenue trends.</p>
             <div class="sales-analytics-select-wrapper">
                 <label for="analyticsSelect">View:</label>
                 <select id="analyticsSelect" class="analytics-select">
@@ -371,14 +372,13 @@
                     </select>
                 </div>
             </div>
-                <div class="sales-analytics-chart-wrapper">
-                    <div id="salesAnalyticsChart" class="sales-analytics-chart" aria-label="Sales analytics chart"></div>
-                </div>
-
+            <div class="sales-analytics-chart-wrapper">
+                <div id="salesAnalyticsChart" class="sales-analytics-chart" aria-label="Sales analytics chart"></div>
+            </div>
         </div>
 
         <div class="sales-analytics-placeholder profit-analytics-panel">
-            <h3>Profit</h3>
+            <h3><i class="fa-solid fa-coins" aria-hidden="true" style="margin-right:8px;color:#F59E0B;font-size:0.95em;"></i>Profit Analysis</h3>
             <p>Net profit from completed orders after cost of goods sold.</p>
             <div class="profit-summary-row">
                 <div class="profit-summary-chip">
@@ -430,7 +430,7 @@
         </div>
 
         <div class="sales-analytics-placeholder profit-export-panel">
-            <h3>Profit Report Export</h3>
+            <h3><i class="fa-solid fa-file-excel" aria-hidden="true" style="margin-right:8px;color:#16A34A;font-size:0.95em;"></i>Profit Report Export</h3>
             <p>Export profit reports (revenue, cost of goods sold, and net profit) as Excel. Costs use the inventory unit costs.</p>
             <div class="export-mode-tabs" role="tablist" aria-label="Profit report type">
                 <button type="button" class="profit-export-tab active" data-profit-export-mode="daily" role="tab" aria-selected="true">Daily Report</button>
