@@ -2745,28 +2745,17 @@ function setupChartScrollControls() {
             return;
         }
 
-        /* Horizontal scroll (original behavior) */
-        const leftBtn = controls.querySelector('[data-chart-scroll="left"]');
-        const rightBtn = controls.querySelector('[data-chart-scroll="right"]');
-        if (!chart || !wrapper || !leftBtn || !rightBtn) return;
+        /* Horizontal scroll — native overflow-x: auto, no custom buttons */
+        if (!chart || !wrapper) return;
 
         const updateButtons = () => {
             const maxScroll = Math.max(0, Math.ceil(wrapper.scrollWidth - wrapper.clientWidth));
-            const position = Math.ceil(wrapper.scrollLeft);
             const scrollable = maxScroll > 4;
             controls.classList.toggle('is-scrollable', scrollable);
-            leftBtn.disabled = !scrollable || position <= 4;
-            rightBtn.disabled = !scrollable || position >= maxScroll - 4;
         };
 
         if (controls.dataset.scrollBound !== 'true') {
             controls.dataset.scrollBound = 'true';
-            const panBy = (direction) => {
-                const stepAmt = Math.max(160, Math.round(wrapper.clientWidth * 0.8));
-                wrapper.scrollBy({ left: direction * stepAmt, behavior: 'smooth' });
-            };
-            leftBtn.addEventListener('click', () => panBy(-1));
-            rightBtn.addEventListener('click', () => panBy(1));
             wrapper.addEventListener('scroll', updateButtons, { passive: true });
             window.addEventListener('resize', updateButtons);
             new MutationObserver(updateButtons).observe(chart, { childList: true, subtree: true });
