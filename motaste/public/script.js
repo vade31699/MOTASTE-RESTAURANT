@@ -2675,6 +2675,9 @@ function updateAnalyticsView(animate = true) {
     } else {
         renderAnalytics('monthly', animate);
     }
+
+    setupChartScrollControls();
+    requestAnimationFrame(() => setupChartScrollControls());
 }
 
 function autoScrollChartToCurrentDay(chartContainer, monthKey, pointCount) {
@@ -3002,6 +3005,8 @@ function updateProfitView(animate = true) {
     }
 
     updateProfitSummary(view);
+    setupChartScrollControls();
+    requestAnimationFrame(() => setupChartScrollControls());
 }
 
 if (analyticsSelect) {
@@ -9761,6 +9766,17 @@ function renderOverviewAnalytics(animate = true) {
         const monthly = analyticsData.monthly.items;
         renderDetailChart(overviewAnalyticsChart, monthly, 'Monthly Sales', animate);
     }
+
+    // Re-evaluate scroll controls now that chart content is in the DOM.
+    // setupChartScrollControls() is typically called before this function
+    // (from showDashboardSection), at which point the chart is still empty.
+    // Calling it here — after the SVG is injected — ensures the
+    // scrollWidth/clientWidth check sees the real layout.
+    setupChartScrollControls();
+    // Belt-and-suspenders: re-check after the next frame in case the
+    // browser hasn't finished computing layout for the newly-visible
+    // section (e.g. when [hidden] was just removed).
+    requestAnimationFrame(() => setupChartScrollControls());
 }
 
 function showDashboardSection(section) {
