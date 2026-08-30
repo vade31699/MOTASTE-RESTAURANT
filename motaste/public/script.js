@@ -2738,6 +2738,7 @@ function setupChartScrollControls() {
             }
 
             updateButtons();
+            requestAnimationFrame(() => updateButtons());
             return;
         }
 
@@ -2769,6 +2770,7 @@ function setupChartScrollControls() {
         }
 
         updateButtons();
+        requestAnimationFrame(() => updateButtons());
     });
 }
 setupChartScrollControls();
