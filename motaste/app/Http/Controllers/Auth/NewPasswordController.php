@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
@@ -55,10 +56,14 @@ class NewPasswordController extends Controller
             }
         );
 
-        // If the password was successfully reset, we will redirect the user back to
-        // the application's home authenticated view. If there is an error we can
-        // redirect them back to where they came from with their error message.
+        // If the password was successfully reset, also update the staff table
+        // so the staff portal (authenticate_staff.php) can log in with the same password.
         if ($status == Password::PASSWORD_RESET) {
+            $staffEmail = strtolower(trim($request->email));
+            DB::table('staff')
+                ->whereRaw('LOWER(email) = ?', [$staffEmail])
+                ->update(['password_hash' => $user->password]);
+
             return redirect()->route('login')->with('status', __($status));
         }
 
