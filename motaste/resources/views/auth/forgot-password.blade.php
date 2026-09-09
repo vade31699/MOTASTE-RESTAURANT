@@ -34,79 +34,17 @@
             justify-content: center;
         }
         .logo svg { width: 32px; height: 32px; }
-        h1 {
-            text-align: center;
-            font-size: 22px;
-            font-weight: 700;
-            color: #111827;
-            margin-bottom: 8px;
-        }
-        .description {
-            text-align: center;
-            color: #6b7280;
-            font-size: 14px;
-            line-height: 1.5;
-            margin-bottom: 24px;
-        }
-        .status {
-            background: #dcfce7;
-            color: #16a34a;
-            padding: 10px 14px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 16px;
-            text-align: center;
-        }
-        .label {
-            display: block;
-            font-size: 14px;
-            font-weight: 500;
-            color: #374151;
-            margin-bottom: 6px;
-        }
-        .input {
-            width: 100%;
-            padding: 10px 14px;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            font-size: 15px;
-            color: #1f2937;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-        .input:focus {
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
-        }
-        .error {
-            color: #dc2626;
-            font-size: 13px;
-            margin-top: 4px;
-        }
-        .btn {
-            width: 100%;
-            padding: 12px;
-            background: #1e293b;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 600;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
+        h1 { text-align: center; font-size: 22px; font-weight: 700; color: #111827; margin-bottom: 8px; }
+        .description { text-align: center; color: #6b7280; font-size: 14px; line-height: 1.5; margin-bottom: 24px; }
+        .status { background: #dcfce7; color: #16a34a; padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 500; margin-bottom: 16px; text-align: center; }
+        .label { display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px; }
+        .input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; color: #1f2937; outline: none; }
+        .input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+        .error { color: #dc2626; font-size: 13px; margin-top: 4px; }
+        .btn { width: 100%; padding: 12px; background: #1e293b; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; text-transform: uppercase; cursor: pointer; }
         .btn:hover { background: #0f172a; }
         .btn:disabled { background: #94a3b8; cursor: not-allowed; }
-        .back-link {
-            display: block;
-            text-align: center;
-            margin-top: 20px;
-            color: #6b7280;
-            font-size: 14px;
-            text-decoration: none;
-        }
+        .back-link { display: block; text-align: center; margin-top: 20px; color: #6b7280; font-size: 14px; text-decoration: none; }
         .back-link:hover { color: #374151; text-decoration: underline; }
     </style>
 </head>
@@ -119,16 +57,14 @@
         </div>
 
         <h1>Forgot Password</h1>
-        <p class="description">
-            No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.
-        </p>
+        <p class="description">No problem. Just let us know your email address and we will email you a password reset link.</p>
 
-        @if (session('status'))
-            <div class="status">{{ session('status') }}</div>
-        @endif
+        <?php if (session('status')): ?>
+            <div class="status"><?php echo e(session('status')); ?></div>
+        <?php endif; ?>
 
-        <form method="POST" action="{{ route('password.email') }}">
-            @csrf
+        <form method="POST" action="<?php echo e(route('password.email')); ?>">
+            <?php echo csrf_field(); ?>
 
             <div class="mb-4">
                 <label class="label" for="email">Email</label>
@@ -137,27 +73,25 @@
                     type="email"
                     class="input"
                     name="email"
-                    value="{{ old('email') }}"
+                    value="<?php echo e(old('email')); ?>"
                     required
                     autofocus
                     autocomplete="email"
                 >
-                @error('email')
-                    <div class="error">{{ $message }}</div>
-                @enderror
+                <?php if($errors->has('email')): ?>
+                    <div class="error"><?php echo e($errors->first('email')); ?></div>
+                <?php endif; ?>
             </div>
 
             <button type="submit" class="btn" id="sendBtn">Email Password Reset Link</button>
         </form>
 
-        <a href="{{ route('login') }}" class="back-link">
-            &larr; Back to login
-        </a>
+        <a href="<?php echo e(route('login')); ?>" class="back-link">&larr; Back to login</a>
     </div>
 
     <script>
-        const form = document.querySelector('form');
-        const btn = document.getElementById('sendBtn');
+        var form = document.querySelector('form');
+        var btn = document.getElementById('sendBtn');
         form.addEventListener('submit', function () {
             btn.disabled = true;
             btn.textContent = 'Sending...';
