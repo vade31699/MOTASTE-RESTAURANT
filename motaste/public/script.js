@@ -19,87 +19,71 @@ const staffForm = document.getElementById('staffLoginForm');
 const staffLoginPage = document.querySelector('.staff-login-page');
 
 // Forgot password modal
-const forgotPasswordLink = document.getElementById('forgotPasswordLink');
-let forgotPasswordModal = null;
 
-function showForgotPasswordModal() {
-    if (forgotPasswordModal) return;
-    forgotPasswordModal = document.createElement('div');
-    forgotPasswordModal.className = 'forgot-password-modal';
-    forgotPasswordModal.innerHTML = '
-        <div class="forgot-password-modal-box">
-            <h3>Forgot Password?</h3>
-            <p>Enter your email address and we will send you a link to reset your password.</p>
-            <input type="email" id="forgotEmail" placeholder="Email address" required>
-            <div class="forgot-actions">
-                <button class="btn-cancel" id="forgotCancelBtn">Cancel</button>
-                <button class="btn-send" id="forgotSendBtn">Send Reset Link</button>
-            </div>
-        </div>
-    ';
-    document.body.appendChild(forgotPasswordModal);
 
-    document.getElementById('forgotCancelBtn').addEventListener('click', closeForgotPasswordModal);
-    document.getElementById('forgotSendBtn').addEventListener('click', handleForgotPasswordRequest);
-    document.getElementById('forgotEmail').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') handleForgotPasswordRequest();
-    });
+// Forgot password: simple modal-based flow
+const fpLink = document.getElementById('forgotPasswordLink');
+if (fpLink) {
+    fpLink.addEventListener('click', function (e) {
+        e.preventDefault();
+        // Build a minimal modal inline
+        var overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;';
+        overlay.innerHTML =
+            '<div style="background:#fff;border-radius:12px;padding:32px;max-width:420px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,0.2)">' +
+            '<h3 style="margin:0 0 8px;font-size:20px;color:#1b824a">Forgot Password?</h3>' +
+            '<p style="margin:0 0 20px;font-size:14px;color:#555;line-height:1.5">Enter your email and we will send a reset link.</p>' +
+            '<input type="email" id="fpEmail" placeholder="Email address" style="padding:10px;border:1px solid #ccc;border-radius:8px;width:100%;box-sizing:border-box;margin-bottom:12px" required>' +
+            '<div style="display:flex;gap:10px">' +
+            '<button id="fpCancel" style="flex:1;padding:10px;border:1px solid #ccc;background:#f5f5f5;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;color:#555">Cancel</button>' +
+            '<button id="fpSend" style="flex:1;padding:10px;border:none;background:#1b824a;color:#fff;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Send Reset Link</button>' +
+            '</div>' +
+            '</div>';
+        document.body.appendChild(overlay);
 
-    // Close on backdrop click
-    forgotPasswordModal.addEventListener('click', (e) => {
-        if (e.target === forgotPasswordModal) closeForgotPasswordModal();
-    });
+        var emailInput = document.getElementById('fpEmail');
+        var cancelBtn = document.getElementById('fpCancel');
+        var sendBtn = document.getElementById('fpSend');
 
-    document.getElementById('forgotEmail').focus();
-}
-
-function closeForgotPasswordModal() {
-    if (forgotPasswordModal) {
-        forgotPasswordModal.remove();
-        forgotPasswordModal = null;
-    }
-}
-
-async function handleForgotPasswordRequest() {
-    const emailInput = document.getElementById('forgotEmail');
-    const sendBtn = document.getElementById('forgotSendBtn');
-    const email = emailInput.value.trim();
-
-    if (!email) {
         emailInput.focus();
-        return;
-    }
 
-    sendBtn.disabled = true;
-    sendBtn.textContent = 'Sending…';
+        function closeModal() {
+            if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        }
 
-    try {
-        const response = await fetch(getApiUrl('api/forgot_password.php'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email }),
+        cancelBtn.addEventListener('click', closeModal);
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) closeModal();
         });
 
-        const data = await response.json();
+        sendBtn.addEventListener('click', function () {
+            var email = (emailInput.value || '').trim();
+            if (!email) {
+                emailInput.focus();
+                return;
+            }
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Sending…';
 
-        if (data.success) {
-            closeForgotPasswordModal();
-            alert('If an account with that email exists, a password reset link has been sent.');
-        } else {
-            alert(data.message || 'Could not send reset link. Please try again.');
-        }
-    } catch (err) {
-        alert('Network error. Please try again.');
-    } finally {
-        sendBtn.disabled = false;
-        sendBtn.textContent = 'Send Reset Link';
-    }
-}
-
-if (forgotPasswordLink) {
-    forgotPasswordLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        showForgotPasswordModal();
+            fetch(getApiUrl('api/forgot_password.php'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email })
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                closeModal();
+                alert('If an account with that email exists, a password reset link has been sent.');
+            })
+            .catch(function () {
+                closeModal();
+                alert('Network error. Please try again.');
+            })
+            .finally(function () {
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send Reset Link';
+            });
+        });
     });
 }
 
