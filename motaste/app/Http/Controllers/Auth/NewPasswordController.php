@@ -24,6 +24,7 @@ class NewPasswordController extends Controller
     {
         return view('auth.reset-password', [
             'token' => $request->route('token'),
+            'email' => $request->email,
         ]);
     }
 

@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 
 test('reset password link screen can be rendered', function () {
@@ -47,13 +48,25 @@ test('password can be reset with valid token', function () {
         $response = $this->post('/reset-password', [
             'token' => $notification->token,
             'email' => $user->email,
-            'password' => 'password',
-            'password_confirmation' => 'password',
+            'password' => 'new-password',
+            'password_confirmation' => 'new-password',
         ]);
 
         $response
             ->assertSessionHasNoErrors()
-            ->assertRedirect(route('login'));
+            ->assertRedirect(route('password.success'));
+
+        // The new password must actually be stored...
+        $user->refresh();
+
+        expect(Hash::check('new-password', $user->password))->toBeTrue();
+
+        // ...while the old password no longer works and the new one can log in.
+        $this->post('/login', ['email' => $user->email, 'password' => 'password'])
+            ->assertSessionHasErrors('email');
+
+        $this->post('/login', ['email' => $user->email, 'password' => 'new-password'])
+            ->assertSessionHasNoErrors();
 
         return true;
     });

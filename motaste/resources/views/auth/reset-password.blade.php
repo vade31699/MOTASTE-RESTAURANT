@@ -72,6 +72,11 @@
             @csrf
 
             <input type="hidden" name="token" value="{{ $token }}">
+            <input type="hidden" name="email" value="{{ $email ?? old('email') }}">
+
+            @error('email')
+                <div class="error">{{ $message }}</div>
+            @enderror
 
             <div class="mb-4">
                 <label class="label" for="password">Password</label>
