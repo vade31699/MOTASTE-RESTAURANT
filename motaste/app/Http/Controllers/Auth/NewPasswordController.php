@@ -69,7 +69,7 @@ class NewPasswordController extends Controller
                     ->update(['password_hash' => $newHash]);
             }
 
-            return redirect()->route('password.success', ['email' => $request->email]);
+            return redirect()->route('login')->with('status', __($status));
         }
 
         throw ValidationException::withMessages([
