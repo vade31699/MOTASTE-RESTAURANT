@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 
@@ -143,7 +142,7 @@ function saveStaffAccountsSnapshot(array $accounts): void
         $passwordPlain = isset($account['password']) ? (string)$account['password'] : '';
         $passwordHash = '';
         if ($passwordPlain !== '') {
-            $passwordHash = Hash::make($passwordPlain);
+            $passwordHash = password_hash($passwordPlain, PASSWORD_DEFAULT);
         }
 
         // Ensure there is a matching users row for this staff account.
@@ -158,7 +157,7 @@ function saveStaffAccountsSnapshot(array $accounts): void
             $userId = DB::table('users')->insertGetId([
                 'name' => $name,
                 'email' => $email,
-                'password' => $passwordHash !== '' ? $passwordHash : Hash::make(bin2hex(random_bytes(16))),
+                'password' => $passwordHash !== '' ? $passwordHash : password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
                 'email_verified_at' => now(),
                 'remember_token' => null,
                 'created_at' => now(),
