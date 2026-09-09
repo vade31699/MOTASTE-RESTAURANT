@@ -73,7 +73,7 @@ if (fpLink) {
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 closeModal();
-                alert('If an account with that email exists, a password reset link has been sent.');
+                window.location.href = getApiUrl('login');
             })
             .catch(function () {
                 closeModal();
