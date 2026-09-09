@@ -60,9 +60,14 @@ class NewPasswordController extends Controller
         // so the staff portal (authenticate_staff.php) can log in with the same password.
         if ($status == Password::PASSWORD_RESET) {
             $staffEmail = strtolower(trim($request->email));
-            DB::table('staff')
+            $newHash = DB::table('users')
                 ->whereRaw('LOWER(email) = ?', [$staffEmail])
-                ->update(['password_hash' => $user->password]);
+                ->value('password');
+            if ($newHash) {
+                DB::table('staff')
+                    ->whereRaw('LOWER(email) = ?', [$staffEmail])
+                    ->update(['password_hash' => $newHash]);
+            }
 
             return redirect()->route('login')->with('status', __($status));
         }
