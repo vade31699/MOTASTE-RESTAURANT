@@ -23,15 +23,17 @@ Route::middleware('guest')->group(function () {
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
         ->name('password.email');
 
+    // Registered before the {token} route so /reset-password/success is not
+    // captured by it as a token value.
+    Route::get('reset-password/success', function () {
+        return view('auth.reset-password-success');
+    })->name('password.success');
+
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
         ->name('password.reset');
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
-
-    Route::get('reset-password/success', function () {
-        return view('auth.reset-password-success');
-    })->name('password.success');
 });
 
 Route::middleware('auth')->group(function () {
