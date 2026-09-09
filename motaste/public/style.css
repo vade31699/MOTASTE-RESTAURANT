@@ -689,6 +689,99 @@ body.dashboard-panel-open .menu-btn {
     padding-right: 42px;
 }
 
+.forgot-password-link {
+    text-align: center;
+    margin-top: 12px;
+}
+
+.forgot-password-link a {
+    color: #1b824a;
+    font-size: 14px;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.forgot-password-link a:hover {
+    text-decoration: underline;
+}
+
+.forgot-password-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+}
+
+.forgot-password-modal-box {
+    background: #fff;
+    border-radius: 12px;
+    padding: 32px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+
+.forgot-password-modal-box h3 {
+    margin: 0 0 8px;
+    font-size: 20px;
+    color: #1b824a;
+}
+
+.forgot-password-modal-box p {
+    margin: 0 0 20px;
+    font-size: 14px;
+    color: #555;
+    line-height: 1.5;
+}
+
+.forgot-password-modal-box input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 12px;
+}
+
+.forgot-password-modal-box .forgot-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.forgot-password-modal-box .btn-cancel {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    background: #f5f5f5;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #555;
+}
+
+.forgot-password-modal-box .btn-send {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: #1b824a;
+    color: #fff;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.forgot-password-modal-box .btn-send:disabled {
+    background: #aaa;
+    cursor: not-allowed;
+}
+
 .password-toggle-btn {
     position: absolute;
     top: 50%;

@@ -18,6 +18,91 @@ const dashboardUserEmail = document.getElementById('dashboardUserEmail');
 const staffForm = document.getElementById('staffLoginForm');
 const staffLoginPage = document.querySelector('.staff-login-page');
 
+// Forgot password modal
+const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+let forgotPasswordModal = null;
+
+function showForgotPasswordModal() {
+    if (forgotPasswordModal) return;
+    forgotPasswordModal = document.createElement('div');
+    forgotPasswordModal.className = 'forgot-password-modal';
+    forgotPasswordModal.innerHTML = '
+        <div class="forgot-password-modal-box">
+            <h3>Forgot Password?</h3>
+            <p>Enter your email address and we will send you a link to reset your password.</p>
+            <input type="email" id="forgotEmail" placeholder="Email address" required>
+            <div class="forgot-actions">
+                <button class="btn-cancel" id="forgotCancelBtn">Cancel</button>
+                <button class="btn-send" id="forgotSendBtn">Send Reset Link</button>
+            </div>
+        </div>
+    ';
+    document.body.appendChild(forgotPasswordModal);
+
+    document.getElementById('forgotCancelBtn').addEventListener('click', closeForgotPasswordModal);
+    document.getElementById('forgotSendBtn').addEventListener('click', handleForgotPasswordRequest);
+    document.getElementById('forgotEmail').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleForgotPasswordRequest();
+    });
+
+    // Close on backdrop click
+    forgotPasswordModal.addEventListener('click', (e) => {
+        if (e.target === forgotPasswordModal) closeForgotPasswordModal();
+    });
+
+    document.getElementById('forgotEmail').focus();
+}
+
+function closeForgotPasswordModal() {
+    if (forgotPasswordModal) {
+        forgotPasswordModal.remove();
+        forgotPasswordModal = null;
+    }
+}
+
+async function handleForgotPasswordRequest() {
+    const emailInput = document.getElementById('forgotEmail');
+    const sendBtn = document.getElementById('forgotSendBtn');
+    const email = emailInput.value.trim();
+
+    if (!email) {
+        emailInput.focus();
+        return;
+    }
+
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending…';
+
+    try {
+        const response = await fetch(getApiUrl('api/forgot_password.php'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            closeForgotPasswordModal();
+            alert('If an account with that email exists, a password reset link has been sent.');
+        } else {
+            alert(data.message || 'Could not send reset link. Please try again.');
+        }
+    } catch (err) {
+        alert('Network error. Please try again.');
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Send Reset Link';
+    }
+}
+
+if (forgotPasswordLink) {
+    forgotPasswordLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        showForgotPasswordModal();
+    });
+}
+
 if (passwordInput && passwordToggleBtn) {
     passwordToggleBtn.addEventListener('click', () => {
         const isHidden = passwordInput.type === 'password';
