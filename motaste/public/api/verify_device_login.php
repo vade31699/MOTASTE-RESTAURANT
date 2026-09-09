@@ -10,6 +10,7 @@ $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 require_once __DIR__ . '/_device_auth_helpers.php';
 require_once __DIR__ . '/_helpers.php';
@@ -46,7 +47,7 @@ try {
         ->whereRaw('LOWER(email) = ?', [$email])
         ->first();
 
-    if (!$staffRow || !isset($staffRow->password_hash) || !password_verify($password, $staffRow->password_hash)) {
+    if (!$staffRow || !isset($staffRow->password_hash) || !Hash::check($password, $staffRow->password_hash)) {
         http_response_code(401);
         echo json_encode(['success' => false, 'error' => 'Invalid credentials']);
         exit;

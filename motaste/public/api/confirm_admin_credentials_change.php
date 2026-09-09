@@ -15,6 +15,7 @@ if (!requireAdminAuth()) {
 
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 require_once __DIR__ . '/_email_auth_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
@@ -37,7 +38,7 @@ try {
 
     // Validate current admin credentials against the staff table
     $adminRow = DB::table('staff')->whereRaw('LOWER(email) = ?', [$currentEmail])->first();
-    if (!$adminRow || !isset($adminRow->password_hash) || !password_verify($currentPassword, $adminRow->password_hash)) {
+    if (!$adminRow || !isset($adminRow->password_hash) || !Hash::check($currentPassword, $adminRow->password_hash)) {
         http_response_code(403);
         echo json_encode(['success' => false, 'error' => 'Current admin credentials are invalid']);
         exit;
@@ -77,7 +78,7 @@ try {
     }
 
     if ($newPassword !== '') {
-        $update['password_hash'] = password_hash($newPassword, PASSWORD_DEFAULT);
+        $update['password_hash'] = Hash::make($newPassword);
     }
 
     DB::table('staff')->where('id', $adminRow->id)->update($update);

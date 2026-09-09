@@ -55,9 +55,8 @@ test('user can delete their account', function () {
 
     $response = $this
         ->actingAs($user)
-        ->delete('/profile', [
-            'password' => 'password',
-        ]);
+        ->delete('/profile', [        'password' => 'Xk9#mP2$vL7@',
+    ]);
 
     $response
         ->assertSessionHasNoErrors()
