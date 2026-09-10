@@ -19,12 +19,12 @@ use Illuminate\Database\Schema\Blueprint;
 
 const STAFF_SESSION_LIFETIME_SECONDS = 30 * 24 * 60 * 60; // 30 days
 const STAFF_LOGIN_MAX_ATTEMPTS = 5;
-const STAFF_LOGIN_LOCKOUT_MINUTES = 15;
+const STAFF_LOGIN_LOCKOUT_MINUTES = 2;
 
 // IP-based brute-force protection: lock an IP after repeated failures
 // across any accounts, preventing distributed account enumeration.
 const STAFF_LOGIN_IP_MAX_ATTEMPTS = 20;
-const STAFF_LOGIN_IP_LOCKOUT_MINUTES = 15;
+const STAFF_LOGIN_IP_LOCKOUT_MINUTES = 2;
 
 /**
  * Ensure every schema addition used by the enhancement features exists.

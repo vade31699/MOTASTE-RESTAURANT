@@ -35,7 +35,7 @@ try {
         http_response_code(429);
         echo json_encode([
             'success' => false,
-            'error' => 'Too many failed login attempts. Please try again in 15 minutes.',
+            'error' => 'Too many failed login attempts. Please try again in ' . STAFF_LOGIN_LOCKOUT_MINUTES . ' minutes.',
             'rateLimited' => true,
         ]);
         exit;
@@ -48,7 +48,7 @@ try {
         http_response_code(429);
         echo json_encode([
             'success' => false,
-            'error' => 'Too many failed login attempts from this IP. Please try again in 15 minutes.',
+            'error' => 'Too many failed login attempts from this IP. Please try again in ' . STAFF_LOGIN_IP_LOCKOUT_MINUTES . ' minutes.',
             'rateLimited' => true,
         ]);
         exit;

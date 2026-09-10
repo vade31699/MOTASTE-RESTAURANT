@@ -38,7 +38,7 @@ try {
         http_response_code(429);
         echo json_encode([
             'success' => false,
-            'error' => 'Too many failed login attempts. Please try again in 15 minutes.',
+            'error' => 'Too many failed login attempts. Please try again in ' . STAFF_LOGIN_LOCKOUT_MINUTES . ' minutes.',
             'rateLimited' => true,
         ]);
         exit;
@@ -51,7 +51,7 @@ try {
         http_response_code(429);
         echo json_encode([
             'success' => false,
-            'error' => 'Too many failed login attempts from this IP. Please try again in 15 minutes.',
+            'error' => 'Too many failed login attempts from this IP. Please try again in ' . STAFF_LOGIN_IP_LOCKOUT_MINUTES . ' minutes.',
             'rateLimited' => true,
         ]);
         exit;
@@ -121,8 +121,8 @@ try {
         echo json_encode([
             'success' => false,
             'error' => $remaining > 0
-                ? "Invalid credentials. {$remaining} attempt(s) left before your account is locked for 15 minutes."
-                : 'Invalid credentials. Your account is now locked for 15 minutes.',
+                ? "Invalid credentials. {$remaining} attempt(s) left before your account is locked for " . STAFF_LOGIN_LOCKOUT_MINUTES . ' minutes.'
+                : 'Invalid credentials. Your account is now locked for ' . STAFF_LOGIN_LOCKOUT_MINUTES . ' minutes.',
             'remainingAttempts' => $remaining,
         ]);
         exit;
