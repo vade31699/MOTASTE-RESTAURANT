@@ -20,8 +20,17 @@ Route::middleware('guest')->group(function () {
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
 
+    // Step 1: email a verification code (the reset link is NOT sent yet).
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
         ->name('password.email');
+
+    // Step 2: confirm the emailed code — only then is the reset link emailed.
+    Route::post('forgot-password/verify', [PasswordResetLinkController::class, 'verify'])
+        ->name('password.verify');
+
+    // Abandon a pending code verification and start over.
+    Route::post('forgot-password/cancel', [PasswordResetLinkController::class, 'cancel'])
+        ->name('password.request.cancel');
 
     // Registered before the {token} route so /reset-password/success is not
     // captured by it as a token value.

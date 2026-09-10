@@ -36,6 +36,7 @@
         .logo svg { width: 32px; height: 32px; }
         h1 { text-align: center; font-size: 22px; font-weight: 700; color: #111827; margin-bottom: 8px; }
         .description { text-align: center; color: #6b7280; font-size: 14px; line-height: 1.5; margin-bottom: 24px; }
+        .description strong { color: #374151; }
         .status { background: #dcfce7; color: #16a34a; padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 500; margin-bottom: 16px; text-align: center; }
         .label { display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px; }
         .input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; color: #1f2937; outline: none; }
@@ -44,8 +45,13 @@
         .btn { width: 100%; padding: 12px; background: #1e293b; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; text-transform: uppercase; cursor: pointer; }
         .btn:hover { background: #0f172a; }
         .btn:disabled { background: #94a3b8; cursor: not-allowed; }
+        .btn-row { display: flex; gap: 12px; margin-top: 12px; }
+        .btn-row form { flex: 1; }
+        .btn-secondary { width: 100%; padding: 10px; background: #fff; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .btn-secondary:hover { background: #f3f4f6; }
         .back-link { display: block; text-align: center; margin-top: 20px; color: #6b7280; font-size: 14px; text-decoration: none; }
         .back-link:hover { color: #374151; text-decoration: underline; }
+        .mb-4 { margin-bottom: 16px; }
     </style>
 </head>
 <body>
@@ -56,45 +62,105 @@
             </svg>
         </div>
 
-        <h1>Forgot Password</h1>
-        <p class="description">No problem. Just let us know your email address and we will email you a password reset link.</p>
+        @if(session('status'))
+            <h1>Check Your Email</h1>
+            <p class="description">{{ session('status') }}</p>
+            <a href="{{ route('login') }}" class="back-link">&larr; Back to login</a>
+        @elseif($pendingEmail)
+            <h1>Enter Verification Code</h1>
+            <p class="description">
+                We emailed a 6-digit verification code to <strong>{{ $pendingEmail }}</strong>.
+                Enter it below — only after it is confirmed will we email the password reset link.
+            </p>
 
-        <?php if (session('status')): ?>
-            <div class="status"><?php echo e(session('status')); ?></div>
-        <?php endif; ?>
+            @if(session('codeSent'))
+                <div class="status">Code sent. If you haven't received it yet, check your spam folder.</div>
+            @endif
 
-        <form method="POST" action="<?php echo e(route('password.email')); ?>">
-            <?php echo csrf_field(); ?>
+            <form method="POST" action="{{ route('password.verify') }}">
+                @csrf
+                <input type="hidden" name="email" value="{{ $pendingEmail }}">
 
-            <div class="mb-4">
-                <label class="label" for="email">Email</label>
-                <input
-                    id="email"
-                    type="email"
-                    class="input"
-                    name="email"
-                    value="<?php echo e(old('email')); ?>"
-                    required
-                    autofocus
-                    autocomplete="email"
-                >
-                <?php if($errors->has('email')): ?>
-                    <div class="error"><?php echo e($errors->first('email')); ?></div>
-                <?php endif; ?>
+                <div class="mb-4">
+                    <label class="label" for="code">Verification Code</label>
+                    <input
+                        id="code"
+                        type="text"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        maxlength="6"
+                        class="input"
+                        name="code"
+                        placeholder="6-digit code"
+                        required
+                        autofocus
+                        autocomplete="one-time-code"
+                    >
+                    @error('code')
+                        <div class="error">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <button type="submit" class="btn" id="verifyBtn">Verify Code</button>
+            </form>
+
+            <div class="btn-row">
+                <form method="POST" action="{{ route('password.email') }}">
+                    @csrf
+                    <input type="hidden" name="email" value="{{ $pendingEmail }}">
+                    <button type="submit" class="btn-secondary">Resend Code</button>
+                </form>
+
+                <form method="POST" action="{{ route('password.request.cancel') }}">
+                    @csrf
+                    <button type="submit" class="btn-secondary">Use a Different Email</button>
+                </form>
             </div>
 
-            <button type="submit" class="btn" id="sendBtn">Email Password Reset Link</button>
-        </form>
+            <a href="{{ route('login') }}" class="back-link">&larr; Back to login</a>
+        @else
+            <h1>Forgot Password</h1>
+            <p class="description">
+                No problem. Enter your email address and we will send you a verification
+                code to confirm your identity before emailing a password reset link.
+            </p>
 
-        <a href="<?php echo e(route('login')); ?>" class="back-link">&larr; Back to login</a>
+            <form method="POST" action="{{ route('password.email') }}">
+                @csrf
+
+                <div class="mb-4">
+                    <label class="label" for="email">Email</label>
+                    <input
+                        id="email"
+                        type="email"
+                        class="input"
+                        name="email"
+                        value="{{ old('email') }}"
+                        required
+                        autofocus
+                        autocomplete="email"
+                    >
+                    @error('email')
+                        <div class="error">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <button type="submit" class="btn" id="sendBtn">Send Verification Code</button>
+            </form>
+
+            <a href="{{ route('login') }}" class="back-link">&larr; Back to login</a>
+        @endif
     </div>
 
     <script>
-        var form = document.querySelector('form');
-        var btn = document.getElementById('sendBtn');
-        form.addEventListener('submit', function () {
-            btn.disabled = true;
-            btn.textContent = 'Sending...';
+        document.querySelectorAll('form').forEach(function (form) {
+            form.addEventListener('submit', function () {
+                var btn = form.querySelector('button[type="submit"]');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = 'Please wait...';
+                }
+            });
         });
     </script>
 </body>
