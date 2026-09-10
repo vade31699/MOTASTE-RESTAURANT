@@ -778,7 +778,9 @@
                 <option value="Inventory Manager">Inventory Manager</option>
             </select>
             <input type="email" id="accountEmail" placeholder="Gmail only (example@gmail.com)" required>
-            <input type="password" id="accountPassword" placeholder="Password set by Admin" required>
+            <input type="password" id="accountPassword" placeholder="Password set by Admin" minlength="8" required>
+            <input type="password" id="accountPasswordConfirmation" placeholder="Confirm password" minlength="8" required>
+            <small class="field-helper">Use 8+ characters with uppercase, lowercase, and a number. Common passwords are rejected.</small>
             <button type="submit">Save Account</button>
             <button type="button" id="cancelAccountFormBtn" class="secondary-btn">Cancel</button>
         </form>
@@ -819,9 +821,9 @@
                 <label for="adminNewEmail">New admin Gmail</label>
             </div>
             <div class="floating-field">
-                <input type="password" id="adminNewPassword" placeholder=" " minlength="8" required autocomplete="new-password">
+                <input type="password" id="adminNewPassword" placeholder=" " minlength="12" required autocomplete="new-password">
                 <label for="adminNewPassword">New admin password</label>
-                <small class="field-helper">Password must be a minimum of 8 characters. There is no maximum length restriction.</small>
+                <small class="field-helper">Use at least 12 characters with uppercase, lowercase, and a number. Common passwords are rejected.</small>
             </div>
             <button type="button" id="requestCredentialsChangeBtn">Send Verification Code</button>
             <div class="floating-field">
@@ -843,9 +845,9 @@
                 <label for="adminPasswordCurrentPassword">Current admin password</label>
             </div>
             <div class="floating-field">
-                <input type="password" id="adminPasswordNewPassword" placeholder=" " minlength="8" required autocomplete="new-password">
+                <input type="password" id="adminPasswordNewPassword" placeholder=" " minlength="12" required autocomplete="new-password">
                 <label for="adminPasswordNewPassword">New admin password</label>
-                <small class="field-helper">Password must be a minimum of 8 characters. There is no maximum length restriction.</small>
+                <small class="field-helper">Use at least 12 characters with uppercase, lowercase, and a number. Common passwords are rejected.</small>
             </div>
             <button type="button" id="requestPasswordChangeBtn">Send Verification Code</button>
             <div class="floating-field">

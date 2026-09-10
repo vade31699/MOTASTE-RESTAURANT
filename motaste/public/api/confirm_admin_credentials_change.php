@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 
 require_once __DIR__ . '/_email_auth_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
+require_once __DIR__ . '/_password_policy.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
 $currentEmail = strtolower(trim((string)($input['currentEmail'] ?? '')));
@@ -69,15 +70,33 @@ try {
     }
 
     $newEmail = strtolower(trim((string)$token->pending_email));
-    $newPassword = (string)$token->pending_password;
+    $newPasswordHash = (string)$token->pending_password;
     $update = ['updated_at' => now()];
 
     if ($newEmail !== '' && $newEmail !== strtolower(trim((string)$adminRow->email))) {
         $update['email'] = $newEmail;
     }
 
-    if ($newPassword !== '') {
-        $update['password_hash'] = password_hash($newPassword, PASSWORD_DEFAULT);
+    if ($newPasswordHash !== '') {
+        // Security: the pending value is the FINAL bcrypt hash, created at
+        // request time — it is copied into staff.password_hash as-is. The
+        // plaintext password is never persisted, not even transiently.
+        //
+        // Legacy-token safety: rows written before this fix hold raw plaintext
+        // (max 10-minute TTL). Detect them (bcrypt hashes are exactly 60 chars
+        // starting with $2y$ / $2a$ / $2b$) and hash-on-confirm so a pre-fix
+        // pending password can never land in the staff table unhashed.
+        $isBcryptHash = strlen($newPasswordHash) === 60
+            && (str_starts_with($newPasswordHash, '$2y$')
+                || str_starts_with($newPasswordHash, '$2a$')
+                || str_starts_with($newPasswordHash, '$2b$'));
+
+        // Also pass through Argon2 hashes should PASSWORD_DEFAULT ever change.
+        $isArgonHash = str_starts_with($newPasswordHash, '$argon');
+
+        $update['password_hash'] = ($isBcryptHash || $isArgonHash)
+            ? $newPasswordHash
+            : password_hash($newPasswordHash, PASSWORD_DEFAULT);
     }
 
     DB::table('staff')->where('id', $adminRow->id)->update($update);

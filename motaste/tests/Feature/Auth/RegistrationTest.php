@@ -1,19 +1,13 @@
 <?php
 
-test('registration screen can be rendered', function () {
-    $response = $this->get('/register');
+use Illuminate\Support\Facades\Route;
 
-    $response->assertStatus(200);
-});
-
-test('new users can register', function () {
-    $response = $this->post('/register', [
-        'name' => 'Test User',
-        'email' => 'test@example.com',
-        'password' => 'password',
-        'password_confirmation' => 'password',
-    ]);
-
-    $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+// Self-registration is intentionally disabled (routes removed in commit
+// 4fbeac5): accounts are created by admin invite only. The
+// RegisteredUserController is kept as Breeze scaffolding. This test guards
+// against the route being accidentally re-added without re-introducing the
+// strong password policy tests (min 12 mixedCase + numbers + NotCommonPassword
+// for password reset; Password::defaults() + NotCommonPassword elsewhere).
+test('self-registration is disabled', function () {
+    expect(Route::has('register'))->toBeFalse();
 });

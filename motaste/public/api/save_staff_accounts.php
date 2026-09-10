@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 
 require_once __DIR__ . '/_email_auth_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
+require_once __DIR__ . '/_password_policy.php';
 
 validateCsrfOrExit();
 
@@ -29,6 +30,27 @@ if (!is_array($input)) {
 }
 
 try {
+    // Strong password policy: reject weak plaintext passwords before they are
+    // hashed and persisted. Admin accounts get the elevated 12-character
+    // minimum; Cashier / Inventory Manager accounts use the standard 8.
+    foreach ($input as $account) {
+        if (!is_array($account)) {
+            continue;
+        }
+        $candidate = (string)($account['password'] ?? '');
+        if ($candidate === '') {
+            continue;
+        }
+        $confirmation = (string)($account['password_confirmation'] ?? '');
+        if ($candidate !== $confirmation) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'error' => 'Password confirmation does not match for ' . ($account['email'] ?? 'unknown account')]);
+            exit;
+        }
+        $accountRole = strtolower(trim((string)($account['role'] ?? '')));
+        enforce_password_policy($candidate, forAdmin: $accountRole === 'admin');
+    }
+
     saveStaffAccountsSnapshot($input);
 
     echo json_encode(['success' => true]);

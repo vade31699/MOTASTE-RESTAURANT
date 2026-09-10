@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 
 require_once __DIR__ . '/_email_auth_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
+require_once __DIR__ . '/_password_policy.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
 $currentEmail = strtolower(trim((string)($input['currentEmail'] ?? '')));
@@ -45,11 +46,10 @@ if ($newEmail !== '' && !preg_match('/@gmail\.com$/', $newEmail)) {
     exit;
 }
 
-// Admin password policy: minimum 8 characters, no upper length limit.
-if ($newPassword !== '' && mb_strlen($newPassword) < 8) {
-    http_response_code(422);
-    echo json_encode(['success' => false, 'error' => 'Admin password must be at least 8 characters']);
-    exit;
+// Strong password policy: length, complexity, and common-password rejection.
+// Admin password changes get the elevated 12-character minimum.
+if ($newPassword !== '') {
+    enforce_password_policy($newPassword, forAdmin: true);
 }
 
 try {
@@ -67,7 +67,16 @@ try {
     $codeHash = hash('sha256', $code);
     $expiresAt = now()->addMinutes(10);
     $pendingEmail = $newEmail !== '' ? $newEmail : $currentEmail;
-    $pendingPassword = $newPassword;
+
+    // Security: the pending password is NEVER stored in plaintext. The final
+    // bcrypt hash (with its unique per-password salt) is computed now, while
+    // the plaintext password is still in memory, and only that hash is
+    // persisted in the pending token. At confirmation time the hash is copied
+    // into staff.password_hash as-is. This satisfies "do not store plaintext
+    // passwords" end to end.
+    $pendingPasswordHash = $newPassword !== ''
+        ? password_hash($newPassword, PASSWORD_DEFAULT)
+        : '';
 
     DB::table('admin_credential_change_tokens')
         ->where('current_email', $currentEmail)
@@ -77,7 +86,7 @@ try {
         'current_email' => $currentEmail,
         'code_hash' => $codeHash,
         'pending_email' => $pendingEmail,
-        'pending_password' => $pendingPassword,
+        'pending_password' => $pendingPasswordHash,
         'expires_at' => $expiresAt,
         'created_at' => now(),
         'updated_at' => now(),

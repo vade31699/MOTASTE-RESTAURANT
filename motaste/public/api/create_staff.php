@@ -20,6 +20,7 @@ if (!requireAdminAuth()) {
 }
 
 require_once __DIR__ . '/csrf_guard.php';
+require_once __DIR__ . '/_password_policy.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
 if (!is_array($input)) {
@@ -34,10 +35,18 @@ $full = isset($input['name']) ? trim($input['name']) : '';
 $role = isset($input['role']) ? trim($input['role']) : '';
 $email = isset($input['email']) ? strtolower(trim($input['email'])) : '';
 $password = isset($input['password']) ? (string)$input['password'] : '';
+$passwordConfirmation = isset($input['password_confirmation']) ? (string)$input['password_confirmation'] : '';
 
 if (!$full || !$role || !$email || !$password) {
     http_response_code(400);
     echo json_encode(['error' => 'Missing fields']);
+    exit;
+}
+
+// Password confirmation: the two fields must match exactly.
+if ($password !== $passwordConfirmation) {
+    http_response_code(422);
+    echo json_encode(['error' => 'Password confirmation does not match']);
     exit;
 }
 
@@ -56,11 +65,8 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL) || !preg_match('/@gmail\.com$/', 
     exit;
 }
 
-if (strlen($password) < 8) {
-    http_response_code(422);
-    echo json_encode(['error' => 'Password must be at least 8 characters']);
-    exit;
-}
+// Strong password policy: length, complexity, and common-password rejection.
+enforce_password_policy($password);
 
 $hash = password_hash($password, PASSWORD_DEFAULT);
 

@@ -25,6 +25,8 @@ return new class extends Migration
                 $table->string('current_email', 191);
                 $table->string('code_hash', 191);
                 $table->string('pending_email', 191);
+                // Stores the FINAL password_hash (bcrypt/argon2, salted per
+                // password) of the pending new password — never plaintext.
                 $table->string('pending_password', 191);
                 $table->timestamp('expires_at');
                 $table->timestamps();

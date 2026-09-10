@@ -9045,6 +9045,7 @@ body.staff-app .floating-field input:not(:placeholder-shown) + label {
     color: var(--staff-accent-2);
 }
 
+body.staff-app .account-form .field-helper,
 body.staff-app .floating-field .field-helper {
     display: block;
     margin-top: 6px;

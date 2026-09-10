@@ -2087,6 +2087,7 @@ const accountManagementSection = document.getElementById('account-management');
 const highlightsSection = document.getElementById('highlights');
 const credentialsSection = document.getElementById('credentials');
 const accountForm = document.getElementById('accountForm');
+const accountPasswordConfirmationInput = document.getElementById('accountPasswordConfirmation');
 const toggleAccountFormBtn = document.getElementById('toggleAccountFormBtn');
 const cancelAccountFormBtn = document.getElementById('cancelAccountFormBtn');
 const accountList = document.getElementById('accountList');
@@ -2141,6 +2142,7 @@ function renderAccounts() {
                     </select>
                     <input type="email" value="${escapeHtml(account.email)}" data-field="email" aria-label="Staff email">
                     <input type="password" value="${escapeHtml(account.password)}" data-field="password" aria-label="Staff password">
+                    <input type="password" value="" data-field="password_confirmation" placeholder="Confirm password" aria-label="Confirm staff password">
                     <div class="account-inline-actions">
                         <button type="button" class="save-btn" data-index="${account._index}">Save</button>
                         <button type="button" class="cancel-btn" data-index="${account._index}">Cancel</button>
@@ -2235,9 +2237,9 @@ async function requestAdminCredentialsChange({
         return;
     }
 
-    // Admin password policy: minimum 8 characters, no upper length limit.
-    if (nextPassword !== '' && nextPassword.length < 8) {
-        setCredentialsMessage('Admin password must be at least 8 characters.', true);
+    // Mirror of the server's strong password policy (12+ chars, complexity).
+    if (nextPassword !== '' && (nextPassword.length < 12 || !/[A-Z]/.test(nextPassword) || !/[a-z]/.test(nextPassword) || !/[0-9]/.test(nextPassword))) {
+        setCredentialsMessage('Admin password must be at least 12 characters and include uppercase, lowercase, and a number.', true);
         return;
     }
 
@@ -4404,6 +4406,7 @@ if (accountForm) {
             role: accountRoleInput ? accountRoleInput.value : '',
             email: accountEmailInput ? accountEmailInput.value.trim().toLowerCase() : '',
             password: accountPasswordInput ? accountPasswordInput.value : '',
+            password_confirmation: accountPasswordConfirmationInput ? accountPasswordConfirmationInput.value : '',
             inviteConfirmed: false
         };
 
@@ -4418,6 +4421,18 @@ if (accountForm) {
 
         if (!isGmailAddress(account.email)) {
             await showStaffNotice('Only Gmail addresses are allowed for cashier/inventory accounts.', true);
+            return;
+        }
+
+        // Mirror of the server's strong password policy (8+ chars, complexity).
+        if (account.password.length < 8 || !/[A-Z]/.test(account.password) || !/[a-z]/.test(account.password) || !/[0-9]/.test(account.password)) {
+            await showStaffNotice('Password must be at least 8 characters and include uppercase, lowercase, and a number.', true);
+            return;
+        }
+
+        const passwordConfirmation = accountPasswordConfirmationInput ? accountPasswordConfirmationInput.value : '';
+        if (account.password !== passwordConfirmation) {
+            await showStaffNotice('Password confirmation does not match.', true);
             return;
         }
 
@@ -4506,11 +4521,17 @@ if (accountList) {
                 role: row.querySelector('[data-field="role"]')?.value || '',
                 email: (row.querySelector('[data-field="email"]')?.value || '').trim().toLowerCase(),
                 password: row.querySelector('[data-field="password"]')?.value || '',
+                password_confirmation: row.querySelector('[data-field="password_confirmation"]')?.value || '',
                 inviteConfirmed: false
             };
 
             if (!updatedAccount.name || !updatedAccount.role || !updatedAccount.email || !updatedAccount.password) {
                 await showStaffNotice('Please complete all staff account fields.', true);
+                return;
+            }
+
+            if (updatedAccount.password !== updatedAccount.password_confirmation) {
+                await showStaffNotice('Password confirmation does not match.', true);
                 return;
             }
 
