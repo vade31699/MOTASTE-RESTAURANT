@@ -39,11 +39,12 @@ try {
     $history = $rows->map(static function ($row) {
         return [
             'id' => (int)($row->id ?? 0),
-            'email' => (string)($row->email ?? ''),
+            'email' => maskEmailAddressForDisplay((string)($row->email ?? '')),
             'role' => (string)($row->role ?? ''),
             'full_name' => (string)($row->full_name ?? ''),
             'device_label' => (string)($row->device_label ?? ''),
-            'ip_address' => (string)($row->ip_address ?? ''),
+            // DPA masking: keep enough prefix to correlate abuse, hide the rest.
+            'ip_address' => maskIpAddressForDisplay((string)($row->ip_address ?? '')),
             'logged_in_at' => (string)($row->logged_in_at ?? ''),
         ];
     })->values()->all();

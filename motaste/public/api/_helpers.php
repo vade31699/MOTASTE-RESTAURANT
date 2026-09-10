@@ -10,6 +10,60 @@ use Illuminate\Database\Schema\Blueprint;
  */
 
 /**
+ * Mask an email address for dashboard display (DPA data minimization):
+ * "juan.delacruz@gmail.com" -> "j***@gmail.com". Keeps the domain so staff can
+ * still distinguish providers, but hides the local part. Non-emails are
+ * returned unchanged.
+ */
+function maskEmailAddressForDisplay(string $email): string
+{
+    $email = trim($email);
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return $email;
+    }
+
+    [$local, $domain] = explode('@', $email, 2);
+    if ($local === '') {
+        return $email;
+    }
+
+    return substr($local, 0, 1) . '***@' . $domain;
+}
+
+/**
+ * Mask an IPv4/IPv6 address for dashboard display:
+ * "112.198.77.9" -> "112.198.*.*", "2001:db8:85a3::8a2e:370:7334" ->
+ * "2001:db8:*". Retains enough prefix for staff to correlate repeated
+ * abuse from the same network without exposing the full address.
+ */
+function maskIpAddressForDisplay(string $ip): string
+{
+    $ip = trim($ip);
+    if ($ip === '') {
+        return $ip;
+    }
+
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        $parts = explode('.', $ip);
+        return $parts[0] . '.' . $parts[1] . '.*.*';
+    }
+
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+        $groups = explode(':', $ip);
+        $kept = [];
+        foreach ($groups as $group) {
+            if (count($kept) >= 2) {
+                break;
+            }
+            $kept[] = $group !== '' ? $group : '0';
+        }
+        return implode(':', $kept) . ':*';
+    }
+
+    return $ip;
+}
+
+/**
  * Ensure the order preparation timer columns exist. Schema is normally managed
  * by Laravel migrations; the inline fallback keeps order endpoints working even
  * when migrations have not been run on the deployment yet.

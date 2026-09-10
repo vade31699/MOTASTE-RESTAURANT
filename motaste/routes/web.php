@@ -30,6 +30,19 @@ Route::get('/staff.html', function () {
     return redirect()->route('staff');
 });
 
+// Legal pages (Philippine DPA compliance). Routed through PHP (not the
+// platform's static-file layer) so the SecurityHeaders middleware applies
+// CSP/HSTS to them like every other page.
+Route::get('/privacy', function () {
+    $path = public_path('privacy.html');
+    return file_exists($path) ? response()->file($path) : abort(404);
+})->name('privacy');
+
+Route::get('/terms', function () {
+    $path = public_path('terms.html');
+    return file_exists($path) ? response()->file($path) : abort(404);
+})->name('terms');
+
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');

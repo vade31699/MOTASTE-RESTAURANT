@@ -29,6 +29,20 @@ if (!$input || !is_array($input['items'] ?? null) || count($input['items']) === 
 // Per-IP abuse protection for order creation: count only valid attempts so a
 // scripted spammer is throttled while a customer placing a few orders is not.
 recordOrderApiRequest('create_order');
+
+// DPA (RA 10173) consent enforcement: personal information (name, phone,
+// email, delivery address) may only be collected after the customer agreed to
+// the Privacy Notice. The UI checkbox is the primary gate; this server-side
+// check makes consent mandatory even for direct API calls.
+if (empty($input['privacyConsent'])) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'error' => 'You must agree to the Privacy Notice and Terms & Conditions before placing an order.',
+        'needsConsent' => true,
+    ]);
+    exit;
+}
 if (isOrderApiRateLimited('create_order', 12, 60)) {
     http_response_code(429);
     echo json_encode(['success' => false, 'error' => 'Too many orders placed from this device. Please wait a minute and try again.']);

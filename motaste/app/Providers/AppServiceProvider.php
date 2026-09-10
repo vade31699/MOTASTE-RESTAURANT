@@ -25,6 +25,15 @@ class AppServiceProvider extends ServiceProvider
         Vite::prefetch(concurrency: 3);
         Schema::defaultStringLength(191);
 
+        // Force HTTPS at the application level (DPA 2.1: no credentials or
+        // personal data over plain HTTP). The hosting platform already
+        // terminates TLS and redirects, but this makes the redirect explicit
+        // even if the app is ever served from a different entrypoint. Local
+        // HTTP (php artisan serve) stays usable for development.
+        if (! $this->app->environment(['local', 'testing'])) {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
+
         // Strong password policy shared by the registration, password update,
         // and password reset flows. Mirrors public/api/_password_policy.php
         // so both auth systems (Laravel users + pure PHP staff endpoints)

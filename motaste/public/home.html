@@ -333,6 +333,16 @@
                         <span>Total</span>
                         <strong id="orderCheckoutTotal">₱0</strong>
                     </div>
+                    <div class="order-checkout-section consent-section">
+                        <label class="consent-label" for="privacyConsentCheckbox">
+                            <input type="checkbox" id="privacyConsentCheckbox">
+                            <span>I have read and agree to the
+                                <a href="/privacy" target="_blank" rel="noopener">Privacy Notice</a> and
+                                <a href="/terms" target="_blank" rel="noopener">Terms &amp; Conditions</a>.
+                                I consent to the collection of my order and contact details to process this order.
+                            </span>
+                        </label>
+                    </div>
                     <p id="checkoutMessage" class="menu-order-message" aria-live="polite"></p>
                     <div class="order-checkout-actions">
                         <button type="button" id="confirmOrderBtn" class="menu-place-order-btn">Confirm Order</button>
@@ -550,6 +560,8 @@
                 <a href="#menu">Menu</a>
                 <a href="#about">About Us</a>
                 <a href="#contact">Contact</a>
+                <a href="/privacy">Privacy Notice</a>
+                <a href="/terms">Terms &amp; Conditions</a>
             </nav>
 
             <div class="footer-col">
@@ -568,6 +580,9 @@
 
         <div class="footer-bottom">
             <p>© <span id="footerYear">2026</span> Motaste Restaurant. All rights reserved.</p>
+            <p class="footer-legal-links">
+                <a href="/privacy">Privacy Notice</a> · <a href="/terms">Terms &amp; Conditions</a>
+            </p>
             <p class="footer-made-with">Crafted with <span aria-hidden="true">♥</span> in Cebu</p>
         </div>
     </footer>

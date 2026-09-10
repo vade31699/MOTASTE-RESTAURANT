@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="/">
+    <!-- Served via the /privacy and /terms Laravel routes so the
+         SecurityHeaders middleware applies the CSP header. This meta tag
+         mirrors that policy as defense-in-depth; keep in sync with
+         app/Http/Middleware/SecurityHeaders.php. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'self'; object-src 'none'">
+    <meta name="description" content="How MoTaste Restaurant collects, uses, stores, and protects your personal data under the Philippine Data Privacy Act of 2012 (RA 10173).">
+    <meta name="robots" content="index, follow">
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <title>Privacy Notice — MoTaste Restaurant</title>
+    <style>
+        :root { color-scheme: light; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            line-height: 1.7;
+            color: #1f2937;
+            background: #f9fafb;
+        }
+        .page {
+            max-width: 820px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+        }
+        header.brand {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+        header.brand strong { font-size: 1.15rem; letter-spacing: 0.02em; }
+        header.brand a { color: #b45309; text-decoration: none; font-size: 0.95rem; }
+        h1 { font-size: 1.9rem; margin-bottom: 4px; color: #111827; }
+        .updated { color: #6b7280; font-size: 0.9rem; margin-bottom: 28px; }
+        h2 {
+            font-size: 1.15rem;
+            margin: 28px 0 10px;
+            color: #111827;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 6px;
+        }
+        p, li { font-size: 0.98rem; margin-bottom: 8px; }
+        ul { padding-left: 22px; margin-bottom: 12px; }
+        table { border-collapse: collapse; width: 100%; margin: 12px 0 20px; background: #fff; }
+        th, td { border: 1px solid #e5e7eb; padding: 8px 12px; text-align: left; font-size: 0.92rem; vertical-align: top; }
+        th { background: #f3f4f6; }
+        .contact-box {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-top: 24px;
+        }
+        .contact-box strong { display: block; margin-bottom: 6px; }
+        .back-home { display: inline-block; margin-top: 36px; color: #b45309; text-decoration: none; font-weight: 600; }
+    </style>
+</head>
+<body>
+<div class="page">
+    <header class="brand">
+        <strong>MoTaste Restaurant</strong>
+        <a href="/">← Back to ordering</a>
+    </header>
+
+    <h1>Privacy Notice</h1>
+    <p class="updated">Effective date: September 10, 2026 · Issued under the Philippine Data Privacy Act of 2012 (Republic Act No. 10173)</p>
+
+    <p>MoTaste Restaurant ("MoTaste", "we", "us") values your privacy. This Privacy Notice explains what personal
+    information we collect when you use our online ordering system, why we collect it, how we use and protect it,
+    and the rights you have under the Data Privacy Act of 2012 (DPA).</p>
+
+    <h2>1. What personal information we collect</h2>
+    <table>
+        <tr><th>Category</th><th>Data collected</th><th>When</th></tr>
+        <tr>
+            <td>Order &amp; delivery details</td>
+            <td>Full name, delivery address (delivery orders), mobile number, and — only if you choose to provide it — email address</td>
+            <td>Checkout</td>
+        </tr>
+        <tr>
+            <td>Order history</td>
+            <td>Items ordered, amounts paid, payment method, order status and timestamps</td>
+            <td>Checkout and order processing</td>
+        </tr>
+        <tr>
+            <td>Staff account data</td>
+            <td>Full name, work email, role, password (stored only as a bcrypt hash), last activity timestamp</td>
+            <td>Staff account creation</td>
+        </tr>
+        <tr>
+            <td>Security &amp; login records</td>
+            <td>IP address, device/browser label, login timestamps, device-verification events</td>
+            <td>Staff sign-in and security audits</td>
+        </tr>
+    </table>
+    <p><strong>We do not collect:</strong> birthdates, government ID numbers, biometric data, or any payment card
+    details. We collect no personal information from visitors who only browse the menu.</p>
+
+    <h2>2. Why we collect it (purpose)</h2>
+    <ul>
+        <li>To prepare, confirm, and deliver your order, and to contact you about it (receipts, delivery issues).</li>
+        <li>To compute and record sales for accounting, reporting, and refund handling.</li>
+        <li>To protect accounts from unauthorized access (brute-force lockouts, device verification, CAPTCHA).</li>
+        <li>To keep audit trails required for the operation of the business and to investigate incidents.</li>
+    </ul>
+    <p>We collect only the minimum data needed for these purposes (data minimization) and do not use your personal
+    information for any other purpose without your consent.</p>
+
+    <h2>3. How long we keep it (retention)</h2>
+    <ul>
+        <li><strong>Order and sales records:</strong> retained for a maximum of <strong>6 months</strong> in the live
+        system, then archived into a retention batch. An administrator may export the archive, after which records are
+        permanently and securely deleted.</li>
+        <li><strong>Staff login and security logs:</strong> staged monthly and cleared through the same
+        export-then-delete process.</li>
+        <li><strong>Staff accounts:</strong> kept while the account is active; access is revoked immediately upon
+        separation.</li>
+    </ul>
+
+    <h2>4. How we protect it (security measures)</h2>
+    <p>Consistent with the DPA and its Implementing Rules, we maintain organizational, physical, and technical
+    safeguards, including:</p>
+    <ul>
+        <li><strong>Technical:</strong> HTTPS/TLS with HSTS for all traffic; passwords hashed with bcrypt (never stored
+        or readable in plaintext); email/device verification codes stored only as SHA-256 hashes and expiring in 10
+        minutes; rate limiting and CAPTCHA on sign-in; CSRF protection; security headers (CSP, X-Frame-Options);
+        least-privilege role checks on every staff API.</li>
+        <li><strong>Organizational:</strong> access to customer data is restricted to authorized roles (Admin,
+        Cashier); staff accounts are individually identifiable and all sensitive actions are logged for accountability;
+        retention and deletion are handled only by the Admin.</li>
+        <li><strong>Physical:</strong> the system runs on a managed cloud hosting platform whose data centers maintain
+        physical access controls.</li>
+    </ul>
+
+    <h2>5. Sharing and disclosure</h2>
+    <p>We do not sell your personal information. Order details needed to complete a delivery (name, address, phone)
+    are shared with the SakayKo rider assigned to your order. We disclose personal information only when required by
+    law or to protect our legal rights.</p>
+
+    <h2>6. Your rights under the DPA</h2>
+    <p>You have the right to be informed, to object, to access and correct your data, to erasure or blocking, to
+    damages, and to file a complaint. To exercise any right, contact us using the details below. We will respond
+    within the periods required by the NPC.</p>
+
+    <h2>7. Contact us</h2>
+    <div class="contact-box">
+        <strong>Data Protection Contact</strong>
+        <p>MoTaste Restaurant<br>
+        Email: <a href="mailto:motaste@gmail.com">motaste@gmail.com</a><br>
+        Phone: +63 9XX XXX XXXX</p>
+        <p>You may also reach the National Privacy Commission at <a href="https://www.privacy.gov.ph" rel="noopener">privacy.gov.ph</a>.</p>
+    </div>
+
+    <a class="back-home" href="/">← Back to ordering</a>
+</div>
+</body>
+</html>

@@ -61,11 +61,12 @@ try {
         }
         return [
             'id' => (int)($row->id ?? 0),
-            'email' => (string)($row->email ?? ''),
+            'email' => maskEmailAddressForDisplay((string)($row->email ?? '')),
             'role' => (string)($row->staff_role ?? ''),
             'device_label' => $label !== '' ? $label : 'Unknown device',
             'fingerprint' => (string)($row->fingerprint ?? ''),
-            'ip_address' => (string)($row->ip_address ?? ''),
+            // DPA masking: prefix only — enough to spot repeated networks.
+            'ip_address' => maskIpAddressForDisplay((string)($row->ip_address ?? '')),
             'first_seen_at' => (string)($row->first_seen_at ?? ''),
             'last_seen_at' => (string)($row->last_seen_at ?? ''),
             'is_current' => $currentFingerprint !== '' && hash_equals($currentFingerprint, (string)($row->fingerprint ?? '')),

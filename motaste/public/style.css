@@ -2806,6 +2806,34 @@ body.modal-open {
     font-size: 1.1rem;
     font-weight: 700;
 }
+/* DPA consent checkbox (checkout) */
+.consent-section {
+    margin-top: 12px;
+}
+.consent-label {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: #555;
+    cursor: pointer;
+}
+.consent-label input[type="checkbox"] {
+    margin-top: 3px;
+    flex: none;
+    width: 16px;
+    height: 16px;
+    accent-color: #b45309;
+    cursor: pointer;
+}
+.consent-label a {
+    color: #b45309;
+    text-decoration: underline;
+}
+.consent-label.consent-error span {
+    color: #b00020;
+}
 .order-checkout-actions {
     display: grid;
     gap: 12px;

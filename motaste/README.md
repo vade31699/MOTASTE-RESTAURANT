@@ -116,6 +116,20 @@ Post-deploy check: `GET https://your-app.laravel.cloud/api/get_turnstile_sitekey
 | New device can't log in, no email arrives | SMTP credentials missing/invalid — check `MAIL_*` in `.env` (Laravel Cloud dashboard for prod) and retry; the code then falls back to the server log. |
 | All API calls return 504 | The hosting PHP runtime is down — check the Laravel Cloud dashboard (deployment status, logs, metrics) and restart/redeploy. |
 
+## Data classification (DPA)
+
+Personal information handled by the system, per the Privacy Notice (`/privacy`):
+
+| Sensitivity | Fields | Where |
+| --- | --- | --- |
+| High (secrets) | password hashes, session token hashes, verification code hashes, invite code hashes | `staff`, `staff_session_tokens`, `login_verification_tokens`, `staff_invite_tokens` |
+| Medium (personal) | customer name/phone/email/address; staff names/emails/roles | `orders`, `staff` |
+| Low (operational) | IPs, device labels/fingerprints, login timestamps, audit events | `staff_login_history`, `trusted_devices`, `order_activity_logs`, `api_event_logs` |
+
+Known logging exception: when SMTP is not configured, `sendSystemEmail()` falls back to writing the email body — **including device-verification codes — to the server log** so logins remain possible. This is an availability trade-off; configure `MAIL_*` in production so it never triggers.
+
+Retention: order/sales data is archived into 6-month batches (admin export → permanent delete); login/security logs are staged monthly. See `routes/console.php` and the retention banner in the staff dashboard.
+
 ## Maintenance
 
 - One-off DB scripts live in `scripts/` and should be removed after use.

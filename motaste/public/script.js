@@ -5215,6 +5215,14 @@ const deliveryAddressInput = document.getElementById('deliveryAddressInput');
 const orderCheckoutItems = document.getElementById('orderCheckoutItems');
 const orderCheckoutTotal = document.getElementById('orderCheckoutTotal');
 const checkoutMessage = document.getElementById('checkoutMessage');
+// DPA consent: customers must agree to the Privacy Notice / Terms before their
+// personal information (name, phone, email, address) is collected.
+const privacyConsentCheckbox = document.getElementById('privacyConsentCheckbox');
+if (privacyConsentCheckbox) {
+    privacyConsentCheckbox.addEventListener('change', () => {
+        privacyConsentCheckbox.closest('.consent-label')?.classList.remove('consent-error');
+    });
+}
 const orderPaymentScreen = document.getElementById('orderPaymentScreen');
 const paymentConfirmationBackBtn = document.getElementById('paymentConfirmationBackBtn');
 const orderPaymentNumber = document.getElementById('orderPaymentNumber');
@@ -6415,7 +6423,8 @@ async function submitOrderToServer(order) {
                 customerName: order.customerName || '',
                 customerPhone: order.customerPhone || '',
                 customerEmail: order.customerEmail || '',
-                deliveryAddress: order.deliveryAddress || ''
+                deliveryAddress: order.deliveryAddress || '',
+                privacyConsent: Boolean(privacyConsentCheckbox && privacyConsentCheckbox.checked)
             })
         });
 
@@ -11461,6 +11470,16 @@ async function confirmOrder() {
 
     selectedCustomerPhone = customerPhoneInput ? customerPhoneInput.value.trim() : '';
     selectedCustomerEmail = customerEmailInput ? customerEmailInput.value.trim() : '';
+
+    // DPA consent gate: personal information may only be collected after the
+    // customer explicitly agrees to the Privacy Notice / Terms.
+    if (privacyConsentCheckbox && !privacyConsentCheckbox.checked) {
+        privacyConsentCheckbox.closest('.consent-label')?.classList.add('consent-error');
+        privacyConsentCheckbox.focus();
+        setCheckoutMessage('Please agree to the Privacy Notice and Terms & Conditions before placing your order.');
+        return;
+    }
+    privacyConsentCheckbox?.closest('.consent-label')?.classList.remove('consent-error');
 
     // Contact validation: the phone is optional but, if filled in, must be a
     // 12-digit 639 number; the email is optional and must be valid when filled.
