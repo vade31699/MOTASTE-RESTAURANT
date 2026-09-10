@@ -20,12 +20,18 @@ validateCsrfOrExit();
 
 use Illuminate\Support\Facades\DB;
 
+require_once __DIR__ . '/_helpers.php';
+
 $input = json_decode(file_get_contents('php://input'), true);
 if (!is_array($input)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
     exit;
 }
+
+// Stored-XSS guard: reject HTML/script content anywhere in the menu snapshot
+// (dish names, descriptions, etc.).
+rejectUnsafeInputOrExit($input);
 
 try {
     

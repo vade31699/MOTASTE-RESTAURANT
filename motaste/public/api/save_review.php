@@ -14,6 +14,7 @@ sendSecurityHeaders();
 
 use Illuminate\Support\Facades\DB;
 
+require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
 require_once __DIR__ . '/_review_log_helpers.php';
 // Provides resolveClientIpAddress() used for the anonymous reviewer key fallback.
@@ -41,6 +42,10 @@ if (isOrderApiRateLimited('save_review', 5, 60)) {
     echo json_encode(['success' => false, 'error' => 'Too many review submissions. Please try again later.']);
     exit;
 }
+
+// Stored-XSS guard: reject HTML/script content outright (the strip_tags below
+// remains as defense-in-depth for any residual markup).
+rejectUnsafeInputOrExit($reviewText);
 
 $reviewText = strip_tags($reviewText);
 $reviewText = preg_replace('/\s+/u', ' ', $reviewText);

@@ -71,6 +71,10 @@ $discountAmount = 0;
 // instead of whatever the client sent (price tampering protection). If the
 // catalog is unavailable (fresh deployment), fall back to submitted prices.
 require_once __DIR__ . '/_helpers.php';
+
+// Stored-XSS guard: reject HTML/script content in customer/item free text.
+rejectUnsafeInputOrExit($customerName, $deliveryAddress, $customerEmail, $customerPhone, $items);
+
 $inventoryPriceMap = [];
 try {
     foreach (DB::table('inventory_items')->get(['name', 'price']) as $row) {

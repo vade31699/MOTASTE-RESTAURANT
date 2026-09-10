@@ -16,6 +16,7 @@ if (!requireAdminAuth()) {
 
 use Illuminate\Support\Facades\DB;
 
+require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/_email_auth_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
 require_once __DIR__ . '/_password_policy.php';
@@ -30,6 +31,14 @@ if (!is_array($input)) {
 }
 
 try {
+    // Stored-XSS guard: names/emails must be plain text (passwords are hashed
+    // and never rendered, so they are intentionally not checked here).
+    foreach ($input as $account) {
+        if (is_array($account)) {
+            rejectUnsafeInputOrExit($account['name'] ?? '', $account['email'] ?? '');
+        }
+    }
+
     // Strong password policy: reject weak plaintext passwords before they are
     // hashed and persisted. Admin accounts get the elevated 12-character
     // minimum; Cashier / Inventory Manager accounts use the standard 8.

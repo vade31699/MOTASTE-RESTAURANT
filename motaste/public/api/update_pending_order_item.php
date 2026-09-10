@@ -40,6 +40,9 @@ $actorEmail = trim((string)($input['actorEmail'] ?? ''));
 $hasComponentUpdate = $componentName !== '' && $componentQuantity !== null;
 $hasComponentsPayload = is_array($componentsPayload);
 
+// Stored-XSS guard: reject HTML/script content in free-text fields.
+rejectUnsafeInputOrExit($componentName, $componentsPayload, $actorRole, $actorEmail);
+
 if ($orderId <= 0 || $itemId <= 0 || ($quantity === null && !$hasComponentUpdate && !$hasComponentsPayload) || ($quantity !== null && $quantity < 0) || ($hasComponentUpdate && $componentQuantity < 0)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'orderId, itemId, and quantity or component update are required']);

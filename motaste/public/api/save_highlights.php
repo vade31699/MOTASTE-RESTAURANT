@@ -16,6 +16,7 @@ if (!requireAdminAuth()) {
 
 use Illuminate\Support\Facades\DB;
 
+require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
 
 // Stateless signed CSRF validation (same as every other gated endpoint).
@@ -34,6 +35,10 @@ if (!is_array($input) || !isset($input['slides']) || !is_array($input['slides'])
 $slides = array_values(array_filter($input['slides'], static function ($item) {
     return is_string($item) && trim($item) !== '';
 }));
+
+// Stored-XSS guard: reject anything that is not a plain image URL/data URI
+// (e.g. javascript: URLs or HTML payloads).
+rejectUnsafeInputOrExit($slides);
 
 if (count($slides) > 15) {
     http_response_code(422);

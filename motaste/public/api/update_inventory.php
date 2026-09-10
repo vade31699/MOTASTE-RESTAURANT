@@ -65,6 +65,9 @@ $isAvailable = isset($input['isAvailable']) ? (($input['isAvailable'] === true |
 $actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
 $actorEmail = trim((string)($input['actorEmail'] ?? ''));
 
+// Stored-XSS guard: reject HTML/script content in free-text fields.
+rejectUnsafeInputOrExit($name, $category, $description, $input['image'] ?? null);
+
 $canonicalName = preg_replace('/\s+/', ' ', $name);
 $canonicalName = trim((string)$canonicalName);
 

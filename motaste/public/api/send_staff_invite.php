@@ -16,6 +16,7 @@ if (!requireAdminAuth()) {
 
 use Illuminate\Support\Facades\DB;
 
+require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/_email_auth_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
 
@@ -25,6 +26,9 @@ $role = trim((string)($input['role'] ?? ''));
 $email = strtolower(trim((string)($input['email'] ?? '')));
 
 validateCsrfOrExit();
+
+// Stored-XSS guard: the name is included in the invite email and audit trail.
+rejectUnsafeInputOrExit($name);
 
 if ($name === '' || $role === '' || $email === '') {
     http_response_code(400);

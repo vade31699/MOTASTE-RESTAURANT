@@ -11,6 +11,7 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
 
+require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/_security_headers.php';
 sendSecurityHeaders();
 
@@ -42,6 +43,9 @@ if (!$full || !$role || !$email || !$password) {
     echo json_encode(['error' => 'Missing fields']);
     exit;
 }
+
+// Stored-XSS guard: the staff name must be plain text.
+rejectUnsafeInputOrExit($full);
 
 // Password confirmation: the two fields must match exactly.
 if ($password !== $passwordConfirmation) {

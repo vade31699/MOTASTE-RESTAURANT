@@ -18,6 +18,7 @@ validateCsrfOrExit();
 
 use Illuminate\Support\Facades\DB;
 
+require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/_review_log_helpers.php';
 
 try {
@@ -39,6 +40,9 @@ try {
     $details = $input['details'] ?? null;
     $orderId = isset($input['orderId']) ? (int)$input['orderId'] : null;
     $orderNumber = trim((string)($input['orderNumber'] ?? ''));
+
+    // Stored-XSS guard: audit entries are rendered on the staff dashboard.
+    rejectUnsafeInputOrExit($action, $summary, $details, $actorRole, $actorEmail, $orderNumber);
 
     // Route review-specific events to their dedicated container.
     $isReviewAction = strpos($action, 'review_') === 0;

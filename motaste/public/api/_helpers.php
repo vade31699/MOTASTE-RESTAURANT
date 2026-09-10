@@ -64,6 +64,80 @@ function maskIpAddressForDisplay(string $ip): string
 }
 
 /**
+ * True when a value contains HTML/script injection patterns that must be
+ * rejected rather than stored (stored-XSS guard): HTML tags (including
+ * malformed ones like "<script>alert<script>"), executable URL schemes, and
+ * inline event-handler attributes. Recurses into arrays/objects so whole
+ * payloads (e.g. menu snapshots) can be checked in one call. Legitimate
+ * image data URIs (data:image/*) are allowed.
+ */
+function inputContainsUnsafeHtml($value): bool
+{
+    if (is_array($value) || is_object($value)) {
+        foreach ($value as $item) {
+            if (inputContainsUnsafeHtml($item)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    if ($value === null || is_bool($value) || is_int($value) || is_float($value)) {
+        return false;
+    }
+
+    $text = (string)$value;
+
+    // The canonical stored-XSS vector: <script>… (including malformed variants
+    // like "<script>alert<script>").
+    if (stripos($text, '<script') !== false) {
+        return true;
+    }
+
+    // Any HTML tag — <img>, <iframe>, <svg>, <a href=…>, closing tags, etc.
+    // Requires a tag-like shape so plain text like "a < b" is not rejected.
+    if (preg_match('/<\/?[a-z][^>]*>/i', $text) === 1) {
+        return true;
+    }
+
+    // Executable URL schemes. data: is only dangerous with a non-image payload
+    // (data:image/* is how uploaded images are stored); the mime must start
+    // with a letter so text like "data: 12/3" is not a false positive.
+    if (preg_match('/(?:javascript|vbscript)\s*:/i', $text) === 1) {
+        return true;
+    }
+    if (preg_match('/data\s*:\s*(?!image\/)[a-z][a-z0-9.+-]*\//i', $text) === 1) {
+        return true;
+    }
+
+    // Inline event handlers, e.g. onerror=, onclick=, onload=.
+    if (preg_match('/(?:^|\s)on[a-z]+\s*=/i', $text) === 1) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Reject the request with a 422 when any of the given values (strings or
+ * nested arrays/objects) contains HTML/script content, prompting the client
+ * to resubmit with plain text. Exits after emitting the JSON error.
+ */
+function rejectUnsafeInputOrExit(...$values): void
+{
+    foreach ($values as $value) {
+        if (inputContainsUnsafeHtml($value)) {
+            http_response_code(422);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Input contains HTML or script content that is not allowed. Please use plain text only.',
+            ]);
+            exit;
+        }
+    }
+}
+
+/**
  * Ensure the order preparation timer columns exist. Schema is normally managed
  * by Laravel migrations; the inline fallback keeps order endpoints working even
  * when migrations have not been run on the deployment yet.
