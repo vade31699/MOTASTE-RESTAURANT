@@ -172,7 +172,7 @@ try {
         $emailBody = "MOTASTE login verification\n\n" .
             "A login was attempted from a new device for this account.\n\n" .
             "Verification code: {$code}\n" .
-            "Expires: " . now()->addMinutes(10)->toDateTimeString() . "\n\n" .
+            "Expires: " . now()->addMinutes(3)->toDateTimeString() . "\n\n" .
             "Device: {$deviceLabel}\n" .
             "IP Address: " . resolveClientIpAddress() . "\n" .
             "Date/Time: {$occurredAt}\n\n" .

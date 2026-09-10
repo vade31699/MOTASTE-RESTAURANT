@@ -65,7 +65,7 @@ try {
 
     $code = generateVerificationCode(6);
     $codeHash = hash('sha256', $code);
-    $expiresAt = now()->addMinutes(10);
+    $expiresAt = now()->addMinutes(3);
     $pendingEmail = $newEmail !== '' ? $newEmail : $currentEmail;
 
     // Security: the pending password is NEVER stored in plaintext. The final

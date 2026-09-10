@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Mail\PasswordResetCode;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,7 @@ use Illuminate\View\View;
 
 class PasswordResetLinkController extends Controller
 {
-    private const CODE_TTL_MINUTES = 10;
+    private const CODE_TTL_MINUTES = 3;
     private const CODE_RESEND_WINDOW_SECONDS = 60;
     private const CODE_MAX_ATTEMPTS = 3;
 
@@ -34,8 +35,8 @@ class PasswordResetLinkController extends Controller
     }
 
     /**
-     * Step 1: email a 6-digit verification code to the account. The reset link
-     * itself is deliberately NOT sent here — it is only emailed after the code
+     * Step 1: email a 6-digit verification code to the account. The reset form
+     * itself is deliberately NOT opened here — it is only shown after the code
      * has been confirmed (see verify()).
      *
      * @throws ValidationException
@@ -84,8 +85,10 @@ class PasswordResetLinkController extends Controller
     }
 
     /**
-     * Step 2: confirm the emailed code, then send the actual password reset
-     * link. The code is single-use and self-destructs after 3 failed attempts.
+     * Step 2: confirm the emailed code, then take the user straight to the
+     * reset-password form. No second email with a link is sent — the reset
+     * token is handed to the already-verified browser directly. The code is
+     * single-use and self-destructs after 3 failed attempts.
      *
      * @throws ValidationException
      */
@@ -107,18 +110,20 @@ class PasswordResetLinkController extends Controller
             ]);
         }
 
-        // Code confirmed — only now send the reset link.
-        $status = Password::sendResetLink(['email' => $email]);
+        // Code confirmed — create a reset token and go straight to the form.
+        $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
 
-        if ($status == Password::RESET_LINK_SENT) {
-            session()->forget('password_reset_email');
-
-            return back()->with('status', 'We emailed you a password reset link. Check your inbox (including spam) to continue.');
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'email' => ['We could not find an account with that email address.'],
+            ]);
         }
 
-        throw ValidationException::withMessages([
-            'email' => ['We could not find an account with that email address.'],
-        ]);
+        $token = Password::broker()->createToken($user);
+
+        session()->forget('password_reset_email');
+
+        return redirect()->route('password.reset', ['token' => $token, 'email' => $email]);
     }
 
     /**

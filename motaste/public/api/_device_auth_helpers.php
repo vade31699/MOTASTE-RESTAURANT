@@ -202,7 +202,7 @@ function createDeviceLoginCode(string $email, string $fingerprint): string
         'fingerprint' => $fingerprint,
         'code_hash' => hash('sha256', $code),
         'attempts' => 0,
-        'expires_at' => now()->addMinutes(10)->toDateTimeString(),
+        'expires_at' => now()->addMinutes(3)->toDateTimeString(),
         'created_at' => now()->toDateTimeString(),
         'updated_at' => now()->toDateTimeString(),
     ]);

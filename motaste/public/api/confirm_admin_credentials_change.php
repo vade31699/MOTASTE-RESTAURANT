@@ -92,7 +92,7 @@ try {
         // plaintext password is never persisted, not even transiently.
         //
         // Legacy-token safety: rows written before this fix hold raw plaintext
-        // (max 10-minute TTL). Detect them (bcrypt hashes are exactly 60 chars
+        // (max 3-minute TTL). Detect them (bcrypt hashes are exactly 60 chars
         // starting with $2y$ / $2a$ / $2b$) and hash-on-confirm so a pre-fix
         // pending password can never land in the staff table unhashed.
         $isBcryptHash = strlen($newPasswordHash) === 60

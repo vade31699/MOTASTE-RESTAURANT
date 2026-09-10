@@ -2,10 +2,8 @@
 
 use App\Mail\PasswordResetCode;
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Notification;
 
 /**
  * POST the forgot-password form and return the 6-digit code that was emailed.
@@ -27,15 +25,33 @@ function requestPasswordResetCode(User $user, $test): string
     return $code;
 }
 
+/**
+ * Verify a code and pull the reset token out of the redirect to the reset
+ * form. The token is handed directly to the verified browser — no second
+ * email with a reset link is ever sent.
+ */
+function verifyCodeAndGetResetToken(User $user, $test, string $code): string
+{
+    $response = $test->post('/forgot-password/verify', ['email' => $user->email, 'code' => $code])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $location = $response->headers->get('Location');
+    expect($location)->not->toBeNull();
+    preg_match('#/reset-password/([^/?]+)#', (string)$location, $matches);
+    expect($matches)->toHaveCount(2);
+
+    return $matches[1];
+}
+
 test('reset password screen can be rendered', function () {
     $response = $this->get('/forgot-password');
 
     $response->assertStatus(200);
 });
 
-test('a verification code is emailed before any reset link', function () {
+test('a verification code is emailed before any reset form is shown', function () {
     Mail::fake();
-    Notification::fake();
 
     $user = User::factory()->create();
 
@@ -43,76 +59,59 @@ test('a verification code is emailed before any reset link', function () {
         ->assertSessionHasNoErrors()
         ->assertSessionHas('password_reset_email', $user->email);
 
-    // The code email goes out…
+    // The code email goes out — it is the only email in the flow.
     Mail::assertSent(PasswordResetCode::class);
-
-    // …but the reset link itself is withheld until the code is verified.
-    Notification::assertNothingSent();
 });
 
 test('requesting a code for an unknown email is rejected', function () {
     Mail::fake();
-    Notification::fake();
 
     $this->post('/forgot-password', ['email' => 'nobody@example.com'])
         ->assertSessionHasErrors('email');
 
     Mail::assertNothingSent();
-    Notification::assertNothingSent();
 });
 
-test('the reset link is sent only after the code is verified', function () {
+test('the reset form is reached only after the code is verified', function () {
     Mail::fake();
-    Notification::fake();
 
     $user = User::factory()->create();
 
     $code = requestPasswordResetCode($user, $this);
 
-    // A wrong code is rejected and sends no reset link.
+    // A wrong code is rejected and does not advance the flow.
     $wrong = str_pad((string)(((int)$code + 1) % 1000000), 6, '0', STR_PAD_LEFT);
     $this->post('/forgot-password/verify', ['email' => $user->email, 'code' => $wrong])
         ->assertSessionHasErrors('code');
-    Notification::assertNothingSent();
 
-    // The correct code triggers the reset link email.
+    // The correct code redirects straight to the reset form.
     $this->post('/forgot-password/verify', ['email' => $user->email, 'code' => $code])
         ->assertSessionHasNoErrors()
-        ->assertSessionHas('status');
-
-    Notification::assertSentTo($user, ResetPassword::class);
+        ->assertRedirect();
 });
 
 test('reset password screen can be rendered with a verified code', function () {
     Mail::fake();
-    Notification::fake();
 
     $user = User::factory()->create();
 
     $code = requestPasswordResetCode($user, $this);
-    $this->post('/forgot-password/verify', ['email' => $user->email, 'code' => $code])
-        ->assertSessionHasNoErrors();
+    $token = verifyCodeAndGetResetToken($user, $this, $code);
 
-    $notification = Notification::sent($user, ResetPassword::class)->first();
-    expect($notification)->not->toBeNull();
-
-    $this->get('/reset-password/'.$notification->token)
+    $this->get('/reset-password/'.$token)
         ->assertStatus(200);
 });
 
 test('password can be reset with valid token', function () {
     Mail::fake();
-    Notification::fake();
 
     $user = User::factory()->create();
 
     $code = requestPasswordResetCode($user, $this);
-    $this->post('/forgot-password/verify', ['email' => $user->email, 'code' => $code])
-        ->assertSessionHasNoErrors();
+    $token = verifyCodeAndGetResetToken($user, $this, $code);
 
-    $notification = Notification::sent($user, ResetPassword::class)->first();
     $response = $this->post('/reset-password', [
-        'token' => $notification->token,
+        'token' => $token,
         'email' => $user->email,
         'password' => 'New-Str0ng-Passw0rd',
         'password_confirmation' => 'New-Str0ng-Passw0rd',
@@ -137,19 +136,15 @@ test('password can be reset with valid token', function () {
 
 test('password reset requires the elevated 12-character policy', function () {
     Mail::fake();
-    Notification::fake();
 
     $user = User::factory()->create();
 
     $code = requestPasswordResetCode($user, $this);
-    $this->post('/forgot-password/verify', ['email' => $user->email, 'code' => $code])
-        ->assertSessionHasNoErrors();
-
-    $notification = Notification::sent($user, ResetPassword::class)->first();
+    $token = verifyCodeAndGetResetToken($user, $this, $code);
 
     // 11 characters — meets the default policy but not the reset policy.
     $this->post('/reset-password', [
-        'token' => $notification->token,
+        'token' => $token,
         'email' => $user->email,
         'password' => 'Str0ng-Pas0',
         'password_confirmation' => 'Str0ng-Pas0',
@@ -158,24 +153,22 @@ test('password reset requires the elevated 12-character policy', function () {
 
 test('the verification code is single-use', function () {
     Mail::fake();
-    Notification::fake();
 
     $user = User::factory()->create();
 
     $code = requestPasswordResetCode($user, $this);
 
     $this->post('/forgot-password/verify', ['email' => $user->email, 'code' => $code])
-        ->assertSessionHasNoErrors();
-    Notification::assertSentTo($user, ResetPassword::class);
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
 
-    // Replaying the same code must not send another reset link.
+    // Replaying the same code must not advance the flow a second time.
     $this->post('/forgot-password/verify', ['email' => $user->email, 'code' => $code])
         ->assertSessionHasErrors('code');
 });
 
 test('the verification code self-destructs after 3 failed attempts', function () {
     Mail::fake();
-    Notification::fake();
 
     $user = User::factory()->create();
 
@@ -190,6 +183,4 @@ test('the verification code self-destructs after 3 failed attempts', function ()
     // Even the correct code no longer works after the lockout.
     $this->post('/forgot-password/verify', ['email' => $user->email, 'code' => $code])
         ->assertSessionHasErrors('code');
-
-    Notification::assertNothingSent();
 });

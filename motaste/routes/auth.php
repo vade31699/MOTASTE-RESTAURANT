@@ -20,11 +20,11 @@ Route::middleware('guest')->group(function () {
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
 
-    // Step 1: email a verification code (the reset link is NOT sent yet).
+    // Step 1: email a verification code (the reset form is NOT shown yet).
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
         ->name('password.email');
 
-    // Step 2: confirm the emailed code — only then is the reset link emailed.
+    // Step 2: confirm the emailed code — only then is the reset form shown.
     Route::post('forgot-password/verify', [PasswordResetLinkController::class, 'verify'])
         ->name('password.verify');
 

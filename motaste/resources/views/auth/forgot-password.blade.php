@@ -70,7 +70,7 @@
             <h1>Enter Verification Code</h1>
             <p class="description">
                 We emailed a 6-digit verification code to <strong>{{ $pendingEmail }}</strong>.
-                Enter it below — only after it is confirmed will we email the password reset link.
+                Enter it below — once it is confirmed you can reset your password right away.
             </p>
 
             @if(session('codeSent'))
@@ -122,7 +122,7 @@
             <h1>Forgot Password</h1>
             <p class="description">
                 No problem. Enter your email address and we will send you a verification
-                code to confirm your identity before emailing a password reset link.
+                code to confirm your identity before you can reset your password.
             </p>
 
             <form method="POST" action="{{ route('password.email') }}">

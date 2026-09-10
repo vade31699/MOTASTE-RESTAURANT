@@ -9,9 +9,9 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * The 6-digit verification code emailed during the forgot-password flow. The
- * reset link itself is NOT included — it is sent separately, only after this
- * code has been confirmed.
+ * The 6-digit verification code emailed during the forgot-password flow. This
+ * is the only email in the flow — no reset link is ever emailed. After the
+ * code is confirmed the user is taken straight to the reset-password form.
  */
 class PasswordResetCode extends Mailable
 {
