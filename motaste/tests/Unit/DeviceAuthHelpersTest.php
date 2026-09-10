@@ -36,6 +36,7 @@ function bootDeviceAuthTestApp(): void
     require_once __DIR__ . '/../../public/api/_device_auth_helpers.php';
 
     ensureTrustedDeviceTables();
+    ensureAppSettingsTable();
 }
 
 // Boot before the first test runs, not inside it: the app bootstrap registers
@@ -153,4 +154,24 @@ test('expired verification codes are rejected and cleaned up', function () {
 
     expect(verifyDeviceLoginCode($email, $fingerprint, $code))->toBeFalse();
     expect(DB::table('login_verification_tokens')->where('email', $email)->exists())->toBeFalse();
+});
+
+test('trust device toggle defaults to enabled and persists changes', function () {
+    bootDeviceAuthTestApp();
+
+    DB::table('app_settings')->where('key', 'trust_device_enabled')->delete();
+
+    // Defaults to enabled so existing deployments keep current behavior until
+    // the Admin explicitly turns the feature off.
+    expect(isTrustDeviceEnabled())->toBeTrue();
+
+    // Disabling persists and is read back…
+    setTrustDeviceEnabled(false);
+    expect(isTrustDeviceEnabled())->toBeFalse();
+
+    // …and re-enabling restores the trusted-device fast path.
+    setTrustDeviceEnabled(true);
+    expect(isTrustDeviceEnabled())->toBeTrue();
+
+    DB::table('app_settings')->where('key', 'trust_device_enabled')->delete();
 });

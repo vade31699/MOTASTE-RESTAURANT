@@ -139,9 +139,14 @@ try {
     // Every account (Admin, Cashier, Inventory Manager) must log in from a
     // recognized device. Unrecognized devices are challenged with a code that
     // is emailed to the account's address before a session is created.
+    //
+    // The Admin can turn this feature off entirely (Credentials → Trusted
+    // Devices toggle): when disabled, EVERY login requires the emailed
+    // verification code — even from a previously trusted device.
     $fingerprint = computeDeviceFingerprint($email, $deviceToken);
+    $trustDeviceEnabled = isTrustDeviceEnabled();
 
-    if (!deviceIsTrusted($email, $fingerprint)) {
+    if (!$trustDeviceEnabled || !deviceIsTrusted($email, $fingerprint)) {
         // Rate-limit code issuance: reuse a code that was created in the last
         // 60 seconds instead of emailing a fresh one on every attempt.
         $existingToken = DB::table('login_verification_tokens')

@@ -82,10 +82,15 @@ try {
         exit;
     }
 
-    // Code confirmed: clear the failure counters, trust this device for future
-    // logins, and grant the session.
+    // Code confirmed: clear the failure counters and grant the session. The
+    // device is only remembered for future logins while the Admin has the
+    // trust-device feature enabled; when disabled, every login is challenged.
     recordLoginAttempt($email, true);
-    markTrustedDeviceSeen($email, $fingerprint);
+    $deviceRecordedAsTrusted = false;
+    if (isTrustDeviceEnabled()) {
+        markTrustedDeviceSeen($email, $fingerprint);
+        $deviceRecordedAsTrusted = true;
+    }
 
     $inviteConfirmed = true;
     if (in_array($role, ['Cashier', 'Inventory Manager'], true)) {
@@ -124,11 +129,14 @@ try {
             'action' => 'device_login_verified',
             'actor_role' => $role,
             'actor_email' => strtolower(trim((string)($staffRow->email ?? ''))),
-            'summary' => 'New device verified and added to trusted devices',
+            'summary' => $deviceRecordedAsTrusted
+                ? 'New device verified and added to trusted devices'
+                : 'Login verified with emailed code (trusted devices are disabled)',
             'details' => json_encode([
                 'device_label' => resolveDeviceLabel(),
                 'device_token' => $deviceToken,
                 'ip_address' => resolveClientIpAddress(),
+                'recorded_as_trusted' => $deviceRecordedAsTrusted,
                 'verified_at' => now()->toDateTimeString(),
             ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             'created_at' => now(),

@@ -29,6 +29,10 @@ const path = require('path');
       re: /function ensureAdminCredentialChangeTokensTable\(\): void\s*\{[\s\S]*?\n\}/g,
       replacement: 'function ensureAdminCredentialChangeTokensTable(): void\n{\n    // Schema is managed by Laravel migrations.\n    return;\n}',
     },
+    {
+      re: /function ensureAppSettingsTable\(\): void\s*\{[\s\S]*?\n\}/g,
+      replacement: 'function ensureAppSettingsTable(): void\n{\n    // Schema is managed by Laravel migrations.\n    return;\n}',
+    },
   ];
 
   for (const name of files) {
