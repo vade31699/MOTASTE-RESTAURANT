@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Device recognition + login verification helpers.
@@ -109,11 +110,13 @@ function resolveDeviceLabel(string $userAgent = ''): string
     $ua = $userAgent !== '' ? $userAgent : resolveDeviceUserAgent();
 
     $browser = 'Browser';
+    // Order matters: Edge and Opera user agents also contain 'Chrome/' (and
+    // Opera also contains 'Safari/'), so their markers must be checked first.
     if (stripos($ua, 'Edg/') !== false) $browser = 'Edge';
+    elseif (stripos($ua, 'OPR/') !== false) $browser = 'Opera';
     elseif (stripos($ua, 'Chrome/') !== false) $browser = 'Chrome';
     elseif (stripos($ua, 'Firefox/') !== false) $browser = 'Firefox';
     elseif (stripos($ua, 'Safari/') !== false) $browser = 'Safari';
-    elseif (stripos($ua, 'OPR/') !== false) $browser = 'Opera';
 
     $os = 'OS';
     if (stripos($ua, 'Windows') !== false) $os = 'Windows';
@@ -145,20 +148,11 @@ function markTrustedDeviceSeen(string $email, string $fingerprint, ?string $labe
     $email = strtolower(trim($email));
     $now = now()->toDateTimeString();
 
-    $existing = DB::table('trusted_devices')
-        ->whereRaw('LOWER(email) = ?', [$email])
-        ->where('fingerprint', $fingerprint)
-        ->first();
-
-    if ($existing) {
-        DB::table('trusted_devices')->where('id', $existing->id)->update([
-            'last_seen_at' => $now,
-            'updated_at' => $now,
-        ]);
-        return;
-    }
-
-    DB::table('trusted_devices')->insert([
+    // insertOrIgnore makes the first-time registration race-safe: when two
+    // concurrent logins register the same new device, the second INSERT is a
+    // no-op (fingerprint is unique) instead of throwing a constraint violation
+    // that would 500 the login. The refresh below then updates the row.
+    $inserted = DB::table('trusted_devices')->insertOrIgnore([
         'email' => $email,
         'fingerprint' => $fingerprint,
         'device_label' => $label !== null && $label !== '' ? $label : resolveDeviceLabel(),
@@ -169,6 +163,19 @@ function markTrustedDeviceSeen(string $email, string $fingerprint, ?string $labe
         'created_at' => $now,
         'updated_at' => $now,
     ]);
+
+    if ($inserted > 0) {
+        return;
+    }
+
+    // The device was already registered (by this or a concurrent request) —
+    // refresh the last-seen metadata instead of duplicating the row.
+    DB::table('trusted_devices')
+        ->where('fingerprint', $fingerprint)
+        ->update([
+            'last_seen_at' => $now,
+            'updated_at' => $now,
+        ]);
 }
 
 /**
@@ -228,19 +235,35 @@ function verifyDeviceLoginCode(string $email, string $fingerprint, string $code)
     }
 
     $hashedCode = hash('sha256', trim($code));
-    if (!hash_equals((string)$token->code_hash, $hashedCode)) {
-        $attempts = (int)($token->attempts ?? 0) + 1;
-        if ($attempts >= 5) {
-            DB::table('login_verification_tokens')->where('id', $token->id)->delete();
-        } else {
-            DB::table('login_verification_tokens')->where('id', $token->id)->update([
-                'attempts' => $attempts,
-                'updated_at' => now()->toDateTimeString(),
-            ]);
-        }
-        return false;
+
+    // Claim the token atomically: the DELETE only removes the row when the
+    // stored hash still matches, so a single-use code can never be validated
+    // twice — the first concurrent request to claim it wins and every other
+    // request sees 0 affected rows (replay rejected).
+    $claimed = DB::table('login_verification_tokens')
+        ->where('id', $token->id)
+        ->where('code_hash', $hashedCode)
+        ->delete();
+
+    if ($claimed > 0) {
+        return true;
     }
 
-    DB::table('login_verification_tokens')->where('id', $token->id)->delete();
-    return true;
+    // Wrong code (or a token already consumed by a concurrent request): count
+    // the failure. increment() is a single UPDATE, so parallel wrong guesses
+    // cannot overwrite each other's count and race past the 5-attempt cap.
+    $affected = DB::table('login_verification_tokens')
+        ->where('id', $token->id)
+        ->increment('attempts');
+
+    if ($affected > 0) {
+        $attempts = (int)DB::table('login_verification_tokens')
+            ->where('id', $token->id)
+            ->value('attempts');
+        if ($attempts >= 5) {
+            DB::table('login_verification_tokens')->where('id', $token->id)->delete();
+        }
+    }
+
+    return false;
 }
