@@ -314,7 +314,10 @@ function sendSystemEmail(string $to, string $subject, string $body, ?array $atta
                 }
             });
 
-            error_log('[MOTASTE mail] (fallback driver: ' . $driver . ') to=' . $to . ' subject=' . $subject . ' body=' . str_replace(["\r", "\n"], ' ', $body));
+            // SECURITY: Never log the raw email body — it may contain
+            // verification codes, reset tokens, or OTP values. Log only
+            // metadata so the message is retrievable without exposing secrets.
+            error_log('[MOTASTE mail] (fallback driver: ' . $driver . ') to=' . $to . ' subject=' . $subject . ' [body omitted — contains sensitive tokens]');
 
             return [
                 'success' => true,

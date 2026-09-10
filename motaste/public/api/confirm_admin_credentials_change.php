@@ -64,6 +64,15 @@ try {
 
     $hashedCode = hash('sha256', $code);
     if (!hash_equals((string)$token->code_hash, $hashedCode)) {
+        $attempts = (int)($token->attempts ?? 0) + 1;
+        if ($attempts >= 5) {
+            DB::table('admin_credential_change_tokens')->where('id', $token->id)->delete();
+        } else {
+            DB::table('admin_credential_change_tokens')->where('id', $token->id)->update([
+                'attempts' => $attempts,
+                'updated_at' => now(),
+            ]);
+        }
         http_response_code(403);
         echo json_encode(['success' => false, 'error' => 'Invalid verification code']);
         exit;
