@@ -23,6 +23,7 @@ try {
     $email = strtolower(trim((string)($input['email'] ?? '')));
     $password = (string)($input['password'] ?? '');
     $selectedRole = trim((string)($input['role'] ?? ''));
+    $turnstileToken = trim((string)($input['cf-turnstile-response'] ?? ''));
     $deviceToken = trim((string)($input['deviceToken'] ?? ''));
     $silentRefresh = !empty($input['silentRefresh']);
 
@@ -41,6 +42,60 @@ try {
             'rateLimited' => true,
         ]);
         exit;
+    }
+
+    // IP-based brute-force protection: prevent an attacker from rotating
+    // emails to bypass per-account lockout.
+    $clientIp = resolveClientIpAddress();
+    if (isLoginIpRateLimited($clientIp)) {
+        http_response_code(429);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Too many failed login attempts from this IP. Please try again in 15 minutes.',
+            'rateLimited' => true,
+        ]);
+        exit;
+    }
+
+    // CAPTCHA enforcement: require Turnstile verification when the IP has
+    // recent failed attempts (proactive) or after a failed attempt (reactive).
+    $ipRecentFails = 0;
+    try {
+        $ipRecentFails = (int) DB::table('login_attempts')
+            ->where('ip_address', $clientIp)
+            ->where('success', false)
+            ->where('attempted_at', '>=', now()->subMinutes(STAFF_LOGIN_LOCKOUT_MINUTES)->toDateTimeString())
+            ->count();
+    } catch (Throwable $e) {
+        // Best effort.
+    }
+
+    if ($ipRecentFails >= 3) {
+        // CAPTCHA is required: validate the Turnstile token.
+        $turnstileSecret = env('TURNSTILE_SECRET_KEY', '');
+        if ($turnstileSecret === '') {
+            // CAPTCHA provider not configured — skip validation but still
+            // require the widget on the client (fail-open for misconfiguration).
+        } elseif ($turnstileToken === '') {
+            http_response_code(422);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Please complete the CAPTCHA verification.',
+                'needsCaptcha' => true,
+            ]);
+            exit;
+        } else {
+            $turnstileResult = verifyTurnstileToken($turnstileToken, $turnstileSecret, $clientIp);
+            if (!$turnstileResult) {
+                http_response_code(422);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'CAPTCHA verification failed. Please try again.',
+                    'needsCaptcha' => true,
+                ]);
+                exit;
+            }
+        }
     }
 
     $staffRow = DB::table('staff')

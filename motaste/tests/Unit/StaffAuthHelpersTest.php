@@ -40,16 +40,28 @@ function bootTestApp(): void
     ensureStaffEnhancementSchema();
 }
 
+// Boot before the first test runs, not inside it: the app bootstrap registers
+// global error/exception handlers, and PHPUnit marks whichever test triggers
+// the boot as "risky" (did not remove its own error handlers) if it happens
+// mid-test. beforeAll runs outside per-test handler accounting.
+beforeAll(function () {
+    bootTestApp();
+});
+
 test('failed login attempts trigger the brute-force rate limiter', function () {
     bootTestApp();
 
     $email = 'ratelimit-test@example.com';
     DB::table('login_attempts')->where('email', $email)->delete();
 
-    foreach (range(1, 6) as $ignored) {
+    // One attempt below the lockout threshold is still allowed.
+    foreach (range(1, STAFF_LOGIN_MAX_ATTEMPTS - 1) as $ignored) {
         recordLoginAttempt($email, false);
     }
+    expect(isLoginRateLimited($email))->toBeFalse();
 
+    // Hitting the threshold locks the account.
+    recordLoginAttempt($email, false);
     expect(isLoginRateLimited($email))->toBeTrue();
 
     DB::table('login_attempts')->where('email', $email)->delete();

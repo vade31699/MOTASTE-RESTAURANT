@@ -41,12 +41,29 @@ try {
         exit;
     }
 
+    // IP-based brute-force protection: prevent an attacker from rotating
+    // emails to bypass per-account lockout.
+    $clientIp = resolveClientIpAddress();
+    if (isLoginIpRateLimited($clientIp)) {
+        http_response_code(429);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Too many failed login attempts from this IP. Please try again in 15 minutes.',
+            'rateLimited' => true,
+        ]);
+        exit;
+    }
+
     // Re-confirm the credentials on this step before trusting the device.
     $staffRow = DB::table('staff')
         ->whereRaw('LOWER(email) = ?', [$email])
         ->first();
 
     if (!$staffRow || !isset($staffRow->password_hash) || !password_verify($password, $staffRow->password_hash)) {
+        // Count the failure so this endpoint feeds the same per-account and
+        // per-IP lockout budgets as authenticate_staff.php — otherwise the
+        // isLoginRateLimited() checks above could never trip from here.
+        recordLoginAttempt($email, false);
         http_response_code(401);
         echo json_encode(['success' => false, 'error' => 'Invalid credentials']);
         exit;
@@ -56,12 +73,18 @@ try {
     $fingerprint = computeDeviceFingerprint($email, $deviceToken);
 
     if (!verifyDeviceLoginCode($email, $fingerprint, $code)) {
+        // A wrong code is a brute-force attempt against the emailed 6-digit
+        // challenge: count it toward lockout too (the token row itself also
+        // self-destructs after 5 failed attempts via verifyDeviceLoginCode()).
+        recordLoginAttempt($email, false);
         http_response_code(403);
         echo json_encode(['success' => false, 'error' => 'Invalid or expired verification code']);
         exit;
     }
 
-    // Code confirmed: trust this device for future logins and grant the session.
+    // Code confirmed: clear the failure counters, trust this device for future
+    // logins, and grant the session.
+    recordLoginAttempt($email, true);
     markTrustedDeviceSeen($email, $fingerprint);
 
     $inviteConfirmed = true;

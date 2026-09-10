@@ -18,8 +18,13 @@ use Illuminate\Database\Schema\Blueprint;
  */
 
 const STAFF_SESSION_LIFETIME_SECONDS = 30 * 24 * 60 * 60; // 30 days
-const STAFF_LOGIN_MAX_ATTEMPTS = 6;
+const STAFF_LOGIN_MAX_ATTEMPTS = 5;
 const STAFF_LOGIN_LOCKOUT_MINUTES = 15;
+
+// IP-based brute-force protection: lock an IP after repeated failures
+// across any accounts, preventing distributed account enumeration.
+const STAFF_LOGIN_IP_MAX_ATTEMPTS = 20;
+const STAFF_LOGIN_IP_LOCKOUT_MINUTES = 15;
 
 /**
  * Ensure every schema addition used by the enhancement features exists.
@@ -352,9 +357,7 @@ function recordLoginAttempt(string $email, bool $success): void
     if ($success) {
         clearLoginAttempts($email);
     }
-}
-
-function clearLoginAttempts(string $email): void
+}function clearLoginAttempts(string $email): void
 {
     ensureStaffEnhancementSchema();
 
@@ -364,6 +367,71 @@ function clearLoginAttempts(string $email): void
             ->delete();
     } catch (Throwable $error) {
         // Best effort.
+    }
+}
+
+/**
+ * Check whether an IP address has exceeded the brute-force login threshold.
+ * This prevents an attacker from rotating emails to bypass per-account lockout.
+ */
+function isLoginIpRateLimited(string $ipAddress): bool
+{
+    ensureStaffEnhancementSchema();
+
+    try {
+        $since = now()->subMinutes(STAFF_LOGIN_IP_LOCKOUT_MINUTES);
+        $count = DB::table('login_attempts')
+            ->where('ip_address', $ipAddress)
+            ->where('success', false)
+            ->where('attempted_at', '>=', $since->toDateTimeString())
+            ->count();
+
+        return $count >= STAFF_LOGIN_IP_MAX_ATTEMPTS;
+    } catch (Throwable $error) {
+        error_log('isLoginIpRateLimited failed: ' . $error->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Validate a Cloudflare Turnstile token with the remote verification API.
+ *
+ * @param  string  $token      The cf-turnstile-response value from the client.
+ * @param  string  $secretKey  The Turnstile secret key.
+ * @param  string  $remoteIp   The client IP (used by Turnstile for anomaly detection).
+ * @return bool                 true when the token is valid.
+ */
+function verifyTurnstileToken(string $token, string $secretKey, string $remoteIp = ''): bool
+{
+    try {
+        $payload = http_build_query([
+            'secret' => $secretKey,
+            'response' => $token,
+            'remoteip' => $remoteIp,
+        ]);
+
+        $ch = curl_init('https://challenges.cloudflare.com/turnstile/v0/siteverify');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 5,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
+        ]);
+        $body = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($body === false || $httpCode !== 200) {
+            error_log('[MOTASTE] Turnstile verification request failed: HTTP ' . $httpCode);
+            return false;
+        }
+
+        $result = json_decode($body, true);
+        return is_array($result) && ($result['success'] ?? false) === true;
+    } catch (Throwable $error) {
+        error_log('[MOTASTE] Turnstile verification error: ' . $error->getMessage());
+        return false;
     }
 }
 

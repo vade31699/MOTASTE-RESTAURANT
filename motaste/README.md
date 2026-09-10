@@ -79,11 +79,33 @@ Open `http://localhost:8000` for the customer site and `http://localhost:8000/st
 >
 > To create an App Password: enable 2-Step Verification at `myaccount.google.com/security`, then generate one at `myaccount.google.com/apppasswords`. Without valid credentials, `sendSystemEmail()` falls back to writing the message — including verification codes — to the server log.
 
+> **CAPTCHA (staff login):** brute-force CAPTCHA uses Cloudflare Turnstile. Create a widget in the Cloudflare dashboard (your domain, "Managed" type), then set both variables. Without them, login still works — the CAPTCHA challenge is simply skipped / reported as unavailable:
+>
+> ```env
+> TURNSTILE_SITE_KEY=0x4AAAAAAA...   # public sitekey, served to the login page
+> TURNSTILE_SECRET_KEY=0x4AAAAAAA... # server-side, used to verify tokens
+> ```
+>
+> The sitekey is fetched by `script.js` from `GET /api/get_turnstile_sitekey.php` and rendered explicitly, so `staff.html` needs no templating.
+
 ## Deploying (Laravel Cloud)
 
 1. Push to the connected Git repository (Laravel Cloud auto-deploys).
-2. In the dashboard set the production environment variables (APP_KEY, DB_*, MAIL_* SMTP credentials).
+2. In the dashboard set the production environment variables (APP_KEY, DB_*, MAIL_* SMTP credentials, and the Turnstile CAPTCHA keys below).
 3. Verify with `GET https://your-app.laravel.cloud/api/health.php` (returns `{"status":"ok","db":"ok"}`).
+
+### Turnstile CAPTCHA (required in production)
+
+The staff-login CAPTCHA silently degrades to "unavailable" if these are missing, and `authenticate_staff.php` then **fails open** (skips verification) — so set them or the brute-force CAPTCHA layer is not real:
+
+| Variable | Where it comes from |
+| --- | --- |
+| `TURNSTILE_SITE_KEY` | Cloudflare dashboard → Turnstile → widget (public) |
+| `TURNSTILE_SECRET_KEY` | Same widget (secret — rotate if it's ever shared) |
+
+Also make sure the widget's **Hostnames** list in Cloudflare includes the production domain (`motaste.ph`) — otherwise token verification fails with `hostname mismatch` even with correct keys.
+
+Post-deploy check: `GET https://your-app.laravel.cloud/api/get_turnstile_sitekey.php` should return the production sitekey (not an empty string).
 
 ## Troubleshooting
 

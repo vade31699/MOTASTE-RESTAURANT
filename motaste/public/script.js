@@ -976,10 +976,11 @@ function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
     return fetch(url, { ...options, signal: controller.signal }).finally(() => window.clearTimeout(timer));
 }
 
-async function authenticateStaffAccount(email, password, role = '', deviceToken = '', silentRefresh = false) {
+async function authenticateStaffAccount(email, password, role = '', deviceToken = '', silentRefresh = false, turnstileToken = '') {
     try {
         const body = { email, password, role, deviceToken };
         if (silentRefresh) body.silentRefresh = true;
+        if (turnstileToken) body['cf-turnstile-response'] = turnstileToken;
         const response = await fetchWithTimeout(getApiUrl('api/authenticate_staff.php'), {
             method: 'POST',
             headers: {
@@ -996,12 +997,13 @@ async function authenticateStaffAccount(email, password, role = '', deviceToken 
             // Preserve rate-limit, auth-required, and remaining-attempt responses
             // instead of swallowing them into a generic "Invalid credentials"
             // error, so staff can see the lockout countdown and message.
-            if (payload && (payload.rateLimited || payload.authRequired || payload.remainingAttempts != null)) {
+            if (payload && (payload.rateLimited || payload.authRequired || payload.remainingAttempts != null || payload.needsCaptcha)) {
                 return {
                     success: false,
                     error: payload.error || `HTTP ${response.status}`,
                     rateLimited: Boolean(payload.rateLimited),
                     authRequired: Boolean(payload.authRequired),
+                    needsCaptcha: Boolean(payload.needsCaptcha),
                     remainingAttempts: payload.remainingAttempts != null ? Number(payload.remainingAttempts) : null
                 };
             }
@@ -1246,6 +1248,104 @@ function resetInviteVerifyModal() {
  * confirmation. Resolves with the entered code string, or null when the user
  * cancels. Pass an errorMessage to surface a previous failed attempt.
  */
+
+/* ------------------------------------------------------------------ */
+/* CAPTCHA (Cloudflare Turnstile)                                      */
+/* ------------------------------------------------------------------ */
+
+let captchaContainer = null;
+let captchaResolver = null;
+let turnstileWidgetId = null;
+let turnstileSitekeyPromise = null;
+
+/**
+ * Fetch the Turnstile sitekey from the server (TURNSTILE_SITE_KEY env var).
+ * The sitekey is a public identifier; the secret stays server-side. staff.html
+ * is served as a static file, so it cannot be templated into the HTML.
+ * Resolves to '' when Turnstile is not configured.
+ */
+function fetchTurnstileSitekey() {
+    if (!turnstileSitekeyPromise) {
+        turnstileSitekeyPromise = fetch(getApiUrl('api/get_turnstile_sitekey.php'), { cache: 'no-store' })
+            .then((response) => response.json())
+            .then((payload) => (payload && typeof payload.sitekey === 'string' ? payload.sitekey : ''))
+            .catch(() => '');
+    }
+    return turnstileSitekeyPromise;
+}
+
+/**
+ * Show the Turnstile CAPTCHA widget and resolve when the user completes it.
+ * Returns the token string, or null on cancel/unavailable.
+ */
+async function requestCaptchaVerification(errorMessage) {
+    captchaContainer = captchaContainer || document.getElementById('captchaContainer');
+    if (!captchaContainer) return null;
+
+    const sitekey = await fetchTurnstileSitekey();
+    if (!sitekey) {
+        // Turnstile is not configured server-side (TURNSTILE_SITE_KEY missing)
+        // or the config endpoint is unreachable. Explain instead of hanging on
+        // a widget that can never render.
+        if (errorMessage && captchaContainer.querySelector('.captcha-label')) {
+            captchaContainer.querySelector('.captcha-label').textContent =
+                (errorMessage ? errorMessage + ' ' : '') +
+                'CAPTCHA is temporarily unavailable. Please try again later.';
+        }
+        captchaContainer.hidden = false;
+        return null;
+    }
+
+    return new Promise((resolve) => {
+        captchaResolver = resolve;
+        captchaContainer.hidden = false;
+
+        if (errorMessage && captchaContainer.querySelector('.captcha-label')) {
+            captchaContainer.querySelector('.captcha-label').textContent = errorMessage;
+        }
+
+        // Render or reset the Turnstile widget. Rendering is explicit (no
+        // data-sitekey attribute), so the widget cannot appear without a key.
+        if (typeof turnstile !== 'undefined') {
+            if (turnstileWidgetId !== null) {
+                turnstile.reset(turnstileWidgetId);
+            } else {
+                turnstileWidgetId = turnstile.render(captchaContainer.querySelector('.cf-turnstile'), {
+                    sitekey,
+                    callback: onTurnstileSuccess,
+                    'error-callback': () => resolveCaptcha(null),
+                    theme: 'dark'
+                });
+            }
+        } else {
+            // The Turnstile script failed to load (blocked, offline, etc.).
+            if (errorMessage && captchaContainer.querySelector('.captcha-label')) {
+                captchaContainer.querySelector('.captcha-label').textContent =
+                    (errorMessage ? errorMessage + ' ' : '') +
+                    'CAPTCHA could not be loaded. Please refresh the page.';
+            }
+            resolveCaptcha(null);
+            return;
+        }
+    });
+}
+
+/**
+ * Global callback invoked by Turnstile on successful verification.
+ */
+window.onTurnstileSuccess = function (token) {
+    const tokenInput = document.getElementById('turnstileToken');
+    if (tokenInput) tokenInput.value = token;
+    resolveCaptcha(token);
+};
+
+function resolveCaptcha(token) {
+    if (captchaContainer) captchaContainer.hidden = true;
+    const resolve = captchaResolver;
+    captchaResolver = null;
+    if (resolve) resolve(token);
+}
+
 function requestInviteVerificationCode(errorMessage) {
     if (!inviteVerifyModal) return Promise.resolve(null);
     return new Promise((resolve) => {
@@ -1820,6 +1920,34 @@ async function handleStaffLogin(email, password, role, remember) {
             modalTitle.textContent = authResult.error || 'Too many failed login attempts. Please try again later.';
         }
         return;
+    }
+
+    // CAPTCHA required: show the Turnstile widget and wait for completion.
+    if (authResult.needsCaptcha) {
+        const captchaToken = await requestCaptchaVerification(authResult.error || '');
+        if (!captchaToken) {
+            if (modalTitle) {
+                modalTitle.textContent = 'CAPTCHA verification required';
+            }
+            return;
+        }
+        // Re-attempt login with the CAPTCHA token.
+        authResult = await authenticateStaffAccount(email, password, role, deviceToken, false, captchaToken);
+        if (!authResult) {
+            setAuthButtonsVisible(false);
+            if (modalTitle) {
+                modalTitle.textContent = 'Invalid credentials';
+            }
+            return;
+        }
+        // Handle rate-limit or remaining-attempts after CAPTCHA retry.
+        if (authResult.rateLimited || (!authResult.success && authResult.remainingAttempts != null)) {
+            setAuthButtonsVisible(false);
+            if (modalTitle) {
+                modalTitle.textContent = authResult.error || 'Invalid credentials';
+            }
+            return;
+        }
     }
 
     // Invalid credentials with a remaining-attempts countdown from the server.
