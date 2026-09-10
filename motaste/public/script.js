@@ -1584,13 +1584,6 @@ document.addEventListener('keydown', (event) => {
 /* ---- Trusted devices management ---- */
 const trustedDevicesList = document.getElementById('trustedDevicesList');
 const trustedDevicesMessage = document.getElementById('trustedDevicesMessage');
-const trustDeviceToggleRow = document.getElementById('trustDeviceToggleRow');
-const trustDeviceToggle = document.getElementById('trustDeviceToggle');
-const trustedDevicesDescription = document.getElementById('trustedDevicesDescription');
-
-// Server-side admin toggle: false means EVERY login requires the emailed
-// verification code, even from a previously trusted device.
-let trustDeviceEnabled = true;
 
 async function loadTrustedDevices() {
     if (!trustedDevicesList) return;
@@ -1612,74 +1605,11 @@ async function loadTrustedDevices() {
         if (!response.ok || !payload.success) {
             throw new Error(payload.error || 'Unable to load trusted devices');
         }
-        trustDeviceEnabled = payload.trustDeviceEnabled !== false;
-        applyTrustDeviceToggleState(trustDeviceEnabled);
         renderTrustedDevices(Array.isArray(payload.devices) ? payload.devices : []);
     } catch (error) {
         console.error('Unable to load trusted devices', error);
         if (trustedDevicesMessage) trustedDevicesMessage.textContent = error.message || 'Unable to load trusted devices.';
     }
-}
-
-/**
- * Sync the admin toggle, the card description, and the device badges with the
- * server-side trust-device policy. Only Admins (Credentials section) see the
- * toggle itself.
- */
-function applyTrustDeviceToggleState(enabled) {
-    const isEnabled = enabled !== false;
-
-    if (trustDeviceToggle) {
-        trustDeviceToggle.checked = isEnabled;
-    }
-    if (trustedDevicesDescription) {
-        trustedDevicesDescription.textContent = isEnabled
-            ? 'Devices that can sign in without a verification code. Revoke any you no longer use.'
-            : 'Trusted devices are disabled — every staff login requires an emailed verification code. Devices listed below were verified before the setting was turned off.';
-    }
-    if (!trustDeviceToggleRow) return;
-
-    const actor = getCurrentStaffActor();
-    trustDeviceToggleRow.hidden = !(actor && String(actor.role || '').toLowerCase() === 'admin');
-}
-
-/**
- * Persist the admin trust-device toggle. Reverts the switch and surfaces the
- * server error when the request fails, so the UI never lies about the policy.
- */
-async function updateTrustDeviceSetting(enabled) {
-    if (trustedDevicesMessage) trustedDevicesMessage.textContent = '';
-
-    try {
-        const headers = await withCsrfHeaders({ 'Content-Type': 'application/json' });
-        const response = await fetch(getApiUrl('api/update_trust_device_setting.php'), {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ enabled: Boolean(enabled) }),
-            cache: 'no-store'
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || !payload.success) {
-            throw new Error(payload.error || 'Unable to update trust device setting');
-        }
-
-        trustDeviceEnabled = Boolean(payload.trustDeviceEnabled);
-        applyTrustDeviceToggleState(trustDeviceEnabled);
-        if (trustedDevicesMessage) trustedDevicesMessage.textContent = payload.message || 'Trust device setting updated.';
-        // Refresh the device list so badges reflect the current policy.
-        loadTrustedDevices();
-    } catch (error) {
-        console.error('Unable to update trust device setting', error);
-        // Revert the switch to the last known server state.
-        applyTrustDeviceToggleState(trustDeviceEnabled);
-        if (trustedDevicesMessage) trustedDevicesMessage.textContent = error.message || 'Unable to update trust device setting.';
-    }
-}
-
-if (trustDeviceToggle) {
-    trustDeviceToggle.addEventListener('change', () => {
-        updateTrustDeviceSetting(trustDeviceToggle.checked);
-    });
 }
 
 function getTrustedDeviceRoleLabel(role) {
@@ -1702,9 +1632,7 @@ function renderTrustedDevices(devices) {
     if (!trustedDevicesList) return;
 
     if (!devices.length) {
-        trustedDevicesList.innerHTML = trustDeviceEnabled
-            ? '<p class="trusted-devices-empty">No trusted devices yet. Your current device becomes trusted after you verify your login.</p>'
-            : '<p class="trusted-devices-empty">No trusted devices recorded. While trust is disabled, every login requires an emailed verification code.</p>';
+        trustedDevicesList.innerHTML = '<p class="trusted-devices-empty">No trusted devices yet. Your current device becomes trusted after you verify your login.</p>';
         return;
     }
 
@@ -1743,7 +1671,7 @@ function renderTrustedDevices(devices) {
                         const lastSeen = device.last_seen_at ? formatRealtimeDate(device.last_seen_at) : 'Never';
                         const status = device.is_current
                             ? '<span class="trusted-device-status is-current">Current Device</span>'
-                            : `<span class="trusted-device-status is-trusted">${trustDeviceEnabled ? 'Trusted' : 'Verified'}</span>`;
+                            : '<span class="trusted-device-status is-trusted">Trusted</span>';
                         const revokeBtn = device.is_current
                             ? ''
                             : `<button type="button" class="trusted-device-revoke" data-fingerprint="${fingerprint}" data-email="${email}">Revoke Trust</button>`;

@@ -74,13 +74,7 @@ try {
         ];
     })->values()->all();
 
-    echo json_encode([
-        'success' => true,
-        'devices' => $list,
-        // Admin toggle state: when false, EVERY login requires the emailed
-        // verification code regardless of this device list.
-        'trustDeviceEnabled' => isTrustDeviceEnabled(),
-    ]);
+    echo json_encode(['success' => true, 'devices' => $list]);
 } catch (Throwable $error) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Unable to load trusted devices']);
