@@ -17,6 +17,7 @@ if (!$actor) {
 
 use Illuminate\Support\Facades\DB;
 
+require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/_device_auth_helpers.php';
 
 try {
