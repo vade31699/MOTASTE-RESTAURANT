@@ -70,7 +70,7 @@ try {
         // Best effort.
     }
 
-    if ($ipRecentFails >= 3) {
+    if ($ipRecentFails >= STAFF_LOGIN_CAPTCHA_THRESHOLD) {
         // CAPTCHA is required: validate the Turnstile token.
         $turnstileSecret = env('TURNSTILE_SECRET_KEY', '');
         if ($turnstileSecret === '') {

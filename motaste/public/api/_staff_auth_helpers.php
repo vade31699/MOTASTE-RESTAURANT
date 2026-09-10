@@ -21,6 +21,11 @@ const STAFF_SESSION_LIFETIME_SECONDS = 30 * 24 * 60 * 60; // 30 days
 const STAFF_LOGIN_MAX_ATTEMPTS = 5;
 const STAFF_LOGIN_LOCKOUT_MINUTES = 2;
 
+// CAPTCHA kicks in when an IP has this many recent failed attempts (within the
+// lockout window). With 4, the 5th submit is the first one that demands a
+// completed CAPTCHA.
+const STAFF_LOGIN_CAPTCHA_THRESHOLD = 4;
+
 // IP-based brute-force protection: lock an IP after repeated failures
 // across any accounts, preventing distributed account enumeration.
 const STAFF_LOGIN_IP_MAX_ATTEMPTS = 20;
