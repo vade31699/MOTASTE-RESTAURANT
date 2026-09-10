@@ -82,8 +82,9 @@ try {
         exit;
     }
 
-    // Code confirmed: clear the failure counters, trust this device for future
-    // logins, and grant the session.
+    // Code confirmed: clear the failure counters, record this device as a
+    // verified login (informational only — every login still requires a fresh
+    // emailed code), and grant the session.
     recordLoginAttempt($email, true);
     markTrustedDeviceSeen($email, $fingerprint);
 
@@ -124,7 +125,7 @@ try {
             'action' => 'device_login_verified',
             'actor_role' => $role,
             'actor_email' => strtolower(trim((string)($staffRow->email ?? ''))),
-            'summary' => 'New device verified and added to trusted devices',
+            'summary' => 'Staff login verified with emailed code',
             'details' => json_encode([
                 'device_label' => resolveDeviceLabel(),
                 'device_token' => $deviceToken,

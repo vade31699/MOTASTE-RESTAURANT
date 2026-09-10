@@ -31,7 +31,7 @@ An online ordering and restaurant-management platform for **MOTASTE** (Batchoy, 
 
 - **Password hashing:** `password_hash()` (bcrypt) — plaintext passwords are never stored
 - **Login rate limiting:** 6 failed attempts per 15 minutes locks the account (`login_attempts`)
-- **Device verification:** new browsers must confirm a 6-digit code emailed to the account before the device is trusted (`trusted_devices`, `login_verification_tokens`)
+- **Device verification:** every staff login must confirm a 6-digit code emailed to the account before a session is created — trusted devices never bypass it (`trusted_devices` is an informational record of verified logins; `login_verification_tokens` holds the one-time codes)
 - **Session tokens:** after login the client stores an opaque bearer token (hashed server-side in `staff_session_tokens`) instead of the password. Logout revokes the token and destroys the PHP session
 - **Endpoint gating:** staff endpoints require `requireStaffAuth()` / `requireAdminAuth()`; the Admin account can only be changed through the email-verified credentials flow
 - **CSRF:** staff mutation endpoints validate an `X-CSRF-TOKEN`

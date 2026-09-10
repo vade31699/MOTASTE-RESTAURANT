@@ -25,7 +25,6 @@ try {
     $selectedRole = trim((string)($input['role'] ?? ''));
     $turnstileToken = trim((string)($input['cf-turnstile-response'] ?? ''));
     $deviceToken = trim((string)($input['deviceToken'] ?? ''));
-    $silentRefresh = !empty($input['silentRefresh']);
 
     if ($email === '' || $password === '') {
         http_response_code(400);
@@ -135,154 +134,99 @@ try {
         exit;
     }
 
-    // ---- Trusted device recognition -------------------------------------
-    // Every account (Admin, Cashier, Inventory Manager) must log in from a
-    // recognized device. Unrecognized devices are challenged with a code that
-    // is emailed to the account's address before a session is created.
+    // ---- Login verification (required for every login) -------------------
+    // For maximum security, EVERY staff login — Admin, Cashier, and Inventory
+    // Manager — must confirm a verification code that is emailed to the
+    // account's address before a session is created. A device is remembered
+    // only as a record of verified logins; it never bypasses this code.
     $fingerprint = computeDeviceFingerprint($email, $deviceToken);
 
-    if (!deviceIsTrusted($email, $fingerprint)) {
-        // Rate-limit code issuance: reuse a code that was created in the last
-        // 60 seconds instead of emailing a fresh one on every attempt.
-        $existingToken = DB::table('login_verification_tokens')
-            ->where('email', $email)
-            ->where('fingerprint', $fingerprint)
-            ->orderBy('id', 'desc')
-            ->first();
-        $codeAlreadySent = $existingToken
-            && now()->lessThan($existingToken->expires_at)
-            && now()->diffInSeconds($existingToken->created_at) < 60;
+    // Rate-limit code issuance: reuse a code that was created in the last
+    // 60 seconds instead of emailing a fresh one on every attempt.
+    $existingToken = DB::table('login_verification_tokens')
+        ->where('email', $email)
+        ->where('fingerprint', $fingerprint)
+        ->orderBy('id', 'desc')
+        ->first();
+    $codeAlreadySent = $existingToken
+        && now()->lessThan($existingToken->expires_at)
+        && now()->diffInSeconds($existingToken->created_at) < 60;
 
-        if ($codeAlreadySent) {
-            echo json_encode([
-                'success' => false,
-                'needsDeviceVerification' => true,
-                'email' => $email,
-                'role' => $role,
-                'message' => 'New device detected. A verification code was already sent to your email — check your inbox.',
-                'deviceToken' => $deviceToken,
-            ]);
-            exit;
-        }
-
-        $code = createDeviceLoginCode($email, $fingerprint);
-        $deviceLabel = resolveDeviceLabel();
-        $occurredAt = now()->toDateTimeString();
-
-        $emailBody = "MOTASTE login verification\n\n" .
-            "A login was attempted from a new device for this account.\n\n" .
-            "Verification code: {$code}\n" .
-            "Expires: " . now()->addMinutes(3)->toDateTimeString() . "\n\n" .
-            "Device: {$deviceLabel}\n" .
-            "IP Address: " . resolveClientIpAddress() . "\n" .
-            "Date/Time: {$occurredAt}\n\n" .
-            "Enter this code on the device where you are signing in.\n" .
-            "If this was not you, change your password immediately.";
-
-        $emailResult = sendSystemEmail($email, 'MOTASTE Login Verification Code', $emailBody);
-
-        // Record the challenge for auditing (device events stay in order logs).
-        try {
-            DB::table('order_activity_logs')->insert([
-                'order_id' => null,
-                'order_number' => null,
-                'action' => 'new_device_login_verification_sent',
-                'actor_role' => $role,
-                'actor_email' => $email,
-                'summary' => 'Verification code emailed for login from an unrecognized device',
-                'details' => json_encode([
-                    'device_label' => $deviceLabel,
-                    'device_token' => $deviceToken,
-                    'ip_address' => resolveClientIpAddress(),
-                    'email_delivered' => $emailResult['success'] ?? false,
-                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        } catch (Throwable $logError) {
-            // Auditing must never block the verification response.
-        }
-
-        $response = [
+    if ($codeAlreadySent) {
+        echo json_encode([
             'success' => false,
             'needsDeviceVerification' => true,
             'email' => $email,
             'role' => $role,
-            'message' => 'New device detected. A verification code was sent to your email.',
+            'message' => 'A verification code was already sent to your email — check your inbox.',
             'deviceToken' => $deviceToken,
-        ];
-
-        if (!empty($emailResult['warning'])) {
-            // SMTP is not configured; the message (including the code) was
-            // written to the server log as a fallback.
-            $response['warning'] = $emailResult['warning']
-                . ' The verification code was written to the server log.';
-        } elseif (!$emailResult['success']) {
-            $response['warning'] = 'Verification email could not be delivered: '
-                . ($emailResult['error'] ?? 'unknown mail error')
-                . ' Check the server logs for the code.';
-        }
-        // NOTE: when SMTP fails, sendSystemEmail() already falls back to
-        // writing the code to the server log — never log the raw code again.
-
-        echo json_encode($response);
+        ]);
         exit;
     }
 
-    markTrustedDeviceSeen($email, $fingerprint);
+    $code = createDeviceLoginCode($email, $fingerprint);
+    $deviceLabel = resolveDeviceLabel();
+    $occurredAt = now()->toDateTimeString();
 
-    $inviteConfirmed = true;
-    if (in_array($role, ['Cashier', 'Inventory Manager'], true)) {
-        $token = DB::table('staff_invite_tokens')
-            ->whereRaw('LOWER(email) = ?', [$email])
-            ->whereRaw('LOWER(role) = ?', [strtolower($role)])
-            ->first();
+    $emailBody = "MOTASTE login verification\n\n" .
+        "A login was attempted for this account. For security, a verification\n" .
+        "code is required for every login.\n\n" .
+        "Verification code: {$code}\n" .
+        "Expires: " . now()->addMinutes(3)->toDateTimeString() . "\n\n" .
+        "Device: {$deviceLabel}\n" .
+        "IP Address: " . resolveClientIpAddress() . "\n" .
+        "Date/Time: {$occurredAt}\n\n" .
+        "Enter this code on the device where you are signing in.\n" .
+        "If this was not you, change your password immediately.";
 
-        if ($token) {
-            $inviteConfirmed = false;
-        }
+    $emailResult = sendSystemEmail($email, 'MOTASTE Login Verification Code', $emailBody);
+
+    // Record the challenge for auditing (device events stay in order logs).
+    try {
+        DB::table('order_activity_logs')->insert([
+            'order_id' => null,
+            'order_number' => null,
+            'action' => 'staff_login_verification_sent',
+            'actor_role' => $role,
+            'actor_email' => $email,
+            'summary' => 'Verification code emailed for staff login',
+            'details' => json_encode([
+                'device_label' => $deviceLabel,
+                'device_token' => $deviceToken,
+                'ip_address' => resolveClientIpAddress(),
+                'email_delivered' => $emailResult['success'] ?? false,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    } catch (Throwable $logError) {
+        // Auditing must never block the verification response.
     }
 
-    recordLoginAttempt($email, true);
-
-    // Persist a server-side session (30-day cookie) so subsequent server
-    // endpoints can recognize the staff user. Silent refreshes re-issue the
-    // session without spamming the login history audit trail.
-    ensureStaffAuthSession();
-
-    // Regenerate the session ID so the pre-login session cannot be hijacked,
-    // then issue a fresh stateless CSRF token bound to the NEW session ID.
-    // (Tokens are HMAC-signed and self-contained, so nothing needs carrying
-    // across the regeneration.)
-    session_regenerate_id(true);
-    $_SESSION['staff'] = [
+    $response = [
+        'success' => false,
+        'needsDeviceVerification' => true,
+        'email' => $email,
         'role' => $role,
-        'email' => strtolower(trim((string)($staffRow->email ?? ''))),
-        'name' => trim((string)($staffRow->full_name ?? '')),
-        'logged_in_at' => now()->toDateTimeString()
+        'message' => 'A verification code was sent to your email.',
+        'deviceToken' => $deviceToken,
     ];
 
-    // Record the successful login in the credentials audit trail (not for silent refresh).
-    if (!$silentRefresh) {
-        recordStaffLoginHistory($email, $role, (string)($staffRow->full_name ?? ''));
+    if (!empty($emailResult['warning'])) {
+        // SMTP is not configured; the message (including the code) was
+        // written to the server log as a fallback.
+        $response['warning'] = $emailResult['warning']
+            . ' The verification code was written to the server log.';
+    } elseif (!$emailResult['success']) {
+        $response['warning'] = 'Verification email could not be delivered: '
+            . ($emailResult['error'] ?? 'unknown mail error')
+            . ' Check the server logs for the code.';
     }
+    // NOTE: when SMTP fails, sendSystemEmail() already falls back to
+    // writing the code to the server log — never log the raw code again.
 
-    // Issue an opaque bearer token so the client can restore this session after
-    // a browser restart WITHOUT persisting the plaintext password.
-    $sessionToken = issueStaffSessionToken($email, $role);
-
-    $freshCsrf = function_exists('getOrCreateCsrfToken') ? getOrCreateCsrfToken() : '';
-
-    echo json_encode([
-        'success' => true,
-        'role' => $role,
-        'email' => strtolower(trim((string)($staffRow->email ?? ''))),
-        'name' => trim((string)($staffRow->full_name ?? '')),
-        'inviteConfirmed' => $inviteConfirmed,
-        'deviceVerified' => true,
-        'sessionToken' => $sessionToken,
-        'csrfToken' => $freshCsrf
-    ]);
+    echo json_encode($response);
+    exit;
 } catch (Throwable $error) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Unable to authenticate staff account']);

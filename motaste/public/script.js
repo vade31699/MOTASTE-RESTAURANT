@@ -1097,12 +1097,7 @@ function ensureStaffServerSession() {
 
 /* ---- Device verification modal (replaces native prompt) ---- */
 const deviceVerifyModal = document.getElementById('deviceVerifyModal');
-const deviceVerifyConfirmStep = document.getElementById('deviceVerifyConfirmStep');
 const deviceVerifyCodeStep = document.getElementById('deviceVerifyCodeStep');
-const deviceVerifyTitle = document.getElementById('deviceVerifyTitle');
-const deviceVerifyText = document.getElementById('deviceVerifyText');
-const deviceVerifyCancelBtn = document.getElementById('deviceVerifyCancelBtn');
-const deviceVerifySendBtn = document.getElementById('deviceVerifySendBtn');
 const deviceVerifyBackBtn = document.getElementById('deviceVerifyBackBtn');
 const deviceVerifySubmitBtn = document.getElementById('deviceVerifySubmitBtn');
 const deviceVerifyCloseBtn = document.getElementById('deviceVerifyCloseBtn');
@@ -1110,7 +1105,6 @@ const deviceVerifyCodeInput = document.getElementById('deviceVerifyCodeInput');
 const deviceVerifyMessage = document.getElementById('deviceVerifyMessage');
 
 let deviceVerifyResolver = null;
-let deviceVerifyWarningText = '';
 
 function openDeviceVerifyModal() {
     if (!deviceVerifyModal) return;
@@ -1127,23 +1121,9 @@ function closeDeviceVerifyModal() {
 }
 
 function resetDeviceVerifyModal() {
-    if (deviceVerifyConfirmStep) deviceVerifyConfirmStep.hidden = false;
-    if (deviceVerifyCodeStep) deviceVerifyCodeStep.hidden = true;
+    if (deviceVerifyCodeStep) deviceVerifyCodeStep.hidden = false;
     if (deviceVerifyCodeInput) deviceVerifyCodeInput.value = '';
     if (deviceVerifyMessage) deviceVerifyMessage.textContent = '';
-    deviceVerifyWarningText = '';
-    if (deviceVerifyText) {
-        deviceVerifyText.textContent = 'Send a confirmation code to your email to continue?';
-    }
-}
-
-function showDeviceVerifyCodeStep() {
-    if (deviceVerifyConfirmStep) deviceVerifyConfirmStep.hidden = true;
-    if (deviceVerifyCodeStep) deviceVerifyCodeStep.hidden = false;
-    if (deviceVerifyMessage && deviceVerifyWarningText) {
-        deviceVerifyMessage.textContent = deviceVerifyWarningText;
-    }
-    if (deviceVerifyCodeInput) deviceVerifyCodeInput.focus();
 }
 
 /**
@@ -1157,11 +1137,11 @@ function requestDeviceVerificationCode(warningMessage) {
     return new Promise((resolve) => {
         deviceVerifyResolver = resolve;
         resetDeviceVerifyModal();
-        if (warningMessage && deviceVerifyText) {
-            deviceVerifyWarningText = warningMessage;
-            deviceVerifyText.textContent = warningMessage;
+        if (warningMessage && deviceVerifyMessage) {
+            deviceVerifyMessage.textContent = warningMessage;
         }
         openDeviceVerifyModal();
+        if (deviceVerifyCodeInput) deviceVerifyCodeInput.focus();
     });
 }
 
@@ -1173,16 +1153,8 @@ function resolveDeviceVerify(value) {
     if (resolve) resolve(value);
 }
 
-if (deviceVerifyCancelBtn) {
-    deviceVerifyCancelBtn.addEventListener('click', () => resolveDeviceVerify(null));
-}
-
 if (deviceVerifyCloseBtn) {
     deviceVerifyCloseBtn.addEventListener('click', () => resolveDeviceVerify(null));
-}
-
-if (deviceVerifySendBtn) {
-    deviceVerifySendBtn.addEventListener('click', () => showDeviceVerifyCodeStep());
 }
 
 if (deviceVerifyBackBtn) {
@@ -1632,7 +1604,7 @@ function renderTrustedDevices(devices) {
     if (!trustedDevicesList) return;
 
     if (!devices.length) {
-        trustedDevicesList.innerHTML = '<p class="trusted-devices-empty">No trusted devices yet. Your current device becomes trusted after you verify your login.</p>';
+        trustedDevicesList.innerHTML = '<p class="trusted-devices-empty">No devices recorded yet. Devices appear here after they complete a verified login.</p>';
         return;
     }
 
@@ -1671,10 +1643,10 @@ function renderTrustedDevices(devices) {
                         const lastSeen = device.last_seen_at ? formatRealtimeDate(device.last_seen_at) : 'Never';
                         const status = device.is_current
                             ? '<span class="trusted-device-status is-current">Current Device</span>'
-                            : '<span class="trusted-device-status is-trusted">Trusted</span>';
+                            : '<span class="trusted-device-status is-trusted">Verified</span>';
                         const revokeBtn = device.is_current
                             ? ''
-                            : `<button type="button" class="trusted-device-revoke" data-fingerprint="${fingerprint}" data-email="${email}">Revoke Trust</button>`;
+                            : `<button type="button" class="trusted-device-revoke" data-fingerprint="${fingerprint}" data-email="${email}">Remove</button>`;
                         return `
                             <div class="trusted-device-row">
                                 <div class="trusted-device-icon" aria-hidden="true"><i class="fa-solid fa-laptop"></i></div>
@@ -2450,11 +2422,18 @@ async function confirmAdminCredentialsChange(event, formType = 'email') {
         const nextPassword = nextPasswordInput ? nextPasswordInput.value : '';
 
         // The credentials change revokes every previously issued session token,
-        // so re-authenticate silently (this device is already trusted) to obtain
-        // a fresh token for the restored session.
+        // so re-authenticate to obtain a fresh token for the restored session.
+        // Every login requires an emailed verification code, so the re-auth may
+        // need the same code-entry step as a normal login.
         if (nextEmail && nextPassword) {
             const deviceToken = getOrCreateDeviceToken();
-            const reAuth = await authenticateStaffAccount(nextEmail, nextPassword, 'Admin', deviceToken, true);
+            let reAuth = await authenticateStaffAccount(nextEmail, nextPassword, 'Admin', deviceToken, true);
+            if (reAuth && reAuth.needsDeviceVerification) {
+                const code = await requestDeviceVerificationCode(reAuth.warning || '');
+                if (code) {
+                    reAuth = await verifyDeviceLogin(nextEmail, nextPassword, code, deviceToken);
+                }
+            }
             if (reAuth && reAuth.success && reAuth.sessionToken) {
                 if (selectedRoleInput) {
                     selectedRoleInput.value = 'Admin';

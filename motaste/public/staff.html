@@ -860,7 +860,7 @@
         <div class="trusted-devices-card" id="trustedDevicesCard">
             <div class="trusted-devices-header">
                 <h3>Trusted Devices</h3>
-                <p>Devices that can sign in without a verification code. Revoke any you no longer use.</p>
+                <p>Devices that have completed a verified login for this account. Every staff login requires a fresh verification code sent to the account email.</p>
             </div>
             <div id="trustedDevicesList" class="trusted-devices-list"></div>
             <p id="trustedDevicesMessage" class="menu-order-message" aria-live="polite"></p>
@@ -886,17 +886,9 @@
     <div id="deviceVerifyModal" class="modal-overlay" hidden aria-hidden="true">
         <div class="modal-box device-verify-modal" role="dialog" aria-modal="true" aria-labelledby="deviceVerifyTitle">
             <button type="button" class="modal-close" id="deviceVerifyCloseBtn" aria-label="Close verification prompt">×</button>
-            <div class="device-verify-step" id="deviceVerifyConfirmStep">
-                <h2 id="deviceVerifyTitle">New login detected</h2>
-                <p id="deviceVerifyText">Send a confirmation code to your email to continue?</p>
-                <div class="device-verify-actions">
-                    <button type="button" id="deviceVerifyCancelBtn" class="secondary-btn">Cancel</button>
-                    <button type="button" id="deviceVerifySendBtn" class="menu-place-order-btn">Send Code</button>
-                </div>
-            </div>
-            <div class="device-verify-step" id="deviceVerifyCodeStep" hidden>
-                <h2>Enter verification code</h2>
-                <p>We emailed a 6-digit code to your email. Enter it below.</p>
+            <div class="device-verify-step" id="deviceVerifyCodeStep">
+                <h2 id="deviceVerifyTitle">Login verification required</h2>
+                <p id="deviceVerifyText">For security, a 6-digit verification code was sent to your email. Enter it below to continue.</p>
                 <label for="deviceVerifyCodeInput">Verification code</label>
                 <input type="text" id="deviceVerifyCodeInput" inputmode="numeric" maxlength="8" placeholder="6-digit code" autocomplete="one-time-code">
                 <div class="device-verify-actions">
