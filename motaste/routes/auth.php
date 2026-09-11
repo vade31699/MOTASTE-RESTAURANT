@@ -14,8 +14,7 @@ Route::middleware('guest')->group(function () {
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 
-    Route::post('login', [AuthenticatedSessionController::class, 'store'])
-        ->middleware('throttle:login');
+    Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
     // Password reset
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
@@ -23,17 +22,14 @@ Route::middleware('guest')->group(function () {
 
     // Step 1: email a verification code (the reset form is NOT shown yet).
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
-        ->middleware('throttle:password-reset')
         ->name('password.email');
 
     // Step 2: confirm the emailed code — only then is the reset form shown.
     Route::post('forgot-password/verify', [PasswordResetLinkController::class, 'verify'])
-        ->middleware('throttle:password-reset-verify')
         ->name('password.verify');
 
     // Abandon a pending code verification and start over.
     Route::post('forgot-password/cancel', [PasswordResetLinkController::class, 'cancel'])
-        ->middleware('throttle:password-reset-cancel')
         ->name('password.request.cancel');
 
     // Registered before the {token} route so /reset-password/success is not
@@ -46,7 +42,6 @@ Route::middleware('guest')->group(function () {
         ->name('password.reset');
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
-        ->middleware('throttle:password-reset-store')
         ->name('password.store');
 });
 

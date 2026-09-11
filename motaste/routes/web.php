@@ -30,22 +30,6 @@ Route::get('/staff.html', function () {
     return redirect()->route('staff');
 });
 
-// Same portal, admin entry point. script.js uses the URL to decide the login
-// surface: /admin offers password recovery, /staff never does.
-Route::get('/admin', function () {
-    $adminPath = public_path('staff.html');
-
-    if (!file_exists($adminPath)) {
-        abort(404);
-    }
-
-    return response()->file($adminPath);
-})->name('admin.login');
-
-Route::get('/admin.html', function () {
-    return redirect()->route('admin.login');
-});
-
 // Legal pages (Philippine DPA compliance). Routed through PHP (not the
 // platform's static-file layer) so the SecurityHeaders middleware applies
 // CSP/HSTS to them like every other page.

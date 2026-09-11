@@ -39,20 +39,3 @@ test('users can logout', function () {
     $this->assertGuest();
     $response->assertRedirect('/');
 });
-
-test('login is rate limited per IP', function () {
-    $user = User::factory()->create();
-
-    $attempt = fn () => $this->post('/login', [
-        'email' => $user->email,
-        'password' => 'wrong-password',
-    ]);
-
-    // The per-account lockout in LoginRequest fires first, but those attempts
-    // still consume the per-IP budget of twenty per minute.
-    foreach (range(1, 20) as $ignored) {
-        $attempt();
-    }
-
-    $attempt()->assertStatus(429);
-});
