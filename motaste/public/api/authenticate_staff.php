@@ -88,9 +88,8 @@ try {
     }
 
     if ($captchaRequired) {
-        // CAPTCHA is required: validate the reCAPTCHA v3 token.
-        $recaptchaSecret = (string) env('RECAPTCHA_V3_SECRET_KEY', '');
-        $recaptchaThreshold = (float) env('RECAPTCHA_V3_THRESHOLD', (string) RECAPTCHA_V3_DEFAULT_THRESHOLD);
+        // CAPTCHA is required: validate the reCAPTCHA v2 token.
+        $recaptchaSecret = (string) env('RECAPTCHA_V2_SECRET_KEY', '');
 
         if ($recaptchaSecret === '') {
             // CAPTCHA provider not configured — skip validation but still
@@ -104,7 +103,7 @@ try {
             ]);
             exit;
         } else {
-            $recaptchaResult = verifyRecaptchaToken($recaptchaToken, $recaptchaSecret, $clientIp, $recaptchaThreshold);
+            $recaptchaResult = verifyRecaptchaToken($recaptchaToken, $recaptchaSecret, $clientIp);
             if (!$recaptchaResult) {
                 http_response_code(422);
                 echo json_encode([

@@ -28,8 +28,9 @@ class SecurityHeaders
         // / xlsx used by the pages, and the embedded Google Maps iframe. Note
         // maps.google.com redirects (301) to www.google.com/maps/embed, so
         // both hosts must be in frame-src or the map silently fails to load.
-        // Google reCAPTCHA v3 is required for the staff login page: the api.js
-        // script and its siteverify calls both use google.com/recaptcha.
+        // Google reCAPTCHA v2 is required for the staff login page: the api.js
+        // script, the checkbox iframe, and its siteverify calls all use
+        // google.com/recaptcha.
         $response->headers->set('Content-Security-Policy', "default-src 'self'; "
             . "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.google.com https://www.gstatic.com; "
             . "style-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com; "

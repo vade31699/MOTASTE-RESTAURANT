@@ -70,7 +70,7 @@ function captchaSubprocessEnv(array $extra = []): array
         'MAIL_PASSWORD' => '',
         'MAIL_MAILER' => 'log',
         // The endpoint reads this via env() in the subprocess.
-        'RECAPTCHA_V3_SECRET_KEY' => 'test-secret',
+        'RECAPTCHA_V2_SECRET_KEY' => 'test-secret',
         // Windows: required by some PHP extensions in child processes.
         'SystemRoot' => getenv('SystemRoot') ?: 'C:\\Windows',
     ], $extra);

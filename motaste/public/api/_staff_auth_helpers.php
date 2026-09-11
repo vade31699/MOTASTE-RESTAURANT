@@ -472,15 +472,18 @@ function isSuspiciousLoginAttempt(string $email, string $ipAddress): bool
 }
 
 /**
- * Validate a Google reCAPTCHA v3 token with the remote verification API.
+ * Validate a Google reCAPTCHA v2 token with the remote verification API.
  *
- * @param  string  $token      The reCAPTCHA v3 response token from the client.
- * @param  string  $secretKey  The reCAPTCHA v3 secret key.
+ * v2 responses carry no score — a successful siteverify means the visitor
+ * actually solved the checkbox challenge, so `success === true` is the whole
+ * check (v2 has no equivalent of the v3 score threshold).
+ *
+ * @param  string  $token      The reCAPTCHA v2 response token from the client.
+ * @param  string  $secretKey  The reCAPTCHA v2 secret key.
  * @param  string  $remoteIp   The client IP (used by reCAPTCHA for anomaly detection).
- * @param  float   $threshold  Minimum acceptable score; scores below this fail.
- * @return bool                 true when the token is valid AND meets the score threshold.
+ * @return bool                 true when the token is valid.
  */
-function verifyRecaptchaToken(string $token, string $secretKey, string $remoteIp = '', float $threshold = 0.5): bool
+function verifyRecaptchaToken(string $token, string $secretKey, string $remoteIp = ''): bool
 {
     if ($token === '') {
         return false;
@@ -511,12 +514,7 @@ function verifyRecaptchaToken(string $token, string $secretKey, string $remoteIp
         }
 
         $result = json_decode($body, true);
-        if (!is_array($result) || ($result['success'] ?? false) !== true) {
-            return false;
-        }
-
-        $score = (float)($result['score'] ?? 0);
-        return $score >= $threshold;
+        return is_array($result) && ($result['success'] ?? false) === true;
     } catch (Throwable $error) {
         error_log('[MOTASTE] reCAPTCHA verification error: ' . $error->getMessage());
         return false;
@@ -550,11 +548,6 @@ const ORDER_CREATE_MAX_PER_WINDOW = 15;   // order creations
 const ORDER_CREATE_WINDOW_SECONDS = 600;  // per 10 minutes, per IP
 const ORDER_STATUS_MAX_PER_WINDOW = 240;  // order status lookups
 const ORDER_STATUS_WINDOW_SECONDS = 60;   // per 60 seconds, per IP
-
-/**
- * Default reCAPTCHA v3 score threshold when RECAPTCHA_V3_THRESHOLD is unset.
- */
-const RECAPTCHA_V3_DEFAULT_THRESHOLD = 0.5;
 
 function resolveApiClientIp(): string
 {

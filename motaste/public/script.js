@@ -1227,30 +1227,29 @@ function resetInviteVerifyModal() {
  */
 
 /* ------------------------------------------------------------------ */
-/* CAPTCHA (Google reCAPTCHA v3)                                       */
+/* CAPTCHA (Google reCAPTCHA v2 — visible checkbox)                    */
 /* ------------------------------------------------------------------ */
 
 let captchaContainer = null;
 let captchaResolver = null;
 let recaptchaSitekeyPromise = null;
 let recaptchaScriptPromise = null;
-let recaptchaScriptSitekey = '';
+let recaptchaWidgetId = null;
 const RECAPTCHA_SCRIPT_WAIT_MS = 8000;
 
 /**
- * The reCAPTCHA API script uses `async defer`, so it may not be loaded yet
- * when the first CAPTCHA is requested (the old code checked `typeof grecaptcha`
- * once, saw it missing, and gave up). Poll until the script has registered its
- * global, or time out.
+ * The reCAPTCHA API script is injected on demand, so it may not be ready when
+ * the first CAPTCHA is requested. Poll until `grecaptcha.render` has been
+ * registered, or time out.
  */
 function waitForRecaptchaScript(timeoutMs = RECAPTCHA_SCRIPT_WAIT_MS) {
-    if (typeof grecaptcha !== 'undefined' && typeof grecaptcha.execute === 'function') {
+    if (typeof grecaptcha !== 'undefined' && typeof grecaptcha.render === 'function') {
         return Promise.resolve(true);
     }
     return new Promise((resolve) => {
         const startedAt = Date.now();
         const poll = window.setInterval(() => {
-            if (typeof grecaptcha !== 'undefined' && typeof grecaptcha.execute === 'function') {
+            if (typeof grecaptcha !== 'undefined' && typeof grecaptcha.render === 'function') {
                 window.clearInterval(poll);
                 resolve(true);
             } else if (Date.now() - startedAt >= timeoutMs) {
@@ -1262,68 +1261,28 @@ function waitForRecaptchaScript(timeoutMs = RECAPTCHA_SCRIPT_WAIT_MS) {
 }
 
 /**
- * Google's documented gate: run the callback once the library has finished
- * loading and is ready to execute. Resolves anyway after a timeout so a
- * broken ready() cannot hang the CAPTCHA screen forever.
+ * Inject the reCAPTCHA API script in explicit-render mode.
  *
- * Needed because grecaptcha.execute() exists before the score-based key is
- * registered, so polling for the function alone can still let execute()
- * throw "Invalid site key or not loaded in api.js".
+ * v2 is a visible checkbox, so script.js renders the widget with
+ * `grecaptcha.render()` once the runtime-fetched sitekey is known. staff.html
+ * is a static file and cannot template the sitekey into the tag, so the tag is
+ * created here instead.
+ *
+ * Resolves true once loaded, false on network failure.
  */
-function waitForRecaptchaReady(timeoutMs = RECAPTCHA_SCRIPT_WAIT_MS) {
-    return new Promise((resolve) => {
-        let settled = false;
-        const settle = () => {
-            if (settled) return;
-            settled = true;
-            window.clearTimeout(timer);
-            resolve(true);
-        };
-        const timer = window.setTimeout(settle, timeoutMs);
-        try {
-            if (typeof grecaptcha !== 'undefined' && typeof grecaptcha.ready === 'function') {
-                grecaptcha.ready(settle);
-            } else {
-                settle();
-            }
-        } catch (error) {
-            settle();
-        }
-    });
-}
-
-/**
- * Inject the reCAPTCHA API script for a score-based (v3) sitekey.
- *
- * Google requires the sitekey in the script URL (`api.js?render=<sitekey>`)
- * for score-based keys; `render=explicit` is only valid for checkbox keys and
- * would leave execute() throwing "Invalid site key or not loaded in api.js".
- * staff.html is a static file and the sitekey is fetched at runtime, so the
- * tag has to be created here rather than in the HTML.
- *
- * Resolves true once the script has loaded, false on network failure.
- */
-function ensureRecaptchaScript(sitekey) {
-    if (recaptchaScriptPromise && recaptchaScriptSitekey === sitekey) {
+function ensureRecaptchaScript() {
+    if (recaptchaScriptPromise) {
         return recaptchaScriptPromise;
     }
 
-    // A different sitekey means the loaded library is bound to the old key:
-    // drop it so a fresh one can be appended.
-    if (recaptchaScriptSitekey && recaptchaScriptSitekey !== sitekey) {
-        document.querySelectorAll('script[data-recaptcha-api]').forEach((node) => node.remove());
-        try {
-            delete window.grecaptcha;
-        } catch (error) {
-            window.grecaptcha = undefined;
-        }
-        recaptchaScriptPromise = null;
-    }
-
-    recaptchaScriptSitekey = sitekey;
     recaptchaScriptPromise = new Promise((resolve) => {
+        if (typeof grecaptcha !== 'undefined' && typeof grecaptcha.render === 'function') {
+            resolve(true);
+            return;
+        }
+
         const script = document.createElement('script');
-        script.src = 'https://www.google.com/recaptcha/api.js?render=' + encodeURIComponent(sitekey);
+        script.src = 'https://www.google.com/recaptcha/api.js?render=explicit';
         script.async = true;
         script.defer = true;
         script.setAttribute('data-recaptcha-api', '1');
@@ -1333,7 +1292,6 @@ function ensureRecaptchaScript(sitekey) {
             // Retry re-attempts the load instead of reusing the rejection.
             script.remove();
             recaptchaScriptPromise = null;
-            recaptchaScriptSitekey = '';
             resolve(false);
         });
         document.head.appendChild(script);
@@ -1351,10 +1309,10 @@ function invalidateRecaptchaSitekey() {
 }
 
 /**
- * Fetch the reCAPTCHA v3 sitekey from the server (RECAPTCHA_V3_SITE_KEY env
+ * Fetch the reCAPTCHA v2 sitekey from the server (RECAPTCHA_V2_SITE_KEY env
  * var). The sitekey is a public identifier; the secret stays server-side.
  * staff.html is served as a static file, so it cannot be templated into the
- * HTML. Resolves to '' when reCAPTCHA v3 is not configured.
+ * HTML. Resolves to '' when reCAPTCHA v2 is not configured.
  */
 function fetchRecaptchaSitekey(forceRefetch = false) {
     if (forceRefetch) recaptchaSitekeyPromise = null;
@@ -1368,28 +1326,39 @@ function fetchRecaptchaSitekey(forceRefetch = false) {
 }
 
 /**
- * Run reCAPTCHA v3 explicitly and resolve when the token is available.
- * Returns the token string, or null on cancel/permanent failure.
+ * Show the v2 checkbox and resolve with a token once the visitor solves it,
+ * or null on cancel/permanent failure.
  *
- * v3 is invisible to the user, so there is no widget to flash-and-vanish.
- * On error (bad sitekey, network hiccup, script not loaded) the container
- * stays visible with an explanation plus Retry/Cancel buttons, and only the
- * user (or a successful verification) dismisses it.
+ * Unlike v3, the v2 panel is a real, interactive challenge: the widget has to
+ * stay visible until the visitor ticks the checkbox. On load/render failure
+ * the panel stays up with an explanation plus Retry/Cancel.
  */
 async function requestCaptchaVerification(errorMessage) {
     captchaContainer = captchaContainer || document.getElementById('captchaContainer');
     if (!captchaContainer) return null;
 
     const captchaLabel = captchaContainer.querySelector('.captcha-label');
+    const captchaWidget = document.getElementById('captchaWidget');
     const captchaActions = document.getElementById('captchaActions');
     const captchaRetryBtn = document.getElementById('captchaRetryBtn');
     const captchaCancelBtn = document.getElementById('captchaCancelBtn');
+    // The widget carries its own "I'm not a robot" text, so the panel shows
+    // nothing by default. This element is only revealed for a real status/error
+    // message (load failure, expiry, etc.).
     const setCaptchaMessage = (text) => {
-        if (captchaLabel) captchaLabel.textContent = text;
+        if (!captchaLabel) return;
+        captchaLabel.textContent = text;
+        captchaLabel.hidden = !text;
     };
 
     const showActions = (show) => {
         if (captchaActions) captchaActions.hidden = !show;
+    };
+
+    const showPanel = (text) => {
+        setCaptchaMessage(text);
+        captchaContainer.hidden = false;
+        showActions(true);
     };
 
     // Bind the action buttons once (repeat calls must not stack listeners).
@@ -1400,80 +1369,110 @@ async function requestCaptchaVerification(errorMessage) {
     if (captchaRetryBtn && !captchaRetryBtn.dataset.captchaBound) {
         captchaRetryBtn.dataset.captchaBound = '1';
         captchaRetryBtn.addEventListener('click', () => {
-            // Re-run the whole setup: re-fetch the sitekey and re-execute.
-            if (captchaActions) captchaActions.hidden = true;
+            // Reset the rendered widget so the visitor gets a fresh challenge.
+            if (resetRecaptchaWidget()) {
+                setCaptchaMessage('');
+                return;
+            }
+            // Nothing rendered yet — re-run the whole setup.
             void startVerification(false);
         });
     }
 
-    // The panel is an error surface only. reCAPTCHA v3 is score-based and
-    // silent: on the happy path nothing is shown (the submit button already
-    // reads "Logging in…", and api.js injects Google's own badge). Reveal the
-    // panel — with Retry/Cancel — only when loading or execute() fails.
-    const showFailure = (text) => {
-        setCaptchaMessage(text);
-        captchaContainer.hidden = false;
-        showActions(true);
-    };
+    const renderWidget = (sitekey) => {
+        if (!captchaWidget) return false;
 
-    const executeRecaptcha = async (sitekey) => {
-        showActions(false);
-        captchaContainer.hidden = true;
-
-        const scriptLoaded = await ensureRecaptchaScript(sitekey);
-        const scriptReady = scriptLoaded && await waitForRecaptchaScript();
-        if (!scriptReady) {
-            showFailure('CAPTCHA could not be loaded. Check your connection, then Retry.');
-            return;
+        // Already rendered in a previous challenge: reset it for a new one.
+        if (recaptchaWidgetId !== null) {
+            return resetRecaptchaWidget();
         }
 
-        // grecaptcha.execute exists before the score-based key is registered,
-        // so wait for ready() before calling it.
-        await waitForRecaptchaReady();
-
         try {
-            const token = await grecaptcha.execute(sitekey, { action: 'login' });
-            if (typeof token === 'string' && token !== '') {
-                window.onRecaptchaSuccess(token);
-            } else {
-                showFailure('CAPTCHA could not start. Please Retry.');
-            }
-        } catch (executeError) {
-            console.error('reCAPTCHA execute failed', executeError);
-            showFailure('CAPTCHA could not start. Please Retry.');
+            recaptchaWidgetId = grecaptcha.render(captchaWidget, {
+                sitekey,
+                theme: 'light',
+                // The normal widget is 304px wide; use the compact layout on
+                // narrow phones so it can never overflow the login card.
+                size: window.matchMedia('(max-width: 360px)').matches ? 'compact' : 'normal',
+                callback: (token) => window.onRecaptchaSuccess(token),
+                'expired-callback': () => {
+                    setCaptchaMessage('CAPTCHA expired — please verify again.');
+                },
+                'error-callback': () => {
+                    showPanel('CAPTCHA could not be loaded. Check your connection, then Retry.');
+                },
+            });
+            return true;
+        } catch (renderError) {
+            console.error('reCAPTCHA render failed', renderError);
+            recaptchaWidgetId = null;
+            return false;
         }
     };
 
     const startVerification = async (isFirstAttempt) => {
         const sitekey = await fetchRecaptchaSitekey(!isFirstAttempt);
         if (!sitekey) {
-            // reCAPTCHA v3 not configured server-side (RECAPTCHA_V3_SITE_KEY
+            // reCAPTCHA v2 not configured server-side (RECAPTCHA_V2_SITE_KEY
             // missing) or the config endpoint is unreachable. Explain and let
             // the user retry (the config endpoint may have been a transient
             // failure).
-            showFailure(
+            showPanel(
                 (isFirstAttempt && errorMessage ? errorMessage + ' ' : '') +
                 'CAPTCHA is temporarily unavailable. Please Retry in a moment.'
             );
             return;
         }
-        await executeRecaptcha(sitekey);
+
+        const scriptLoaded = await ensureRecaptchaScript();
+        const scriptReady = scriptLoaded && await waitForRecaptchaScript();
+        if (!scriptReady) {
+            showPanel('CAPTCHA could not be loaded. Check your connection, then Retry.');
+            return;
+        }
+
+        // v2 renders into the (now visible) container.
+        captchaContainer.hidden = false;
+        if (!renderWidget(sitekey)) {
+            showPanel('CAPTCHA could not start. Please Retry.');
+            return;
+        }
+        // Keep the panel to just the checkbox. Retry/Cancel only reappear
+        // when the widget itself fails (showPanel reveals them).
+        setCaptchaMessage('');
+        showActions(false);
     };
 
     return new Promise((resolve) => {
         captchaResolver = resolve;
-        // Stay hidden until we know verification actually needs attention.
-        captchaContainer.hidden = true;
+        captchaContainer.hidden = false;
         void startVerification(true);
     });
 }
 
 /**
- * Global callback invoked by Google reCAPTCHA on successful execute().
+ * Reset the rendered v2 widget. Returns false when no widget exists yet.
+ */
+function resetRecaptchaWidget() {
+    if (recaptchaWidgetId === null
+        || typeof grecaptcha === 'undefined'
+        || typeof grecaptcha.reset !== 'function') {
+        return false;
+    }
+    try {
+        grecaptcha.reset(recaptchaWidgetId);
+        return true;
+    } catch (resetError) {
+        console.error('reCAPTCHA reset failed', resetError);
+        recaptchaWidgetId = null;
+        return false;
+    }
+}
+
+/**
+ * Callback invoked by the v2 widget once the visitor solves the challenge.
  */
 window.onRecaptchaSuccess = function (token) {
-    const tokenInput = document.getElementById('recaptchaToken');
-    if (tokenInput) tokenInput.value = token;
     resolveCaptcha(token);
 };
 
@@ -1481,10 +1480,10 @@ function resolveCaptcha(token) {
     if (captchaContainer) captchaContainer.hidden = true;
     const actions = document.getElementById('captchaActions');
     if (actions) actions.hidden = true;
-    // Clear the hidden token holder so a stale token is never resubmitted if
-    // the CAPTCHA is re-opened (v3 tokens expire quickly).
+    // Keep the hidden token holder in sync so a stale token is never
+    // resubmitted if the CAPTCHA is re-opened (v2 tokens are single-use).
     const tokenInput = document.getElementById('recaptchaToken');
-    if (tokenInput) tokenInput.value = '';
+    if (tokenInput) tokenInput.value = token || '';
     const resolve = captchaResolver;
     captchaResolver = null;
     if (resolve) resolve(token);
@@ -2211,7 +2210,7 @@ async function handleStaffLogin(email, password, role, remember) {
         return;
     }
 
-    // CAPTCHA required: run reCAPTCHA v3 and wait for a token.
+    // CAPTCHA required: show the reCAPTCHA v2 checkbox and wait for a token.
     if (authResult.needsCaptcha) {
         const captchaToken = await requestCaptchaVerification(authResult.error || '');
         if (!captchaToken) {

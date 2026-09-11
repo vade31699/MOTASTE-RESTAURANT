@@ -1,15 +1,15 @@
 <?php
 
 /**
- * Serves the public Google reCAPTCHA v3 sitekey so the staff login page can
- * run `grecaptcha.execute()` explicitly. Sitekeys are public identifiers — the
- * secret key stays server-side in RECAPTCHA_V3_SECRET_KEY.
+ * Serves the public Google reCAPTCHA v2 sitekey so the staff login page can
+ * render the checkbox widget with `grecaptcha.render()`. Sitekeys are public
+ * identifiers — the secret key stays server-side in RECAPTCHA_V2_SECRET_KEY.
  *
  * staff.html is served as a static file via the /staff Laravel route, so the
  * sitekey cannot be templated into the HTML; script.js fetches it from here
- * (lazily, only when CAPTCHA is actually required) before executing v3.
+ * (lazily, only when CAPTCHA is actually required) before rendering v2.
  *
- * Returns { sitekey: '' } when reCAPTCHA v3 is not configured — script.js
+ * Returns { sitekey: '' } when reCAPTCHA v2 is not configured — script.js
  * treats an empty sitekey as "CAPTCHA disabled" and shows an explanatory message.
  */
 
@@ -29,7 +29,7 @@ sendSecurityHeaders();
 try {
     echo json_encode([
         'success' => true,
-        'sitekey' => (string) env('RECAPTCHA_V3_SITE_KEY', ''),
+        'sitekey' => (string) env('RECAPTCHA_V2_SITE_KEY', ''),
     ]);
 } catch (Throwable $error) {
     http_response_code(500);

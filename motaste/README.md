@@ -79,31 +79,29 @@ Open `http://localhost:8000` for the customer site and `http://localhost:8000/st
 >
 > To create an App Password: enable 2-Step Verification at `myaccount.google.com/security`, then generate one at `myaccount.google.com/apppasswords`. Without valid credentials, `sendSystemEmail()` falls back to writing the message — including verification codes — to the server log.
 
-> **CAPTCHA (staff login):** brute-force CAPTCHA uses Google reCAPTCHA v3 (score-only). Register the site at [Google reCAPTCHA Admin](https://www.google.com/recaptcha/admin/create) with type **v3**, add your production domain (`motaste.laravel.cloud`) as an allowed domain, then set the variables below. Without them, login still works — the CAPTCHA challenge is simply skipped / reported as unavailable:
+> **CAPTCHA (staff login):** brute-force CAPTCHA uses Google reCAPTCHA v2 (visible checkbox). Register the site at [Google reCAPTCHA Admin](https://www.google.com/recaptcha/admin/create) with type **v2 "I'm not a robot" Checkbox**, add your production domain (`motaste.laravel.cloud`) as an allowed domain, then set the variables below. Without them, login still works — the CAPTCHA challenge is simply skipped / reported as unavailable:
 >
 > ```env
-> RECAPTCHA_V3_SITE_KEY=0123456789abcdef...   # public sitekey, served to the login page
-> RECAPTCHA_V3_SECRET_KEY=0123456789abcdef... # server-side, used to verify tokens
-> RECAPTCHA_V3_THRESHOLD=0.5                 # optional; defaults to 0.5. Scores below this fail the check.
+> RECAPTCHA_V2_SITE_KEY=0123456789abcdef...   # public sitekey, served to the login page
+> RECAPTCHA_V2_SECRET_KEY=0123456789abcdef... # server-side, used to verify tokens
 > ```
 >
-> The sitekey is fetched by `script.js` from `GET /api/get_recaptcha_sitekey.php` and used with `grecaptcha.execute()` (explicit rendering), so `staff.html` needs no templating.
+> The sitekey is fetched by `script.js` from `GET /api/get_recaptcha_sitekey.php` and passed to `grecaptcha.render()` (explicit rendering), so `staff.html` needs no templating. v2 keys are **not** interchangeable with v3 keys — register a v2 site.
 
 ## Deploying (Laravel Cloud)
 
 1. Push to the connected Git repository (Laravel Cloud auto-deploys).
-2. In the dashboard set the production environment variables (APP_KEY, DB_*, MAIL_* SMTP credentials, and the reCAPTCHA v3 CAPTCHA keys below).
+2. In the dashboard set the production environment variables (APP_KEY, DB_*, MAIL_* SMTP credentials, and the reCAPTCHA v2 CAPTCHA keys below).
 3. Verify with `GET https://your-app.laravel.cloud/api/health.php` (returns `{"status":"ok","db":"ok"}`).
 
-### reCAPTCHA v3 CAPTCHA (required in production)
+### reCAPTCHA v2 CAPTCHA (required in production)
 
 The staff-login CAPTCHA silently degrades to "unavailable" if these are missing, and `authenticate_staff.php` then **fails open** (skips verification) — so set them or the brute-force CAPTCHA layer is not real:
 
 | Variable | Where it comes from |
 | --- | --- |
-| `RECAPTCHA_V3_SITE_KEY` | Google reCAPTCHA Admin → your v3 site (public) |
-| `RECAPTCHA_V3_SECRET_KEY` | Same site (secret — rotate if it's ever shared) |
-| `RECAPTCHA_V3_THRESHOLD` | Optional; defaults to `0.5`. Scores below this are treated as failed. |
+| `RECAPTCHA_V2_SITE_KEY` | Google reCAPTCHA Admin → your v2 "I'm not a robot" Checkbox site (public) |
+| `RECAPTCHA_V2_SECRET_KEY` | Same site (secret — rotate if it's ever shared) |
 
 Make sure the site's **Allowed domains** in the Google reCAPTCHA Admin console includes the production domain (`motaste.laravel.cloud`) — otherwise token verification fails with `invalid-input-response` / `domain mismatch` even with correct keys.
 

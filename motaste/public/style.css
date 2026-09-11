@@ -714,6 +714,12 @@ body.dashboard-panel-open .menu-btn {
     background: #fafafa;
 }
 
+.captcha-widget {
+    display: flex;
+    justify-content: center;
+    margin: 0;
+}
+
 .captcha-label {
     font-size: 13px;
     color: #555;
@@ -753,6 +759,21 @@ body.dashboard-panel-open .menu-btn {
 
 .captcha-cancel-btn:hover {
     background: #f3f4f6;
+}
+
+/* Match the CAPTCHA panel to the themed staff login card: same border, white
+   surface and 12px radius as the form's inputs, with spacing left to the
+   form's own 12px flex gap. */
+body.staff-app .staff-box .captcha-container {
+    border: 1px solid var(--staff-border);
+    background: var(--staff-surface-2);
+    border-radius: 12px;
+    margin: 0;
+    padding: 14px 12px;
+}
+
+body.staff-app .staff-box .captcha-label {
+    color: var(--staff-muted);
 }
 
 .forgot-password-modal {
