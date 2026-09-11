@@ -1234,6 +1234,38 @@ let captchaContainer = null;
 let captchaResolver = null;
 let turnstileWidgetId = null;
 let turnstileSitekeyPromise = null;
+const CAPTCHA_SCRIPT_WAIT_MS = 8000;
+
+/**
+ * The Turnstile script tag uses `defer`, so it is often NOT loaded yet when
+ * the first CAPTCHA is requested (the old code checked `typeof turnstile`
+ * once, saw it missing, flashed the widget and gave up). Poll until the
+ * script has registered its global, or time out.
+ */
+function waitForTurnstileScript(timeoutMs = CAPTCHA_SCRIPT_WAIT_MS) {
+    if (typeof turnstile !== 'undefined') return Promise.resolve(true);
+    return new Promise((resolve) => {
+        const startedAt = Date.now();
+        const poll = window.setInterval(() => {
+            if (typeof turnstile !== 'undefined') {
+                window.clearInterval(poll);
+                resolve(true);
+            } else if (Date.now() - startedAt >= timeoutMs) {
+                window.clearInterval(poll);
+                resolve(false);
+            }
+        }, 120);
+    });
+}
+
+/**
+ * Reset the cached sitekey promise so a later retry re-fetches it. Needed
+ * because a transient failure (config endpoint hiccup, first-load race)
+ * would otherwise be cached forever as an empty sitekey.
+ */
+function invalidateTurnstileSitekey() {
+    turnstileSitekeyPromise = null;
+}
 
 /**
  * Fetch the Turnstile sitekey from the server (TURNSTILE_SITE_KEY env var).
@@ -1241,7 +1273,8 @@ let turnstileSitekeyPromise = null;
  * is served as a static file, so it cannot be templated into the HTML.
  * Resolves to '' when Turnstile is not configured.
  */
-function fetchTurnstileSitekey() {
+function fetchTurnstileSitekey(forceRefetch = false) {
+    if (forceRefetch) turnstileSitekeyPromise = null;
     if (!turnstileSitekeyPromise) {
         turnstileSitekeyPromise = fetch(getApiUrl('api/get_turnstile_sitekey.php'), { cache: 'no-store' })
             .then((response) => response.json())
@@ -1253,57 +1286,108 @@ function fetchTurnstileSitekey() {
 
 /**
  * Show the Turnstile CAPTCHA widget and resolve when the user completes it.
- * Returns the token string, or null on cancel/unavailable.
+ * Returns the token string, or null on cancel/permanent failure.
+ *
+ * Unlike the previous version, this never flashes-and-vanishes: on widget
+ * errors (bad sitekey, network hiccup, script not loaded) the container stays
+ * visible with an explanation plus Retry/Cancel buttons, and only the user
+ * (or a successful verification) dismisses it.
  */
 async function requestCaptchaVerification(errorMessage) {
     captchaContainer = captchaContainer || document.getElementById('captchaContainer');
     if (!captchaContainer) return null;
 
-    const sitekey = await fetchTurnstileSitekey();
-    if (!sitekey) {
-        // Turnstile is not configured server-side (TURNSTILE_SITE_KEY missing)
-        // or the config endpoint is unreachable. Explain instead of hanging on
-        // a widget that can never render.
-        if (errorMessage && captchaContainer.querySelector('.captcha-label')) {
-            captchaContainer.querySelector('.captcha-label').textContent =
-                (errorMessage ? errorMessage + ' ' : '') +
-                'CAPTCHA is temporarily unavailable. Please try again later.';
-        }
-        captchaContainer.hidden = false;
-        return null;
+    const captchaLabel = captchaContainer.querySelector('.captcha-label');
+    const captchaActions = document.getElementById('captchaActions');
+    const captchaRetryBtn = document.getElementById('captchaRetryBtn');
+    const captchaCancelBtn = document.getElementById('captchaCancelBtn');
+    const setCaptchaMessage = (text) => {
+        if (captchaLabel) captchaLabel.textContent = text;
+    };
+
+    const showActions = (show) => {
+        if (captchaActions) captchaActions.hidden = !show;
+    };
+
+    // Bind the action buttons once (repeat calls must not stack listeners).
+    if (captchaCancelBtn && !captchaCancelBtn.dataset.captchaBound) {
+        captchaCancelBtn.dataset.captchaBound = '1';
+        captchaCancelBtn.addEventListener('click', () => resolveCaptcha(null));
+    }
+    if (captchaRetryBtn && !captchaRetryBtn.dataset.captchaBound) {
+        captchaRetryBtn.dataset.captchaBound = '1';
+        captchaRetryBtn.addEventListener('click', () => {
+            // Re-run the whole setup: re-fetch the sitekey and re-render.
+            if (captchaActions) captchaActions.hidden = true;
+            void startVerification(false);
+        });
     }
 
-    return new Promise((resolve) => {
-        captchaResolver = resolve;
+    const renderWidget = async (sitekey, withErrorNote) => {
+        setCaptchaMessage(
+            (withErrorNote ? withErrorNote + ' ' : '') +
+            'Please verify you are human to continue.'
+        );
+        showActions(false);
         captchaContainer.hidden = false;
 
-        if (errorMessage && captchaContainer.querySelector('.captcha-label')) {
-            captchaContainer.querySelector('.captcha-label').textContent = errorMessage;
+        const scriptReady = await waitForTurnstileScript();
+        if (!scriptReady) {
+            setCaptchaMessage('CAPTCHA could not be loaded. Check your connection, then Retry.');
+            showActions(true);
+            return;
         }
 
-        // Render or reset the Turnstile widget. Rendering is explicit (no
-        // data-sitekey attribute), so the widget cannot appear without a key.
-        if (typeof turnstile !== 'undefined') {
+        try {
             if (turnstileWidgetId !== null) {
                 turnstile.reset(turnstileWidgetId);
             } else {
                 turnstileWidgetId = turnstile.render(captchaContainer.querySelector('.cf-turnstile'), {
                     sitekey,
                     callback: onTurnstileSuccess,
-                    'error-callback': () => resolveCaptcha(null),
+                    // Widget-level error (expired challenge, internal failure,
+                    // sitekey rejected for this domain). Keep the widget up
+                    // and offer a retry — never auto-hide (that was the
+                    // flash-and-disappear bug).
+                    'error-callback': () => {
+                        setCaptchaMessage('CAPTCHA encountered an error. Please Retry.');
+                        showActions(true);
+                    },
+                    'expired-callback': () => {
+                        // Challenge expired before completion: Turnstile shows
+                        // its own expiry UI; make retry available too.
+                        showActions(true);
+                    },
                     theme: 'dark'
                 });
             }
-        } else {
-            // The Turnstile script failed to load (blocked, offline, etc.).
-            if (errorMessage && captchaContainer.querySelector('.captcha-label')) {
-                captchaContainer.querySelector('.captcha-label').textContent =
-                    (errorMessage ? errorMessage + ' ' : '') +
-                    'CAPTCHA could not be loaded. Please refresh the page.';
-            }
-            resolveCaptcha(null);
+        } catch (renderError) {
+            console.error('Turnstile render failed', renderError);
+            setCaptchaMessage('CAPTCHA could not start. Please Retry.');
+            showActions(true);
+        }
+    };
+
+    const startVerification = async (isFirstAttempt) => {
+        const sitekey = await fetchTurnstileSitekey(!isFirstAttempt);
+        if (!sitekey) {
+            // Turnstile not configured server-side (TURNSTILE_SITE_KEY missing)
+            // or the config endpoint is unreachable. Explain and let the user
+            // retry (the config endpoint may have been a transient failure).
+            setCaptchaMessage(
+                (isFirstAttempt && errorMessage ? errorMessage + ' ' : '') +
+                'CAPTCHA is temporarily unavailable. Please Retry in a moment.'
+            );
+            showActions(true);
             return;
         }
+        await renderWidget(sitekey, isFirstAttempt ? (errorMessage || '') : '');
+    };
+
+    return new Promise((resolve) => {
+        captchaResolver = resolve;
+        captchaContainer.hidden = false;
+        void startVerification(true);
     });
 }
 
@@ -1318,6 +1402,12 @@ window.onTurnstileSuccess = function (token) {
 
 function resolveCaptcha(token) {
     if (captchaContainer) captchaContainer.hidden = true;
+    const actions = document.getElementById('captchaActions');
+    if (actions) actions.hidden = true;
+    // Clear the hidden token holder so a stale token is never resubmitted if
+    // the widget is re-opened (tokens are single-use and expire quickly).
+    const tokenInput = document.getElementById('turnstileToken');
+    if (tokenInput) tokenInput.value = '';
     const resolve = captchaResolver;
     captchaResolver = null;
     if (resolve) resolve(token);
@@ -2048,8 +2138,10 @@ async function handleStaffLogin(email, password, role, remember) {
     if (authResult.needsCaptcha) {
         const captchaToken = await requestCaptchaVerification(authResult.error || '');
         if (!captchaToken) {
+            // User cancelled (or permanently failed) the CAPTCHA challenge.
+            setAuthButtonsVisible(true);
             if (modalTitle) {
-                modalTitle.textContent = 'CAPTCHA verification required';
+                modalTitle.textContent = 'CAPTCHA verification required — please try again.';
             }
             return;
         }

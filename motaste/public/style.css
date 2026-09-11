@@ -720,6 +720,41 @@ body.dashboard-panel-open .menu-btn {
     margin-bottom: 8px;
 }
 
+/* Retry / Cancel row shown when the CAPTCHA widget errors out. */
+.captcha-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.captcha-actions[hidden] {
+    display: none;
+}
+
+.captcha-retry-btn,
+.captcha-cancel-btn {
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #374151;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.captcha-retry-btn:hover {
+    background: #111827;
+    color: #fff;
+    border-color: #111827;
+}
+
+.captcha-cancel-btn:hover {
+    background: #f3f4f6;
+}
+
 .forgot-password-modal {
     position: fixed;
     inset: 0;

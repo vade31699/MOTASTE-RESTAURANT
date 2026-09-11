@@ -974,6 +974,10 @@
                         <!-- Sitekey is injected by script.js from api/get_turnstile_sitekey.php -->
                         <div class="cf-turnstile" data-theme="dark"></div>
                         <input type="hidden" name="cf-turnstile-response" id="turnstileToken">
+                        <div class="captcha-actions" id="captchaActions" hidden>
+                            <button type="button" id="captchaRetryBtn" class="captcha-retry-btn">Retry</button>
+                            <button type="button" id="captchaCancelBtn" class="captcha-cancel-btn">Cancel</button>
+                        </div>
                     </div>
 
                     <button type="submit" id="staffLoginSubmitBtn">Login</button>
