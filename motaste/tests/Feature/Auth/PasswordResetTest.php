@@ -2,6 +2,7 @@
 
 use App\Mail\PasswordResetCode;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 
@@ -132,6 +133,59 @@ test('password can be reset with valid token', function () {
 
     $this->post('/login', ['email' => $user->email, 'password' => 'New-Str0ng-Passw0rd'])
         ->assertSessionHasNoErrors();
+});
+
+test('password cannot be reset to the current password', function () {
+    Mail::fake();
+
+    $user = User::factory()->create();
+    $current = 'March031699!';
+    $user->forceFill(['password' => Hash::make($current)])->save();
+
+    $code = requestPasswordResetCode($user, $this);
+    $token = verifyCodeAndGetResetToken($user, $this, $code);
+
+    // Reusing the password that is already set must be rejected — otherwise
+    // the "reset" leaves the old credential working.
+    $this->post('/reset-password', [
+        'token' => $token,
+        'email' => $user->email,
+        'password' => $current,
+        'password_confirmation' => $current,
+    ])->assertSessionHasErrors('password');
+
+    // The stored hash is untouched.
+    $user->refresh();
+    expect(Hash::check($current, $user->password))->toBeTrue();
+});
+
+test('password cannot be reset to the staff portal current password', function () {
+    Mail::fake();
+
+    $user = User::factory()->create();
+    $staffCurrent = 'Staff-Current-9';
+
+    // The staff portal keeps its own hash in the staff table, so a reset must
+    // not be allowed to land on that value either.
+    DB::table('staff')->insert([
+        'user_id' => $user->id,
+        'full_name' => 'Test Staff',
+        'role' => 'Cashier',
+        'email' => $user->email,
+        'password_hash' => Hash::make($staffCurrent),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $code = requestPasswordResetCode($user, $this);
+    $token = verifyCodeAndGetResetToken($user, $this, $code);
+
+    $this->post('/reset-password', [
+        'token' => $token,
+        'email' => $user->email,
+        'password' => $staffCurrent,
+        'password_confirmation' => $staffCurrent,
+    ])->assertSessionHasErrors('password');
 });
 
 test('password reset requires the elevated 12-character policy', function () {

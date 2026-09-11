@@ -94,6 +94,14 @@ try {
         exit;
     }
 
+    // Reject reusing the target's current password: "setting" it to the value
+    // already stored would leave the existing credential valid.
+    if ($target && is_password_reused($password, [$target->password_hash ?? null])) {
+        http_response_code(422);
+        echo json_encode(['error' => 'New password must be different from the account\'s current password']);
+        exit;
+    }
+
     $updated = $query->update([
         'full_name' => $name,
         'role' => $role,

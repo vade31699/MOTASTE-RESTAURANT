@@ -14,6 +14,7 @@ use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use App\Rules\NotCommonPassword;
+use App\Rules\NotCurrentPassword;
 
 
 class NewPasswordController extends Controller
@@ -41,7 +42,15 @@ class NewPasswordController extends Controller
             'email' => 'required|email',
             // Elevated policy (12+ chars) because a reset on a staff-linked
             // account syncs the new hash into the staff portal's staff table.
-            'password' => ['required', 'confirmed', Rules\Password::min(12)->mixedCase()->numbers(), new NotCommonPassword],
+            // NotCurrentPassword blocks "resetting" to the password that is
+            // already in place, which would leave the old credential valid.
+            'password' => [
+                'required',
+                'confirmed',
+                Rules\Password::min(12)->mixedCase()->numbers(),
+                new NotCommonPassword,
+                new NotCurrentPassword((string)$request->email),
+            ],
         ]);
 
         // Here we will attempt to reset the user's password. If it is successful we

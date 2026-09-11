@@ -9,6 +9,7 @@ declare(strict_types=1);
  *  - Minimum length (8+; admin password changes 12+)
  *  - Complexity: upper, lower, digit required
  *  - Rejection of extremely common / trivially guessable passwords
+ *  - Rejection of the account's current password (see is_password_reused())
  *
  * Every password-setting endpoint includes this file and calls
  * enforce_password_policy() before hashing and persisting.
@@ -149,4 +150,29 @@ function enforce_password_policy(string $password, bool $forAdmin = false): void
         echo json_encode(['error' => $error]);
         exit;
     }
+}
+
+/**
+ * True when the candidate password matches any of the supplied stored hashes.
+ *
+ * Password-change endpoints use this to reject "changing" a password to the
+ * value that is already set — otherwise the change reports success while the
+ * credential the user already knew keeps working.
+ *
+ * @param  string  $password  Candidate plaintext password.
+ * @param  array<int, string|null>  $hashes  Stored hashes to test against.
+ */
+function is_password_reused(string $password, array $hashes): bool
+{
+    if ($password === '') {
+        return false;
+    }
+
+    foreach ($hashes as $hash) {
+        if (is_string($hash) && $hash !== '' && password_verify($password, $hash)) {
+            return true;
+        }
+    }
+
+    return false;
 }

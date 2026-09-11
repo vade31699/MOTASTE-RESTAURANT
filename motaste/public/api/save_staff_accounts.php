@@ -58,6 +58,21 @@ try {
         }
         $accountRole = strtolower(trim((string)($account['role'] ?? '')));
         enforce_password_policy($candidate, forAdmin: $accountRole === 'admin');
+
+        // Reject reusing the account's current password: the staff portal reads
+        // staff.password_hash, so a "change" to the same value would leave the
+        // existing credential valid. Skipped for brand-new accounts (no row).
+        $accountEmail = strtolower(trim((string)($account['email'] ?? '')));
+        if ($accountEmail !== '') {
+            $existingHash = DB::table('staff')
+                ->whereRaw('LOWER(email) = ?', [$accountEmail])
+                ->value('password_hash');
+            if (is_password_reused($candidate, [$existingHash])) {
+                http_response_code(422);
+                echo json_encode(['success' => false, 'error' => 'New password must be different from the current password for ' . $accountEmail]);
+                exit;
+            }
+        }
     }
 
     saveStaffAccountsSnapshot($input);

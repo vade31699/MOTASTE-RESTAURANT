@@ -61,6 +61,16 @@ try {
         exit;
     }
 
+    // Reject reusing the current password: "changing" it to the value that is
+    // already set would leave the existing credential valid. Checked here (at
+    // request time) because only the plaintext is available to verify — the
+    // pending value stored for confirmation is already hashed.
+    if ($newPassword !== '' && is_password_reused($newPassword, [$adminRow->password_hash ?? null])) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'New password must be different from the current password']);
+        exit;
+    }
+
     ensureAdminCredentialChangeTokensTable();
 
     $code = generateVerificationCode(6);
