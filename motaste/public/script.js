@@ -1233,6 +1233,8 @@ function resetInviteVerifyModal() {
 let captchaContainer = null;
 let captchaResolver = null;
 let recaptchaSitekeyPromise = null;
+let recaptchaScriptPromise = null;
+let recaptchaScriptSitekey = '';
 const RECAPTCHA_SCRIPT_WAIT_MS = 8000;
 
 /**
@@ -1257,6 +1259,86 @@ function waitForRecaptchaScript(timeoutMs = RECAPTCHA_SCRIPT_WAIT_MS) {
             }
         }, 120);
     });
+}
+
+/**
+ * Google's documented gate: run the callback once the library has finished
+ * loading and is ready to execute. Resolves anyway after a timeout so a
+ * broken ready() cannot hang the CAPTCHA screen forever.
+ *
+ * Needed because grecaptcha.execute() exists before the score-based key is
+ * registered, so polling for the function alone can still let execute()
+ * throw "Invalid site key or not loaded in api.js".
+ */
+function waitForRecaptchaReady(timeoutMs = RECAPTCHA_SCRIPT_WAIT_MS) {
+    return new Promise((resolve) => {
+        let settled = false;
+        const settle = () => {
+            if (settled) return;
+            settled = true;
+            window.clearTimeout(timer);
+            resolve(true);
+        };
+        const timer = window.setTimeout(settle, timeoutMs);
+        try {
+            if (typeof grecaptcha !== 'undefined' && typeof grecaptcha.ready === 'function') {
+                grecaptcha.ready(settle);
+            } else {
+                settle();
+            }
+        } catch (error) {
+            settle();
+        }
+    });
+}
+
+/**
+ * Inject the reCAPTCHA API script for a score-based (v3) sitekey.
+ *
+ * Google requires the sitekey in the script URL (`api.js?render=<sitekey>`)
+ * for score-based keys; `render=explicit` is only valid for checkbox keys and
+ * would leave execute() throwing "Invalid site key or not loaded in api.js".
+ * staff.html is a static file and the sitekey is fetched at runtime, so the
+ * tag has to be created here rather than in the HTML.
+ *
+ * Resolves true once the script has loaded, false on network failure.
+ */
+function ensureRecaptchaScript(sitekey) {
+    if (recaptchaScriptPromise && recaptchaScriptSitekey === sitekey) {
+        return recaptchaScriptPromise;
+    }
+
+    // A different sitekey means the loaded library is bound to the old key:
+    // drop it so a fresh one can be appended.
+    if (recaptchaScriptSitekey && recaptchaScriptSitekey !== sitekey) {
+        document.querySelectorAll('script[data-recaptcha-api]').forEach((node) => node.remove());
+        try {
+            delete window.grecaptcha;
+        } catch (error) {
+            window.grecaptcha = undefined;
+        }
+        recaptchaScriptPromise = null;
+    }
+
+    recaptchaScriptSitekey = sitekey;
+    recaptchaScriptPromise = new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'https://www.google.com/recaptcha/api.js?render=' + encodeURIComponent(sitekey);
+        script.async = true;
+        script.defer = true;
+        script.setAttribute('data-recaptcha-api', '1');
+        script.addEventListener('load', () => resolve(true));
+        script.addEventListener('error', () => {
+            // Drop the failed tag and forget the cached promise so a later
+            // Retry re-attempts the load instead of reusing the rejection.
+            script.remove();
+            recaptchaScriptPromise = null;
+            recaptchaScriptSitekey = '';
+            resolve(false);
+        });
+        document.head.appendChild(script);
+    });
+    return recaptchaScriptPromise;
 }
 
 /**
@@ -1329,12 +1411,17 @@ async function requestCaptchaVerification(errorMessage) {
         showActions(false);
         captchaContainer.hidden = false;
 
-        const scriptReady = await waitForRecaptchaScript();
+        const scriptLoaded = await ensureRecaptchaScript(sitekey);
+        const scriptReady = scriptLoaded && await waitForRecaptchaScript();
         if (!scriptReady) {
             setCaptchaMessage('CAPTCHA could not be loaded. Check your connection, then Retry.');
             showActions(true);
             return;
         }
+
+        // grecaptcha.execute exists before the score-based key is registered,
+        // so wait for ready() before calling it.
+        await waitForRecaptchaReady();
 
         try {
             const token = await grecaptcha.execute(sitekey, { action: 'login' });
