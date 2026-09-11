@@ -21,7 +21,7 @@ header('Expires: 0');
 require __DIR__ . '/../../vendor/autoload.php';
 
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
-$app->make(IlluminateContractsConsoleKernel::class)->bootstrap();
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 require_once __DIR__ . '/_security_headers.php';
 sendSecurityHeaders();
