@@ -127,3 +127,138 @@ test('expired session tokens are rejected', function () {
 
     expect(resolveStaffSessionToken($token))->toBeNull();
 });
+
+/**
+ * Insert a login_attempts row directly so tests control the IP, timestamp,
+ * and success flag independently of resolveClientIpAddress().
+ */
+function insertLoginAttemptRow(string $email, string $ip, bool $success, ?string $attemptedAt = null): void
+{
+    DB::table('login_attempts')->insert([
+        'email' => strtolower(trim($email)),
+        'ip_address' => $ip,
+        'success' => $success,
+        'attempted_at' => $attemptedAt ?? now()->toDateTimeString(),
+        'created_at' => now()->toDateTimeString(),
+        'updated_at' => now()->toDateTimeString(),
+    ]);
+}
+
+test('suspicious login: success from a new IP for an established account is flagged', function () {
+    bootTestApp();
+
+    $email = 'newip-test@example.com';
+    DB::table('login_attempts')->where('email', $email)->delete();
+
+    // Established account: successful logins known, all from a home IP.
+    insertLoginAttemptRow($email, '203.0.113.10', true, now()->subDays(10)->toDateTimeString());
+
+    // A login attempt from a brand-new IP is suspicious.
+    expect(isSuspiciousLoginAttempt($email, '198.51.100.77'))->toBeTrue();
+
+    // The usual IP is not suspicious (no new-IP signal, no failures anywhere).
+    expect(isSuspiciousLoginAttempt($email, '203.0.113.10'))->toBeFalse();
+
+    DB::table('login_attempts')->where('email', $email)->delete();
+});
+
+test('suspicious login: an account with no success history is not new-IP flagged', function () {
+    bootTestApp();
+
+    $email = 'firstlogin-test@example.com';
+    DB::table('login_attempts')->where('email', $email)->delete();
+
+    // Brand-new account with zero history: Signal 1 requires prior successes
+    // to establish a "normal" IP, so nothing is flagged on the first login.
+    expect(isSuspiciousLoginAttempt($email, '198.51.100.77'))->toBeFalse();
+
+    // Same-IP failures only: Signal 2 excludes the current IP and Signal 3
+    // needs 3+ distinct emails, so a lone retry from the same IP stays clean.
+    insertLoginAttemptRow($email, '203.0.113.10', false, now()->subDays(2)->toDateTimeString());
+    expect(isSuspiciousLoginAttempt($email, '203.0.113.10'))->toBeFalse();
+
+    // ...but probing that same account from a DIFFERENT IP trips Signal 2
+    // (someone else failed against it recently).
+    expect(isSuspiciousLoginAttempt($email, '198.51.100.77'))->toBeTrue();
+
+    DB::table('login_attempts')->where('email', $email)->delete();
+});
+
+test('suspicious login: recent failures from a different IP are flagged', function () {
+    bootTestApp();
+
+    $email = 'distributed-test@example.com';
+    DB::table('login_attempts')->where('email', $email)->delete();
+
+    // The account's home IP has success history...
+    insertLoginAttemptRow($email, '203.0.113.10', true, now()->subDays(10)->toDateTimeString());
+    // ...but an attacker IP failed against this account yesterday.
+    insertLoginAttemptRow($email, '198.51.100.66', false, now()->subDay()->toDateTimeString());
+
+    // Distributed-failure signal trips even from the account's usual IP.
+    expect(isSuspiciousLoginAttempt($email, '203.0.113.10'))->toBeTrue();
+    expect(isSuspiciousLoginAttempt($email, '198.51.100.66'))->toBeTrue();
+
+    // An unrelated clean account from the same home IP is NOT flagged: its
+    // own history is clean and no one failed against it from other IPs.
+    $clean = 'clean-test@example.com';
+    DB::table('login_attempts')->where('email', $clean)->delete();
+    insertLoginAttemptRow($clean, '203.0.113.10', true, now()->subDays(3)->toDateTimeString());
+    expect(isSuspiciousLoginAttempt($clean, '203.0.113.10'))->toBeFalse();
+
+    DB::table('login_attempts')->whereIn('email', [$email, $clean])->delete();
+});
+
+test('suspicious login: old failures from other IPs are outside the 30-day window', function () {
+    bootTestApp();
+
+    $email = 'oldfail-test@example.com';
+    DB::table('login_attempts')->where('email', $email)->delete();
+
+    insertLoginAttemptRow($email, '203.0.113.10', true, now()->subDays(40)->toDateTimeString());
+    // Attacker gave up 31 days ago — stale history should not trip Signal 2.
+    insertLoginAttemptRow($email, '198.51.100.66', false, now()->subDays(31)->toDateTimeString());
+
+    expect(isSuspiciousLoginAttempt($email, '203.0.113.10'))->toBeFalse();
+
+    DB::table('login_attempts')->where('email', $email)->delete();
+});
+
+test('suspicious login: email rotation from one IP is flagged at 3+ distinct emails', function () {
+    bootTestApp();
+
+    $rotatingIp = '192.0.2.99';
+    $emails = ['rot-a-test@example.com', 'rot-b-test@example.com', 'rot-c-test@example.com'];
+    DB::table('login_attempts')->whereIn('email', $emails)->delete();
+
+    // Two distinct failed emails from this IP: below the rotation threshold.
+    insertLoginAttemptRow($emails[0], $rotatingIp, false, now()->subHours(2)->toDateTimeString());
+    insertLoginAttemptRow($emails[1], $rotatingIp, false, now()->subHours(1)->toDateTimeString());
+    expect(isSuspiciousLoginAttempt($emails[0], $rotatingIp))->toBeFalse();
+
+    // A third distinct failed email trips the credential-stuffing signal —
+    // note the probe is for emails[0], proving the signal counts OTHER
+    // accounts too, not just the one being logged into.
+    insertLoginAttemptRow($emails[2], $rotatingIp, false, now()->subMinutes(30)->toDateTimeString());
+    expect(isSuspiciousLoginAttempt($emails[0], $rotatingIp))->toBeTrue();
+
+    DB::table('login_attempts')->whereIn('email', $emails)->delete();
+    expect(isSuspiciousLoginAttempt($emails[0], $rotatingIp))->toBeFalse();
+});
+
+test('suspicious login: rotation signal ignores failures older than 24 hours', function () {
+    bootTestApp();
+
+    $rotatingIp = '192.0.2.100';
+    $emails = ['rot-old-a@example.com', 'rot-old-b@example.com', 'rot-old-c@example.com'];
+    DB::table('login_attempts')->whereIn('email', $emails)->delete();
+
+    // Three distinct emails, but all failures are outside the 24h window.
+    foreach ($emails as $index => $email) {
+        insertLoginAttemptRow($email, $rotatingIp, false, now()->subHours(25 + $index)->toDateTimeString());
+    }
+
+    expect(isSuspiciousLoginAttempt($emails[0], $rotatingIp))->toBeFalse();
+
+    DB::table('login_attempts')->whereIn('email', $emails)->delete();
+});

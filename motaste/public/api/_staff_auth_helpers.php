@@ -21,10 +21,11 @@ const STAFF_SESSION_LIFETIME_SECONDS = 30 * 24 * 60 * 60; // 30 days
 const STAFF_LOGIN_MAX_ATTEMPTS = 5;
 const STAFF_LOGIN_LOCKOUT_MINUTES = 2;
 
-// CAPTCHA kicks in when an IP has this many recent failed attempts (within the
-// lockout window). With 4, the 5th submit is the first one that demands a
-// completed CAPTCHA.
-const STAFF_LOGIN_CAPTCHA_THRESHOLD = 4;
+// CAPTCHA kicks in after this many recent failed attempts (account- or IP-
+// scoped, within the lockout window). With 2, the 3rd submit is the first one
+// that demands a completed CAPTCHA. A CAPTCHA can also be required earlier
+// (even on the first submit) when isSuspiciousLoginAttempt() flags the login.
+const STAFF_LOGIN_CAPTCHA_THRESHOLD = 2;
 
 // IP-based brute-force protection: lock an IP after repeated failures
 // across any accounts, preventing distributed account enumeration.
@@ -394,6 +395,78 @@ function isLoginIpRateLimited(string $ipAddress): bool
         return $count >= STAFF_LOGIN_IP_MAX_ATTEMPTS;
     } catch (Throwable $error) {
         error_log('isLoginIpRateLimited failed: ' . $error->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Detect a "suspicious" login attempt — a request whose context looks unlike
+ * the account's normal login pattern, even when the attempt budget has not
+ * been exhausted. Used to demand a CAPTCHA earlier than raw failure counts.
+ *
+ * Signals (queried from login_attempts):
+ *  1. The account has successful logins on record, but none from the current
+ *     IP → first-time IP for this account (new device/network, or an attacker).
+ *  2. The account had failed attempts from a DIFFERENT IP recently → possible
+ *     distributed attack against one account.
+ *  3. The current IP recently failed logins for MULTIPLE different emails →
+ *     credential-stuffing / email-rotation pattern.
+ *
+ * Best-effort: on any DB error it returns false so logins stay available.
+ */
+function isSuspiciousLoginAttempt(string $email, string $ipAddress): bool
+{
+    ensureStaffEnhancementSchema();
+
+    try {
+        $email = strtolower(trim($email));
+        $since = now()->subDays(30)->toDateTimeString();
+
+        // Signal 1: known-good logins exist, but never from this IP.
+        $hasSuccessfulLogins = DB::table('login_attempts')
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->where('success', true)
+            ->exists();
+
+        if ($hasSuccessfulLogins) {
+            $hasSuccessFromThisIp = DB::table('login_attempts')
+                ->whereRaw('LOWER(email) = ?', [$email])
+                ->where('success', true)
+                ->where('ip_address', $ipAddress)
+                ->exists();
+
+            if (!$hasSuccessFromThisIp) {
+                return true; // Brand-new IP for an established account.
+            }
+        }
+
+        // Signal 2: recent failed attempts against this account from other IPs.
+        $failedFromOtherIps = DB::table('login_attempts')
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->where('success', false)
+            ->where('ip_address', '!=', $ipAddress)
+            ->where('attempted_at', '>=', $since)
+            ->count();
+
+        if ($failedFromOtherIps > 0) {
+            return true;
+        }
+
+        // Signal 3: this IP recently failed logins for several accounts.
+        $distinctEmailsFailedFromThisIp = DB::table('login_attempts')
+            ->where('ip_address', $ipAddress)
+            ->where('success', false)
+            ->where('attempted_at', '>=', now()->subHours(24)->toDateTimeString())
+            ->distinct()
+            ->count(DB::raw('LOWER(email)'));
+
+        if ($distinctEmailsFailedFromThisIp >= 3) {
+            return true;
+        }
+
+        return false;
+    } catch (Throwable $error) {
+        error_log('isSuspiciousLoginAttempt failed: ' . $error->getMessage());
         return false;
     }
 }

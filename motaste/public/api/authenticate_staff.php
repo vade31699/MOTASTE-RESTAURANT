@@ -56,12 +56,21 @@ try {
         exit;
     }
 
-    // CAPTCHA enforcement: require Turnstile verification when the IP has
-    // recent failed attempts (proactive) or after a failed attempt (reactive).
+    // CAPTCHA enforcement: required after 2 failed attempts (per account or
+    // per IP, within the lockout window) or when the login pattern is
+    // suspicious (new IP for an established account, distributed failures,
+    // or email rotation from this IP) — even on the very first submit.
     $ipRecentFails = 0;
+    $accountRecentFails = 0;
     try {
         $ipRecentFails = (int) DB::table('login_attempts')
             ->where('ip_address', $clientIp)
+            ->where('success', false)
+            ->where('attempted_at', '>=', now()->subMinutes(STAFF_LOGIN_LOCKOUT_MINUTES)->toDateTimeString())
+            ->count();
+
+        $accountRecentFails = (int) DB::table('login_attempts')
+            ->whereRaw('LOWER(email) = ?', [$email])
             ->where('success', false)
             ->where('attempted_at', '>=', now()->subMinutes(STAFF_LOGIN_LOCKOUT_MINUTES)->toDateTimeString())
             ->count();
@@ -69,7 +78,14 @@ try {
         // Best effort.
     }
 
-    if ($ipRecentFails >= STAFF_LOGIN_CAPTCHA_THRESHOLD) {
+    $captchaRequired = $ipRecentFails >= STAFF_LOGIN_CAPTCHA_THRESHOLD
+        || $accountRecentFails >= STAFF_LOGIN_CAPTCHA_THRESHOLD;
+
+    if (!$captchaRequired) {
+        $captchaRequired = isSuspiciousLoginAttempt($email, $clientIp);
+    }
+
+    if ($captchaRequired) {
         // CAPTCHA is required: validate the Turnstile token.
         $turnstileSecret = env('TURNSTILE_SECRET_KEY', '');
         if ($turnstileSecret === '') {
