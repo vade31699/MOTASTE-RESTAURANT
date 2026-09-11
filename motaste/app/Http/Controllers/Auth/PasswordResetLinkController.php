@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Mail\PasswordResetCode;
+use App\Models\Staff;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -49,10 +50,19 @@ class PasswordResetLinkController extends Controller
 
         $email = strtolower(trim($request->email));
 
-        if (!DB::table('users')->whereRaw('LOWER(email) = ?', [$email])->exists()) {
-            throw ValidationException::withMessages([
-                'email' => ['We could not find an account with that email address.'],
-            ]);
+        // Password recovery is admin-only. A cashier or inventory account must
+        // never be able to start a reset, even with a known address.
+        $eligible = Staff::isAdminEmail($email)
+            && DB::table('users')->whereRaw('LOWER(email) = ?', [$email])->exists();
+
+        // Always answer identically. An ineligible address gets the same
+        // pending-code state as a real send and no error, so the response can
+        // never be used to test which addresses exist. No code is created and
+        // no email goes out, so verify() rejects whatever code is submitted.
+        if (!$eligible) {
+            session(['password_reset_email' => $email]);
+
+            return back()->with('codeSent', true);
         }
 
         $this->ensurePasswordResetCodesTable();
@@ -113,7 +123,9 @@ class PasswordResetLinkController extends Controller
         // Code confirmed — create a reset token and go straight to the form.
         $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
 
-        if (!$user) {
+        // Re-check here too: the code is only ever issued to the Admin, so a
+        // pending code can never be redeemed for a staff account.
+        if (!$user || !Staff::isAdminEmail($email)) {
             throw ValidationException::withMessages([
                 'email' => ['We could not find an account with that email address.'],
             ]);
