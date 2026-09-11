@@ -981,11 +981,11 @@ function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
     return fetch(url, { ...options, signal: controller.signal }).finally(() => window.clearTimeout(timer));
 }
 
-async function authenticateStaffAccount(email, password, role = '', deviceToken = '', silentRefresh = false, turnstileToken = '') {
+async function authenticateStaffAccount(email, password, role = '', deviceToken = '', silentRefresh = false, recaptchaToken = '') {
     try {
         const body = { email, password, role, deviceToken };
         if (silentRefresh) body.silentRefresh = true;
-        if (turnstileToken) body['cf-turnstile-response'] = turnstileToken;
+        if (recaptchaToken) body['recaptcha-token'] = recaptchaToken;
         const response = await fetchWithTimeout(getApiUrl('api/authenticate_staff.php'), {
             method: 'POST',
             headers: {
@@ -1227,27 +1227,28 @@ function resetInviteVerifyModal() {
  */
 
 /* ------------------------------------------------------------------ */
-/* CAPTCHA (Cloudflare Turnstile)                                      */
+/* CAPTCHA (Google reCAPTCHA v3)                                       */
 /* ------------------------------------------------------------------ */
 
 let captchaContainer = null;
 let captchaResolver = null;
-let turnstileWidgetId = null;
-let turnstileSitekeyPromise = null;
-const CAPTCHA_SCRIPT_WAIT_MS = 8000;
+let recaptchaSitekeyPromise = null;
+const RECAPTCHA_SCRIPT_WAIT_MS = 8000;
 
 /**
- * The Turnstile script tag uses `defer`, so it is often NOT loaded yet when
- * the first CAPTCHA is requested (the old code checked `typeof turnstile`
- * once, saw it missing, flashed the widget and gave up). Poll until the
- * script has registered its global, or time out.
+ * The reCAPTCHA API script uses `async defer`, so it may not be loaded yet
+ * when the first CAPTCHA is requested (the old code checked `typeof grecaptcha`
+ * once, saw it missing, and gave up). Poll until the script has registered its
+ * global, or time out.
  */
-function waitForTurnstileScript(timeoutMs = CAPTCHA_SCRIPT_WAIT_MS) {
-    if (typeof turnstile !== 'undefined') return Promise.resolve(true);
+function waitForRecaptchaScript(timeoutMs = RECAPTCHA_SCRIPT_WAIT_MS) {
+    if (typeof grecaptcha !== 'undefined' && typeof grecaptcha.execute === 'function') {
+        return Promise.resolve(true);
+    }
     return new Promise((resolve) => {
         const startedAt = Date.now();
         const poll = window.setInterval(() => {
-            if (typeof turnstile !== 'undefined') {
+            if (typeof grecaptcha !== 'undefined' && typeof grecaptcha.execute === 'function') {
                 window.clearInterval(poll);
                 resolve(true);
             } else if (Date.now() - startedAt >= timeoutMs) {
@@ -1263,35 +1264,35 @@ function waitForTurnstileScript(timeoutMs = CAPTCHA_SCRIPT_WAIT_MS) {
  * because a transient failure (config endpoint hiccup, first-load race)
  * would otherwise be cached forever as an empty sitekey.
  */
-function invalidateTurnstileSitekey() {
-    turnstileSitekeyPromise = null;
+function invalidateRecaptchaSitekey() {
+    recaptchaSitekeyPromise = null;
 }
 
 /**
- * Fetch the Turnstile sitekey from the server (TURNSTILE_SITE_KEY env var).
- * The sitekey is a public identifier; the secret stays server-side. staff.html
- * is served as a static file, so it cannot be templated into the HTML.
- * Resolves to '' when Turnstile is not configured.
+ * Fetch the reCAPTCHA v3 sitekey from the server (RECAPTCHA_V3_SITE_KEY env
+ * var). The sitekey is a public identifier; the secret stays server-side.
+ * staff.html is served as a static file, so it cannot be templated into the
+ * HTML. Resolves to '' when reCAPTCHA v3 is not configured.
  */
-function fetchTurnstileSitekey(forceRefetch = false) {
-    if (forceRefetch) turnstileSitekeyPromise = null;
-    if (!turnstileSitekeyPromise) {
-        turnstileSitekeyPromise = fetch(getApiUrl('api/get_turnstile_sitekey.php'), { cache: 'no-store' })
+function fetchRecaptchaSitekey(forceRefetch = false) {
+    if (forceRefetch) recaptchaSitekeyPromise = null;
+    if (!recaptchaSitekeyPromise) {
+        recaptchaSitekeyPromise = fetch(getApiUrl('api/get_recaptcha_sitekey.php'), { cache: 'no-store' })
             .then((response) => response.json())
             .then((payload) => (payload && typeof payload.sitekey === 'string' ? payload.sitekey : ''))
             .catch(() => '');
     }
-    return turnstileSitekeyPromise;
+    return recaptchaSitekeyPromise;
 }
 
 /**
- * Show the Turnstile CAPTCHA widget and resolve when the user completes it.
+ * Run reCAPTCHA v3 explicitly and resolve when the token is available.
  * Returns the token string, or null on cancel/permanent failure.
  *
- * Unlike the previous version, this never flashes-and-vanishes: on widget
- * errors (bad sitekey, network hiccup, script not loaded) the container stays
- * visible with an explanation plus Retry/Cancel buttons, and only the user
- * (or a successful verification) dismisses it.
+ * v3 is invisible to the user, so there is no widget to flash-and-vanish.
+ * On error (bad sitekey, network hiccup, script not loaded) the container
+ * stays visible with an explanation plus Retry/Cancel buttons, and only the
+ * user (or a successful verification) dismisses it.
  */
 async function requestCaptchaVerification(errorMessage) {
     captchaContainer = captchaContainer || document.getElementById('captchaContainer');
@@ -1317,21 +1318,18 @@ async function requestCaptchaVerification(errorMessage) {
     if (captchaRetryBtn && !captchaRetryBtn.dataset.captchaBound) {
         captchaRetryBtn.dataset.captchaBound = '1';
         captchaRetryBtn.addEventListener('click', () => {
-            // Re-run the whole setup: re-fetch the sitekey and re-render.
+            // Re-run the whole setup: re-fetch the sitekey and re-execute.
             if (captchaActions) captchaActions.hidden = true;
             void startVerification(false);
         });
     }
 
-    const renderWidget = async (sitekey, withErrorNote) => {
-        setCaptchaMessage(
-            (withErrorNote ? withErrorNote + ' ' : '') +
-            'Please verify you are human to continue.'
-        );
+    const executeRecaptcha = async (sitekey) => {
+        setCaptchaMessage('Please verify you are human to continue.');
         showActions(false);
         captchaContainer.hidden = false;
 
-        const scriptReady = await waitForTurnstileScript();
+        const scriptReady = await waitForRecaptchaScript();
         if (!scriptReady) {
             setCaptchaMessage('CAPTCHA could not be loaded. Check your connection, then Retry.');
             showActions(true);
@@ -1339,41 +1337,32 @@ async function requestCaptchaVerification(errorMessage) {
         }
 
         try {
-            if (turnstileWidgetId !== null) {
-                turnstile.reset(turnstileWidgetId);
-            } else {
-                turnstileWidgetId = turnstile.render(captchaContainer.querySelector('.cf-turnstile'), {
-                    sitekey,
-                    callback: onTurnstileSuccess,
-                    // Widget-level error (expired challenge, internal failure,
-                    // sitekey rejected for this domain). Keep the widget up
-                    // and offer a retry — never auto-hide (that was the
-                    // flash-and-disappear bug).
-                    'error-callback': () => {
-                        setCaptchaMessage('CAPTCHA encountered an error. Please Retry.');
-                        showActions(true);
-                    },
-                    'expired-callback': () => {
-                        // Challenge expired before completion: Turnstile shows
-                        // its own expiry UI; make retry available too.
-                        showActions(true);
-                    },
-                    theme: 'dark'
-                });
-            }
+            grecaptcha.execute(sitekey, { action: 'login' }).then((token) => {
+                if (typeof token === 'string' && token !== '') {
+                    window.onRecaptchaSuccess(token);
+                } else {
+                    setCaptchaMessage('CAPTCHA could not start. Please Retry.');
+                    showActions(true);
+                }
+            }).catch((executeError) => {
+                console.error('reCAPTCHA execute failed', executeError);
+                setCaptchaMessage('CAPTCHA could not start. Please Retry.');
+                showActions(true);
+            });
         } catch (renderError) {
-            console.error('Turnstile render failed', renderError);
+            console.error('reCAPTCHA execute threw', renderError);
             setCaptchaMessage('CAPTCHA could not start. Please Retry.');
             showActions(true);
         }
     };
 
     const startVerification = async (isFirstAttempt) => {
-        const sitekey = await fetchTurnstileSitekey(!isFirstAttempt);
+        const sitekey = await fetchRecaptchaSitekey(!isFirstAttempt);
         if (!sitekey) {
-            // Turnstile not configured server-side (TURNSTILE_SITE_KEY missing)
-            // or the config endpoint is unreachable. Explain and let the user
-            // retry (the config endpoint may have been a transient failure).
+            // reCAPTCHA v3 not configured server-side (RECAPTCHA_V3_SITE_KEY
+            // missing) or the config endpoint is unreachable. Explain and let
+            // the user retry (the config endpoint may have been a transient
+            // failure).
             setCaptchaMessage(
                 (isFirstAttempt && errorMessage ? errorMessage + ' ' : '') +
                 'CAPTCHA is temporarily unavailable. Please Retry in a moment.'
@@ -1381,7 +1370,7 @@ async function requestCaptchaVerification(errorMessage) {
             showActions(true);
             return;
         }
-        await renderWidget(sitekey, isFirstAttempt ? (errorMessage || '') : '');
+        await executeRecaptcha(sitekey);
     };
 
     return new Promise((resolve) => {
@@ -1392,10 +1381,10 @@ async function requestCaptchaVerification(errorMessage) {
 }
 
 /**
- * Global callback invoked by Turnstile on successful verification.
+ * Global callback invoked by Google reCAPTCHA on successful execute().
  */
-window.onTurnstileSuccess = function (token) {
-    const tokenInput = document.getElementById('turnstileToken');
+window.onRecaptchaSuccess = function (token) {
+    const tokenInput = document.getElementById('recaptchaToken');
     if (tokenInput) tokenInput.value = token;
     resolveCaptcha(token);
 };
@@ -1405,8 +1394,8 @@ function resolveCaptcha(token) {
     const actions = document.getElementById('captchaActions');
     if (actions) actions.hidden = true;
     // Clear the hidden token holder so a stale token is never resubmitted if
-    // the widget is re-opened (tokens are single-use and expire quickly).
-    const tokenInput = document.getElementById('turnstileToken');
+    // the CAPTCHA is re-opened (v3 tokens expire quickly).
+    const tokenInput = document.getElementById('recaptchaToken');
     if (tokenInput) tokenInput.value = '';
     const resolve = captchaResolver;
     captchaResolver = null;
@@ -2134,7 +2123,7 @@ async function handleStaffLogin(email, password, role, remember) {
         return;
     }
 
-    // CAPTCHA required: show the Turnstile widget and wait for completion.
+    // CAPTCHA required: run reCAPTCHA v3 and wait for a token.
     if (authResult.needsCaptcha) {
         const captchaToken = await requestCaptchaVerification(authResult.error || '');
         if (!captchaToken) {
@@ -2145,7 +2134,7 @@ async function handleStaffLogin(email, password, role, remember) {
             }
             return;
         }
-        // Re-attempt login with the CAPTCHA token.
+        // Re-attempt login with the reCAPTCHA token.
         authResult = await authenticateStaffAccount(email, password, role, deviceToken, false, captchaToken);
         if (!authResult) {
             setAuthButtonsVisible(false);

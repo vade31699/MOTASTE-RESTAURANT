@@ -472,15 +472,20 @@ function isSuspiciousLoginAttempt(string $email, string $ipAddress): bool
 }
 
 /**
- * Validate a Cloudflare Turnstile token with the remote verification API.
+ * Validate a Google reCAPTCHA v3 token with the remote verification API.
  *
- * @param  string  $token      The cf-turnstile-response value from the client.
- * @param  string  $secretKey  The Turnstile secret key.
- * @param  string  $remoteIp   The client IP (used by Turnstile for anomaly detection).
- * @return bool                 true when the token is valid.
+ * @param  string  $token      The reCAPTCHA v3 response token from the client.
+ * @param  string  $secretKey  The reCAPTCHA v3 secret key.
+ * @param  string  $remoteIp   The client IP (used by reCAPTCHA for anomaly detection).
+ * @param  float   $threshold  Minimum acceptable score; scores below this fail.
+ * @return bool                 true when the token is valid AND meets the score threshold.
  */
-function verifyTurnstileToken(string $token, string $secretKey, string $remoteIp = ''): bool
+function verifyRecaptchaToken(string $token, string $secretKey, string $remoteIp = '', float $threshold = 0.5): bool
 {
+    if ($token === '') {
+        return false;
+    }
+
     try {
         $payload = http_build_query([
             'secret' => $secretKey,
@@ -488,7 +493,7 @@ function verifyTurnstileToken(string $token, string $secretKey, string $remoteIp
             'remoteip' => $remoteIp,
         ]);
 
-        $ch = curl_init('https://challenges.cloudflare.com/turnstile/v0/siteverify');
+        $ch = curl_init('https://www.google.com/recaptcha/api/siteverify');
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $payload,
@@ -501,14 +506,19 @@ function verifyTurnstileToken(string $token, string $secretKey, string $remoteIp
         curl_close($ch);
 
         if ($body === false || $httpCode !== 200) {
-            error_log('[MOTASTE] Turnstile verification request failed: HTTP ' . $httpCode);
+            error_log('[MOTASTE] reCAPTCHA verification request failed: HTTP ' . $httpCode);
             return false;
         }
 
         $result = json_decode($body, true);
-        return is_array($result) && ($result['success'] ?? false) === true;
+        if (!is_array($result) || ($result['success'] ?? false) !== true) {
+            return false;
+        }
+
+        $score = (float)($result['score'] ?? 0);
+        return $score >= $threshold;
     } catch (Throwable $error) {
-        error_log('[MOTASTE] Turnstile verification error: ' . $error->getMessage());
+        error_log('[MOTASTE] reCAPTCHA verification error: ' . $error->getMessage());
         return false;
     }
 }
@@ -540,6 +550,11 @@ const ORDER_CREATE_MAX_PER_WINDOW = 15;   // order creations
 const ORDER_CREATE_WINDOW_SECONDS = 600;  // per 10 minutes, per IP
 const ORDER_STATUS_MAX_PER_WINDOW = 240;  // order status lookups
 const ORDER_STATUS_WINDOW_SECONDS = 60;   // per 60 seconds, per IP
+
+/**
+ * Default reCAPTCHA v3 score threshold when RECAPTCHA_V3_THRESHOLD is unset.
+ */
+const RECAPTCHA_V3_DEFAULT_THRESHOLD = 0.5;
 
 function resolveApiClientIp(): string
 {

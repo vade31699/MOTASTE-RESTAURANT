@@ -23,7 +23,7 @@ try {
     $email = strtolower(trim((string)($input['email'] ?? '')));
     $password = (string)($input['password'] ?? '');
     $selectedRole = trim((string)($input['role'] ?? ''));
-    $turnstileToken = trim((string)($input['cf-turnstile-response'] ?? ''));
+    $recaptchaToken = trim((string)($input['recaptcha-token'] ?? ''));
     $deviceToken = trim((string)($input['deviceToken'] ?? ''));
 
     if ($email === '' || $password === '') {
@@ -88,12 +88,14 @@ try {
     }
 
     if ($captchaRequired) {
-        // CAPTCHA is required: validate the Turnstile token.
-        $turnstileSecret = env('TURNSTILE_SECRET_KEY', '');
-        if ($turnstileSecret === '') {
+        // CAPTCHA is required: validate the reCAPTCHA v3 token.
+        $recaptchaSecret = (string) env('RECAPTCHA_V3_SECRET_KEY', '');
+        $recaptchaThreshold = (float) env('RECAPTCHA_V3_THRESHOLD', (string) RECAPTCHA_V3_DEFAULT_THRESHOLD);
+
+        if ($recaptchaSecret === '') {
             // CAPTCHA provider not configured — skip validation but still
-            // require the widget on the client (fail-open for misconfiguration).
-        } elseif ($turnstileToken === '') {
+            // require the token on the client (fail-open for misconfiguration).
+        } elseif ($recaptchaToken === '') {
             http_response_code(422);
             echo json_encode([
                 'success' => false,
@@ -102,8 +104,8 @@ try {
             ]);
             exit;
         } else {
-            $turnstileResult = verifyTurnstileToken($turnstileToken, $turnstileSecret, $clientIp);
-            if (!$turnstileResult) {
+            $recaptchaResult = verifyRecaptchaToken($recaptchaToken, $recaptchaSecret, $clientIp, $recaptchaThreshold);
+            if (!$recaptchaResult) {
                 http_response_code(422);
                 echo json_encode([
                     'success' => false,

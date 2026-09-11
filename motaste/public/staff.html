@@ -971,9 +971,7 @@
 
                     <div id="captchaContainer" class="captcha-container" hidden>
                         <p class="captcha-label">Please verify you are human</p>
-                        <!-- Sitekey is injected by script.js from api/get_turnstile_sitekey.php -->
-                        <div class="cf-turnstile" data-theme="dark"></div>
-                        <input type="hidden" name="cf-turnstile-response" id="turnstileToken">
+                        <input type="hidden" name="recaptcha-token" id="recaptchaToken">
                         <div class="captcha-actions" id="captchaActions" hidden>
                             <button type="button" id="captchaRetryBtn" class="captcha-retry-btn">Retry</button>
                             <button type="button" id="captchaCancelBtn" class="captcha-cancel-btn">Cancel</button>
@@ -997,7 +995,7 @@
     </div>
     </div>
 
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script>
+    <script src="https://www.google.com/recaptcha/api.js?render=explicit" async defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
     <script src="./script.js?v=20260909c" defer></script>

@@ -70,7 +70,7 @@ function captchaSubprocessEnv(array $extra = []): array
         'MAIL_PASSWORD' => '',
         'MAIL_MAILER' => 'log',
         // The endpoint reads this via env() in the subprocess.
-        'TURNSTILE_SECRET_KEY' => 'test-secret',
+        'RECAPTCHA_V3_SECRET_KEY' => 'test-secret',
         // Windows: required by some PHP extensions in child processes.
         'SystemRoot' => getenv('SystemRoot') ?: 'C:\\Windows',
     ], $extra);
@@ -311,8 +311,8 @@ test('two failures on a DIFFERENT account also arm the gate for this IP', functi
 });
 
 test('a successful login clears failed attempts and rearms the gate from scratch', function () {
-    // A real Turnstile pass cannot be simulated here (network call to
-    // Cloudflare), so instead: arm the gate, verify it, then clear the
+    // A real reCAPTCHA v3 pass cannot be simulated here (network call to
+    // Google), so instead: arm the gate, verify it, then clear the
     // failure counter exactly as a successful login does (clearLoginAttempts)
     // and confirm the gate disarms and the login proceeds normally.
     $email = 'captcha-rearm@example.com';
