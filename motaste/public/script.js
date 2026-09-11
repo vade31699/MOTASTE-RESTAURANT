@@ -1337,20 +1337,15 @@ async function requestCaptchaVerification(errorMessage) {
         }
 
         try {
-            grecaptcha.execute(sitekey, { action: 'login' }).then((token) => {
-                if (typeof token === 'string' && token !== '') {
-                    window.onRecaptchaSuccess(token);
-                } else {
-                    setCaptchaMessage('CAPTCHA could not start. Please Retry.');
-                    showActions(true);
-                }
-            }).catch((executeError) => {
-                console.error('reCAPTCHA execute failed', executeError);
+            const token = await grecaptcha.execute(sitekey, { action: 'login' });
+            if (typeof token === 'string' && token !== '') {
+                window.onRecaptchaSuccess(token);
+            } else {
                 setCaptchaMessage('CAPTCHA could not start. Please Retry.');
                 showActions(true);
-            });
-        } catch (renderError) {
-            console.error('reCAPTCHA execute threw', renderError);
+            }
+        } catch (executeError) {
+            console.error('reCAPTCHA execute failed', executeError);
             setCaptchaMessage('CAPTCHA could not start. Please Retry.');
             showActions(true);
         }
