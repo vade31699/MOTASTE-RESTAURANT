@@ -31,12 +31,12 @@ class SecurityHeaders
         // Google reCAPTCHA v3 is required for the staff login page: the api.js
         // script and its siteverify calls both use google.com/recaptcha.
         $response->headers->set('Content-Security-Policy', "default-src 'self'; "
-            . "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.google.com; "
+            . "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.google.com https://www.gstatic.com; "
             . "style-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com; "
             . "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com https://unpkg.com; "
             . "img-src 'self' data: https://maps.google.com https://www.google.com https://www.recaptcha.net; "
             . "frame-src https://maps.google.com https://www.google.com https://www.recaptcha.net; "
-            . "connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://www.google.com https://www.recaptcha.net; "
+            . "connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://www.google.com https://www.gstatic.com https://www.recaptcha.net; "
             . "base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'self'");
 
         return $response;
