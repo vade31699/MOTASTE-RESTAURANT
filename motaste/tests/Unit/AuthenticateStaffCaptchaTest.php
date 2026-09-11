@@ -69,8 +69,11 @@ function captchaSubprocessEnv(array $extra = []): array
         'MAIL_USERNAME' => '',
         'MAIL_PASSWORD' => '',
         'MAIL_MAILER' => 'log',
-        // The endpoint reads this via env() in the subprocess.
+        // The endpoint reads these via env() in the subprocess.
         'RECAPTCHA_V2_SECRET_KEY' => 'test-secret',
+        // Pin the deployment-tunable CAPTCHA threshold to its default so the
+        // assertions below do not depend on the developer's .env file.
+        'STAFF_LOGIN_CAPTCHA_THRESHOLD' => '3',
         // Windows: required by some PHP extensions in child processes.
         'SystemRoot' => getenv('SystemRoot') ?: 'C:\\Windows',
     ], $extra);
@@ -165,7 +168,7 @@ function captchaUnlink(string $file): void
  * Execute the endpoint as if a browser posted $body from $remoteAddr.
  * Returns ['status' => int, 'body' => array].
  */
-function runCaptchaSubprocess(array $jsonBody, string $remoteAddr = '203.0.113.50'): array
+function runCaptchaSubprocess(array $jsonBody, string $remoteAddr = '203.0.113.50', array $extraEnv = []): array
 {
     $inputFile = captchaTestDbPath() . '.input.json';
     $responseFile = captchaTestDbPath() . '.response.json';
@@ -175,12 +178,12 @@ function runCaptchaSubprocess(array $jsonBody, string $remoteAddr = '203.0.113.5
 
     [$exitCode, $stdout, $stderr] = runPhpSubprocess(
         __DIR__ . '/fixtures/authenticate_staff_subprocess_runner.php',
-        captchaSubprocessEnv([
+        captchaSubprocessEnv(array_merge([
             'TEST_INPUT_FILE' => $inputFile,
             'TEST_RESPONSE_FILE' => $responseFile,
             'TEST_REMOTE_ADDR' => $remoteAddr,
             'TEST_ENDPOINT_FILE' => preparePatchedEndpoint(),
-        ])
+        ], $extraEnv))
     );
 
     $envelope = is_file($responseFile) ? json_decode((string)file_get_contents($responseFile), true) : null;
@@ -237,7 +240,7 @@ beforeEach(function () {
     ]);
 });
 
-test('captcha is not demanded on the first or second failed attempt', function () {
+test('captcha is not demanded on the first, second, or third failed attempt', function () {
     $email = 'captcha-low@example.com';
     seedCaptchaStaff($email, 'Correct-Horse-1');
 
@@ -255,16 +258,23 @@ test('captcha is not demanded on the first or second failed attempt', function (
     ]);
     expect($secondStatus)->toBe(401);
     expect($secondBody['needsCaptcha'] ?? null)->toBeNull();
+
+    ['status' => $thirdStatus, 'body' => $thirdBody] = runCaptchaSubprocess([
+        'email' => $email, 'password' => 'wrong', 'role' => 'Admin', 'deviceToken' => 'tok-a',
+    ]);
+    expect($thirdStatus)->toBe(401);
+    expect($thirdBody['needsCaptcha'] ?? null)->toBeNull();
 });
 
-test('captcha is demanded on the third attempt after two failures', function () {
+test('captcha is demanded on the fourth attempt after three failures', function () {
     $email = 'captcha-trip@example.com';
     seedCaptchaStaff($email, 'Correct-Horse-2');
 
     runCaptchaSubprocess(['email' => $email, 'password' => 'wrong', 'role' => 'Admin', 'deviceToken' => 'tok-b']);
     runCaptchaSubprocess(['email' => $email, 'password' => 'wrong', 'role' => 'Admin', 'deviceToken' => 'tok-b']);
+    runCaptchaSubprocess(['email' => $email, 'password' => 'wrong', 'role' => 'Admin', 'deviceToken' => 'tok-b']);
 
-    // Third attempt — even with the CORRECT password — must be gated first.
+    // Fourth attempt — even with the CORRECT password — must be gated first.
     ['status' => $status, 'body' => $body] = runCaptchaSubprocess([
         'email' => $email, 'password' => 'Correct-Horse-2', 'role' => 'Admin', 'deviceToken' => 'tok-b',
     ]);
@@ -280,6 +290,7 @@ test('captcha gate blocks a correct password when armed and no token is provided
 
     runCaptchaSubprocess(['email' => $email, 'password' => 'wrong', 'role' => 'Admin', 'deviceToken' => 'tok-c']);
     runCaptchaSubprocess(['email' => $email, 'password' => 'wrong', 'role' => 'Admin', 'deviceToken' => 'tok-c']);
+    runCaptchaSubprocess(['email' => $email, 'password' => 'wrong', 'role' => 'Admin', 'deviceToken' => 'tok-c']);
 
     // Gate armed: correct password without a CAPTCHA token is refused 422.
     ['status' => $status, 'body' => $body] = runCaptchaSubprocess([
@@ -290,21 +301,45 @@ test('captcha gate blocks a correct password when armed and no token is provided
     expect($body['needsCaptcha'] ?? false)->toBeTrue();
 });
 
-test('two failures on a DIFFERENT account also arm the gate for this IP', function () {
+test('three failures on a DIFFERENT account also arm the gate for this IP', function () {
     // The threshold counts IP-scoped failures too: another account's failures
     // from the same IP arm the CAPTCHA gate for every account from that IP.
     seedCaptchaStaff('captcha-victim@example.com', 'Victim-Pass-1');
     seedCaptchaStaff('captcha-other@example.com', 'Other-Pass-1');
 
-    // Fail twice against account A from this IP.
+    // Fail three times against account A from this IP.
+    runCaptchaSubprocess(['email' => 'captcha-victim@example.com', 'password' => 'wrong', 'role' => 'Admin', 'deviceToken' => 'tok-d']);
     runCaptchaSubprocess(['email' => 'captcha-victim@example.com', 'password' => 'wrong', 'role' => 'Admin', 'deviceToken' => 'tok-d']);
     runCaptchaSubprocess(['email' => 'captcha-victim@example.com', 'password' => 'wrong', 'role' => 'Admin', 'deviceToken' => 'tok-d']);
 
     // First-ever attempt against account B from the SAME IP: the IP-scoped
-    // counter (2) already meets the threshold.
+    // counter (3) already meets the threshold.
     ['status' => $status, 'body' => $body] = runCaptchaSubprocess([
         'email' => 'captcha-other@example.com', 'password' => 'Other-Pass-1', 'role' => 'Admin', 'deviceToken' => 'tok-e',
     ]);
+
+    expect($status)->toBe(422);
+    expect($body['needsCaptcha'] ?? false)->toBeTrue();
+});
+
+test('the captcha threshold is tunable with the STAFF_LOGIN_CAPTCHA_THRESHOLD env var', function () {
+    $email = 'captcha-env@example.com';
+    seedCaptchaStaff($email, 'Correct-Horse-5');
+
+    // With the threshold set to 1, a single failure arms the gate, so the very
+    // next (correct-password) submit must already demand a completed CAPTCHA —
+    // proving the env var (not just the compiled-in default) drives the gate.
+    runCaptchaSubprocess(
+        ['email' => $email, 'password' => 'wrong', 'role' => 'Admin', 'deviceToken' => 'tok-g'],
+        '203.0.113.50',
+        ['STAFF_LOGIN_CAPTCHA_THRESHOLD' => '1']
+    );
+
+    ['status' => $status, 'body' => $body] = runCaptchaSubprocess(
+        ['email' => $email, 'password' => 'Correct-Horse-5', 'role' => 'Admin', 'deviceToken' => 'tok-g'],
+        '203.0.113.50',
+        ['STAFF_LOGIN_CAPTCHA_THRESHOLD' => '1']
+    );
 
     expect($status)->toBe(422);
     expect($body['needsCaptcha'] ?? false)->toBeTrue();
@@ -318,6 +353,7 @@ test('a successful login clears failed attempts and rearms the gate from scratch
     $email = 'captcha-rearm@example.com';
     seedCaptchaStaff($email, 'Correct-Horse-4');
 
+    runCaptchaSubprocess(['email' => $email, 'password' => 'wrong', 'role' => 'Admin', 'deviceToken' => 'tok-f']);
     runCaptchaSubprocess(['email' => $email, 'password' => 'wrong', 'role' => 'Admin', 'deviceToken' => 'tok-f']);
     runCaptchaSubprocess(['email' => $email, 'password' => 'wrong', 'role' => 'Admin', 'deviceToken' => 'tok-f']);
 

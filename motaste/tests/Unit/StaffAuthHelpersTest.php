@@ -55,7 +55,7 @@ test('failed login attempts trigger the brute-force rate limiter', function () {
     DB::table('login_attempts')->where('email', $email)->delete();
 
     // One attempt below the lockout threshold is still allowed.
-    foreach (range(1, STAFF_LOGIN_MAX_ATTEMPTS - 1) as $ignored) {
+    foreach (range(1, staffLoginMaxAttempts() - 1) as $ignored) {
         recordLoginAttempt($email, false);
     }
     expect(isLoginRateLimited($email))->toBeFalse();
@@ -68,6 +68,89 @@ test('failed login attempts trigger the brute-force rate limiter', function () {
     expect(isLoginRateLimited($email))->toBeFalse();
 });
 
+/**
+ * Set (or clear with null) an env var across the places Laravel's env()
+ * repository reads from, so an override is visible mid-test.
+ */
+function setStaffLoginTestEnv(string $key, ?string $value): void
+{
+    if ($value === null) {
+        putenv($key);
+        unset($_ENV[$key], $_SERVER[$key]);
+        return;
+    }
+
+    putenv($key . '=' . $value);
+    $_ENV[$key] = $value;
+    $_SERVER[$key] = $value;
+}
+
+test('staff security settings are overridable from the environment', function () {
+    bootTestApp();
+
+    $knownKeys = [
+        'STAFF_LOGIN_MAX_ATTEMPTS',
+        'STAFF_LOGIN_LOCKOUT_MINUTES',
+        'STAFF_LOGIN_IP_MAX_ATTEMPTS',
+        'STAFF_LOGIN_IP_LOCKOUT_MINUTES',
+        'STAFF_LOGIN_CAPTCHA_THRESHOLD',
+        'STAFF_SESSION_LIFETIME_SECONDS',
+        'STAFF_SESSION_TOKEN_TTL_DAYS',
+    ];
+
+    // Remember and restore any pre-existing values so this test cannot leak
+    // configuration into the rest of the suite.
+    $original = [];
+    foreach ($knownKeys as $key) {
+        $value = getenv($key);
+        $original[$key] = $value === false ? null : $value;
+        setStaffLoginTestEnv($key, null);
+    }
+
+    try {
+        // Blank/absent → the compiled-in defaults.
+        expect(staffLoginMaxAttempts())->toBe(STAFF_LOGIN_MAX_ATTEMPTS_DEFAULT);
+        expect(staffLoginLockoutMinutes())->toBe(STAFF_LOGIN_LOCKOUT_MINUTES_DEFAULT);
+        expect(staffLoginIpMaxAttempts())->toBe(STAFF_LOGIN_IP_MAX_ATTEMPTS_DEFAULT);
+        expect(staffLoginIpLockoutMinutes())->toBe(STAFF_LOGIN_IP_LOCKOUT_MINUTES_DEFAULT);
+        expect(staffLoginCaptchaThreshold())->toBe(STAFF_LOGIN_CAPTCHA_THRESHOLD_DEFAULT);
+        expect(staffSessionLifetimeSeconds())->toBe(STAFF_SESSION_LIFETIME_SECONDS_DEFAULT);
+        expect(staffSessionTokenTtlDays())->toBe(STAFF_SESSION_TOKEN_TTL_DAYS_DEFAULT);
+
+        // Explicit values are honored.
+        setStaffLoginTestEnv('STAFF_LOGIN_MAX_ATTEMPTS', '7');
+        setStaffLoginTestEnv('STAFF_LOGIN_LOCKOUT_MINUTES', '10');
+        setStaffLoginTestEnv('STAFF_LOGIN_IP_MAX_ATTEMPTS', '99');
+        setStaffLoginTestEnv('STAFF_LOGIN_IP_LOCKOUT_MINUTES', '15');
+        setStaffLoginTestEnv('STAFF_LOGIN_CAPTCHA_THRESHOLD', '1');
+        setStaffLoginTestEnv('STAFF_SESSION_LIFETIME_SECONDS', '600');
+        setStaffLoginTestEnv('STAFF_SESSION_TOKEN_TTL_DAYS', '2');
+
+        expect(staffLoginMaxAttempts())->toBe(7);
+        expect(staffLoginLockoutMinutes())->toBe(10);
+        expect(staffLoginIpMaxAttempts())->toBe(99);
+        expect(staffLoginIpLockoutMinutes())->toBe(15);
+        expect(staffLoginCaptchaThreshold())->toBe(1);
+        expect(staffSessionLifetimeSeconds())->toBe(600);
+        expect(staffSessionTokenTtlDays())->toBe(2);
+
+        // Garbage falls back to the default; 0/negative clamps to 1 so a
+        // misconfiguration can never disable a limit.
+        setStaffLoginTestEnv('STAFF_LOGIN_MAX_ATTEMPTS', 'not-a-number');
+        expect(staffLoginMaxAttempts())->toBe(STAFF_LOGIN_MAX_ATTEMPTS_DEFAULT);
+
+        setStaffLoginTestEnv('STAFF_LOGIN_MAX_ATTEMPTS', '0');
+        expect(staffLoginMaxAttempts())->toBe(1);
+
+        setStaffLoginTestEnv('STAFF_LOGIN_IP_MAX_ATTEMPTS', '-5');
+        expect(staffLoginIpMaxAttempts())->toBe(1);
+    } finally {
+        foreach ($original as $key => $value) {
+            setStaffLoginTestEnv($key, $value);
+        }
+    }
+});
+
 test('a successful login clears the failed-attempt counter', function () {
     bootTestApp();
 
@@ -78,6 +161,31 @@ test('a successful login clears the failed-attempt counter', function () {
     recordLoginAttempt($email, true);
 
     expect(isLoginRateLimited($email))->toBeFalse();
+});
+
+test('an issued session token honors the STAFF_SESSION_TOKEN_TTL_DAYS override', function () {
+    bootTestApp();
+
+    $original = getenv('STAFF_SESSION_TOKEN_TTL_DAYS');
+    setStaffLoginTestEnv('STAFF_SESSION_TOKEN_TTL_DAYS', '2');
+
+    try {
+        $email = 'token-ttl-test@example.com';
+        DB::table('staff_session_tokens')->where('email', $email)->delete();
+
+        issueStaffSessionToken($email, 'Admin');
+
+        $expiresAt = \Illuminate\Support\Carbon::parse(
+            DB::table('staff_session_tokens')->where('email', $email)->value('expires_at')
+        );
+
+        // The token must expire ~2 days out, not the 30-day default.
+        expect(abs($expiresAt->diffInSeconds(now()->addDays(2))))->toBeLessThan(60);
+
+        DB::table('staff_session_tokens')->where('email', $email)->delete();
+    } finally {
+        setStaffLoginTestEnv('STAFF_SESSION_TOKEN_TTL_DAYS', $original === false ? null : $original);
+    }
 });
 
 test('staff session tokens can be issued, resolved, and revoked', function () {

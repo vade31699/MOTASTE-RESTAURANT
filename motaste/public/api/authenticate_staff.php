@@ -58,7 +58,7 @@ try {
         exit;
     }
 
-    // CAPTCHA enforcement: required after 2 failed attempts (per account or
+    // CAPTCHA enforcement: required after 3 failed attempts (per account or
     // per IP, within the lockout window) or when the login pattern is
     // suspicious (new IP for an established account, distributed failures,
     // or email rotation from this IP) — even on the very first submit.
@@ -68,20 +68,23 @@ try {
         $ipRecentFails = (int) DB::table('login_attempts')
             ->where('ip_address', $clientIp)
             ->where('success', false)
-            ->where('attempted_at', '>=', now()->subMinutes(STAFF_LOGIN_LOCKOUT_MINUTES)->toDateTimeString())
+            ->where('attempted_at', '>=', now()->subMinutes(staffLoginLockoutMinutes())->toDateTimeString())
             ->count();
 
         $accountRecentFails = (int) DB::table('login_attempts')
             ->whereRaw('LOWER(email) = ?', [$email])
             ->where('success', false)
-            ->where('attempted_at', '>=', now()->subMinutes(STAFF_LOGIN_LOCKOUT_MINUTES)->toDateTimeString())
+            ->where('attempted_at', '>=', now()->subMinutes(staffLoginLockoutMinutes())->toDateTimeString())
             ->count();
     } catch (Throwable $e) {
         // Best effort.
     }
 
-    $captchaRequired = $ipRecentFails >= STAFF_LOGIN_CAPTCHA_THRESHOLD
-        || $accountRecentFails >= STAFF_LOGIN_CAPTCHA_THRESHOLD;
+    // Threshold is deployment-tunable via STAFF_LOGIN_CAPTCHA_THRESHOLD
+    // (defaults to STAFF_LOGIN_CAPTCHA_THRESHOLD_DEFAULT).
+    $captchaThreshold = staffLoginCaptchaThreshold();
+    $captchaRequired = $ipRecentFails >= $captchaThreshold
+        || $accountRecentFails >= $captchaThreshold;
 
     if (!$captchaRequired) {
         $captchaRequired = isSuspiciousLoginAttempt($email, $clientIp);

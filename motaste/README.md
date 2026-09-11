@@ -107,6 +107,20 @@ Make sure the site's **Allowed domains** in the Google reCAPTCHA Admin console i
 
 Post-deploy check: `GET https://your-app.laravel.cloud/api/get_recaptcha_sitekey.php` should return the production sitekey (not an empty string).
 
+### Staff-login security limits (optional)
+
+All optional. Each falls back to the default shown when unset, and is clamped to a minimum of `1` — a blank or invalid value can never disable a protection:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `STAFF_LOGIN_MAX_ATTEMPTS` | `5` | Failed attempts (per account) before the account locks. |
+| `STAFF_LOGIN_LOCKOUT_MINUTES` | `2` | Window those failures are counted over. |
+| `STAFF_LOGIN_IP_MAX_ATTEMPTS` | `20` | Failed attempts (per IP, across all accounts) before the IP locks. |
+| `STAFF_LOGIN_IP_LOCKOUT_MINUTES` | `2` | Window for the IP-scoped counter. |
+| `STAFF_LOGIN_CAPTCHA_THRESHOLD` | `3` | Failed attempts (per account or per IP, within the lockout window) before the CAPTCHA checkbox is demanded — the 4th submit is gated. Suspicious-login detection can still demand it earlier. |
+| `STAFF_SESSION_LIFETIME_SECONDS` | `2592000` (30 days) | Lifetime of the persistent staff session cookie. |
+| `STAFF_SESSION_TOKEN_TTL_DAYS` | `30` | Lifetime of an issued session token (revoked on password/email change). |
+
 ## Troubleshooting
 
 | Symptom | Likely cause |

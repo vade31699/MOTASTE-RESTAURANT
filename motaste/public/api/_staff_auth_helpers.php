@@ -17,20 +17,98 @@ use Illuminate\Database\Schema\Blueprint;
  *   - an API event audit log, loyalty helpers, and low-stock email alerts
  */
 
-const STAFF_SESSION_LIFETIME_SECONDS = 30 * 24 * 60 * 60; // 30 days
-const STAFF_LOGIN_MAX_ATTEMPTS = 5;
-const STAFF_LOGIN_LOCKOUT_MINUTES = 2;
+/*
+| Staff-login brute-force limits and session lifetimes.
+|
+| Each setting has a compiled-in default (the *_DEFAULT constants) and is
+| overridable per deployment with the matching env var. They are resolved
+| through staffEnvLimit(), which ignores blank/non-numeric values and clamps to
+| at least 1 so a misconfiguration can never disable a protection.
+|
+|   STAFF_LOGIN_MAX_ATTEMPTS        - failed attempts before an account locks
+|   STAFF_LOGIN_LOCKOUT_MINUTES     - window those failures are counted over
+|   STAFF_LOGIN_IP_MAX_ATTEMPTS     - failed attempts before an IP locks
+|   STAFF_LOGIN_IP_LOCKOUT_MINUTES  - window for the IP-scoped counter
+|   STAFF_LOGIN_CAPTCHA_THRESHOLD   - failures before the CAPTCHA is demanded
+|   STAFF_SESSION_LIFETIME_SECONDS  - persistent staff session cookie lifetime
+|   STAFF_SESSION_TOKEN_TTL_DAYS    - lifetime of an issued session token
+*/
+const STAFF_LOGIN_MAX_ATTEMPTS_DEFAULT = 5;
+const STAFF_LOGIN_LOCKOUT_MINUTES_DEFAULT = 2;
+const STAFF_LOGIN_IP_MAX_ATTEMPTS_DEFAULT = 20;
+const STAFF_LOGIN_IP_LOCKOUT_MINUTES_DEFAULT = 2;
 
-// CAPTCHA kicks in after this many recent failed attempts (account- or IP-
-// scoped, within the lockout window). With 2, the 3rd submit is the first one
-// that demands a completed CAPTCHA. A CAPTCHA can also be required earlier
-// (even on the first submit) when isSuspiciousLoginAttempt() flags the login.
-const STAFF_LOGIN_CAPTCHA_THRESHOLD = 2;
+// Default number of recent failed attempts (account- or IP-scoped, within the
+// lockout window) after which a CAPTCHA is demanded. With the default 3, the
+// 4th submit is the first one that demands a completed CAPTCHA — the first
+// three wrong-password/email attempts get a plain invalid-credentials
+// rejection. A CAPTCHA can also be required earlier (even on the first submit)
+// when isSuspiciousLoginAttempt() flags the login.
+const STAFF_LOGIN_CAPTCHA_THRESHOLD_DEFAULT = 3;
 
-// IP-based brute-force protection: lock an IP after repeated failures
-// across any accounts, preventing distributed account enumeration.
-const STAFF_LOGIN_IP_MAX_ATTEMPTS = 20;
-const STAFF_LOGIN_IP_LOCKOUT_MINUTES = 2;
+const STAFF_SESSION_LIFETIME_SECONDS_DEFAULT = 30 * 24 * 60 * 60; // 30 days
+const STAFF_SESSION_TOKEN_TTL_DAYS_DEFAULT = 30;
+
+/**
+ * Read a staff security setting from its env var, falling back to $default
+ * when the var is blank/non-numeric and clamping to at least $min so a
+ * misconfiguration cannot weaken (or accidentally disable) a protection.
+ */
+function staffEnvLimit(string $envKey, int $default, int $min = 1): int
+{
+    $configured = env($envKey, $default);
+
+    $value = is_numeric($configured) ? (int)$configured : $default;
+
+    return max($min, $value);
+}
+
+/** Failed attempts (per account, within the lockout window) before lockout. */
+function staffLoginMaxAttempts(): int
+{
+    return staffEnvLimit('STAFF_LOGIN_MAX_ATTEMPTS', STAFF_LOGIN_MAX_ATTEMPTS_DEFAULT);
+}
+
+/** Minutes an account's failed attempts are counted over. */
+function staffLoginLockoutMinutes(): int
+{
+    return staffEnvLimit('STAFF_LOGIN_LOCKOUT_MINUTES', STAFF_LOGIN_LOCKOUT_MINUTES_DEFAULT);
+}
+
+/** Failed attempts (per IP, across all accounts) before lockout. */
+function staffLoginIpMaxAttempts(): int
+{
+    return staffEnvLimit('STAFF_LOGIN_IP_MAX_ATTEMPTS', STAFF_LOGIN_IP_MAX_ATTEMPTS_DEFAULT);
+}
+
+/** Minutes an IP's failed attempts are counted over. */
+function staffLoginIpLockoutMinutes(): int
+{
+    return staffEnvLimit('STAFF_LOGIN_IP_LOCKOUT_MINUTES', STAFF_LOGIN_IP_LOCKOUT_MINUTES_DEFAULT);
+}
+
+/**
+ * Resolve the CAPTCHA threshold from the STAFF_LOGIN_CAPTCHA_THRESHOLD env var
+ * so each deployment can tune how quickly the client-visible CAPTCHA appears.
+ * Falls back to STAFF_LOGIN_CAPTCHA_THRESHOLD_DEFAULT and is clamped to at
+ * least 1 so a blank/invalid setting cannot silently disarm the gate.
+ */
+function staffLoginCaptchaThreshold(): int
+{
+    return staffEnvLimit('STAFF_LOGIN_CAPTCHA_THRESHOLD', STAFF_LOGIN_CAPTCHA_THRESHOLD_DEFAULT);
+}
+
+/** Lifetime of the persistent staff session cookie, in seconds. */
+function staffSessionLifetimeSeconds(): int
+{
+    return staffEnvLimit('STAFF_SESSION_LIFETIME_SECONDS', STAFF_SESSION_LIFETIME_SECONDS_DEFAULT);
+}
+
+/** Lifetime of an issued staff session token, in days. */
+function staffSessionTokenTtlDays(): int
+{
+    return staffEnvLimit('STAFF_SESSION_TOKEN_TTL_DAYS', STAFF_SESSION_TOKEN_TTL_DAYS_DEFAULT);
+}
 
 /**
  * Ensure every schema addition used by the enhancement features exists.
@@ -177,7 +255,7 @@ function ensureStaffAuthSession(): void
     }
 
     session_set_cookie_params([
-        'lifetime' => STAFF_SESSION_LIFETIME_SECONDS,
+        'lifetime' => staffSessionLifetimeSeconds(),
         'path' => '/',
         'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
         'httponly' => true,
@@ -333,14 +411,14 @@ function isLoginRateLimited(string $email): bool
 {
     ensureStaffEnhancementSchema();
 
-    $since = now()->subMinutes(STAFF_LOGIN_LOCKOUT_MINUTES);
+    $since = now()->subMinutes(staffLoginLockoutMinutes());
     $count = DB::table('login_attempts')
         ->whereRaw('LOWER(email) = ?', [strtolower(trim($email))])
         ->where('success', false)
         ->where('attempted_at', '>=', $since->toDateTimeString())
         ->count();
 
-    return $count >= STAFF_LOGIN_MAX_ATTEMPTS;
+    return $count >= staffLoginMaxAttempts();
 }
 
 function recordLoginAttempt(string $email, bool $success): void
@@ -385,14 +463,14 @@ function isLoginIpRateLimited(string $ipAddress): bool
     ensureStaffEnhancementSchema();
 
     try {
-        $since = now()->subMinutes(STAFF_LOGIN_IP_LOCKOUT_MINUTES);
+        $since = now()->subMinutes(staffLoginIpLockoutMinutes());
         $count = DB::table('login_attempts')
             ->where('ip_address', $ipAddress)
             ->where('success', false)
             ->where('attempted_at', '>=', $since->toDateTimeString())
             ->count();
 
-        return $count >= STAFF_LOGIN_IP_MAX_ATTEMPTS;
+        return $count >= staffLoginIpMaxAttempts();
     } catch (Throwable $error) {
         error_log('isLoginIpRateLimited failed: ' . $error->getMessage());
         return false;
@@ -684,7 +762,9 @@ function isOrderApiRateLimited(string $endpoint, int $maxRequests, int $windowSe
 /* Staff session tokens                                               */
 /* ------------------------------------------------------------------ */
 
-const STAFF_SESSION_TOKEN_TTL_DAYS = 30;
+// NOTE: the TTL itself is the env-tunable STAFF_SESSION_TOKEN_TTL_DAYS
+// (resolved by staffSessionTokenTtlDays()); only the per-account session cap
+// stays hardcoded.
 const STAFF_SESSION_TOKEN_MAX_PER_ACCOUNT = 5;
 
 function ensureStaffSessionTokenTable(): void
@@ -743,7 +823,7 @@ function issueStaffSessionToken(string $email, string $role): string
             'email' => $email,
             'role' => trim($role),
             'token_hash' => hash('sha256', $token),
-            'expires_at' => now()->addDays(STAFF_SESSION_TOKEN_TTL_DAYS)->toDateTimeString(),
+            'expires_at' => now()->addDays(staffSessionTokenTtlDays())->toDateTimeString(),
             'created_at' => now()->toDateTimeString(),
             'updated_at' => now()->toDateTimeString(),
         ]);
