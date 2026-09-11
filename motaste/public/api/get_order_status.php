@@ -49,6 +49,15 @@ if (empty($normalizedOrderNumbers)) {
     exit;
 }
 
+// Cap the batch size: this is an unauthenticated endpoint, so an unbounded
+// WHERE IN(...) list is both a cheap way to enumerate order numbers and a
+// denial-of-service lever against the database.
+if (count($normalizedOrderNumbers) > 50) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Too many order numbers in a single request (max 50).']);
+    exit;
+}
+
 try {
     $orders = DB::table('orders')
         ->whereIn('order_number', $normalizedOrderNumbers)

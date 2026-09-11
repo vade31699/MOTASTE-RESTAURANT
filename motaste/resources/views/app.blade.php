@@ -11,7 +11,10 @@
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
         <!-- Scripts -->
-        @routes
+        {{-- The route table is the only inline script we keep; it carries the
+             per-response CSP nonce so script-src can stay free of
+             'unsafe-inline' (see SecurityHeaders). --}}
+        @routes(null, $cspNonce ?? null)
         @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
         @inertiaHead
     </head>

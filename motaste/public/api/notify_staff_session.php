@@ -6,8 +6,6 @@ header('Expires: 0');
 
 require __DIR__ . '/../../vendor/autoload.php';
 
-use Illuminate\Support\Facades\DB;
-
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
@@ -21,8 +19,13 @@ require_once __DIR__ . '/csrf_guard.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
 $event = strtolower(trim((string)($input['event'] ?? '')));
-$role = trim((string)($input['role'] ?? ''));
-$email = strtolower(trim((string)($input['email'] ?? '')));
+
+// SECURITY: the actor identity comes from the authenticated session, not the
+// request body — otherwise a staff member could forge login/logout events for
+// another account (including the Admin) in the audit trail and admin emails.
+$sessionActor = is_array($_SESSION['staff'] ?? null) ? $_SESSION['staff'] : [];
+$role = trim((string)($sessionActor['role'] ?? ''));
+$email = strtolower(trim((string)($sessionActor['email'] ?? '')));
 $occurredAt = trim((string)($input['occurredAt'] ?? ''));
 $userAgent = trim((string)($input['userAgent'] ?? ''));
 
@@ -35,29 +38,13 @@ if (!in_array($event, ['login', 'logout'], true) || $role === '' || $email === '
 }
 
 // ---- Account activity audit trail ---------------------------------------
-// Every staff login/logout is recorded with precise timestamps so admins can
-// review them under Logs > Account, regardless of whether the email
-// notification can be delivered.
-try {
-    $eventAt = $occurredAt !== '' ? $occurredAt : now()->toDateTimeString();
-    $actionName = $event === 'login' ? 'account_login' : 'account_logout';
-    DB::table('order_activity_logs')->insert([
-        'order_id' => null,
-        'order_number' => null,
-        'action' => $actionName,
-        'actor_role' => $role,
-        'actor_email' => $email,
-        'summary' => ($role === 'Admin' ? 'Administrator' : $role) . ($event === 'login' ? ' logged in' : ' logged out'),
-        'details' => json_encode([
-            'event' => $event,
-            'occurred_at' => $eventAt,
-            'user_agent' => $userAgent,
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-} catch (Throwable $logError) {
-    // Auditing must never block the notification response.
+// Only the LOGIN entry is written from here. The logout entry belongs to
+// logout_staff.php: this endpoint is called in parallel with the logout that
+// tears the session down, so it can lose that race and be left with no session
+// to attribute the event to (the row would go missing). Login has no such race,
+// so it stays here next to the admin email.
+if ($event === 'login') {
+    recordStaffAccountActivity('login', $role, $email, $occurredAt, $userAgent);
 }
 
 if (!in_array($role, ['Cashier', 'Inventory Manager'], true)) {

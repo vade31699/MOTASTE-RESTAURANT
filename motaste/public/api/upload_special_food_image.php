@@ -70,13 +70,16 @@ try {
     }
 
     $relativeUrl = '/special_food_images/' . $fileName;
-    $origin = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '');
-    $url = $origin . $relativeUrl;
+
+    // Build the absolute URL from the configured app URL — never from the
+    // client-supplied Host header, which would let an authenticated uploader
+    // poison the stored URL (e.g. point the public menu at an external host).
+    // The server filesystem path is deliberately not returned (info disclosure).
+    $baseUrl = rtrim((string) config('app.url', ''), '/');
 
     echo json_encode([
         'success' => true,
-        'url' => $url,
-        'path' => $destination,
+        'url' => $baseUrl !== '' ? $baseUrl . $relativeUrl : $relativeUrl,
         'relativeUrl' => $relativeUrl,
     ]);
 } catch (Throwable $error) {

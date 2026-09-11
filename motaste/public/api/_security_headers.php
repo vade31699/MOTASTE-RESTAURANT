@@ -17,9 +17,11 @@ function sendSecurityHeaders(): void
     // Force HTTPS in browsers for a year (and all subdomains).
     header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
 
-    // Blunt any script-injection / data-exfiltration attempts. Scripts and
-    // styles are same-origin only; inline styles are allowed because the app
-    // sets element.style.* dynamically. No third-party scripts are loaded on
-    // API responses, so a strict default is safe here.
-    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self' data:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'");
+    // Blunt any script-injection / data-exfiltration attempts. Scripts are
+    // same-origin only and inline scripts are blocked (no 'unsafe-inline') so
+    // an injected <script> or on*= attribute cannot execute. Inline styles are
+    // still allowed because the app sets element.style.* dynamically. No
+    // third-party scripts are loaded on API responses, so a strict default is
+    // safe here.
+    header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self' data:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'");
 }

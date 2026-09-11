@@ -98,15 +98,62 @@ function getCurrentStaffAccounts() {
 
 function getLoggedInStaffSession() {
     const persistedSession = getPersistedStaffSession();
-    if (!persistedSession || !persistedSession.email || !persistedSession.sessionToken || !persistedSession.role) {
+    if (!persistedSession || !persistedSession.email || !persistedSession.role) {
         return null;
     }
 
     return {
         email: persistedSession.email.trim().toLowerCase(),
-        role: persistedSession.role.trim(),
-        sessionToken: persistedSession.sessionToken
+        role: persistedSession.role.trim()
     };
+}
+
+/**
+ * Remove any session token (or legacy plaintext password) an older build may
+ * have persisted. The authoritative token is now an HttpOnly cookie that page
+ * script cannot read, so keeping a copy in storage would re-open the XSS
+ * exfiltration hole this change closes.
+ */
+function scrubLegacyStaffSessionStorage() {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        const stores = [];
+        if (typeof sessionStorage !== 'undefined') stores.push(sessionStorage);
+        stores.push(window.localStorage);
+
+        stores.forEach(function (storage) {
+            const raw = storage.getItem(staffSessionStorageKey);
+            if (!raw) return;
+
+            let parsed = null;
+            try {
+                parsed = JSON.parse(raw);
+            } catch (error) {
+                parsed = null;
+            }
+
+            if (!parsed || typeof parsed !== 'object') {
+                storage.removeItem(staffSessionStorageKey);
+                return;
+            }
+
+            if (!parsed.sessionToken && !parsed.password) {
+                return;
+            }
+
+            storage.setItem(staffSessionStorageKey, JSON.stringify({
+                role: parsed.role || '',
+                email: parsed.email || '',
+                remember: Boolean(parsed.remember),
+                savedAt: parsed.savedAt || new Date().toISOString()
+            }));
+        });
+    } catch (error) {
+        // best effort
+    }
 }
 
 function ensureAdminAccountInvariant() {
@@ -470,8 +517,7 @@ async function notifyStaffSessionEvent(eventName, actorRole, actorEmail) {
  * Revoke the session token on the server and destroy the PHP session so a
  * logout actually ends the session everywhere.
  */
-async function revokeStaffSessionOnServer(sessionToken) {
-    if (!sessionToken) return;
+async function revokeStaffSessionOnServer() {
     try {
         const headers = await withCsrfHeaders({
             'Content-Type': 'application/json'
@@ -479,7 +525,8 @@ async function revokeStaffSessionOnServer(sessionToken) {
         await fetchWithTimeout(getApiUrl('api/logout_staff.php'), {
             method: 'POST',
             headers,
-            body: JSON.stringify({ sessionToken }),
+            // The token is in the HttpOnly cookie; the server reads and clears it.
+            body: JSON.stringify({}),
             cache: 'no-store'
         });
     } catch (error) {
@@ -556,15 +603,20 @@ function getPersistedStaffSession() {
         return null;
     }
 
-    // Remembered sessions live in localStorage; per-tab sessions in sessionStorage.
+    // Only NON-SECRET UI hints (role/email) are persisted. The session token
+    // itself lives in an HttpOnly cookie the page script cannot read, so
+    // browser storage holds nothing an XSS could replay.
     const session = readStaffSessionFrom(sessionStorage) || readStaffSessionFrom(window.localStorage);
     if (!session) {
         return null;
     }
 
-    // Security: sessions must be token-based. Legacy sessions stored the
-    // plaintext password — purge them and require a fresh login.
-    if (!session.sessionToken) {
+    // Drop anything secret a legacy build left behind before we trust it.
+    if (session.sessionToken || session.password) {
+        scrubLegacyStaffSessionStorage();
+    }
+
+    if (!session.role || !session.email) {
         clearStaffSession();
         return null;
     }
@@ -572,33 +624,32 @@ function getPersistedStaffSession() {
     return {
         role: session.role || '',
         email: session.email || '',
-        sessionToken: session.sessionToken || '',
         remember: Boolean(session.remember)
     };
 }
 
-function saveStaffSession(role, email, sessionToken, remember) {
+function saveStaffSession(role, email, remember) {
     if (typeof window === 'undefined') {
         return;
     }
 
     try {
+        // Only non-secret UI hints are persisted here. The session token is an
+        // HttpOnly cookie set by the server, which page script cannot read.
         const session = {
             role: role ? role.trim() : '',
             email: email ? email.trim().toLowerCase() : '',
-            sessionToken: sessionToken || '',
             remember: Boolean(remember),
             savedAt: new Date().toISOString()
         };
 
-        if (!session.role || !session.email || !session.sessionToken) {
+        if (!session.role || !session.email) {
             clearStaffSession();
             return;
         }
 
-        // Remembered sessions persist across browser restarts (localStorage);
-        // otherwise the token lives for the tab (sessionStorage). Only the
-        // opaque session token is ever stored — never the password.
+        // "Remember me" keeps the hint across browser restarts (localStorage);
+        // otherwise it lives for the tab (sessionStorage).
         const storage = remember
             ? window.localStorage
             : (typeof sessionStorage !== 'undefined' ? sessionStorage : window.localStorage);
@@ -1022,14 +1073,17 @@ async function authenticateStaffAccount(email, password, role = '', deviceToken 
     }
 }
 
-async function verifyDeviceLogin(email, password, code, deviceToken) {
+async function verifyDeviceLogin(email, password, code, deviceToken, remember = false) {
     try {
+        // This endpoint establishes the session, so it is CSRF-protected: send
+        // the stateless signed token in the X-CSRF-TOKEN header.
+        const headers = await withCsrfHeaders({
+            'Content-Type': 'application/json'
+        });
         const response = await fetchWithTimeout(getApiUrl('api/verify_device_login.php'), {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email, password, code, deviceToken }),
+            headers,
+            body: JSON.stringify({ email, password, code, deviceToken, remember: Boolean(remember) }),
             cache: 'no-store'
         });
 
@@ -1060,7 +1114,7 @@ function ensureStaffServerSession() {
     if (staffServerSessionRenewal) return staffServerSessionRenewal;
 
     const session = getPersistedStaffSession();
-    if (!session || !session.email || !session.sessionToken) {
+    if (!session || !session.email) {
         staffServerSessionRenewal = Promise.resolve(false);
         return staffServerSessionRenewal;
     }
@@ -1072,7 +1126,9 @@ function ensureStaffServerSession() {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ sessionToken: session.sessionToken }),
+                // The session token travels in the HttpOnly cookie, so the
+                // request body carries no secret.
+                body: JSON.stringify({}),
                 cache: 'no-store'
             });
             const payload = await response.json().catch(() => ({}));
@@ -2260,7 +2316,7 @@ async function handleStaffLogin(email, password, role, remember) {
             return;
         }
 
-        authResult = await verifyDeviceLogin(email, password, code, deviceToken);
+        authResult = await verifyDeviceLogin(email, password, code, deviceToken, remember);
         if (!authResult) {
             if (modalTitle) {
                 modalTitle.textContent = 'Invalid or expired verification code';
@@ -2305,13 +2361,12 @@ async function handleStaffLogin(email, password, role, remember) {
         }
     }
 
-    // Persist an opaque session token — never the plaintext password.
-    if (authResult.sessionToken) {
-        saveStaffSession(detectedRole, email, authResult.sessionToken, remember);
-        // A fresh token means the server session was (re)established — drop any
-        // stale cached renewal so future calls re-check against the server.
-        staffServerSessionRenewal = null;
-    }
+    // The server delivered the session token as an HttpOnly cookie; only the
+    // non-secret role/email hints are persisted client-side.
+    saveStaffSession(detectedRole, email, remember);
+    // The server session was (re)established — drop any stale cached renewal so
+    // future calls re-check against the server.
+    staffServerSessionRenewal = null;
 
     // The page-load fetch of completed orders ran BEFORE this login (when no
     // server session existed yet), so it skipped the request — without this,
@@ -2386,10 +2441,8 @@ if (logoutBtn) {
         const actorEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
         void notifyStaffSessionEvent('logout', actorRole, actorEmail);
 
-        const session = getPersistedStaffSession();
-        if (session && session.sessionToken) {
-            void revokeStaffSessionOnServer(session.sessionToken);
-        }
+        // The session token is an HttpOnly cookie the server reads and clears.
+        void revokeStaffSessionOnServer();
 
         if (selectedRoleInput) {
             selectedRoleInput.value = '';
@@ -2751,10 +2804,10 @@ async function confirmAdminCredentialsChange(event, formType = 'email') {
             if (reAuth && reAuth.needsDeviceVerification) {
                 const code = await requestDeviceVerificationCode(reAuth.warning || '');
                 if (code) {
-                    reAuth = await verifyDeviceLogin(nextEmail, nextPassword, code, deviceToken);
+                    reAuth = await verifyDeviceLogin(nextEmail, nextPassword, code, deviceToken, false);
                 }
             }
-            if (reAuth && reAuth.success && reAuth.sessionToken) {
+            if (reAuth && reAuth.success) {
                 if (selectedRoleInput) {
                     selectedRoleInput.value = 'Admin';
                 }
@@ -2764,7 +2817,7 @@ async function confirmAdminCredentialsChange(event, formType = 'email') {
                 if (passwordInput) {
                     passwordInput.value = nextPassword;
                 }
-                saveStaffSession('Admin', nextEmail, reAuth.sessionToken, false);
+                saveStaffSession('Admin', nextEmail, false);
                 updateDashboardProfile();
             }
         }
@@ -5162,6 +5215,7 @@ if (passwordCredentialsForm) {
 renderAccounts();
 toggleAccountForm(false);
 if (isStaffPage) {
+    scrubLegacyStaffSessionStorage();
     void ensureCsrfToken();
     // Ensure dashboard is open by default for staff pages
     setDashboardPanelState(true);
@@ -10321,7 +10375,7 @@ function renderSpecialFoods() {
         return `
         <article class="special-food-card${isOutOfStock ? ' is-out-of-stock' : ''}" data-name="${item.name}"${isOutOfStock ? ' aria-disabled="true"' : ''}>
             <button type="button" class="special-food-view-btn" data-name="${item.name}" aria-label="View ${item.name} details"${isOutOfStock ? ' disabled' : ''}>
-                <img src="${imageSrc}" alt="${item.name}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='img1.jpg';">
+                <img src="${imageSrc}" alt="${item.name}" loading="lazy" decoding="async">
                 <div class="special-food-image-meta">
                     <span class="special-food-image-name">${item.name}</span>
                 </div>
@@ -10334,6 +10388,22 @@ function renderSpecialFoods() {
         </article>
     `;
     }).join('');
+
+    // Image fallback via a listener rather than an inline onerror attribute —
+    // a plain attribute is blocked once the CSP drops script-src 'unsafe-inline'.
+    specialFoodsList.querySelectorAll('.special-food-view-btn img').forEach(function (img) {
+        var useFallback = function () {
+            if (img.src.indexOf('img1.jpg') === -1) {
+                img.src = 'img1.jpg';
+            }
+        };
+        // A cached failure can fire before the listener is attached.
+        if (img.complete && img.naturalWidth === 0) {
+            useFallback();
+        } else {
+            img.addEventListener('error', useFallback, { once: true });
+        }
+    });
 
     syncVisibleMenuItemQuantities();
 }

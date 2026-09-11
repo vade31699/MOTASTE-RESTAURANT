@@ -109,17 +109,10 @@
                 @enderror
             </div>
 
-            <button type="submit" class="btn" id="resetBtn">Reset Password</button>
+            <button type="submit" class="btn" id="resetBtn" data-loading-text="Resetting...">Reset Password</button>
         </form>
     </div>
 
-    <script>
-        const form = document.querySelector('form');
-        const btn = document.getElementById('resetBtn');
-        form.addEventListener('submit', function () {
-            btn.disabled = true;
-            btn.textContent = 'Resetting...';
-        });
-    </script>
+    <script src="{{ asset('js/auth-form-submit.js') }}"></script>
 </body>
 </html>

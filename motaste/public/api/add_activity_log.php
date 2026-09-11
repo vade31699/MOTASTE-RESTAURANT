@@ -34,8 +34,12 @@ try {
         exit;
     }
 
-    $actorRole = trim((string)($input['actorRole'] ?? ''));
-    $actorEmail = strtolower(trim((string)($input['actorEmail'] ?? '')));
+    // SECURITY: the actor identity is taken from the authenticated session,
+    // never from the request body. Otherwise any staff member could forge
+    // audit entries attributed to another account (e.g. an Admin).
+    $sessionActor = is_array($_SESSION['staff'] ?? null) ? $_SESSION['staff'] : [];
+    $actorRole = trim((string)($sessionActor['role'] ?? '')) !== '' ? trim((string)$sessionActor['role']) : 'Staff';
+    $actorEmail = strtolower(trim((string)($sessionActor['email'] ?? '')));
     $summary = trim((string)($input['summary'] ?? ''));
     $details = $input['details'] ?? null;
     $orderId = isset($input['orderId']) ? (int)$input['orderId'] : null;

@@ -145,23 +145,13 @@
                     @enderror
                 </div>
 
-                <button type="submit" class="btn" id="sendBtn">Send Verification Code</button>
+                <button type="submit" class="btn" id="sendBtn" data-loading-text="Please wait...">Send Verification Code</button>
             </form>
 
             <a href="{{ route('login') }}" class="back-link">&larr; Back to login</a>
         @endif
     </div>
 
-    <script>
-        document.querySelectorAll('form').forEach(function (form) {
-            form.addEventListener('submit', function () {
-                var btn = form.querySelector('button[type="submit"]');
-                if (btn) {
-                    btn.disabled = true;
-                    btn.textContent = 'Please wait...';
-                }
-            });
-        });
-    </script>
+    <script src="{{ asset('js/auth-form-submit.js') }}"></script>
 </body>
 </html>

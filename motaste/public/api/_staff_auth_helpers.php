@@ -636,6 +636,63 @@ function logApiEvent(string $event, array $details = []): void
     }
 }
 
+/**
+ * Append a staff login/logout event to the account activity audit trail
+ * (order_activity_logs, surfaced under Logs > Account).
+ *
+ * Shared by the login notification and by logout_staff.php so the two entries
+ * cannot drift apart in action name, summary, or details shape.
+ *
+ * Deliberately never throws and never writes an unattributable row: auditing
+ * must not be able to fail an auth response, and a blank actor or an unknown
+ * event is a no-op.
+ */
+function recordStaffAccountActivity(
+    string $event,
+    string $role,
+    string $email,
+    ?string $occurredAt = null,
+    ?string $userAgent = null
+): void {
+    $event = strtolower(trim($event));
+    $role = trim($role);
+    $email = strtolower(trim($email));
+
+    if (!in_array($event, ['login', 'logout'], true) || $role === '' || $email === '') {
+        return;
+    }
+
+    $eventAt = trim((string) $occurredAt);
+    if ($eventAt === '') {
+        $eventAt = now()->toDateTimeString();
+    }
+
+    $agent = trim((string) $userAgent);
+    if ($agent === '') {
+        $agent = trim((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''));
+    }
+
+    try {
+        DB::table('order_activity_logs')->insert([
+            'order_id' => null,
+            'order_number' => null,
+            'action' => $event === 'login' ? 'account_login' : 'account_logout',
+            'actor_role' => $role,
+            'actor_email' => $email,
+            'summary' => ($role === 'Admin' ? 'Administrator' : $role) . ($event === 'login' ? ' logged in' : ' logged out'),
+            'details' => json_encode([
+                'event' => $event,
+                'occurred_at' => $eventAt,
+                'user_agent' => $agent,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    } catch (Throwable $error) {
+        error_log('recordStaffAccountActivity failed: ' . $error->getMessage());
+    }
+}
+
 /* ------------------------------------------------------------------ */
 /* Order API rate limiting                                             */
 /* ------------------------------------------------------------------ */
@@ -946,6 +1003,87 @@ function isOrderApiRateLimited(string $endpoint, int $maxRequests, int $windowSe
 // (resolved by staffSessionTokenTtlDays()); only the per-account session cap
 // stays hardcoded.
 const STAFF_SESSION_TOKEN_MAX_PER_ACCOUNT = 5;
+
+/**
+ * Name of the HttpOnly cookie that carries the staff session token.
+ *
+ * The token used to be returned in the login JSON and persisted by the client
+ * in localStorage/sessionStorage, where any XSS could read it and replay it
+ * from another machine. It is now delivered as an HttpOnly cookie: page script
+ * cannot read it, and the browser attaches it to same-origin requests
+ * automatically.
+ */
+const STAFF_SESSION_COOKIE_NAME = 'motaste_staff_session';
+
+/**
+ * Write (or clear) the HttpOnly staff session-token cookie.
+ *
+ * $remember = true  -> persistent cookie (survives browser restarts)
+ * $remember = false -> session cookie (dies with the browser)
+ *
+ * Pass null/'' as $token to clear the cookie.
+ */
+function setStaffSessionTokenCookie(?string $token, bool $remember = false): void
+{
+    if (headers_sent()) {
+        return;
+    }
+
+    $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+    $name = STAFF_SESSION_COOKIE_NAME;
+
+    if ($token === null || $token === '') {
+        setcookie($name, '', [
+            'expires' => time() - 3600,
+            'path' => '/',
+            'secure' => $secure,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+        return;
+    }
+
+    $options = [
+        'path' => '/',
+        'secure' => $secure,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ];
+
+    if ($remember) {
+        $options['expires'] = time() + staffSessionTokenTtlDays() * 86400;
+    }
+
+    setcookie($name, $token, $options);
+}
+
+/**
+ * Read the staff session token from the HttpOnly cookie, or null.
+ */
+function readStaffSessionTokenCookie(): ?string
+{
+    $raw = $_COOKIE[STAFF_SESSION_COOKIE_NAME] ?? '';
+    $token = trim((string)$raw);
+
+    return $token !== '' ? $token : null;
+}
+
+/**
+ * Resolve the staff session token for a request. The HttpOnly cookie is the
+ * primary source; a request-body token is still accepted as a fallback for
+ * clients built before the cookie switch.
+ */
+function resolveStaffSessionRequestToken(?string $bodyToken = null): ?string
+{
+    $cookieToken = readStaffSessionTokenCookie();
+    if ($cookieToken !== null) {
+        return $cookieToken;
+    }
+
+    $bodyToken = trim((string)$bodyToken);
+
+    return $bodyToken !== '' ? $bodyToken : null;
+}
 
 function ensureStaffSessionTokenTable(): void
 {

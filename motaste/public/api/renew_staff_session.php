@@ -15,9 +15,11 @@ require_once __DIR__ . '/_staff_auth_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
-$token = trim((string)($input['sessionToken'] ?? ''));
+// The token normally arrives in the HttpOnly cookie the browser sends
+// automatically; the request body is a legacy fallback for older clients.
+$token = resolveStaffSessionRequestToken($input['sessionToken'] ?? '');
 
-if ($token === '') {
+if ($token === null) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Session token is required']);
     exit;

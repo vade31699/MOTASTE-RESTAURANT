@@ -22,6 +22,17 @@ try {
     $password = (string)($input['password'] ?? '');
     $code = trim((string)($input['code'] ?? ''));
     $deviceToken = trim((string)($input['deviceToken'] ?? ''));
+    // "Remember me" controls whether the session cookie survives a browser
+    // restart, so the client passes it through.
+    $remember = !empty($input['remember']);
+
+    // CSRF: this endpoint establishes a session (it is the second step of
+    // login), so it is a login-CSRF target — without this check an attacker
+    // could force a victim's browser into a session the attacker controls.
+    // The stateless signed token is validated before any other work; the
+    // client sends it in the X-CSRF-TOKEN header (see verifyDeviceLogin() in
+    // script.js).
+    validateCsrfOrExit();
 
     if ($email === '' || $password === '' || $code === '') {
         http_response_code(400);
@@ -141,6 +152,11 @@ try {
 
     $sessionToken = issueStaffSessionToken($email, $role);
 
+    // Deliver the token as an HttpOnly cookie instead of returning it in the
+    // JSON body — that is what kept it out of XSS reach. It is intentionally
+    // NOT echoed back in the response, so no client can persist it again.
+    setStaffSessionTokenCookie($sessionToken, $remember);
+
     $freshCsrf = function_exists('getOrCreateCsrfToken') ? getOrCreateCsrfToken() : '';
 
     echo json_encode([
@@ -150,7 +166,6 @@ try {
         'name' => trim((string)($staffRow->full_name ?? '')),
         'inviteConfirmed' => $inviteConfirmed,
         'deviceVerified' => true,
-        'sessionToken' => $sessionToken,
         'csrfToken' => $freshCsrf
     ]);
 } catch (Throwable $error) {

@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Boot the Laravel application manually. The Feature test harness in this repo
@@ -352,6 +353,89 @@ test('suspicious login: email rotation from one IP is flagged at 3+ distinct ema
 
     DB::table('login_attempts')->whereIn('email', $emails)->delete();
     expect(isSuspiciousLoginAttempt($emails[0], $rotatingIp))->toBeFalse();
+});
+
+test('staff login/logout audit rows are written, and only for known events', function () {
+    bootTestApp();
+
+    // This harness boots without running migrations, so stand the audit table
+    // up exactly as the migration defines it.
+    if (!Schema::hasTable('order_activity_logs')) {
+        Schema::create('order_activity_logs', function ($table) {
+            $table->id();
+            $table->unsignedBigInteger('order_id')->nullable();
+            $table->string('order_number', 191)->nullable();
+            $table->string('action', 100);
+            $table->string('actor_role', 100)->nullable();
+            $table->string('actor_email', 191)->nullable();
+            $table->text('summary')->nullable();
+            $table->text('details')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    $email = 'audit-test@verify.test';
+    DB::table('order_activity_logs')->where('actor_email', $email)->delete();
+
+    recordStaffAccountActivity('login', 'Admin', $email);
+    // A logout recorded from a dead session supplies a client timestamp and UA.
+    recordStaffAccountActivity('logout', 'Cashier', strtoupper($email), '2026-09-11T00:00:00.000Z', 'VerifyAgent/1.0');
+
+    $rows = DB::table('order_activity_logs')->where('actor_email', $email)->orderBy('id')->get();
+
+    expect($rows)->toHaveCount(2);
+    expect($rows[0]->action)->toBe('account_login');
+    expect($rows[0]->summary)->toBe('Administrator logged in');
+    expect($rows[1]->action)->toBe('account_logout');
+    expect($rows[1]->summary)->toBe('Cashier logged out');
+    expect($rows[1]->actor_role)->toBe('Cashier');
+    expect(json_decode($rows[1]->details, true))->toMatchArray([
+        'event' => 'logout',
+        'occurred_at' => '2026-09-11T00:00:00.000Z',
+        'user_agent' => 'VerifyAgent/1.0',
+    ]);
+
+    // Email is normalized to lower case, and the event name is case-insensitive.
+    recordStaffAccountActivity('LOGOUT', 'Admin', $email);
+    expect(DB::table('order_activity_logs')->where('actor_email', $email)->where('action', 'account_logout')->count())->toBe(2);
+
+    // Unattributable or unknown events are dropped rather than half-written.
+    recordStaffAccountActivity('logout', '', $email);
+    recordStaffAccountActivity('logout', 'Admin', '');
+    recordStaffAccountActivity('something-else', 'Admin', $email);
+    expect(DB::table('order_activity_logs')->where('actor_email', $email)->count())->toBe(3);
+
+    DB::table('order_activity_logs')->where('actor_email', $email)->delete();
+});
+
+test('the staff session cookie is the primary token source, with a body fallback', function () {
+    bootTestApp();
+
+    $originalCookies = $_COOKIE;
+
+    try {
+        // No cookie: the request body is still honored for clients built
+        // before the token moved into an HttpOnly cookie.
+        $_COOKIE = [];
+        expect(readStaffSessionTokenCookie())->toBeNull();
+        expect(resolveStaffSessionRequestToken('legacy-body-token'))->toBe('legacy-body-token');
+        expect(resolveStaffSessionRequestToken(''))->toBeNull();
+        expect(resolveStaffSessionRequestToken(null))->toBeNull();
+
+        // With a cookie present it wins over the body — that is the point of
+        // moving the token out of page-script reach, so a body value cannot
+        // override the browser's own session.
+        $_COOKIE[STAFF_SESSION_COOKIE_NAME] = 'cookie-token';
+        expect(readStaffSessionTokenCookie())->toBe('cookie-token');
+        expect(resolveStaffSessionRequestToken('legacy-body-token'))->toBe('cookie-token');
+
+        // Blank / whitespace-only cookies are treated as absent.
+        $_COOKIE[STAFF_SESSION_COOKIE_NAME] = '   ';
+        expect(readStaffSessionTokenCookie())->toBeNull();
+        expect(resolveStaffSessionRequestToken(null))->toBeNull();
+    } finally {
+        $_COOKIE = $originalCookies;
+    }
 });
 
 test('suspicious login: rotation signal ignores failures older than 24 hours', function () {
