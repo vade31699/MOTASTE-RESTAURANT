@@ -60,13 +60,20 @@ class NotCurrentPassword implements ValidationRule
             $hashes[] = $userHash;
         }
 
-        // The staff table is optional in minimal deployments; if it is missing
-        // the users hash above already covers the reset path.
+        // The staff/admin tables are optional in minimal deployments; if they
+        // are missing the users hash above already covers the reset path.
         try {
             if (Schema::hasTable('staff')) {
                 $staffHash = DB::table('staff')->whereRaw('LOWER(email) = ?', [$email])->value('password_hash');
                 if (is_string($staffHash) && $staffHash !== '') {
                     $hashes[] = $staffHash;
+                }
+            }
+
+            if (Schema::hasTable('admins')) {
+                $adminHash = DB::table('admins')->whereRaw('LOWER(email) = ?', [$email])->value('password_hash');
+                if (is_string($adminHash) && $adminHash !== '') {
+                    $hashes[] = $adminHash;
                 }
             }
         } catch (Throwable) {

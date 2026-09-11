@@ -237,6 +237,7 @@ beforeEach(function () {
         ['action' => 'delete', 'table' => 'login_verification_tokens', 'column' => 'email', 'value' => '%'],
         ['action' => 'delete', 'table' => 'trusted_devices', 'column' => 'email', 'value' => '%'],
         ['action' => 'delete', 'table' => 'staff', 'column' => 'email', 'value' => '%'],
+        ['action' => 'delete', 'table' => 'admins', 'column' => 'email', 'value' => '%'],
     ]);
 });
 

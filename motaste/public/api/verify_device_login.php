@@ -55,9 +55,9 @@ try {
     }
 
     // Re-confirm the credentials on this step before trusting the device.
-    $staffRow = DB::table('staff')
-        ->whereRaw('LOWER(email) = ?', [$email])
-        ->first();
+    // Resolve the account across the staff and admins tables (the Admin now
+    // lives in its own table).
+    $staffRow = findStaffAuthAccount($email);
 
     if (!$staffRow || !isset($staffRow->password_hash) || !password_verify($password, $staffRow->password_hash)) {
         // Count the failure so this endpoint feeds the same per-account and

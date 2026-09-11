@@ -38,6 +38,14 @@ if (!$email) {
 validateCsrfOrExit();
 
 try {
+    // The Admin lives in a separate `admins` table and must not be deleted
+    // through the staff endpoint.
+    if (function_exists('isAdminEmail') && isAdminEmail($email)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'The Admin account cannot be deleted. Manage it through the Credentials section.']);
+        exit;
+    }
+
     $target = DB::table('staff')->whereRaw('LOWER(email) = ?', [strtolower(trim($email))])->first();
     if ($target && strtolower(trim((string)$target->role)) === 'admin') {
         http_response_code(403);

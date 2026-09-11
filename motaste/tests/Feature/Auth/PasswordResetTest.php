@@ -188,6 +188,64 @@ test('password cannot be reset to the staff portal current password', function (
     ])->assertSessionHasErrors('password');
 });
 
+test('password reset syncs the hash into the admin credentials table', function () {
+    Mail::fake();
+
+    $user = User::factory()->create();
+
+    // The Admin now keeps its hash in a dedicated `admins` table.
+    DB::table('admins')->insert([
+        'full_name' => 'Test Admin',
+        'email' => $user->email,
+        'password_hash' => Hash::make('Admin-Current-9'),
+        'role' => 'Admin',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $code = requestPasswordResetCode($user, $this);
+    $token = verifyCodeAndGetResetToken($user, $this, $code);
+
+    $this->post('/reset-password', [
+        'token' => $token,
+        'email' => $user->email,
+        'password' => 'New-Str0ng-Passw0rd',
+        'password_confirmation' => 'New-Str0ng-Passw0rd',
+    ])->assertSessionHasNoErrors()->assertRedirect(route('password.success'));
+
+    $adminHash = DB::table('admins')
+        ->whereRaw('LOWER(email) = ?', [strtolower($user->email)])
+        ->value('password_hash');
+
+    expect(Hash::check('New-Str0ng-Passw0rd', $adminHash))->toBeTrue();
+});
+
+test('password cannot be reset to the admin current password', function () {
+    Mail::fake();
+
+    $user = User::factory()->create();
+    $adminCurrent = 'Admin-Current-9';
+
+    DB::table('admins')->insert([
+        'full_name' => 'Test Admin',
+        'email' => $user->email,
+        'password_hash' => Hash::make($adminCurrent),
+        'role' => 'Admin',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $code = requestPasswordResetCode($user, $this);
+    $token = verifyCodeAndGetResetToken($user, $this, $code);
+
+    $this->post('/reset-password', [
+        'token' => $token,
+        'email' => $user->email,
+        'password' => $adminCurrent,
+        'password_confirmation' => $adminCurrent,
+    ])->assertSessionHasErrors('password');
+});
+
 test('password reset requires the elevated 12-character policy', function () {
     Mail::fake();
 

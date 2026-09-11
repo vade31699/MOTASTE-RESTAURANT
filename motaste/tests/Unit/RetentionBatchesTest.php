@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Schema;
  */
 function resetRetentionTestData(): void
 {
-    foreach (['data_retention_batches', 'order_activity_logs', 'staff_login_history', 'order_items', 'orders', 'staff'] as $tableName) {
+    foreach (['data_retention_batches', 'order_activity_logs', 'staff_login_history', 'order_items', 'orders', 'staff', 'admins'] as $tableName) {
         if (Schema::hasTable($tableName)) {
             DB::table($tableName)->delete();
         }

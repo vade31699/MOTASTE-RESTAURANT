@@ -15,6 +15,7 @@ if (!requireAdminAuth()) {
 
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/_email_auth_helpers.php';
@@ -67,6 +68,12 @@ try {
             $existingHash = DB::table('staff')
                 ->whereRaw('LOWER(email) = ?', [$accountEmail])
                 ->value('password_hash');
+            // Admin hashes live in the dedicated `admins` table.
+            if ($existingHash === null && Schema::hasTable('admins')) {
+                $existingHash = DB::table('admins')
+                    ->whereRaw('LOWER(email) = ?', [$accountEmail])
+                    ->value('password_hash');
+            }
             if (is_password_reused($candidate, [$existingHash])) {
                 http_response_code(422);
                 echo json_encode(['success' => false, 'error' => 'New password must be different from the current password for ' . $accountEmail]);

@@ -36,8 +36,9 @@ if ($currentEmail === '' || $currentPassword === '' || $code === '') {
 try {
     ensureAdminCredentialChangeTokensTable();
 
-    // Validate current admin credentials against the staff table
-    $adminRow = DB::table('staff')->whereRaw('LOWER(email) = ?', [$currentEmail])->first();
+    // Validate current admin credentials against the admins table.
+    $adminFound = findAdminAccountRow($currentEmail);
+    $adminRow = $adminFound !== null ? $adminFound[1] : null;
     if (!$adminRow || !isset($adminRow->password_hash) || !password_verify($currentPassword, $adminRow->password_hash)) {
         http_response_code(403);
         echo json_encode(['success' => false, 'error' => 'Current admin credentials are invalid']);
@@ -108,7 +109,10 @@ try {
             : password_hash($newPasswordHash, PASSWORD_DEFAULT);
     }
 
-    DB::table('staff')->where('id', $adminRow->id)->update($update);
+    // Write back to whichever table currently holds the Admin (the dedicated
+    // `admins` table, or the legacy `staff` row on a mid-migration deploy).
+    $adminTable = $adminFound[0] ?? 'admins';
+    DB::table($adminTable)->where('id', $adminRow->id)->update($update);
 
     // Credentials changed: revoke every previously issued session token so old
     // sessions cannot linger.

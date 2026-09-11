@@ -7,7 +7,7 @@
  *         order events, order activity logs, review activity logs,
  *         review daily blocks, custom menu snapshots, pending orders.
  *
- * Preserves: staff, inventory_items, trusted_devices, session tokens,
+ * Preserves: staff, admins, inventory_items, trusted_devices, session tokens,
  *            login history, login attempts, staff_invite_tokens.
  */
 header('Content-Type: application/json');

@@ -10,6 +10,7 @@ $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/_security_headers.php';
@@ -76,6 +77,12 @@ $hash = password_hash($password, PASSWORD_DEFAULT);
 
 try {
     $existing = DB::table('staff')->whereRaw('LOWER(email) = ?', [$email])->first();
+
+    // The Admin lives in its own table — reject email collisions across both.
+    if (!$existing && Schema::hasTable('admins')) {
+        $existing = DB::table('admins')->whereRaw('LOWER(email) = ?', [$email])->exists();
+    }
+
     if ($existing) {
         http_response_code(409);
         echo json_encode(['error' => 'A staff account with this email already exists']);

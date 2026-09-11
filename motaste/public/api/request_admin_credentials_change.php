@@ -53,8 +53,9 @@ if ($newPassword !== '') {
 }
 
 try {
-    // Validate current admin credentials against the staff table
-    $adminRow = DB::table('staff')->whereRaw('LOWER(email) = ?', [$currentEmail])->first();
+    // Validate current admin credentials against the admins table.
+    $adminFound = findAdminAccountRow($currentEmail);
+    $adminRow = $adminFound !== null ? $adminFound[1] : null;
     if (!$adminRow || !isset($adminRow->password_hash) || !password_verify($currentPassword, $adminRow->password_hash)) {
         http_response_code(403);
         echo json_encode(['success' => false, 'error' => 'Current admin credentials are invalid']);

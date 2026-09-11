@@ -119,9 +119,9 @@ try {
         }
     }
 
-    $staffRow = DB::table('staff')
-        ->whereRaw('LOWER(email) = ?', [$email])
-        ->first();
+    // Resolve the account across the `staff` and `admins` tables — the Admin
+    // now has its own table, so a staff-only lookup would miss it.
+    $staffRow = findStaffAuthAccount($email);
 
     if (!$staffRow || !isset($staffRow->password_hash) || !Hash::check($password, $staffRow->password_hash)) {
         recordLoginAttempt($email, false);

@@ -302,7 +302,10 @@ function touchStaffLastActive(string $email): void
     // migration (and the on-demand schema check); until it exists the UPDATE
     // simply fails here and is logged, and the online indicator stays empty.
     try {
-        DB::table('staff')
+        // The Admin now lives in its own table; update whichever table holds
+        // this account so the heartbeat works for every role.
+        $table = staffAccountTableForEmail($email) ?? 'staff';
+        DB::table($table)
             ->whereRaw('LOWER(email) = ?', [strtolower(trim($email))])
             ->update(['last_active_at' => now()->toDateTimeString()]);
     } catch (Throwable $error) {
@@ -319,20 +322,34 @@ function getOnlineStaffAccounts(): array
     // No schema DDL here either: if `last_active_at` is missing the query
     // fails and we return an empty online list until the migration runs.
     try {
-        $rows = DB::table('staff')
-            ->where('last_active_at', '>=', now()->subMinutes(5)->toDateTimeString())
-            ->orderByDesc('last_active_at')
-            ->get(['email', 'full_name', 'role', 'last_active_at'])
-            ->all();
+        $threshold = now()->subMinutes(5)->toDateTimeString();
+
+        // Admin rows live in `admins`, everyone else in `staff`; merge both.
+        $tables = ['staff'];
+        if (Schema::hasTable('admins')) {
+            $tables[] = 'admins';
+        }
 
         $online = [];
-        foreach ($rows as $row) {
-            $online[] = [
-                'email' => (string)($row->email ?? ''),
-                'name' => trim((string)($row->full_name ?? '')) ?: 'Staff',
-                'role' => trim((string)($row->role ?? '')) ?: 'Staff',
-                'last_active_at' => (string)($row->last_active_at ?? ''),
-            ];
+        foreach ($tables as $table) {
+            $rows = DB::table($table)
+                ->where('last_active_at', '>=', $threshold)
+                ->orderByDesc('last_active_at')
+                ->get(['email', 'full_name', 'role', 'last_active_at'])
+                ->all();
+
+            foreach ($rows as $row) {
+                $role = trim((string)($row->role ?? ''));
+                if ($role === '' && $table === 'admins') {
+                    $role = 'Admin';
+                }
+                $online[] = [
+                    'email' => (string)($row->email ?? ''),
+                    'name' => trim((string)($row->full_name ?? '')) ?: 'Staff',
+                    'role' => $role ?: 'Staff',
+                    'last_active_at' => (string)($row->last_active_at ?? ''),
+                ];
+            }
         }
         return $online;
     } catch (Throwable $error) {
@@ -356,7 +373,8 @@ function markStaffOffline(string $email): void
     // does not exist yet the UPDATE fails silently and the online list stays
     // unchanged until the migration runs.
     try {
-        DB::table('staff')
+        $table = staffAccountTableForEmail($email) ?? 'staff';
+        DB::table($table)
             ->whereRaw('LOWER(email) = ?', [strtolower(trim($email))])
             ->update(['last_active_at' => null]);
     } catch (Throwable $error) {
@@ -651,6 +669,168 @@ function resolveApiClientIp(): string
     }
 
     return $remote;
+}
+
+/* ------------------------------------------------------------------ */
+/* Admin account (dedicated `admins` table)                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Ensure the `admins` table exists for code paths that write to it directly.
+ * Mirrors the on-demand schema convention used elsewhere; the migration is
+ * still the primary owner of the schema.
+ */
+function ensureAdminsTable(): void
+{
+    try {
+        if (!Schema::hasTable('admins')) {
+            Schema::create('admins', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('user_id')->nullable();
+                $table->string('full_name', 191)->nullable();
+                $table->string('email', 191)->unique();
+                $table->string('password_hash', 191)->nullable();
+                $table->string('role', 100)->default('Admin');
+                $table->timestamp('last_active_at')->nullable();
+                $table->timestamps();
+            });
+        }
+    } catch (Throwable $error) {
+        error_log('ensureAdminsTable failed: ' . $error->getMessage());
+    }
+}
+
+/**
+ * Locate the Admin account row and the table it currently lives in.
+ *
+ * Prefers the dedicated `admins` table and falls back to a legacy `staff`
+ * row with role = 'Admin' so a deploy that has not yet run the split
+ * migration keeps working.
+ *
+ * @param  string  $email  Optional email to restrict the lookup to.
+ * @return array{0: string, 1: object}|null  [table, row]
+ */
+function findAdminAccountRow(string $email = ''): ?array
+{
+    $email = strtolower(trim($email));
+
+    try {
+        if (Schema::hasTable('admins')) {
+            $query = DB::table('admins');
+            if ($email !== '') {
+                $query->whereRaw('LOWER(email) = ?', [$email]);
+            }
+            $row = $query->orderBy('id')->first();
+            if ($row) {
+                return ['admins', $row];
+            }
+        }
+
+        // Legacy fallback: the Admin row still lives in `staff`.
+        if (Schema::hasTable('staff') && Schema::hasColumn('staff', 'role')) {
+            $query = DB::table('staff')->whereRaw('LOWER(role) = ?', ['admin']);
+            if ($email !== '') {
+                $query->whereRaw('LOWER(email) = ?', [$email]);
+            }
+            $row = $query->orderBy('id')->first();
+            if ($row) {
+                return ['staff', $row];
+            }
+        }
+    } catch (Throwable $error) {
+        error_log('findAdminAccountRow failed: ' . $error->getMessage());
+    }
+
+    return null;
+}
+
+/**
+ * Whether the given email belongs to the Admin account.
+ */
+function isAdminEmail(string $email): bool
+{
+    $email = strtolower(trim($email));
+    if ($email === '') {
+        return false;
+    }
+
+    return findAdminAccountRow($email) !== null;
+}
+
+/**
+ * The single Admin account's email, or '' when no admin exists.
+ */
+function getAdminEmailAddress(): string
+{
+    $found = findAdminAccountRow();
+    if ($found === null) {
+        return '';
+    }
+
+    return strtolower(trim((string)($found[1]->email ?? '')));
+}
+
+/**
+ * Resolve an authentication account (staff OR admin) by email.
+ *
+ * Admin rows are returned with role = 'Admin' so the rest of the auth flow
+ * behaves exactly as it did when the Admin lived in `staff`.
+ */
+function findStaffAuthAccount(string $email): ?object
+{
+    $email = strtolower(trim($email));
+    if ($email === '') {
+        return null;
+    }
+
+    try {
+        if (Schema::hasTable('staff')) {
+            $row = DB::table('staff')->whereRaw('LOWER(email) = ?', [$email])->first();
+            if ($row) {
+                return $row;
+            }
+        }
+
+        $admin = findAdminAccountRow($email);
+        if ($admin !== null) {
+            $row = $admin[1];
+            $row->role = 'Admin';
+            // `position` only exists on staff; normalize for consumers.
+            if (!isset($row->position)) {
+                $row->position = null;
+            }
+            return $row;
+        }
+    } catch (Throwable $error) {
+        error_log('findStaffAuthAccount failed: ' . $error->getMessage());
+    }
+
+    return null;
+}
+
+/**
+ * The table that holds the account with this email ('staff' or 'admins'),
+ * or null when neither has it.
+ */
+function staffAccountTableForEmail(string $email): ?string
+{
+    $email = strtolower(trim($email));
+    if ($email === '') {
+        return null;
+    }
+
+    try {
+        if (Schema::hasTable('admins') && DB::table('admins')->whereRaw('LOWER(email) = ?', [$email])->exists()) {
+            return 'admins';
+        }
+        if (Schema::hasTable('staff') && DB::table('staff')->whereRaw('LOWER(email) = ?', [$email])->exists()) {
+            return 'staff';
+        }
+    } catch (Throwable $error) {
+        error_log('staffAccountTableForEmail failed: ' . $error->getMessage());
+    }
+
+    return null;
 }
 
 /**
@@ -951,7 +1131,7 @@ function notifyLowStockAlerts(): void
             return '- ' . $item->name . ': ' . (int)$item->stock . ' left';
         }, $freshItems);
 
-        $adminEmail = (string)DB::table('staff')->where('role', 'Admin')->value('email');
+        $adminEmail = getAdminEmailAddress();
         if ($adminEmail === '') {
             return;
         }

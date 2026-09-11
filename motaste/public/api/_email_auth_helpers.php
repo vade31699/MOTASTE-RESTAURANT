@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 function ensureStaffAccountSnapshotsTable(): void
 {
@@ -88,6 +89,20 @@ function loadStaffAccountsSnapshot(): array
             ->get()
             ->all();
 
+        // The Admin lives in its own `admins` table now; surface it with
+        // role 'Admin' so the existing account-list contract is unchanged.
+        if (Schema::hasTable('admins')) {
+            $adminRows = DB::table('admins')
+                ->select('full_name', 'email', 'password_hash', 'created_at')
+                ->orderBy('id', 'asc')
+                ->get();
+
+            foreach ($adminRows as $adminRow) {
+                $adminRow->role = 'Admin';
+                $rows[] = $adminRow;
+            }
+        }
+
         $accounts = [];
         foreach ($rows as $row) {
             $email = strtolower(trim((string)($row->email ?? '')));
@@ -165,9 +180,28 @@ function saveStaffAccountsSnapshot(array $accounts): void
             ]);
         }
 
-        // Upsert into staff table using email as key. If password not provided,
-        // do not overwrite existing password_hash.
-        $existing = DB::table('staff')->whereRaw('LOWER(email) = ?', [$email])->first();
+        // Admin accounts live in the dedicated `admins` table; everyone else
+        // stays in `staff`. Upsert using email as the key. If no password was
+        // provided we must not overwrite the existing password_hash.
+        if ($role === 'Admin') {
+            $found = function_exists('findAdminAccountRow') ? findAdminAccountRow($email) : null;
+            if ($found !== null) {
+                $accountTable = $found[0];
+                $existing = $found[1];
+            } else {
+                if (function_exists('ensureAdminsTable')) {
+                    ensureAdminsTable();
+                }
+                $accountTable = 'admins';
+                $existing = Schema::hasTable('admins')
+                    ? DB::table('admins')->whereRaw('LOWER(email) = ?', [$email])->first()
+                    : null;
+            }
+        } else {
+            $accountTable = 'staff';
+            $existing = DB::table('staff')->whereRaw('LOWER(email) = ?', [$email])->first();
+        }
+
         if ($existing) {
             $update = [
                 'user_id' => $userId,
@@ -178,18 +212,22 @@ function saveStaffAccountsSnapshot(array $accounts): void
             if ($passwordHash !== '') {
                 $update['password_hash'] = $passwordHash;
             }
-            DB::table('staff')->where('id', $existing->id)->update($update);
+            DB::table($accountTable)->where('id', $existing->id)->update($update);
         } else {
-            DB::table('staff')->insert([
+            $insert = [
                 'user_id' => $userId,
-                'position' => null,
                 'full_name' => $name,
                 'role' => $role,
                 'email' => $email,
                 'password_hash' => $passwordHash !== '' ? $passwordHash : null,
                 'created_at' => now(),
                 'updated_at' => now(),
-            ]);
+            ];
+            // `position` only exists on the staff table.
+            if ($accountTable === 'staff') {
+                $insert['position'] = null;
+            }
+            DB::table($accountTable)->insert($insert);
         }
     }
 

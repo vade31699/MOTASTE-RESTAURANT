@@ -78,6 +78,14 @@ enforce_password_policy($password);
 $lookupEmail = $currentEmail ?: $email;
 $hash = password_hash($password, PASSWORD_DEFAULT);
 
+// The Admin now lives in the dedicated `admins` table. Reject any request that
+// would resolve to (or move an account onto) the Admin account.
+if (function_exists('isAdminEmail') && (isAdminEmail($lookupEmail) || isAdminEmail($email))) {
+    http_response_code(403);
+    echo json_encode(['error' => 'The Admin account cannot be updated here. Use the Credentials section instead.']);
+    exit;
+}
+
 try {
     $query = DB::table('staff');
 

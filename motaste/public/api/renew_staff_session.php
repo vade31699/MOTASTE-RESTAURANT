@@ -36,7 +36,7 @@ if (!$identity) {
 
 // The staff account must still exist with the same role.
 try {
-    $staffRow = DB::table('staff')->whereRaw('LOWER(email) = ?', [$identity['email']])->first();
+    $staffRow = findStaffAuthAccount($identity['email']);
 } catch (Throwable $dbError) {
     $staffRow = null;
 }

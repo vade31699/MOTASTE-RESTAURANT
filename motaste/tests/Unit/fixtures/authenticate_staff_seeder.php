@@ -50,18 +50,49 @@ try {
                         $table->timestamps();
                     });
                 }
+                // The Admin has its own table now; the test DB needs it too.
+                if (!Illuminate\Support\Facades\Schema::hasTable('admins')) {
+                    Illuminate\Support\Facades\Schema::create('admins', function ($table) {
+                        $table->id();
+                        $table->unsignedBigInteger('user_id')->nullable();
+                        $table->string('full_name', 191)->nullable();
+                        $table->string('email', 191)->unique();
+                        $table->string('password_hash', 255)->nullable();
+                        $table->string('role', 100)->default('Admin');
+                        $table->timestamp('last_active_at')->nullable();
+                        $table->timestamps();
+                    });
+                }
                 break;
 
             case 'seedStaff':
-                Illuminate\Support\Facades\DB::table('staff')->updateOrInsert(
-                    ['email' => strtolower(trim((string)$action['email']))],
-                    [
-                        'role' => (string)($action['role'] ?? 'Admin'),
-                        'password_hash' => Illuminate\Support\Facades\Hash::make((string)$action['password']),
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]
-                );
+                $seedRole = (string)($action['role'] ?? 'Admin');
+                $seedEmail = strtolower(trim((string)$action['email']));
+                $seedHash = Illuminate\Support\Facades\Hash::make((string)$action['password']);
+
+                // The Admin lives in the dedicated `admins` table, so seed it
+                // there to exercise the split lookup path.
+                if (strtolower($seedRole) === 'admin') {
+                    Illuminate\Support\Facades\DB::table('admins')->updateOrInsert(
+                        ['email' => $seedEmail],
+                        [
+                            'role' => 'Admin',
+                            'password_hash' => $seedHash,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]
+                    );
+                } else {
+                    Illuminate\Support\Facades\DB::table('staff')->updateOrInsert(
+                        ['email' => $seedEmail],
+                        [
+                            'role' => $seedRole,
+                            'password_hash' => $seedHash,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]
+                    );
+                }
                 break;
 
             case 'delete':

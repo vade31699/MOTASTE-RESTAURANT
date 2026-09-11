@@ -48,8 +48,23 @@ function ensureRetentionBatchesTable(): void
 function getRetentionAdminEmail(): ?string
 {
     try {
-        $email = DB::table('staff')->where('role', 'Admin')->value('email');
-        return is_string($email) && trim($email) !== '' ? trim($email) : null;
+        // The Admin has a dedicated `admins` table; fall back to the legacy
+        // `staff` row with role = 'Admin' for deploys mid-migration.
+        if (Schema::hasTable('admins')) {
+            $email = DB::table('admins')->orderBy('id')->value('email');
+            if (is_string($email) && trim($email) !== '') {
+                return trim($email);
+            }
+        }
+
+        if (Schema::hasTable('staff')) {
+            $email = DB::table('staff')->where('role', 'Admin')->value('email');
+            if (is_string($email) && trim($email) !== '') {
+                return trim($email);
+            }
+        }
+
+        return null;
     } catch (Throwable $error) {
         error_log('getRetentionAdminEmail failed: ' . $error->getMessage());
         return null;

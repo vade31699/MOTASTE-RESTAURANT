@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
@@ -68,8 +69,10 @@ class NewPasswordController extends Controller
             }
         );
 
-        // If the password was successfully reset, also update the staff table
-        // so the staff portal (authenticate_staff.php) can log in with the same password.
+        // If the password was successfully reset, also update the staff/admin
+        // credential tables so the staff portal (authenticate_staff.php) can
+        // log in with the same password. The Admin lives in its own `admins`
+        // table, so both are synced.
         if ($status == Password::PASSWORD_RESET) {
             $staffEmail = strtolower(trim($request->email));
             $newHash = DB::table('users')
@@ -79,6 +82,12 @@ class NewPasswordController extends Controller
                 DB::table('staff')
                     ->whereRaw('LOWER(email) = ?', [$staffEmail])
                     ->update(['password_hash' => $newHash]);
+
+                if (Schema::hasTable('admins')) {
+                    DB::table('admins')
+                        ->whereRaw('LOWER(email) = ?', [$staffEmail])
+                        ->update(['password_hash' => $newHash]);
+                }
             }
 
             return redirect()->route('password.success');
