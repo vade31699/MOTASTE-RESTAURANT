@@ -999,19 +999,19 @@ async function authenticateStaffAccount(email, password, role = '', deviceToken 
         // A 2xx response with needsDeviceVerification=true is a valid state:
         // credentials were correct but the device must be confirmed first.
         if (!response.ok) {
-            // Preserve rate-limit, auth-required, and remaining-attempt responses
-            // instead of swallowing them into a generic "Invalid credentials"
-            // error, so staff can see the lockout countdown and message.
-            if (payload && (payload.rateLimited || payload.authRequired || payload.remainingAttempts != null || payload.needsCaptcha)) {
+            // Preserve lockout/auth/captcha responses instead of collapsing
+            // them into a generic failure, so the login handler can show the
+            // right message (e.g. the vague "Please Try Again Later.").
+            if (payload && (payload.rateLimited || payload.authRequired || payload.needsCaptcha)) {
                 return {
                     success: false,
                     error: payload.error || `HTTP ${response.status}`,
                     rateLimited: Boolean(payload.rateLimited),
                     authRequired: Boolean(payload.authRequired),
-                    needsCaptcha: Boolean(payload.needsCaptcha),
-                    remainingAttempts: payload.remainingAttempts != null ? Number(payload.remainingAttempts) : null
+                    needsCaptcha: Boolean(payload.needsCaptcha)
                 };
             }
+            // Plain 401 invalid-credentials: handled by the caller's fallback.
             return null;
         }
 
@@ -2029,17 +2029,17 @@ async function handleStaffLogin(email, password, role, remember) {
     if (!authResult) {
         setAuthButtonsVisible(false);
         if (modalTitle) {
-            modalTitle.textContent = 'Invalid credentials';
+            modalTitle.textContent = 'Invalid username or Password.';
         }
         return;
     }
 
-    // Account locked out after too many failed login attempts: show the
-    // lockout message from the server so staff know to wait and retry.
+    // Account locked out after too many failed login attempts: show a vague
+    // message (details would help an attacker gauge the lockout mechanics).
     if (authResult.rateLimited) {
         setAuthButtonsVisible(false);
         if (modalTitle) {
-            modalTitle.textContent = authResult.error || 'Too many failed login attempts. Please try again later.';
+            modalTitle.textContent = authResult.error || 'Please Try Again Later.';
         }
         return;
     }
@@ -2058,25 +2058,26 @@ async function handleStaffLogin(email, password, role, remember) {
         if (!authResult) {
             setAuthButtonsVisible(false);
             if (modalTitle) {
-                modalTitle.textContent = 'Invalid credentials';
+                modalTitle.textContent = 'Invalid username or Password.';
             }
             return;
         }
-        // Handle rate-limit or remaining-attempts after CAPTCHA retry.
-        if (authResult.rateLimited || (!authResult.success && authResult.remainingAttempts != null)) {
+        // Handle rate-limit or generic failure after CAPTCHA retry.
+        if (authResult.rateLimited || (!authResult.success && !authResult.needsDeviceVerification)) {
             setAuthButtonsVisible(false);
             if (modalTitle) {
-                modalTitle.textContent = authResult.error || 'Invalid credentials';
+                modalTitle.textContent = authResult.error || 'Invalid username or Password.';
             }
             return;
         }
     }
 
-    // Invalid credentials with a remaining-attempts countdown from the server.
-    if (!authResult.success && authResult.remainingAttempts != null) {
+    // Invalid credentials: the server intentionally returns a generic message
+    // (no attempt count, no account-existence hints).
+    if (!authResult.success && !authResult.needsCaptcha && !authResult.needsDeviceVerification) {
         setAuthButtonsVisible(false);
         if (modalTitle) {
-            modalTitle.textContent = authResult.error || 'Invalid credentials';
+            modalTitle.textContent = authResult.error || 'Invalid username or Password.';
         }
         return;
     }
@@ -2104,7 +2105,7 @@ async function handleStaffLogin(email, password, role, remember) {
     if (!authResult.success || !allowedRoles.includes(authResult.role)) {
         setAuthButtonsVisible(false);
         if (modalTitle) {
-            modalTitle.textContent = 'Invalid credentials';
+            modalTitle.textContent = 'Invalid username or Password.';
         }
         return;
     }

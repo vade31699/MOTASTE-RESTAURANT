@@ -33,11 +33,13 @@ try {
     }
 
     // Brute-force protection: lock the account after repeated failures.
+    // The message is deliberately vague — never reveal the lockout duration
+    // or remaining attempts to a possible attacker.
     if (isLoginRateLimited($email)) {
         http_response_code(429);
         echo json_encode([
             'success' => false,
-            'error' => 'Too many failed login attempts. Please try again in ' . STAFF_LOGIN_LOCKOUT_MINUTES . ' minutes.',
+            'error' => 'Please Try Again Later.',
             'rateLimited' => true,
         ]);
         exit;
@@ -50,7 +52,7 @@ try {
         http_response_code(429);
         echo json_encode([
             'success' => false,
-            'error' => 'Too many failed login attempts from this IP. Please try again in ' . STAFF_LOGIN_IP_LOCKOUT_MINUTES . ' minutes.',
+            'error' => 'Please Try Again Later.',
             'rateLimited' => true,
         ]);
         exit;
@@ -121,24 +123,12 @@ try {
         recordLoginAttempt($email, false);
         http_response_code(401);
 
-        // Tell the staff member how many attempts remain before lockout.
-        $failedCount = 0;
-        try {
-            $failedCount = (int)DB::table('login_attempts')
-                ->whereRaw('LOWER(email) = ?', [$email])
-                ->where('success', false)
-                ->count();
-        } catch (Throwable $countError) {
-            // Best effort.
-        }
-        $remaining = max(0, STAFF_LOGIN_MAX_ATTEMPTS - $failedCount);
-
+        // Generic message: never reveal whether the account exists or how
+        // many attempts remain before lockout (the lockout still applies —
+        // the user just finds out via the vague 429 above instead of a count).
         echo json_encode([
             'success' => false,
-            'error' => $remaining > 0
-                ? "Invalid credentials. {$remaining} attempt(s) left before your account is locked for " . STAFF_LOGIN_LOCKOUT_MINUTES . ' minutes.'
-                : 'Invalid credentials. Your account is now locked for ' . STAFF_LOGIN_LOCKOUT_MINUTES . ' minutes.',
-            'remainingAttempts' => $remaining,
+            'error' => 'Invalid username or Password.',
         ]);
         exit;
     }

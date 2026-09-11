@@ -246,7 +246,9 @@ test('captcha is not demanded on the first or second failed attempt', function (
     ]);
     expect($firstStatus)->toBe(401);
     expect($firstBody['needsCaptcha'] ?? null)->toBeNull();
-    expect($firstBody['remainingAttempts'] ?? null)->not->toBeNull();
+    // Messages are deliberately generic: no attempt-countdown hints.
+    expect($firstBody['error'] ?? '')->toBe('Invalid username or Password.');
+    expect($firstBody['remainingAttempts'] ?? null)->toBeNull();
 
     ['status' => $secondStatus, 'body' => $secondBody] = runCaptchaSubprocess([
         'email' => $email, 'password' => 'wrong', 'role' => 'Admin', 'deviceToken' => 'tok-a',
