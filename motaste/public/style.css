@@ -9213,6 +9213,37 @@ body.staff-app .trusted-device-revoke:hover {
     border-color: var(--staff-danger);
 }
 
+/* Loading state while a revoke request is in flight (spinner via ::after). */
+body.staff-app .trusted-device-revoke:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+body.staff-app .trusted-device-revoke.is-loading {
+    background: var(--staff-danger);
+    color: #fff;
+    border-color: var(--staff-danger);
+}
+
+body.staff-app .trusted-device-revoke.is-loading::after {
+    content: '';
+    display: inline-block;
+    width: 0.72em;
+    height: 0.72em;
+    margin-left: 7px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    vertical-align: -0.1em;
+    animation: trusted-device-revoke-spin 0.7s linear infinite;
+}
+
+@keyframes trusted-device-revoke-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 body.staff-app .trusted-devices-empty {
     color: var(--staff-muted);
     font-size: 0.85rem;

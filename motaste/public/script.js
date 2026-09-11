@@ -59,6 +59,11 @@ let reviewActivityLogs = [];
 let activeOrderLogFilter = 'all';
 let pendingOrdersRefreshTimer = null;
 let pendingOrdersCountdownTicker = null;
+let trustedDevicesRefreshTimer = null;
+let trustedDevicesStream = null;
+let trustedDevicesSseFailures = 0;
+let trustedDevicesInFlight = false;
+let lastTrustedDevicesSnapshot = '';
 const staffOrderTimerCacheKey = 'motasteStaffOrderTimerCache';
 let staffOrderTimerCache = new Map();
 const blockedProductNames = new Set(['softdrinks']);
@@ -1557,11 +1562,14 @@ document.addEventListener('keydown', (event) => {
 const trustedDevicesList = document.getElementById('trustedDevicesList');
 const trustedDevicesMessage = document.getElementById('trustedDevicesMessage');
 
-async function loadTrustedDevices() {
+async function loadTrustedDevices(options = {}) {
     if (!trustedDevicesList) return;
+    const { silent = false } = options;
+    if (trustedDevicesInFlight) return;
     const actor = getCurrentStaffActor();
     if (!actor.email) return;
 
+    trustedDevicesInFlight = true;
     try {
         const query = new URLSearchParams({
             email: actor.email,
@@ -1577,10 +1585,101 @@ async function loadTrustedDevices() {
         if (!response.ok || !payload.success) {
             throw new Error(payload.error || 'Unable to load trusted devices');
         }
-        renderTrustedDevices(Array.isArray(payload.devices) ? payload.devices : []);
+        const devices = Array.isArray(payload.devices) ? payload.devices : [];
+        // Polling calls skip re-rendering when nothing changed so an admin
+        // using another part of the section is not disturbed, and per-row UI
+        // state (e.g. the Revoking… spinner) is not reset mid-request.
+        const snapshot = JSON.stringify(devices);
+        if (!silent || snapshot !== lastTrustedDevicesSnapshot) {
+            renderTrustedDevices(devices);
+            lastTrustedDevicesSnapshot = snapshot;
+        }
     } catch (error) {
-        console.error('Unable to load trusted devices', error);
-        if (trustedDevicesMessage) trustedDevicesMessage.textContent = error.message || 'Unable to load trusted devices.';
+        // Background refreshes stay quiet; only interactive loads surface errors.
+        if (!silent) {
+            console.error('Unable to load trusted devices', error);
+            if (trustedDevicesMessage) trustedDevicesMessage.textContent = error.message || 'Unable to load trusted devices.';
+        }
+    } finally {
+        trustedDevicesInFlight = false;
+    }
+}
+
+// While the Credentials section is open, subscribe to the SSE stream so
+// revokes made by another admin disappear here instantly. If SSE is killed by
+// the hosting platform (some serverless hosts terminate long-lived requests),
+// the connection errors repeatedly and we fall back to 10s interval polling.
+function startTrustedDevicesRefresh() {
+    if (!trustedDevicesList || trustedDevicesStream || trustedDevicesRefreshTimer) return;
+
+    const actor = getCurrentStaffActor();
+    if (!actor.email) return;
+
+    const openStream = () => {
+        const query = new URLSearchParams({
+            email: actor.email,
+            deviceToken: getOrCreateDeviceToken()
+        });
+        const source = new EventSource(getApiUrl(`api/trusted_devices_stream.php?${query.toString()}`));
+
+        source.addEventListener('devices', (event) => {
+            trustedDevicesSseFailures = 0;
+            try {
+                const payload = JSON.parse(event.data);
+                if (payload && payload.success) {
+                    const devices = Array.isArray(payload.devices) ? payload.devices : [];
+                    const snapshot = JSON.stringify(devices);
+                    if (snapshot !== lastTrustedDevicesSnapshot) {
+                        renderTrustedDevices(devices);
+                        lastTrustedDevicesSnapshot = snapshot;
+                    }
+                }
+            } catch (error) {
+                console.debug('Bad SSE payload for trusted devices', error);
+            }
+        });
+
+        source.addEventListener('stream-error', () => {
+            // Server hit a transient DB issue: one interactive refresh now,
+            // then rely on EventSource's built-in retry.
+            void loadTrustedDevices({ silent: true });
+        });
+
+        source.onerror = () => {
+            if (source.readyState === EventSource.CLOSED) {
+                // EventSource gave up (repeated failures). Count it, tear down,
+                // and fall back to polling after a few consecutive dead streams.
+                trustedDevicesSseFailures += 1;
+                closeTrustedDevicesStream();
+                if (trustedDevicesSseFailures >= 3) {
+                    trustedDevicesRefreshTimer = window.setInterval(() => {
+                        void loadTrustedDevices({ silent: true });
+                    }, 10000);
+                }
+            }
+        };
+
+        trustedDevicesStream = source;
+    };
+
+    // Initial state before the stream's first event arrives.
+    void loadTrustedDevices({ silent: true });
+    openStream();
+}
+
+function closeTrustedDevicesStream() {
+    if (trustedDevicesStream) {
+        trustedDevicesStream.close();
+        trustedDevicesStream = null;
+    }
+}
+
+function stopTrustedDevicesRefresh() {
+    closeTrustedDevicesStream();
+    trustedDevicesSseFailures = 0;
+    if (trustedDevicesRefreshTimer) {
+        window.clearInterval(trustedDevicesRefreshTimer);
+        trustedDevicesRefreshTimer = null;
     }
 }
 
@@ -1639,6 +1738,7 @@ function renderTrustedDevices(devices) {
                     ${groupDevices.map((device) => {
                         const label = escapeHtml(device.device_label || 'Unknown device');
                         const fingerprint = escapeHtml(device.fingerprint || '');
+                        const deviceId = Number(device.id || 0);
                         const email = escapeHtml(device.email || '');
                         const lastSeen = device.last_seen_at ? formatRealtimeDate(device.last_seen_at) : 'Never';
                         const status = device.is_current
@@ -1646,7 +1746,7 @@ function renderTrustedDevices(devices) {
                             : '<span class="trusted-device-status is-trusted">Verified</span>';
                         const revokeBtn = device.is_current
                             ? ''
-                            : `<button type="button" class="trusted-device-revoke" data-fingerprint="${fingerprint}" data-email="${email}">Remove</button>`;
+                            : `<button type="button" class="trusted-device-revoke" data-id="${deviceId}" data-fingerprint="${fingerprint}" data-email="${email}" data-label="${label}" aria-label="Remove trusted device ${label}">Remove</button>`;
                         return `
                             <div class="trusted-device-row">
                                 <div class="trusted-device-icon" aria-hidden="true"><i class="fa-solid fa-laptop"></i></div>
@@ -1666,10 +1766,36 @@ function renderTrustedDevices(devices) {
     trustedDevicesList.innerHTML = roleGroups.join('');
 }
 
-async function revokeTrustedDevice(fingerprint, email = '') {
+const REVOKING_LABEL = 'Revoking…';
+
+async function revokeTrustedDevice(deviceId, fingerprint, email = '', revokeButton = null, deviceLabel = '') {
+    // The listed email is masked for display (d***@gmail.com), so the device
+    // id (preferred) or fingerprint identifies the row; the server checks
+    // permissions against the row's real email.
     const actor = getCurrentStaffActor();
     const targetEmail = (email || '').trim().toLowerCase() || actor.email;
-    if (!fingerprint || !targetEmail) return;
+    if ((!deviceId || deviceId <= 0) && !fingerprint) return;
+
+    // Removing a device forces that browser to re-verify on its next login,
+    // so ask before acting. The request only goes out on confirm.
+    const deviceName = (email || '').trim();
+    const confirmed = await showStaffConfirm(
+        deviceName
+            ? `Remove the trusted device for ${deviceName}? That browser will need a fresh email verification code on its next login.`
+            : 'Remove this trusted device? That browser will need a fresh email verification code on its next login.',
+        { title: 'Remove trusted device?', confirmLabel: 'Remove Device' }
+    );
+    if (!confirmed) return;
+
+    // Loading state: disable the button and show a spinner so a slow request
+    // cannot trigger duplicate revokes. Set only after the user confirms.
+    let originalLabel = '';
+    if (revokeButton) {
+        originalLabel = revokeButton.textContent;
+        revokeButton.disabled = true;
+        revokeButton.classList.add('is-loading');
+        revokeButton.textContent = REVOKING_LABEL;
+    }
 
     try {
         const headers = await withCsrfHeaders({
@@ -1679,7 +1805,7 @@ async function revokeTrustedDevice(fingerprint, email = '') {
         const response = await fetch(getApiUrl('api/revoke_trusted_device.php'), {
             method: 'POST',
             headers,
-            body: JSON.stringify({ email: targetEmail, fingerprint, deviceToken: getOrCreateDeviceToken() }),
+            body: JSON.stringify({ id: Number(deviceId) || 0, email: targetEmail, fingerprint, deviceToken: getOrCreateDeviceToken() }),
             cache: 'no-store'
         });
 
@@ -1688,18 +1814,42 @@ async function revokeTrustedDevice(fingerprint, email = '') {
             throw new Error(payload.error || 'Unable to revoke device');
         }
 
+        // Clear any stale error text from a previous failed attempt.
+        if (trustedDevicesMessage) trustedDevicesMessage.textContent = '';
+
         void loadTrustedDevices();
+
+        // Success feedback: name the device that was removed so the admin can
+        // confirm the action hit the right row.
+        const removedName = (deviceLabel || '').trim() || (email || '').trim();
+        void showStaffNotice(
+            removedName
+                ? `${removedName} was removed from trusted devices. That browser will need a fresh verification code on its next login.`
+                : 'The device was removed from trusted devices. That browser will need a fresh verification code on its next login.'
+        );
     } catch (error) {
         console.error('Unable to revoke trusted device', error);
         if (trustedDevicesMessage) trustedDevicesMessage.textContent = error.message || 'Unable to revoke device.';
+        // Restore the button so the user can retry the failed revoke.
+        if (revokeButton && revokeButton.isConnected) {
+            revokeButton.disabled = false;
+            revokeButton.classList.remove('is-loading');
+            revokeButton.textContent = originalLabel || 'Remove';
+        }
     }
 }
 
 if (trustedDevicesList) {
     trustedDevicesList.addEventListener('click', (event) => {
         const button = event.target.closest('.trusted-device-revoke');
-        if (!button) return;
-        void revokeTrustedDevice(button.dataset.fingerprint || '', button.dataset.email || '');
+        if (!button || button.disabled) return;
+        void revokeTrustedDevice(
+            Number(button.dataset.id || 0),
+            button.dataset.fingerprint || '',
+            button.dataset.email || '',
+            button,
+            button.dataset.label || ''
+        );
     });
 }
 
@@ -2136,6 +2286,7 @@ if (logoutBtn) {
             window.clearInterval(orderLogsRefreshTimer);
             orderLogsRefreshTimer = null;
         }
+        stopTrustedDevicesRefresh();
         if (pendingOrdersRefreshTimer) {
             window.clearInterval(pendingOrdersRefreshTimer);
             pendingOrdersRefreshTimer = null;
@@ -2510,6 +2661,7 @@ if (credentialsLink && credentialsSection) {
         void loadAdminCredentials();
         void loadTrustedDevices();
         void loadLoginHistory();
+        startTrustedDevicesRefresh();
     });
 }
 
@@ -9920,6 +10072,12 @@ function renderOverviewAnalytics(animate = true) {
 function showDashboardSection(section) {
     setInventoryModalVisible(false);
 
+    // Leaving the Credentials section frees the SSE worker (one worker per
+    // stream on PHP-FPM); it is reopened when the section returns.
+    if (typeof trustedDevicesStream !== 'undefined' && trustedDevicesStream && section !== credentialsSection) {
+        stopTrustedDevicesRefresh();
+    }
+
     if (section === logsSection && logsDateFilter) {
         syncLogsDateFilterToToday();
     }
@@ -9937,6 +10095,7 @@ function showDashboardSection(section) {
         syncLoginHistoryDateToToday();
         void loadTrustedDevices();
         void loadLoginHistory();
+        startTrustedDevicesRefresh();
     }
 
     if (section && section.id) {
