@@ -1406,16 +1406,24 @@ async function requestCaptchaVerification(errorMessage) {
         });
     }
 
-    const executeRecaptcha = async (sitekey) => {
-        setCaptchaMessage('Please verify you are human to continue.');
-        showActions(false);
+    // The panel is an error surface only. reCAPTCHA v3 is score-based and
+    // silent: on the happy path nothing is shown (the submit button already
+    // reads "Logging in…", and api.js injects Google's own badge). Reveal the
+    // panel — with Retry/Cancel — only when loading or execute() fails.
+    const showFailure = (text) => {
+        setCaptchaMessage(text);
         captchaContainer.hidden = false;
+        showActions(true);
+    };
+
+    const executeRecaptcha = async (sitekey) => {
+        showActions(false);
+        captchaContainer.hidden = true;
 
         const scriptLoaded = await ensureRecaptchaScript(sitekey);
         const scriptReady = scriptLoaded && await waitForRecaptchaScript();
         if (!scriptReady) {
-            setCaptchaMessage('CAPTCHA could not be loaded. Check your connection, then Retry.');
-            showActions(true);
+            showFailure('CAPTCHA could not be loaded. Check your connection, then Retry.');
             return;
         }
 
@@ -1428,13 +1436,11 @@ async function requestCaptchaVerification(errorMessage) {
             if (typeof token === 'string' && token !== '') {
                 window.onRecaptchaSuccess(token);
             } else {
-                setCaptchaMessage('CAPTCHA could not start. Please Retry.');
-                showActions(true);
+                showFailure('CAPTCHA could not start. Please Retry.');
             }
         } catch (executeError) {
             console.error('reCAPTCHA execute failed', executeError);
-            setCaptchaMessage('CAPTCHA could not start. Please Retry.');
-            showActions(true);
+            showFailure('CAPTCHA could not start. Please Retry.');
         }
     };
 
@@ -1445,11 +1451,10 @@ async function requestCaptchaVerification(errorMessage) {
             // missing) or the config endpoint is unreachable. Explain and let
             // the user retry (the config endpoint may have been a transient
             // failure).
-            setCaptchaMessage(
+            showFailure(
                 (isFirstAttempt && errorMessage ? errorMessage + ' ' : '') +
                 'CAPTCHA is temporarily unavailable. Please Retry in a moment.'
             );
-            showActions(true);
             return;
         }
         await executeRecaptcha(sitekey);
@@ -1457,7 +1462,8 @@ async function requestCaptchaVerification(errorMessage) {
 
     return new Promise((resolve) => {
         captchaResolver = resolve;
-        captchaContainer.hidden = false;
+        // Stay hidden until we know verification actually needs attention.
+        captchaContainer.hidden = true;
         void startVerification(true);
     });
 }
