@@ -80,15 +80,9 @@
         <h1>Successfully reset password</h1>
         <p class="success-text">Your password has been reset.</p>
 
-        <a href="https://motasterestaurant890.laravel.cloud/staff" class="btn">
-            Proceed to motasterestaurant890.laravel.cloud/staff
+        <a href="https://motaste.laravel.cloud" class="btn">
+            Proceed to motaste.laravel.cloud
         </a>
-
-        <p class="link">
-            <a href="https://motasterestaurant890.laravel.cloud/login">
-                Or go to login page
-            </a>
-        </p>
     </div>
 </body>
 </html>
