@@ -51,30 +51,35 @@ if (!$staffRow || strtolower(trim((string)$staffRow->role)) !== strtolower(trim(
         'authRequired' => true,
     ]);
     exit;
-}
+}    // Revoke every previously issued bearer token for this account so an old
+    // cookie cannot be replayed after renewal (session fixation / token reuse).
+    revokeAllStaffSessionTokens($identity['email']);
 
-// Re-establish the PHP-native session so staff-only endpoints recognize the user.
-ensureStaffAuthSession();
+    // Re-establish the PHP-native session so staff-only endpoints recognize the user.
+    ensureStaffAuthSession();
 
-// Carry the CSRF token across the session-ID regeneration. The browser may
-// Regenerate the session ID, then issue a fresh stateless CSRF token bound
-// to the NEW session ID. (Tokens are HMAC-signed and self-contained, so
-// nothing needs carrying across the regeneration.)
-session_regenerate_id(true);
+    // Regenerate the session ID so the old PHP session cannot be reused.
+    session_regenerate_id(true);
 
 $_SESSION['staff'] = [
     'role' => $identity['role'],
     'email' => $identity['email'],
     'name' => trim((string)($staffRow->full_name ?? '')),
     'logged_in_at' => now()->toDateTimeString(),
-];
+];    $freshCsrf = function_exists('getOrCreateCsrfToken') ? getOrCreateCsrfToken() : '';
 
-$freshCsrf = function_exists('getOrCreateCsrfToken') ? getOrCreateCsrfToken() : '';
+    // Make the CURRENT request see the newly issued bearer token. See the same
+    // note in verify_device_login.php — setcookie() only takes effect on the
+    // next request, but the caller may immediately hit a staff-gated endpoint
+    // that requires the bearer token to match the (rehydrated) session.
+    if (isset($_COOKIE[STAFF_SESSION_COOKIE_NAME]) === false) {
+        $_COOKIE[STAFF_SESSION_COOKIE_NAME] = $token;
+    }
 
-echo json_encode([
-    'success' => true,
-    'role' => $identity['role'],
-    'email' => $identity['email'],
-    'name' => trim((string)($staffRow->full_name ?? '')),
-    'csrfToken' => $freshCsrf,
-]);
+    echo json_encode([
+        'success' => true,
+        'role' => $identity['role'],
+        'email' => $identity['email'],
+        'name' => trim((string)($staffRow->full_name ?? '')),
+        'csrfToken' => $freshCsrf,
+    ]);

@@ -151,16 +151,32 @@ try {
     // only as a record of verified logins; it never bypasses this code.
     $fingerprint = computeDeviceFingerprint($email, $deviceToken);
 
-    // Rate-limit code issuance: reuse a code that was created in the last
-    // 60 seconds instead of emailing a fresh one on every attempt.
+    // Rate-limit code issuance: never send more than one code per 30 seconds
+    // per account. Reuse a code created in the last 60 seconds when the window
+    // is open, otherwise block rapid re-issuance that would flood the inbox.
     $existingToken = DB::table('login_verification_tokens')
         ->where('email', $email)
         ->where('fingerprint', $fingerprint)
         ->orderBy('id', 'desc')
         ->first();
+
+    // Expired tokens are useless — clean them up before checking the cooloff.
+    if ($existingToken && now()->greaterThan($existingToken->expires_at)) {
+        DB::table('login_verification_tokens')
+            ->where('id', $existingToken->id)
+            ->delete();
+        $existingToken = null;
+    }
+
     $codeAlreadySent = $existingToken
         && now()->lessThan($existingToken->expires_at)
         && now()->diffInSeconds($existingToken->created_at) < 60;
+
+    $codeIssuanceCooloff = false;
+    if (!$codeAlreadySent && $existingToken && now()->diffInSeconds($existingToken->created_at) < 30) {
+        // The previous code was created too recently to send another one.
+        $codeIssuanceCooloff = true;
+    }
 
     if ($codeAlreadySent) {
         echo json_encode([
@@ -170,6 +186,16 @@ try {
             'role' => $role,
             'message' => 'A verification code was already sent to your email — check your inbox.',
             'deviceToken' => $deviceToken,
+        ]);
+        exit;
+    }
+
+    if ($codeIssuanceCooloff) {
+        http_response_code(429);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Please wait before requesting a new verification code.',
+            'rateLimited' => true,
         ]);
         exit;
     }

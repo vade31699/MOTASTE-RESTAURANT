@@ -259,31 +259,117 @@ function ensureStaffAuthSession(): void
         'path' => '/',
         'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
         'httponly' => true,
-        'samesite' => 'Lax',
+        'samesite' => 'Strict',
     ]);
     session_start();
 }
 
 /**
  * Returns the authenticated staff array (role/email/name) or null.
+ *
+ * SECURITY: a valid PHP session alone is no longer sufficient. The caller must
+ * also hold a valid bearer token (HttpOnly cookie, or legacy body fallback)
+ * whose account/role matches the session. This closes the case where a browser
+ * keeps a stale PHP session cookie (e.g. after the bearer token expired or was
+ * revoked) and silently stays authenticated on every staff-only request.
+ *
+ * If the session is missing but the bearer token is valid, the PHP session is
+ * rehydrated from the token so the rest of the request sees a normal session.
  */
 function requireStaffAuth(): ?array
 {
     ensureStaffAuthSession();
 
-    if (!empty($_SESSION['staff']) && is_array($_SESSION['staff'])) {
-        logStaffApiRequest((string)($_SERVER['REQUEST_URI'] ?? basename((string)($_SERVER['SCRIPT_NAME'] ?? 'api'))));
-        // Throttle heartbeat to once per 2 minutes per request lifecycle to
-        // avoid an UPDATE on every single staff API call.
-        static $lastTouchEmail = '';
-        $email = (string)($_SESSION['staff']['email'] ?? '');
-        if ($email !== $lastTouchEmail) {
-            $lastTouchEmail = $email;
-            touchStaffLastActive($email);
+    $session = !empty($_SESSION['staff']) && is_array($_SESSION['staff'])
+        ? $_SESSION['staff']
+        : null;
+
+    $sessionEmail = $session ? (string)($session['email'] ?? '') : '';
+    $sessionRole  = $session ? (string)($session['role']  ?? '') : '';
+
+    // The bearer token (HttpOnly cookie preferred, body as legacy fallback).
+    $bearerToken   = resolveStaffSessionRequestToken();
+    $bearerIdentity = $bearerToken !== null ? resolveStaffSessionToken($bearerToken) : null;
+
+    // Case A: both session and bearer present — they must agree exactly.
+    if ($session && $bearerIdentity) {
+        $bearerEmail = (string)($bearerIdentity['email'] ?? '');
+        $bearerRole  = (string)($bearerIdentity['role']  ?? '');
+
+        if (!hash_equals(strtolower($sessionEmail), strtolower($bearerEmail))
+            || !hash_equals(strtolower($sessionRole), strtolower($bearerRole))) {
+            // Mismatch: session says one thing, bearer token says another.
+            // Tear down the PHP session and require a fresh login — do NOT
+            // trust either side on its own.
+            require_once __DIR__ . '/csrf_guard.php';
+            if (function_exists('setStaffSessionTokenCookie')) {
+                setStaffSessionTokenCookie(null);
+            }
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                $_SESSION = [];
+                session_destroy();
+            }
+            abortStaffAuthRequired();
         }
-        return $_SESSION['staff'];
+
+        logStaffApiRequest((string)($_SERVER['REQUEST_URI'] ?? basename((string)($_SERVER['SCRIPT_NAME'] ?? 'api'))));
+        static $lastTouchEmail = '';
+        if ($sessionEmail !== $lastTouchEmail) {
+            $lastTouchEmail = $sessionEmail;
+            touchStaffLastActive($sessionEmail);
+        }
+        return $session;
     }
 
+    // Case B: session only. The bearer token is missing/expired — the session
+    // is stale. Revoke the now-orphaned session and block.
+    if ($session && !$bearerIdentity) {
+        if (function_exists('setStaffSessionTokenCookie')) {
+            setStaffSessionTokenCookie(null);
+        }
+        $_SESSION = [];
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_destroy();
+        }
+        abortStaffAuthRequired();
+    }
+
+    // Case C: bearer token only (PHP session missing/expired mid-flight).
+    // Rehydrate the session from the token so the rest of the request sees a
+    // normal session, but only after confirming the account still exists with
+    // the same role.
+    if (!$session && $bearerIdentity) {
+        $email  = (string)($bearerIdentity['email'] ?? '');
+        $role   = (string)($bearerIdentity['role']  ?? '');
+
+        if ($email !== '') {
+            $account = findStaffAuthAccount($email);
+            if ($account && strtolower(trim((string)($account->role ?? ''))) === strtolower($role)) {
+                $_SESSION['staff'] = [
+                    'role'       => $role,
+                    'email'      => $email,
+                    'name'       => trim((string)($account->full_name ?? '')),
+                    'logged_in_at' => now()->toDateTimeString(),
+                ];
+
+                logStaffApiRequest((string)($_SERVER['REQUEST_URI'] ?? basename((string)($_SERVER['SCRIPT_NAME'] ?? 'api'))));
+                touchStaffLastActive($email);
+
+                return $_SESSION['staff'];
+            }
+        }
+
+        // Token valid but account/role gone — revoke and block.
+        if ($bearerToken !== null) {
+            revokeStaffSessionToken($bearerToken);
+        }
+        if (function_exists('setStaffSessionTokenCookie')) {
+            setStaffSessionTokenCookie(null);
+        }
+        abortStaffAuthRequired();
+    }
+
+    // Case D: neither — no authentication at all.
     return null;
 }
 
@@ -1036,18 +1122,18 @@ function setStaffSessionTokenCookie(?string $token, bool $remember = false): voi
         setcookie($name, '', [
             'expires' => time() - 3600,
             'path' => '/',
-            'secure' => $secure,
+            'secure' => true,
             'httponly' => true,
-            'samesite' => 'Lax',
+            'samesite' => 'Strict',
         ]);
         return;
     }
 
     $options = [
         'path' => '/',
-        'secure' => $secure,
+        'secure' => true,
         'httponly' => true,
-        'samesite' => 'Lax',
+        'samesite' => 'Strict',
     ];
 
     if ($remember) {
@@ -1075,11 +1161,15 @@ function readStaffSessionTokenCookie(): ?string
  */
 function resolveStaffSessionRequestToken(?string $bodyToken = null): ?string
 {
+    // Primary: HttpOnly cookie — not reachable by page script.
     $cookieToken = readStaffSessionTokenCookie();
     if ($cookieToken !== null) {
         return $cookieToken;
     }
 
+    // Legacy fallback: request body. Kept only for clients built before the
+    // cookie switch. Do NOT promote this path — it re-exposes the token to
+    // any XSS that can read the request payload the client sends.
     $bodyToken = trim((string)$bodyToken);
 
     return $bodyToken !== '' ? $bodyToken : null;

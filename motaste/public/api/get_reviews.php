@@ -35,9 +35,10 @@ try {
         }
     }
     
-                
-    DB::statement("UPDATE customer_reviews SET publish_status = 'published' WHERE publish_status IS NULL");
-    DB::statement("UPDATE customer_reviews SET reviewed_on = COALESCE(reviewed_on, DATE(created_at), CURRENT_DATE) WHERE reviewed_on IS NULL");
+    // NOTE: state-changing UPDATEs were previously run on this GET endpoint
+    // (publish_status/reviewed_on backfills). That was a CSRF gap: a GET
+    // response can be triggered by a third-party page load with no token.
+    // Backfills now belong in a migration / admin job, not a public read endpoint.
 
     $scope = strtolower(trim((string)($_GET['scope'] ?? 'public')));
     $ratingFilter = (int)($_GET['rating'] ?? 0);

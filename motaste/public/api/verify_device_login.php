@@ -157,6 +157,17 @@ try {
     // NOT echoed back in the response, so no client can persist it again.
     setStaffSessionTokenCookie($sessionToken, $remember);
 
+    // Make the CURRENT request see the new bearer token too. The cookie is set
+    // via setcookie() (headers), so the browser only sends it on the NEXT
+    // request. But the dashboard's first staff-gated API call happens in the
+    // same request lifecycle (or immediately after), and requireStaffAuth()
+    // now cross-checks the bearer token against the session — without this
+    // populate step the first post-login request would see an empty cookie and
+    // get 401'ed as a stale session.
+    if (isset($_COOKIE[STAFF_SESSION_COOKIE_NAME]) === false) {
+        $_COOKIE[STAFF_SESSION_COOKIE_NAME] = $sessionToken;
+    }
+
     $freshCsrf = function_exists('getOrCreateCsrfToken') ? getOrCreateCsrfToken() : '';
 
     echo json_encode([
