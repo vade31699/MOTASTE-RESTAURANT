@@ -51,7 +51,7 @@ class PasswordResetLinkController extends Controller
 
         if (!DB::table('users')->whereRaw('LOWER(email) = ?', [$email])->exists()) {
             throw ValidationException::withMessages([
-                'email' => ['We could not find an account with that email address.'],
+                'email' => ['Please try again.'],
             ]);
         }
 

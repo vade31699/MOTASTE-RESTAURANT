@@ -70,6 +70,7 @@ test('requesting a code for an unknown email is rejected', function () {
     $this->post('/forgot-password', ['email' => 'nobody@example.com'])
         ->assertSessionHasErrors('email');
 
+    expect(session('errors')->get('email'))->toContain('Please try again.');
     Mail::assertNothingSent();
 });
 
