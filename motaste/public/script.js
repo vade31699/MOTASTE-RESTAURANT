@@ -764,6 +764,7 @@ function restoreStaffSession() {
     if (targetSection) {
         showDashboardSection(targetSection);
         if (targetSectionId === 'overview') {
+            void loadPendingOrdersFromServer();
             renderOverviewAnalytics();
             renderOrderNotifications();
         } else if (targetSectionId === 'pending-orders') {
@@ -2417,6 +2418,10 @@ async function handleStaffLogin(email, password, role, remember) {
         if (dashboardPanel) {
             dashboardPanel.style.display = '';
         }
+        // Refresh the live order stream and pending queue immediately after auth
+        // so a freshly logged-in browser shows incoming orders without a reload.
+        void loadPendingOrdersFromServer();
+        initOrderEvents();
         // After login, show the Overview dashboard as the main page
         if (overviewSection) {
             showDashboardSection(overviewSection);
@@ -12908,6 +12913,8 @@ updateAccountManagementAccess();
 // credentials exactly like the existing client-side session restore.
 if (isStaffPage) {
     void ensureStaffServerSession();
+    void loadPendingOrdersFromServer();
+    initOrderEvents();
 }
 
 // Real-time order events via Server-Sent Events
