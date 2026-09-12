@@ -693,6 +693,20 @@ function getPersistedActiveSection() {
     return 'overview';
 }
 
+async function startStaffOrderMonitoring() {
+    if (!isStaffPage) {
+        return;
+    }
+
+    try {
+        await ensureStaffServerSession();
+        await loadPendingOrdersFromServer();
+        initOrderEvents();
+    } catch (error) {
+        console.debug('Unable to start staff order monitoring', error);
+    }
+}
+
 function restoreStaffSession() {
     const persistedSession = getPersistedStaffSession();
     if (!persistedSession) {
@@ -764,11 +778,11 @@ function restoreStaffSession() {
     if (targetSection) {
         showDashboardSection(targetSection);
         if (targetSectionId === 'overview') {
-            void loadPendingOrdersFromServer();
+            void startStaffOrderMonitoring();
             renderOverviewAnalytics();
             renderOrderNotifications();
         } else if (targetSectionId === 'pending-orders') {
-            void loadPendingOrdersFromServer();
+            void startStaffOrderMonitoring();
             setOrdersTab('pending');
             renderWalkInOrderBuilder();
             renderPendingOrders();
@@ -2375,12 +2389,15 @@ async function handleStaffLogin(email, password, role, remember) {
     // browser login shows the full dashboard without requiring a manual reload.
     const inventoryLoadPromise = initializeInventoryData(true);
     const menuLoadPromise = loadCustomMenuData();
+    const completedOrdersPromise = loadCompletedOrdersFromServer(true);
+    const pendingOrdersPromise = loadPendingOrdersFromServer();
+    const reviewsPromise = loadReviewsFromServer(true);
     staffInitialDataReady = Promise.allSettled([
         inventoryLoadPromise,
         menuLoadPromise,
-        loadCompletedOrdersFromServer(true),
-        loadPendingOrdersFromServer(),
-        loadReviewsFromServer(true)
+        completedOrdersPromise,
+        pendingOrdersPromise,
+        reviewsPromise
     ]);
 
     // Show the loading overlay while the dashboard data settles.
@@ -2418,10 +2435,10 @@ async function handleStaffLogin(email, password, role, remember) {
         if (dashboardPanel) {
             dashboardPanel.style.display = '';
         }
-        // Refresh the live order stream and pending queue immediately after auth
-        // so a freshly logged-in browser shows incoming orders without a reload.
-        void loadPendingOrdersFromServer();
-        initOrderEvents();
+        // Refresh the live order stream and pending queue only after the server
+        // session is active; otherwise the EventSource can open against a stale
+        // or missing staff cookie and the pending list never repopulates.
+        void startStaffOrderMonitoring();
         // After login, show the Overview dashboard as the main page
         if (overviewSection) {
             showDashboardSection(overviewSection);
@@ -12912,9 +12929,7 @@ updateAccountManagementAccess();
 // load so staff-only APIs keep working after browser restarts. Uses the stored
 // credentials exactly like the existing client-side session restore.
 if (isStaffPage) {
-    void ensureStaffServerSession();
-    void loadPendingOrdersFromServer();
-    initOrderEvents();
+    void startStaffOrderMonitoring();
 }
 
 // Real-time order events via Server-Sent Events
