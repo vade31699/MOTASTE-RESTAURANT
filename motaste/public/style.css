@@ -9410,12 +9410,34 @@ body.staff-app .notice-modal p.is-error {
 }
 
 body.staff-app .notice-modal .device-verify-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
     justify-content: center;
+    margin-top: 28px;
 }
 
 body.staff-app .notice-modal .device-verify-actions button {
-    flex: 0 0 auto;
-    min-width: 96px;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 13px 18px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+body.staff-app .notice-modal .secondary-btn {
+    background: #ffffff;
+    color: #111827;
+    border: 1px solid rgba(15, 23, 42, 0.36);
+    box-shadow: none;
+}
+
+body.staff-app .notice-modal .secondary-btn:hover {
+    background: #f8fafc;
+    color: #111827;
+    border-color: rgba(15, 23, 42, 0.48);
 }
 
 body.staff-app .notice-modal .modal-close {
@@ -9452,11 +9474,15 @@ body.staff-app .confirm-modal-icon {
 
 /* Destructive confirm button (red instead of the green primary). */
 body.staff-app .confirm-danger-btn {
-    background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+    background: linear-gradient(135deg, #f56565, #e11d48) !important;
+    color: #fff !important;
+    border: none !important;
+    box-shadow: 0 10px 20px rgba(225, 29, 72, 0.22) !important;
 }
 
 body.staff-app .confirm-danger-btn:hover:not(:disabled) {
-    background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+    background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+    box-shadow: 0 14px 26px rgba(225, 29, 72, 0.30) !important;
 }
 
 /* Countdown bar shown on auto-dismissing success notices. */
