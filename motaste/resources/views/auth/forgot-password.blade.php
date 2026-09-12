@@ -65,7 +65,6 @@
         @if(session('status'))
             <h1>Check Your Email</h1>
             <p class="description">{{ session('status') }}</p>
-            <a href="{{ route('login') }}" class="back-link">&larr; Back to login</a>
         @elseif($pendingEmail)
             <h1>Enter Verification Code</h1>
             <p class="description">
@@ -116,8 +115,6 @@
                     <button type="submit" class="btn-secondary">Use a Different Email</button>
                 </form>
             </div>
-
-            <a href="{{ route('login') }}" class="back-link">&larr; Back to login</a>
         @else
             <h1>Forgot Password</h1>
             <p class="description">
