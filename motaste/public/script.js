@@ -2368,12 +2368,15 @@ async function handleStaffLogin(email, password, role, remember) {
     // future calls re-check against the server.
     staffServerSessionRenewal = null;
 
-    // The page-load fetch of completed orders ran BEFORE this login (when no
-    // server session existed yet), so it skipped the request — without this,
-    // the Overview profit/analytics stay empty until the next manual refresh.
-    // Re-fetch now that the session is live and re-gate the loading overlay on
-    // the refreshed data so the first paint is fully populated.
+    // The page-load fetches ran before this login established the server
+    // session, so they skipped auth-gated requests. Re-fetch the dashboard
+    // data now that the session is live, including inventory, so a fresh
+    // browser login shows the full dashboard without requiring a manual reload.
+    const inventoryLoadPromise = initializeInventoryData(true);
+    const menuLoadPromise = loadCustomMenuData();
     staffInitialDataReady = Promise.allSettled([
+        inventoryLoadPromise,
+        menuLoadPromise,
         loadCompletedOrdersFromServer(true),
         loadPendingOrdersFromServer(),
         loadReviewsFromServer(true)
