@@ -1115,6 +1115,10 @@ function setStaffSessionTokenCookie(?string $token, bool $remember = false): voi
         return;
     }
 
+    // Match the session cookie's secure policy: only mandate Secure on HTTPS.
+    // A hardcoded true would break cookie round-trips on HTTP deployments
+    // (e.g. local dev or a non-TLS staging URL) where the PHP session cookie
+    // still works because it uses the same conditional check.
     $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
     $name = STAFF_SESSION_COOKIE_NAME;
 
@@ -1122,7 +1126,7 @@ function setStaffSessionTokenCookie(?string $token, bool $remember = false): voi
         setcookie($name, '', [
             'expires' => time() - 3600,
             'path' => '/',
-            'secure' => true,
+            'secure' => $secure,
             'httponly' => true,
             'samesite' => 'Strict',
         ]);
@@ -1131,7 +1135,7 @@ function setStaffSessionTokenCookie(?string $token, bool $remember = false): voi
 
     $options = [
         'path' => '/',
-        'secure' => true,
+        'secure' => $secure,
         'httponly' => true,
         'samesite' => 'Strict',
     ];
