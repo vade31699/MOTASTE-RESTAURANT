@@ -18,17 +18,50 @@ const dashboardUserEmail = document.getElementById('dashboardUserEmail');
 const staffForm = document.getElementById('staffLoginForm');
 const staffLoginPage = document.querySelector('.staff-login-page');
 
-// Forgot password modal
+// The portal serves two login surfaces from the same page:
+//   /admin → admin entry point, offers password recovery
+//   /staff → cashier / inventory entry point, never offers recovery
+const isAdminLoginSurface = /\/admin\/?$/.test(window.location.pathname);
 
+// Password recovery is an admin-only option. The link is rendered into the DOM
+// only on the /admin surface, so /staff has no way to start a reset at all.
+function applyLoginSurface() {
+    if (modalTitle) {
+        modalTitle.textContent = isAdminLoginSurface ? 'Admin Login' : 'Staff Login';
+    }
 
-// Forgot password: simple modal-based flow
-const fpLink = document.getElementById('forgotPasswordLink');
-if (fpLink) {
-    fpLink.addEventListener('click', function (e) {
+    if (!isAdminLoginSurface) {
+        return;
+    }
+
+    const fields = document.getElementById('loginFields');
+    if (!fields || document.getElementById('forgotPasswordLink')) {
+        return;
+    }
+
+    const wrap = document.createElement('p');
+    wrap.className = 'forgot-password-link';
+
+    const link = document.createElement('a');
+    link.href = '#';
+    link.id = 'forgotPasswordLink';
+    link.textContent = 'Forgot password?';
+    link.addEventListener('click', function (e) {
         e.preventDefault();
         window.location.href = getApiUrl('forgot-password');
     });
+    wrap.appendChild(link);
+
+    // Match the original layout: directly above the legal links.
+    const legalLinks = fields.querySelector('.staff-legal-links');
+    if (legalLinks) {
+        fields.insertBefore(wrap, legalLinks);
+    } else {
+        fields.appendChild(wrap);
+    }
 }
+
+applyLoginSurface();
 
 if (passwordInput && passwordToggleBtn) {
     passwordToggleBtn.addEventListener('click', () => {
@@ -987,7 +1020,7 @@ function closeModal() {
     }
     roleButtons.forEach((button) => button.classList.remove('active'));
     if (modalTitle) {
-        modalTitle.textContent = 'Staff Login';
+        modalTitle.textContent = isAdminLoginSurface ? 'Admin Login' : 'Staff Login';
     }
 }
 

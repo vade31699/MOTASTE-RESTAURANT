@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Staff;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -53,6 +54,15 @@ class NewPasswordController extends Controller
                 new NotCurrentPassword((string)$request->email),
             ],
         ]);
+
+        // Only the Admin account may be reset through this flow. The token can
+        // only have been issued by the admin-scoped verify step, but re-check
+        // here so a stale token can never be redeemed for a staff account.
+        if (!Staff::isAdminEmail((string) $request->email)) {
+            throw ValidationException::withMessages([
+                'email' => ['We could not find an account with that email address.'],
+            ]);
+        }
 
         // Here we will attempt to reset the user's password. If it is successful we
         // will update the password on an actual user model and persist it to the

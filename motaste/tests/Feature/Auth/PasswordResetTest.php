@@ -45,6 +45,47 @@ function verifyCodeAndGetResetToken(User $user, $test, string $code): string
     return $matches[1];
 }
 
+/**
+ * Create the single Admin account: the users row (the reset store) plus the
+ * matching staff row that marks it as the Admin.
+ */
+function createAdminUser(): User
+{
+    $admin = User::factory()->create();
+
+    DB::table('staff')->insert([
+        'user_id' => $admin->id,
+        'full_name' => 'Admin',
+        'role' => 'Admin',
+        'email' => $admin->email,
+        'password_hash' => $admin->password,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    return $admin;
+}
+
+/**
+ * Create a non-admin staff account (Cashier or Inventory Manager).
+ */
+function createStaffUser(string $role): User
+{
+    $staff = User::factory()->create();
+
+    DB::table('staff')->insert([
+        'user_id' => $staff->id,
+        'full_name' => 'Staff',
+        'role' => $role,
+        'email' => $staff->email,
+        'password_hash' => $staff->password,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    return $staff;
+}
+
 test('reset password screen can be rendered', function () {
     $response = $this->get('/forgot-password');
 
@@ -54,7 +95,7 @@ test('reset password screen can be rendered', function () {
 test('a verification code is emailed before any reset form is shown', function () {
     Mail::fake();
 
-    $user = User::factory()->create();
+    $user = createAdminUser();
 
     $this->post('/forgot-password', ['email' => $user->email])
         ->assertSessionHasNoErrors()
@@ -64,20 +105,110 @@ test('a verification code is emailed before any reset form is shown', function (
     Mail::assertSent(PasswordResetCode::class);
 });
 
-test('requesting a code for an unknown email is rejected', function () {
+test('an unknown email gets the same response as a known one', function () {
     Mail::fake();
 
+    // Identical to a real send: no error and the same pending-code state, so
+    // the response cannot be used to test which addresses exist.
     $this->post('/forgot-password', ['email' => 'nobody@example.com'])
-        ->assertSessionHasErrors('email');
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('password_reset_email', 'nobody@example.com');
+
+    // ...but no code is created and no email is sent.
+    Mail::assertNothingSent();
+});
+
+test('a cashier cannot start a password reset', function () {
+    Mail::fake();
+
+    $cashier = createStaffUser('Cashier');
+
+    $this->post('/forgot-password', ['email' => $cashier->email])
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('password_reset_email', $cashier->email);
 
     expect(session('errors')->get('email'))->toContain('Please try again.');
     Mail::assertNothingSent();
+
+    // The neutral response must not actually let the account through: any code
+    // submitted afterwards is rejected.
+    $this->post('/forgot-password/verify', ['email' => $cashier->email, 'code' => '000000'])
+        ->assertSessionHasErrors('code');
+});
+
+test('an inventory manager cannot start a password reset', function () {
+    Mail::fake();
+
+    $inventory = createStaffUser('Inventory Manager');
+
+    $this->post('/forgot-password', ['email' => $inventory->email])
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('password_reset_email', $inventory->email);
+
+    Mail::assertNothingSent();
+});
+
+test('forgot-password is rate limited per IP', function () {
+    Mail::fake();
+
+    $admin = createAdminUser();
+
+    // The limiter allows five requests per minute per IP.
+    foreach (range(1, 5) as $ignored) {
+        $this->post('/forgot-password', ['email' => $admin->email])
+            ->assertRedirect();
+    }
+
+    // The sixth is refused before the controller runs.
+    $this->post('/forgot-password', ['email' => $admin->email])
+        ->assertStatus(429);
+});
+
+test('forgot-password verify is rate limited per IP', function () {
+    Mail::fake();
+
+    // The limiter allows ten verification attempts per minute per IP.
+    foreach (range(1, 10) as $ignored) {
+        $this->post('/forgot-password/verify', ['email' => 'nobody@example.com', 'code' => '000000'])
+            ->assertSessionHasErrors('code');
+    }
+
+    $this->post('/forgot-password/verify', ['email' => 'nobody@example.com', 'code' => '000000'])
+        ->assertStatus(429);
+});
+
+test('reset-password is rate limited per IP', function () {
+    Mail::fake();
+
+    $payload = [
+        'token' => 'invalid-token',
+        'email' => 'nobody@example.com',
+        'password' => 'New-Str0ng-Passw0rd',
+        'password_confirmation' => 'New-Str0ng-Passw0rd',
+    ];
+
+    // The limiter allows six write attempts per minute per IP. An invalid
+    // token is still rejected, but it counts toward the limit.
+    foreach (range(1, 6) as $ignored) {
+        $this->post('/reset-password', $payload)->assertSessionHasErrors('email');
+    }
+
+    $this->post('/reset-password', $payload)->assertStatus(429);
+});
+
+test('forgot-password cancel is rate limited per IP', function () {
+    // Cancelling only clears session state, but it is still throttled per IP.
+    foreach (range(1, 10) as $ignored) {
+        $this->post('/forgot-password/cancel')->assertRedirect();
+    }
+
+    $this->post('/forgot-password/cancel')->assertStatus(429);
 });
 
 test('the reset form is reached only after the code is verified', function () {
     Mail::fake();
 
-    $user = User::factory()->create();
+    $user = createAdminUser();
 
     $code = requestPasswordResetCode($user, $this);
 
@@ -95,7 +226,7 @@ test('the reset form is reached only after the code is verified', function () {
 test('reset password screen can be rendered with a verified code', function () {
     Mail::fake();
 
-    $user = User::factory()->create();
+    $user = createAdminUser();
 
     $code = requestPasswordResetCode($user, $this);
     $token = verifyCodeAndGetResetToken($user, $this, $code);
@@ -107,7 +238,7 @@ test('reset password screen can be rendered with a verified code', function () {
 test('password can be reset with valid token', function () {
     Mail::fake();
 
-    $user = User::factory()->create();
+    $user = createAdminUser();
 
     $code = requestPasswordResetCode($user, $this);
     $token = verifyCodeAndGetResetToken($user, $this, $code);
@@ -139,7 +270,7 @@ test('password can be reset with valid token', function () {
 test('password cannot be reset to the current password', function () {
     Mail::fake();
 
-    $user = User::factory()->create();
+    $user = createAdminUser();
     $current = 'March031699!';
     $user->forceFill(['password' => Hash::make($current)])->save();
 
@@ -163,20 +294,14 @@ test('password cannot be reset to the current password', function () {
 test('password cannot be reset to the staff portal current password', function () {
     Mail::fake();
 
-    $user = User::factory()->create();
+    $user = createAdminUser();
     $staffCurrent = 'Staff-Current-9';
 
-    // The staff portal keeps its own hash in the staff table, so a reset must
-    // not be allowed to land on that value either.
-    DB::table('staff')->insert([
-        'user_id' => $user->id,
-        'full_name' => 'Test Staff',
-        'role' => 'Cashier',
-        'email' => $user->email,
-        'password_hash' => Hash::make($staffCurrent),
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
+    // The admin's staff portal credential is the same account, so a reset must
+    // not be allowed to land on the portal's current hash either.
+    DB::table('staff')
+        ->whereRaw('LOWER(email) = ?', [$user->email])
+        ->update(['password_hash' => Hash::make($staffCurrent)]);
 
     $code = requestPasswordResetCode($user, $this);
     $token = verifyCodeAndGetResetToken($user, $this, $code);
@@ -250,7 +375,7 @@ test('password cannot be reset to the admin current password', function () {
 test('password reset requires the elevated 12-character policy', function () {
     Mail::fake();
 
-    $user = User::factory()->create();
+    $user = createAdminUser();
 
     $code = requestPasswordResetCode($user, $this);
     $token = verifyCodeAndGetResetToken($user, $this, $code);
@@ -267,7 +392,7 @@ test('password reset requires the elevated 12-character policy', function () {
 test('the verification code is single-use', function () {
     Mail::fake();
 
-    $user = User::factory()->create();
+    $user = createAdminUser();
 
     $code = requestPasswordResetCode($user, $this);
 
@@ -283,7 +408,7 @@ test('the verification code is single-use', function () {
 test('the verification code self-destructs after 3 failed attempts', function () {
     Mail::fake();
 
-    $user = User::factory()->create();
+    $user = createAdminUser();
 
     $code = requestPasswordResetCode($user, $this);
     $wrong = str_pad((string)(((int)$code + 1) % 1000000), 6, '0', STR_PAD_LEFT);

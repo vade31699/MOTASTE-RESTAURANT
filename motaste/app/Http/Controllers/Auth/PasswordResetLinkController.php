@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Mail\PasswordResetCode;
+use App\Models\Staff;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,9 +29,17 @@ class PasswordResetLinkController extends Controller
      */
     public function create(): View
     {
+        $pendingEmail = session('password_reset_email');
+        $isFreshCodeSession = session()->has('codeSent');
+
+        if (!$isFreshCodeSession && !empty($pendingEmail)) {
+            session()->forget('password_reset_email');
+            $pendingEmail = null;
+        }
+
         return view('auth.forgot-password', [
             'status' => session('status'),
-            'pendingEmail' => session('password_reset_email'),
+            'pendingEmail' => $pendingEmail,
         ]);
     }
 
@@ -49,7 +58,14 @@ class PasswordResetLinkController extends Controller
 
         $email = strtolower(trim($request->email));
 
-        if (!DB::table('users')->whereRaw('LOWER(email) = ?', [$email])->exists()) {
+        // Password recovery is admin-only, and the flow must ask for the email
+        // first before any code is sent. Unknown or non-admin addresses get the
+        // same user-facing "Please try again." message rather than revealing a
+        // valid account.
+        $isAdminAccount = Staff::isAdminEmail($email)
+            && DB::table('users')->whereRaw('LOWER(email) = ?', [$email])->exists();
+
+        if (!$isAdminAccount) {
             throw ValidationException::withMessages([
                 'email' => ['Please try again.'],
             ]);
@@ -113,9 +129,9 @@ class PasswordResetLinkController extends Controller
         // Code confirmed — create a reset token and go straight to the form.
         $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
 
-        if (!$user) {
+        if (!$user || !Staff::isAdminEmail($email)) {
             throw ValidationException::withMessages([
-                'email' => ['We could not find an account with that email address.'],
+                'email' => ['Please try again.'],
             ]);
         }
 
