@@ -1297,6 +1297,34 @@ function revokeStaffSessionToken(?string $token): void
 }
 
 /**
+ * Rotate a staff account's session token after a renewal or security event.
+ * Any stale tokens are revoked, and a single fresh replacement is issued so the
+ * current browser keeps a valid authenticated session instead of being locked out
+ * immediately after the renewal request.
+ */
+function rotateStaffSessionToken(string $email, string $role, ?string $currentToken = null): string
+{
+    ensureStaffSessionTokenTable();
+
+    $normalizedEmail = strtolower(trim((string)$email));
+    $normalizedRole = trim((string)$role);
+
+    if ($currentToken !== null && trim((string)$currentToken) !== '') {
+        revokeStaffSessionToken($currentToken);
+    }
+
+    try {
+        DB::table('staff_session_tokens')
+            ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
+            ->delete();
+    } catch (Throwable $error) {
+        error_log('rotateStaffSessionToken cleanup failed: ' . $error->getMessage());
+    }
+
+    return issueStaffSessionToken($normalizedEmail, $normalizedRole);
+}
+
+/**
  * Revoke every live session for an account (used after a password/email change).
  */
 function revokeAllStaffSessionTokens(string $email): void

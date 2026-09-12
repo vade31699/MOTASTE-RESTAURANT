@@ -51,35 +51,37 @@ if (!$staffRow || strtolower(trim((string)$staffRow->role)) !== strtolower(trim(
         'authRequired' => true,
     ]);
     exit;
-}    // Revoke every previously issued bearer token for this account so an old
-    // cookie cannot be replayed after renewal (session fixation / token reuse).
-    revokeAllStaffSessionTokens($identity['email']);
+}
 
-    // Re-establish the PHP-native session so staff-only endpoints recognize the user.
-    ensureStaffAuthSession();
+// Rotate the account's staff bearer token so the renewal does not leave the
+// browser pointing at a token that was just invalidated. This keeps the
+// current session valid for the next staff-only request while still preventing
+// stale tokens from being replayed.
+$freshToken = rotateStaffSessionToken($identity['email'], $identity['role'], $token);
 
-    // Regenerate the session ID so the old PHP session cannot be reused.
-    session_regenerate_id(true);
+// Re-establish the PHP-native session so staff-only endpoints recognize the user.
+ensureStaffAuthSession();
+
+// Regenerate the session ID so the old PHP session cannot be reused.
+session_regenerate_id(true);
 
 $_SESSION['staff'] = [
     'role' => $identity['role'],
     'email' => $identity['email'],
     'name' => trim((string)($staffRow->full_name ?? '')),
     'logged_in_at' => now()->toDateTimeString(),
-];    $freshCsrf = function_exists('getOrCreateCsrfToken') ? getOrCreateCsrfToken() : '';
+];
 
-    // Make the CURRENT request see the newly issued bearer token. See the same
-    // note in verify_device_login.php — setcookie() only takes effect on the
-    // next request, but the caller may immediately hit a staff-gated endpoint
-    // that requires the bearer token to match the (rehydrated) session.
-    if (isset($_COOKIE[STAFF_SESSION_COOKIE_NAME]) === false) {
-        $_COOKIE[STAFF_SESSION_COOKIE_NAME] = $token;
-    }
+$freshCsrf = function_exists('getOrCreateCsrfToken') ? getOrCreateCsrfToken() : '';
+setStaffSessionTokenCookie($freshToken, true);
 
-    echo json_encode([
-        'success' => true,
-        'role' => $identity['role'],
-        'email' => $identity['email'],
-        'name' => trim((string)($staffRow->full_name ?? '')),
-        'csrfToken' => $freshCsrf,
-    ]);
+// Make the CURRENT request see the freshly rotated bearer token too.
+$_COOKIE[STAFF_SESSION_COOKIE_NAME] = $freshToken;
+
+echo json_encode([
+    'success' => true,
+    'role' => $identity['role'],
+    'email' => $identity['email'],
+    'name' => trim((string)($staffRow->full_name ?? '')),
+    'csrfToken' => $freshCsrf,
+]);

@@ -208,6 +208,22 @@ test('staff session tokens can be issued, resolved, and revoked', function () {
     expect(resolveStaffSessionToken($token))->toBeNull();
 });
 
+test('rotating a staff session keeps a valid replacement token available', function () {
+    bootTestApp();
+
+    $email = 'rotate-token-test@example.com';
+    DB::table('staff_session_tokens')->where('email', $email)->delete();
+
+    $oldToken = issueStaffSessionToken($email, 'Cashier');
+    $replacement = rotateStaffSessionToken($email, 'Cashier', $oldToken);
+
+    expect($replacement)->not->toBe($oldToken);
+    expect(resolveStaffSessionToken($replacement)['email'])->toBe($email);
+    expect(resolveStaffSessionToken($oldToken))->toBeNull();
+
+    DB::table('staff_session_tokens')->where('email', $email)->delete();
+});
+
 test('revoking all tokens ends every session for the account', function () {
     bootTestApp();
 
