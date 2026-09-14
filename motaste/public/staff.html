@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./style.css?v=20260915l">
+    <link rel="stylesheet" href="./style.css?v=20260915n">
     <title>Login - MOTASTE</title>
     <style>
         html,
@@ -890,6 +890,40 @@
             <button type="button" id="closeAdminEditPanelBtn" class="secondary-btn" style="margin-top: 14px;">Cancel</button>
             <p id="credentialsMessage" class="menu-order-message" aria-live="polite"></p>
         </div>
+
+        <div id="staffEditPanel" hidden>
+            <h3>Edit Staff Account</h3>
+            <p>Update the name, role, Gmail, or password for this account. Password changes apply immediately.</p>
+
+            <form id="staffEditForm" class="account-form">
+                <div class="floating-field">
+                    <input type="text" id="staffEditName" placeholder=" " autocomplete="off">
+                    <label for="staffEditName">Full Name</label>
+                </div>
+                <div class="floating-field">
+                    <select id="staffEditRole">
+                        <option value="Cashier">Cashier</option>
+                        <option value="Inventory Manager">Inventory Manager</option>
+                    </select>
+                    <label for="staffEditRole">Role</label>
+                </div>
+                <div class="floating-field">
+                    <input type="email" id="staffEditEmail" placeholder=" " autocomplete="off">
+                    <label for="staffEditEmail">Gmail</label>
+                </div>
+                <div class="floating-field">
+                    <input type="password" id="staffEditPassword" placeholder=" " minlength="8" autocomplete="new-password">
+                    <label for="staffEditPassword">Password</label>
+                    <small class="field-helper">Use 8+ characters with uppercase, lowercase, and a number.</small>
+                </div>
+                <div class="floating-field">
+                    <input type="password" id="staffEditPasswordConfirmation" placeholder=" " minlength="8" autocomplete="new-password">
+                    <label for="staffEditPasswordConfirmation">Confirm password</label>
+                </div>
+                <button type="submit">Save Changes</button>
+                <button type="button" id="closeStaffEditPanelBtn" class="secondary-btn">Cancel</button>
+            </form>
+        </div>
     </section>
 
     <section id="login-logs" class="account-management" hidden>
@@ -1104,6 +1138,6 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
-    <script src="./script.js?v=20260915g" defer></script>
+    <script src="./script.js?v=20260915h" defer></script>
 </body>
 </html>

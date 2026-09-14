@@ -364,45 +364,6 @@ body.dashboard-panel-open .menu-btn {
     color: #111;
 }
 
-.account-inline-editor {
-    width: 100%;
-    display: grid;
-    grid-template-columns: minmax(120px, 1.2fr) minmax(140px, 1fr) minmax(170px, 1.5fr) minmax(120px, 1fr) auto;
-    gap: 8px;
-    align-items: center;
-}
-
-.account-inline-editor input,
-.account-inline-editor select {
-    width: 100%;
-    padding: 8px 10px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    box-sizing: border-box;
-}
-
-.account-inline-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.account-inline-actions button {
-    padding: 8px 10px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-.account-inline-actions .save-btn {
-    background: #111;
-    color: #fff;
-}
-
-.account-inline-actions .cancel-btn {
-    background: #f3f3f3;
-    color: #111;
-}
-
 .account-list {
     list-style: none;
     padding: 0;
@@ -9371,32 +9332,6 @@ body.staff-app .account-list span {
     color: var(--staff-text);
 }
 
-body.staff-app .account-inline-editor input,
-body.staff-app .account-inline-editor select {
-    background: var(--staff-surface-2);
-    border: 1px solid var(--staff-border);
-    color: var(--staff-text);
-}
-
-body.staff-app .account-inline-editor input:focus,
-body.staff-app .account-inline-editor select:focus {
-    border-color: var(--staff-accent);
-    box-shadow: 0 0 0 3px rgba(43, 174, 102, 0.18);
-    outline: none;
-}
-
-body.staff-app .account-inline-actions .save-btn {
-    background: var(--staff-accent);
-    color: #fff;
-    border: none;
-}
-
-body.staff-app .account-inline-actions .cancel-btn {
-    background: var(--staff-surface-2);
-    color: var(--staff-text);
-    border: 1px solid var(--staff-border);
-}
-
 body.staff-app .account-list .edit-btn {
     background: var(--staff-accent-soft);
     color: var(--staff-accent-strong);
@@ -9432,12 +9367,28 @@ body.staff-app .account-list li.account-row-admin {
 
 /* Admin edit panel: same card language as the account rows, revealed only
    while the admin account is being edited from the list. */
-body.staff-app #adminCredentialSettings {
+body.staff-app #adminCredentialSettings,
+body.staff-app #staffEditPanel {
     margin-top: 14px;
-    padding: 14px;
+    padding: 16px;
     background: var(--staff-surface-2);
     border: 1px solid var(--staff-border);
     border-radius: 12px;
+    box-shadow: var(--staff-shadow-sm);
+}
+
+body.staff-app #adminCredentialSettings h3,
+body.staff-app #staffEditPanel h3 {
+    margin: 0 0 4px;
+    color: var(--staff-text);
+    font-size: 1.05rem;
+}
+
+body.staff-app #adminCredentialSettings > p,
+body.staff-app #staffEditPanel > p {
+    margin: 0 0 12px;
+    color: var(--staff-muted);
+    font-size: 0.85rem;
 }
 
 /* ---------- Credentials: floating labels + helper text ---------- */
@@ -9483,6 +9434,34 @@ body.staff-app .floating-field label {
 
 body.staff-app .floating-field input:focus + label,
 body.staff-app .floating-field input:not(:placeholder-shown) + label {
+    top: 10px;
+    transform: none;
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--staff-accent-2);
+}
+
+body.staff-app .floating-field select {
+    width: 100%;
+    padding: 24px 14px 10px;
+    background: var(--staff-surface-2);
+    border: 1px solid var(--staff-border);
+    border-radius: 12px;
+    color: var(--staff-text);
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+body.staff-app .floating-field select:focus {
+    border-color: var(--staff-accent);
+    box-shadow: 0 0 0 3px rgba(43, 174, 102, 0.18);
+    outline: none;
+}
+
+/* A select always holds a value, so its label stays floated instead of
+   resting over the selection text. */
+body.staff-app .floating-field select + label {
     top: 10px;
     transform: none;
     font-size: 0.66rem;

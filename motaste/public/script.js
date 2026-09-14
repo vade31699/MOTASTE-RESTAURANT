@@ -3338,49 +3338,37 @@ const adminPasswordChangeCodeInput = document.getElementById('adminPasswordChang
 const requestCredentialsChangeBtn = document.getElementById('requestCredentialsChangeBtn');
 const requestPasswordChangeBtn = document.getElementById('requestPasswordChangeBtn');
 const credentialsMessage = document.getElementById('credentialsMessage');
+const staffEditPanel = document.getElementById('staffEditPanel');
+const staffEditForm = document.getElementById('staffEditForm');
+const staffEditNameInput = document.getElementById('staffEditName');
+const staffEditRoleInput = document.getElementById('staffEditRole');
+const staffEditEmailInput = document.getElementById('staffEditEmail');
+const staffEditPasswordInput = document.getElementById('staffEditPassword');
+const staffEditPasswordConfirmationInput = document.getElementById('staffEditPasswordConfirmation');
+const closeStaffEditPanelBtn = document.getElementById('closeStaffEditPanelBtn');
 let accountEditIndex = null;
+let staffEditIndex = null;
 
 function renderAccounts() {
     if (!accountList) return;
 
     accountList.innerHTML = '';
 
-    const managedAccounts = accounts.map((account, index) => ({ ...account, _index: index }));
-
-    managedAccounts.forEach((account) => {
+    accounts.forEach((account, index) => {
         const item = document.createElement('li');
         const isAdmin = account.role === 'Admin';
         const inviteLabel = account.inviteConfirmed ? 'Confirmed' : 'Pending Email Confirmation';
 
-        if (!isAdmin && accountEditIndex === account._index) {
-            item.innerHTML = `
-                <div class="account-inline-editor">
-                    <input type="text" value="${escapeHtml(account.name)}" data-field="name" aria-label="Staff name">
-                    <select data-field="role" aria-label="Staff role">
-                        <option value="Cashier" ${account.role === 'Cashier' ? 'selected' : ''}>Cashier</option>
-                        <option value="Inventory Manager" ${account.role === 'Inventory Manager' ? 'selected' : ''}>Inventory Manager</option>
-                    </select>
-                    <input type="email" value="${escapeHtml(account.email)}" data-field="email" aria-label="Staff email">
-                    <input type="password" value="${escapeHtml(account.password)}" data-field="password" aria-label="Staff password">
-                    <input type="password" value="" data-field="password_confirmation" placeholder="Confirm password" aria-label="Confirm staff password">
-                    <div class="account-inline-actions">
-                        <button type="button" class="save-btn" data-index="${account._index}">Save</button>
-                        <button type="button" class="cancel-btn" data-index="${account._index}">Cancel</button>
-                    </div>
-                </div>
-            `;
-        } else {
-            item.classList.toggle('account-row-admin', isAdmin);
-            item.innerHTML = `
-                <span>
-                    ${isAdmin ? '<span class="account-role-tag">Admin</span> ' : ''}${escapeHtml(account.name)} — ${escapeHtml(account.role)} — ${escapeHtml(account.email)} — ${escapeHtml(inviteLabel)}
-                </span>
-                <div>
-                    <button type="button" class="edit-btn" data-index="${account._index}">Edit</button>
-                    ${isAdmin ? '' : `<button type="button" class="delete-btn" data-index="${account._index}">Delete</button>`}
-                </div>
-            `;
-        }
+        item.classList.toggle('account-row-admin', isAdmin);
+        item.innerHTML = `
+            <span>
+                ${isAdmin ? '<span class="account-role-tag">Admin</span> ' : ''}${escapeHtml(account.name)} — ${escapeHtml(account.role)} — ${escapeHtml(account.email)} — ${escapeHtml(inviteLabel)}
+            </span>
+            <div>
+                <button type="button" class="edit-btn" data-index="${index}">Edit</button>
+                ${isAdmin ? '' : `<button type="button" class="delete-btn" data-index="${index}">Delete</button>`}
+            </div>
+        `;
 
         accountList.appendChild(item);
     });
@@ -3407,9 +3395,12 @@ function toggleAccountForm(showForm) {
 function closeAdminEditPanel() {
     const adminPanel = document.getElementById('adminCredentialSettings');
     if (adminPanel) adminPanel.hidden = true;
+    const editPanel = document.getElementById('staffEditPanel');
+    if (editPanel) editPanel.hidden = true;
     if (credentialsForm) credentialsForm.hidden = true;
     if (passwordCredentialsForm) passwordCredentialsForm.hidden = true;
     accountEditIndex = null;
+    staffEditIndex = null;
 }
 
 function setCredentialsMessage(message, isError = false) {
@@ -5762,79 +5753,6 @@ if (accountList) {
 
         const index = Number(button.dataset.index);
 
-        if (button.classList.contains('cancel-btn')) {
-            accountEditIndex = null;
-            renderAccounts();
-            return;
-        }
-
-        if (button.classList.contains('save-btn')) {
-            const row = button.closest('.account-inline-editor');
-            if (!row || Number.isNaN(index)) return;
-
-            const updatedAccount = {
-                name: (row.querySelector('[data-field="name"]')?.value || '').trim(),
-                role: row.querySelector('[data-field="role"]')?.value || '',
-                email: (row.querySelector('[data-field="email"]')?.value || '').trim().toLowerCase(),
-                password: row.querySelector('[data-field="password"]')?.value || '',
-                password_confirmation: row.querySelector('[data-field="password_confirmation"]')?.value || '',
-                inviteConfirmed: false
-            };
-
-            if (!updatedAccount.name || !updatedAccount.role || !updatedAccount.email || !updatedAccount.password) {
-                await showStaffNotice('Please complete all staff account fields.', true);
-                return;
-            }
-
-            if (updatedAccount.password !== updatedAccount.password_confirmation) {
-                await showStaffNotice('Password confirmation does not match.', true);
-                return;
-            }
-
-            if (updatedAccount.role !== 'Cashier' && updatedAccount.role !== 'Inventory Manager') {
-                await showStaffNotice('Only Cashier and Inventory Manager accounts can be managed here.', true);
-                return;
-            }
-
-            if (!isGmailAddress(updatedAccount.email)) {
-                await showStaffNotice('Only Gmail addresses are allowed for cashier/inventory accounts.', true);
-                return;
-            }
-
-            const duplicateIndex = accounts.findIndex((entry, idx) => idx !== index && (entry.email || '').toLowerCase() === updatedAccount.email);
-            if (duplicateIndex >= 0) {
-                await showStaffNotice('This email is already registered.', true);
-                return;
-            }
-
-            const previousAccount = accounts[index];
-            updatedAccount.inviteConfirmed = previousAccount ? previousAccount.inviteConfirmed : false;
-
-            accounts[index] = updatedAccount;
-            void logStaffActivity('account_updated', `${updatedAccount.name} (${updatedAccount.role})`, {
-                previous_name: previousAccount ? previousAccount.name : null,
-                previous_role: previousAccount ? previousAccount.role : null,
-                previous_email: previousAccount ? previousAccount.email : null,
-                password_changed: previousAccount ? previousAccount.password !== updatedAccount.password : false,
-                invite_confirmation_reset: true,
-                next_name: updatedAccount.name,
-                next_role: updatedAccount.role,
-                next_email: updatedAccount.email
-            });
-
-            window.motasteStaffAccounts = accounts;
-            const syncResult = await saveStaffAccountsToServer();
-            if (!syncResult.success) {
-                await showStaffNotice(`Unable to save staff account to the server. ${syncResult.error || 'Please try again or contact support.'}`, true);
-                return;
-            }
-
-            accountEditIndex = null;
-            renderAccounts();
-            await showStaffNotice('Staff account updated successfully.');
-            return;
-        }
-
         if (button.classList.contains('delete-btn')) {
             const removedAccount = accounts[index];
             if (removedAccount && removedAccount.role === 'Admin') {
@@ -5882,28 +5800,131 @@ if (accountList) {
 
         if (button.classList.contains('edit-btn')) {
             const selectedAccount = accounts[index];
-            if (selectedAccount) {
-                accountEditIndex = index;
-                if (accountForm) {
-                    accountForm.hidden = true;
-                }
-                // Editing the admin opens the admin change-email/password panel
-                // in the same section instead of a separate Credentials area.
-                const adminPanel = document.getElementById('adminCredentialSettings');
-                if (adminPanel) {
-                    adminPanel.hidden = selectedAccount.role !== 'Admin';
-                }
-                if (selectedAccount.role === 'Admin') {
-                    if (credentialsForm) credentialsForm.hidden = true;
-                    if (passwordCredentialsForm) passwordCredentialsForm.hidden = true;
-                    void loadAdminCredentials();
+            if (!selectedAccount) return;
+
+            if (accountForm) {
+                accountForm.hidden = true;
+            }
+
+            // Editing an account opens its panel in the same section: the admin
+            // panel for the main admin, the staff panel for cashier/inventory.
+            const adminPanel = document.getElementById('adminCredentialSettings');
+            if (adminPanel) adminPanel.hidden = true;
+            if (staffEditPanel) staffEditPanel.hidden = true;
+
+            if (selectedAccount.role === 'Admin') {
+                if (credentialsForm) credentialsForm.hidden = true;
+                if (passwordCredentialsForm) passwordCredentialsForm.hidden = true;
+                if (adminPanel) adminPanel.hidden = false;
+                void loadAdminCredentials();
+                window.setTimeout(() => {
+                    if (adminPanel) adminPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 50);
+            } else {
+                staffEditIndex = index;
+                if (staffEditPanel) {
+                    if (staffEditNameInput) staffEditNameInput.value = selectedAccount.name || '';
+                    if (staffEditRoleInput) staffEditRoleInput.value = selectedAccount.role || 'Cashier';
+                    if (staffEditEmailInput) staffEditEmailInput.value = selectedAccount.email || '';
+                    if (staffEditPasswordInput) staffEditPasswordInput.value = selectedAccount.password || '';
+                    if (staffEditPasswordConfirmationInput) staffEditPasswordConfirmationInput.value = '';
+                    const panelHeading = staffEditPanel.querySelector('h3');
+                    if (panelHeading) panelHeading.textContent = `Edit ${selectedAccount.role || 'Staff'} Account`;
+                    staffEditPanel.hidden = false;
+                    if (staffEditNameInput) staffEditNameInput.focus();
                     window.setTimeout(() => {
-                        if (adminPanel) adminPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        staffEditPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }, 50);
                 }
-                renderAccounts();
             }
+            renderAccounts();
         }
+    });
+}
+
+if (staffEditForm) {
+    staffEditForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        if (!document.body.classList.contains('auth') || !(selectedRoleInput && selectedRoleInput.value === 'Admin')) {
+            await showStaffNotice('Only the admin can manage accounts.', true);
+            return;
+        }
+
+        if (staffEditIndex === null) {
+            closeAdminEditPanel();
+            renderAccounts();
+            return;
+        }
+
+        const index = staffEditIndex;
+        const updatedAccount = {
+            name: staffEditNameInput ? staffEditNameInput.value.trim() : '',
+            role: staffEditRoleInput ? staffEditRoleInput.value : '',
+            email: staffEditEmailInput ? staffEditEmailInput.value.trim().toLowerCase() : '',
+            password: staffEditPasswordInput ? staffEditPasswordInput.value : '',
+            password_confirmation: staffEditPasswordConfirmationInput ? staffEditPasswordConfirmationInput.value : '',
+            inviteConfirmed: false
+        };
+
+        if (!updatedAccount.name || !updatedAccount.role || !updatedAccount.email || !updatedAccount.password) {
+            await showStaffNotice('Please complete all account fields.', true);
+            return;
+        }
+
+        if (updatedAccount.password !== updatedAccount.password_confirmation) {
+            await showStaffNotice('Password confirmation does not match.', true);
+            return;
+        }
+
+        if (updatedAccount.role !== 'Cashier' && updatedAccount.role !== 'Inventory Manager') {
+            await showStaffNotice('Only Cashier and Inventory Manager accounts can be managed here.', true);
+            return;
+        }
+
+        if (!isGmailAddress(updatedAccount.email)) {
+            await showStaffNotice('Only Gmail addresses are allowed for these accounts.', true);
+            return;
+        }
+
+        const duplicateIndex = accounts.findIndex((entry, idx) => idx !== index && (entry.email || '').toLowerCase() === updatedAccount.email);
+        if (duplicateIndex >= 0) {
+            await showStaffNotice('This email is already registered.', true);
+            return;
+        }
+
+        const previousAccount = accounts[index] || null;
+        updatedAccount.inviteConfirmed = previousAccount ? previousAccount.inviteConfirmed : false;
+
+        accounts[index] = updatedAccount;
+        void logStaffActivity('account_updated', `${updatedAccount.name} (${updatedAccount.role})`, {
+            previous_name: previousAccount ? previousAccount.name : null,
+            previous_role: previousAccount ? previousAccount.role : null,
+            previous_email: previousAccount ? previousAccount.email : null,
+            password_changed: previousAccount ? previousAccount.password !== updatedAccount.password : false,
+            invite_confirmation_reset: true,
+            next_name: updatedAccount.name,
+            next_role: updatedAccount.role,
+            next_email: updatedAccount.email
+        });
+
+        window.motasteStaffAccounts = accounts;
+        const syncResult = await saveStaffAccountsToServer();
+        if (!syncResult.success) {
+            await showStaffNotice(`Unable to save staff account to the server. ${syncResult.error || 'Please try again or contact support.'}`, true);
+            return;
+        }
+
+        closeAdminEditPanel();
+        renderAccounts();
+        await showStaffNotice('Staff account updated successfully.');
+    });
+}
+
+if (closeStaffEditPanelBtn) {
+    closeStaffEditPanelBtn.addEventListener('click', () => {
+        closeAdminEditPanel();
+        renderAccounts();
     });
 }
 
