@@ -13176,6 +13176,9 @@ if (paymentMethodOptions) {
         if (button.disabled) return;
         selectedPaymentMethod = button.dataset.payment || 'Cash';
         selectCheckoutOption(paymentMethodOptions, 'payment', selectedPaymentMethod);
+
+        // First time COD becomes the active payment method, explain what it is.
+        maybeShowCodReminderOnce();
     });
 }
 
@@ -13187,7 +13190,238 @@ if (orderTypeOptions) {
         selectCheckoutOption(orderTypeOptions, 'order', selectedOrderType);
         syncDeliveryAddressFieldVisibility();
         syncPaymentMethodOptions();
+
+        // First time a customer picks SakayKo, show the "you book the ride"
+        // reminder automatically (once per browser) so they are not left to
+        // discover it behind the marker on their own.
+        if (isSakayKoOrderType(selectedOrderType)) {
+            showSakaykoReminderOnce();
+        }
+
+        // Picking SakayKo also switches the payment method to Cash On Delivery
+        // (the COD button is revealed, auto-selected and locked), so its note is
+        // requested here too — it queues behind the reminder above.
+        maybeShowCodReminderOnce();
     });
+}
+
+/* ---- Checkout option info reminders (SakayKo rider, Cash On Delivery) ----
+ *
+ * One implementation serves every option-info marker. The marker lives inside
+ * its option button while the bubble is a sibling of the option buttons (see
+ * home.html / style.css), so the reveal is driven from here: hovering/focusing
+ * the marker opens it on demand, selecting the option never opens it, and the
+ * first time the option is chosen the bubble opens itself once per browser.
+ */
+
+// How long an automatic first-time reminder stays up before it closes itself.
+// Hovering the marker keeps it open on demand at any time afterwards.
+const CHECKOUT_REMINDER_AUTO_HIDE_MS = 8000;
+
+// Only ONE automatic reminder is shown at a time. The payment-method row sits
+// directly above the order-type row, so their bubbles occupy the same space —
+// selecting SakayKo requests both, and stacking them would cover each other.
+// The second one waits for the first to close.
+let activeAutoReminder = null;
+let queuedAutoReminder = null;
+
+/**
+ * Wire one option-info marker and its reminder bubble.
+ *
+ * @param {object} config
+ * @param {Element} config.container      The .checkout-options row holding both.
+ * @param {string} config.optionSelector  Selector for the option button it belongs to.
+ * @param {string} config.seenKey         localStorage key for "already shown once".
+ * @param {Function} config.stillApplies  Whether the note is still relevant (checked
+ *                                        again if it has to wait its turn in the queue).
+ */
+function createCheckoutInfoReminder(config) {
+    const container = config.container || null;
+    const tip = container ? container.querySelector('.checkout-info-tip') : null;
+    const tooltip = container ? container.querySelector('.checkout-info-tooltip') : null;
+    const optionButton = container && config.optionSelector
+        ? container.querySelector(config.optionSelector)
+        : null;
+
+    let autoHideTimer = null;
+    // Fallback for when localStorage is unavailable (private mode, storage
+    // disabled): the reminder still shows once per page view rather than never.
+    let seenInMemory = false;
+
+    const reminder = {};
+
+    const isOpen = () => Boolean(tooltip && tooltip.classList.contains('is-open'));
+
+    function clearAutoHideTimer() {
+        if (autoHideTimer) {
+            window.clearTimeout(autoHideTimer);
+            autoHideTimer = null;
+        }
+    }
+
+    function hide() {
+        if (!isOpen()) return;
+
+        clearAutoHideTimer();
+        tooltip.classList.remove('is-open');
+        tooltip.classList.remove('is-below');
+
+        // Hand the stage to a reminder that was waiting behind this one.
+        if (activeAutoReminder === reminder) {
+            activeAutoReminder = null;
+
+            const next = queuedAutoReminder;
+            queuedAutoReminder = null;
+            if (next && next.stillApplies()) {
+                // Let this bubble finish fading before the next one opens.
+                window.setTimeout(() => next.showAutomatically(), 300);
+            }
+        }
+    }
+
+    function show(autoHideMs = 0) {
+        if (!tooltip) return;
+
+        clearAutoHideTimer();
+        tooltip.classList.add('is-open');
+
+        // The bubble opens above its row, which the checkout screen's scroll box
+        // clips at its top edge. When there is not enough room above (the row is
+        // scrolled to the top), flip it below the row instead of leaving a
+        // reminder the customer cannot see.
+        const scrollBox = container ? container.closest('.order-checkout-screen') : null;
+        const bounds = (scrollBox || document.documentElement).getBoundingClientRect();
+        const bubble = tooltip.getBoundingClientRect();
+        tooltip.classList.toggle('is-below', bubble.top < bounds.top);
+
+        if (autoHideMs > 0) {
+            autoHideTimer = window.setTimeout(hide, autoHideMs);
+        }
+    }
+
+    function hasBeenSeen() {
+        if (seenInMemory) return true;
+
+        try {
+            return window.localStorage.getItem(config.seenKey) === '1';
+        } catch (error) {
+            return false;
+        }
+    }
+
+    /** Marked when the bubble actually appears, so a queued note that never got
+     *  its turn (the customer switched options) can still show up later. */
+    function markSeen() {
+        seenInMemory = true;
+
+        try {
+            window.localStorage.setItem(config.seenKey, '1');
+        } catch (error) {
+            // Best effort — the in-memory flag already covers this page view.
+        }
+    }
+
+    reminder.isAvailable = () => Boolean(tip && tooltip);
+    reminder.isOpen = () => isOpen();
+    reminder.stillApplies = () => (typeof config.stillApplies === 'function' ? Boolean(config.stillApplies()) : true);
+    reminder.showOnDemand = () => show();
+    reminder.hide = hide;
+
+    reminder.showAutomatically = () => {
+        if (!tooltip) return;
+        if (!reminder.stillApplies()) return;
+
+        markSeen();
+        activeAutoReminder = reminder;
+        show(CHECKOUT_REMINDER_AUTO_HIDE_MS);
+    };
+
+    /**
+     * Request the automatic reminder. Shows immediately when nothing else is
+     * on screen, otherwise it waits for the current reminder to close.
+     */
+    reminder.requestOnce = () => {
+        if (!reminder.isAvailable()) return;
+        if (hasBeenSeen()) return;
+        if (!reminder.stillApplies()) return;
+
+        if (activeAutoReminder && activeAutoReminder !== reminder) {
+            queuedAutoReminder = reminder;
+            return;
+        }
+
+        reminder.showAutomatically();
+    };
+
+    if (tip && tooltip) {
+        tip.addEventListener('mouseenter', () => show());
+        tip.addEventListener('mouseleave', hide);
+        tip.addEventListener('focus', () => show());
+        tip.addEventListener('blur', hide);
+
+        // The marker sits inside the option button, so a click would otherwise
+        // read as "customer chose this option" just because they asked what it
+        // means. Stop the click there and focus the marker instead: focusing it
+        // is what opens the reminder, and it is the touch-device stand-in for
+        // hovering.
+        tip.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            tip.focus();
+        });
+
+        // Touch devices do not always blur on an outside tap, so close
+        // explicitly. The marker's own click never reaches here (it stops
+        // propagation above), and neither does the click that selects this
+        // option — that click is what opens the first-time reminder, so it must
+        // not close it again.
+        document.addEventListener('click', (event) => {
+            const target = event.target;
+            if (target === tip) return;
+            if (target && typeof target.closest === 'function'
+                && target.closest('.checkout-option-btn') === optionButton) return;
+            hide();
+        });
+    }
+
+    return reminder;
+}
+
+const sakaykoReminder = createCheckoutInfoReminder({
+    container: orderTypeOptions,
+    optionSelector: `.checkout-option-btn[data-order="${SAKAYKO_ORDER_TYPE}"]`,
+    seenKey: 'motasteSakaykoReminderSeen',
+    stillApplies: () => isSakayKoOrderType(selectedOrderType),
+});
+
+/**
+ * Show the SakayKo reminder automatically, but only the first time this browser
+ * has SakayKo selected. Marked as seen when it is shown (not when it closes), so
+ * a reload mid-reminder does not repeat it.
+ */
+function showSakaykoReminderOnce() {
+    sakaykoReminder.requestOnce();
+}
+
+const codReminder = createCheckoutInfoReminder({
+    container: paymentMethodOptions,
+    optionSelector: '.checkout-option-btn[data-payment="Cash On Delivery"]',
+    seenKey: 'motasteCodReminderSeen',
+    stillApplies: () => isCodPaymentMethod(selectedPaymentMethod),
+});
+
+function isCodPaymentMethod(method) {
+    return String(method || '').trim().toLowerCase() === 'cash on delivery';
+}
+
+/**
+ * Cash On Delivery is revealed, auto-selected and locked as soon as SakayKo is
+ * the order type, so this fires on that switch as well as on a direct COD click.
+ */
+function maybeShowCodReminderOnce() {
+    if (!isCodPaymentMethod(selectedPaymentMethod)) return;
+
+    codReminder.requestOnce();
 }
 
 if (dashboardPanel) {

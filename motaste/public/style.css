@@ -2831,6 +2831,8 @@ body.modal-open {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    /* Anchors the option info bubble below (see .checkout-info-tooltip). */
+    position: relative;
 }
 .checkout-option-btn {
     border: 1px solid #111;
@@ -2855,38 +2857,42 @@ body.modal-open {
     background: #111;
     color: #fff;
 }
+/* Inline info marker, rendered inside the SakayKo Rider Pick-up button.
+   Deliberately a <span> and not a <button> — a button cannot be nested in a
+   button. It borrows the option's text colour (color: inherit), so the circle
+   reads dark on a white option and white once the option is selected/hovered
+   (dark or brand-orange background) without any theme-specific override. */
 .checkout-info-tip {
-    position: relative;
-    align-self: center;
-    flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    border: 1px solid #111;
-    border-radius: 50%;
-    background: #fff;
-    color: #111;
-    font-size: 0.72rem;
+    flex: 0 0 auto;
+    margin-left: 6px;
+    color: inherit;
+    font-size: 0.8em;
     line-height: 1;
+    vertical-align: middle;
     cursor: help;
-    transition: background 0.2s ease, color 0.2s ease;
+    transition: opacity 0.2s ease, transform 0.2s ease;
 }
 .checkout-info-tip:hover,
 .checkout-info-tip:focus {
-    background: #111;
-    color: #fff;
+    opacity: 0.75;
+    transform: scale(1.1);
     outline: none;
 }
+
+/* The reminder bubble. It is a SIBLING of the option buttons (not a child of
+   the option) because Safari can clip absolutely positioned children of a
+   <button>. script.js adds .is-open while the marker is hovered or focused, so
+   the reminder shows for the marker only — never for the option itself. */
 .checkout-info-tooltip {
     position: absolute;
     bottom: calc(100% + 10px);
-    left: 50%;
-    transform: translateX(-50%) translateY(4px);
+    right: 0;
+    transform: translateY(4px);
     width: max-content;
-    max-width: min(260px, calc(100vw - 64px));
+    max-width: min(16rem, calc(100vw - 80px));
     background: #111;
     color: #fff;
     font-size: 0.75rem;
@@ -2903,21 +2909,24 @@ body.modal-open {
     transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
     z-index: 6;
 }
-.checkout-info-tip:hover .checkout-info-tooltip,
-.checkout-info-tip:focus .checkout-info-tooltip {
+.checkout-info-tooltip.is-below {
+    /* Flipped under the options row by script.js when the bubble would be cut
+       off above the checkout scroll container. */
+    bottom: auto;
+    top: calc(100% + 10px);
+    transform: translateY(-4px);
+}
+.checkout-info-tooltip.is-open {
     opacity: 1;
     visibility: visible;
-    transform: translateX(-50%) translateY(0);
+    transform: translateY(0);
 }
-body.site-home .checkout-info-tip {
-    border-color: #FF6B00;
-    color: #FF6B00;
-}
-body.site-home .checkout-info-tip:hover,
-body.site-home .checkout-info-tip:focus {
-    background: #FF6B00;
-    border-color: #FF6B00;
-    color: #fff;
+/* Options that are only sometimes on offer (COD exists for SakayKo rider
+   deliveries only) carry their marker and bubble right after the option button;
+   hiding the option hides its note too, so nothing points at an absent choice. */
+.checkout-option-btn.hidden + .checkout-info-tip,
+.checkout-option-btn.hidden ~ .checkout-info-tooltip {
+    display: none;
 }
 .order-checkout-items {
     display: grid;

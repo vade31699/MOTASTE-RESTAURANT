@@ -31,7 +31,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260914a">
+    <link rel="stylesheet" href="style.css?v=20260914c">
     <title>Motaste Restaurant — Crafted Silog</title>
     <script type="application/ld+json">
     {
@@ -307,6 +307,23 @@
                         <div class="checkout-options" id="paymentMethodOptions">
                             <button type="button" class="checkout-option-btn active" data-payment="Cash">Cash</button>
                             <button type="button" class="checkout-option-btn hidden" id="codPaymentOption" data-payment="Cash On Delivery">Cash On Delivery (COD)</button>
+                            <!-- COD's info marker is a SIBLING of its button, not a child: the
+                                 COD option is auto-selected and DISABLED whenever SakayKo is the
+                                 order type, and a disabled option's group opacity would fade a
+                                 nested marker (a child cannot opt out of it). Marker and bubble
+                                 hide with the option itself — see style.css. -->
+                            <span
+                                class="checkout-info-tip"
+                                tabindex="0"
+                                role="img"
+                                aria-label="Cash On Delivery is available with SakayKo Rider Pick-up; hand the exact amount to the rider when your order arrives."
+                            >
+                                <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
+                            </span>
+                            <span class="checkout-info-tooltip" role="tooltip">
+                                Cash On Delivery is available with SakayKo Rider Pick-up — hand the exact amount
+                                to the rider when your order arrives.
+                            </span>
                         </div>
                     </div>
                     <div class="order-checkout-section">
@@ -316,18 +333,23 @@
                             <button type="button" class="checkout-option-btn" data-order="Take Out">Take Out</button>
                             <button type="button" class="checkout-option-btn" data-order="SakayKo Rider Pick-up">
                                 <i class="fa-solid fa-motorcycle" aria-hidden="true"></i> SakayKo Rider Pick-up
-                            </button>
-                            <button
-                                type="button"
-                                class="checkout-info-tip"
-                                aria-label="About SakayKo Rider Pick-up"
-                            >
-                                <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
-                                <span class="checkout-info-tooltip" role="tooltip">
-                                    Choosing SakayKo Rider Pick-up means you book the ride yourself — the restaurant
-                                    will not book the rider for you.
+                                <span
+                                    class="checkout-info-tip"
+                                    tabindex="0"
+                                    role="img"
+                                    aria-label="Choosing SakayKo Rider Pick-up means you book the ride yourself; the restaurant will not book the rider for you."
+                                >
+                                    <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
                                 </span>
                             </button>
+                            <!-- Reminder for the marker above. Deliberately kept OUTSIDE the
+                                 option button (Safari can clip absolute children of a button) and
+                                 revealed only while the marker itself is hovered/focused —
+                                 script.js toggles .is-open, hovering the option never opens it. -->
+                            <span class="checkout-info-tooltip" role="tooltip">
+                                Choosing SakayKo Rider Pick-up means you book the ride yourself — the restaurant
+                                will not book the rider for you.
+                            </span>
                         </div>
                     </div>
                     <div class="order-checkout-section" id="deliveryAddressSection" hidden aria-hidden="true">
@@ -609,6 +631,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260914j" defer></script>
+    <script src="script.js?v=20260914m" defer></script>
 </body>
 </html>
