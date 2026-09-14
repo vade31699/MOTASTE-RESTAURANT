@@ -846,7 +846,7 @@ body.staff-app .staff-box .captcha-label {
     margin-top: 8px;
 }
 
-.forgot-password-error {
+.forgot-password-modal-box .forgot-password-error {
     margin: 0 0 12px;
     color: #dc2626;
     font-size: 13px;
