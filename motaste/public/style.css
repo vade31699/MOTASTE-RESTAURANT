@@ -544,6 +544,22 @@ body.dashboard-panel-open .menu-btn {
     z-index: 0;
 }
 
+/* Pre-paint auth decision, set by the inline script in staff.html when a
+   persisted staff session exists. The login form is this page's default painted
+   state, so without this it stayed on screen for the whole time the deferred
+   script.js took to download and run. The loading overlay covers the gap; that
+   script clears the class once it has decided (and takes the overlay over, so
+   there is no visible seam). */
+html.staff-auth-pending .staff-login-page,
+html.staff-auth-pending .login-dark-overlay {
+    display: none;
+}
+
+html.staff-auth-pending #staffLoadingOverlay {
+    /* Overrides .staff-loading-overlay[hidden], which is also !important. */
+    display: flex !important;
+}
+
 .staff-box {
     width: min(480px, 100%);
     position: relative;

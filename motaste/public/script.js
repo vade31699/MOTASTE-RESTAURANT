@@ -300,6 +300,12 @@ function forceLogoutCurrentStaffSession() {
     if (accountManagementSection) accountManagementSection.hidden = true;
     if (highlightsSection) highlightsSection.hidden = true;
     if (credentialsSection) credentialsSection.hidden = true;
+
+    // Last, once the login surface is actually revealed: drop the "a staff
+    // session may exist" class that staff.html sets before first paint. Doing it
+    // after the reveal (not before) means the class is only ever removed by the
+    // code that has already put the real surface in place.
+    clearStaffAuthPendingState();
 }
 
 function setPublicSectionsVisible(visible) {
@@ -742,6 +748,16 @@ async function startStaffOrderMonitoring() {
     }
 }
 
+/**
+ * Clear the "a staff session may exist" class that staff.html sets inline before
+ * first paint. Paired with restoreStaffSession() / forceLogoutCurrentStaffSession()
+ * so the placeholder is always replaced by the real decision.
+ */
+function clearStaffAuthPendingState() {
+    if (typeof document === 'undefined' || !document.documentElement) return;
+    document.documentElement.classList.remove('staff-auth-pending');
+}
+
 function restoreStaffSession() {
     const persistedSession = getPersistedStaffSession();
     if (!persistedSession) {
@@ -839,6 +855,12 @@ function restoreStaffSession() {
     // Restored sessions land directly on the dashboard — cover the reveal
     // with the loading overlay until the initial data has settled.
     showStaffLoadingOverlay();
+
+    // Only now drop the pre-paint state: the inline script in staff.html is
+    // what kept the login form off screen while this file downloaded, and
+    // showStaffLoadingOverlay() above is what keeps the overlay up from here,
+    // so clearing the class in this order leaves no seam to flash through.
+    clearStaffAuthPendingState();
 
     return true;
 }

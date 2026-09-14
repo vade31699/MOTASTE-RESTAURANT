@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./style.css?v=20260911a">
+    <link rel="stylesheet" href="./style.css?v=20260914a">
     <title>Staff Login - MOTASTE</title>
     <style>
         html,
@@ -96,6 +96,46 @@
             transform: translateX(-50%) translateY(-2px);
         }
     </style>
+    <script>
+        /* Decide the first paint before the deferred dashboard script runs.
+         *
+         * The login form is the default painted state of this page and is only
+         * hidden by restoreStaffSession() inside script.js. Until that ~13k-line
+         * deferred file has been fetched, parsed and executed, a page refresh
+         * with a live staff session therefore showed the login form for as long
+         * as the script took to arrive (1-2s), then jumped to the dashboard.
+         *
+         * This runs synchronously in <head>, so the correct surface is chosen
+         * before anything is painted. script.js clears the class as soon as it
+         * has made the same decision for real.
+         *
+         * The storage key must match staffSessionStorageKey in script.js, and
+         * only the NON-SECRET role/email hints are read (the session token
+         * itself is an HttpOnly cookie this script cannot and must not see).
+         */
+        (function () {
+            try {
+                var raw = sessionStorage.getItem('motasteStaffSession')
+                    || localStorage.getItem('motasteStaffSession');
+                if (!raw) return;
+
+                var session = JSON.parse(raw);
+                if (!session || !session.role || !session.email) return;
+
+                document.documentElement.classList.add('staff-auth-pending');
+
+                // Safety net: if script.js never runs (offline, blocked CDN,
+                // JS error), fall back to the login form rather than leaving a
+                // spinner up forever.
+                window.setTimeout(function () {
+                    document.documentElement.classList.remove('staff-auth-pending');
+                }, 8000);
+            } catch (error) {
+                // Storage unavailable (private mode, cookies disabled) or the
+                // hint is corrupt: show the login form, which is the safe state.
+            }
+        })();
+    </script>
 </head>
 <body class="staff-app">
     <div id="staffLoadingOverlay" class="staff-loading-overlay" hidden aria-live="polite">
@@ -998,6 +1038,6 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
-    <script src="./script.js?v=20260914g" defer></script>
+    <script src="./script.js?v=20260914h" defer></script>
 </body>
 </html>
