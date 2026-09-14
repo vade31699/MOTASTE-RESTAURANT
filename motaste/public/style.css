@@ -9954,10 +9954,10 @@ body.staff-app .modal-close:hover {
 body.staff-app .staff-box {
     background: #ffffff;
     border: 1px solid var(--staff-border);
-    border-radius: 24px;
-    box-shadow: 0 30px 80px rgba(23, 87, 54, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    border-radius: 28px;
+    box-shadow: 0 30px 80px rgba(23, 87, 54, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
     color: var(--staff-text);
-    padding: 34px 32px 30px;
+    padding: 40px 38px 34px;
 }
 
 body.staff-app .staff-box::before {
@@ -9966,37 +9966,76 @@ body.staff-app .staff-box::before {
     font-weight: 900;
     display: grid;
     place-items: center;
-    width: 56px;
-    height: 56px;
-    margin: 0 auto 16px;
-    border-radius: 16px;
-    background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+    border-radius: 20px;
+    background:
+        radial-gradient(120% 120% at 18% 0%, rgba(255, 255, 255, 0.32), transparent 55%),
+        linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
     color: #fff;
-    font-size: 22px;
-    box-shadow: 0 10px 24px rgba(43, 174, 102, 0.35);
+    font-size: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    box-shadow: 0 14px 30px rgba(43, 174, 102, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 body.staff-app .staff-box h2 {
-    color: var(--staff-accent-strong);
+    color: var(--staff-text);
     text-align: center;
     font-weight: 800;
+    font-size: 1.55rem;
+    letter-spacing: -0.02em;
+    margin: 0 0 4px;
+}
+
+body.staff-app .login-subtitle {
+    margin: 0 0 24px;
+    text-align: center;
+    color: var(--staff-muted);
+    font-size: 0.92rem;
+    line-height: 1.5;
 }
 
 body.staff-app .staff-box label {
     color: var(--staff-muted);
-    font-weight: 600;
+    font-weight: 700;
+    font-size: 0.76rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+body.staff-app .staff-box label i {
+    color: var(--staff-accent);
+    font-size: 0.84rem;
+    width: 16px;
+    text-align: center;
 }
 
 body.staff-app .staff-box input {
     background: var(--staff-surface-2);
-    border: 1px solid var(--staff-border);
+    border: 1.5px solid var(--staff-border);
     color: var(--staff-text);
     border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+body.staff-app .staff-box input::placeholder {
+    color: var(--staff-faint);
+    opacity: 1;
+}
+
+body.staff-app .staff-box input:hover:not(:focus) {
+    border-color: rgba(43, 174, 102, 0.45);
 }
 
 body.staff-app .staff-box input:focus {
     border-color: var(--staff-accent);
-    box-shadow: 0 0 0 3px rgba(43, 174, 102, 0.18);
+    box-shadow: 0 0 0 4px var(--staff-accent-softer);
     outline: none;
 }
 
@@ -10006,6 +10045,10 @@ body.staff-app .staff-box button[type="submit"] {
     border: none;
     border-radius: 12px;
     font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.02em;
+    padding: 13px 16px;
+    margin-top: 4px;
     box-shadow: 0 10px 24px rgba(43, 174, 102, 0.35);
 }
 
@@ -10015,8 +10058,43 @@ body.staff-app .staff-box button[type="submit"]:hover {
     filter: brightness(1.05);
 }
 
-body.staff-app .remember-row label {
+body.staff-app .staff-box .remember-row {
+    margin-top: 2px;
+}
+
+body.staff-app .staff-box .remember-row label {
     color: var(--staff-muted);
+    text-transform: none;
+    letter-spacing: normal;
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+
+body.staff-app .staff-box .remember-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--staff-accent);
+    cursor: pointer;
+}
+
+body.staff-app .staff-legal-links {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px 0 0;
+    font-size: 0.8rem;
+}
+
+body.staff-app .staff-legal-links a {
+    color: var(--staff-muted);
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+body.staff-app .staff-legal-links a:hover {
+    color: var(--staff-accent-strong);
+    text-decoration: underline;
 }
 
 body.staff-app .password-toggle-btn {
@@ -10054,9 +10132,49 @@ body.staff-app .social-login-tiktok {
 
 body.staff-app .login-dark-overlay {
     background:
-        radial-gradient(1100px 560px at 85% -10%, rgba(43, 174, 102, 0.16), transparent 60%),
-        radial-gradient(900px 520px at -8% 112%, rgba(43, 174, 102, 0.1), transparent 55%),
-        rgba(252, 246, 245, 0.5);
+        radial-gradient(1200px 620px at 12% -12%, rgba(43, 174, 102, 0.16), transparent 60%),
+        radial-gradient(1000px 560px at 108% 112%, rgba(30, 143, 82, 0.14), transparent 55%),
+        linear-gradient(180deg, #FCF6F5 0%, #F1F7F1 100%);
+}
+
+/* Soft ambient orbs behind the login card for depth. */
+body.staff-app .staff-login-page::before,
+body.staff-app .staff-login-page::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(70px);
+    pointer-events: none;
+    z-index: 0;
+}
+
+body.staff-app .staff-login-page::before {
+    width: 460px;
+    height: 460px;
+    left: -150px;
+    top: -130px;
+    background: rgba(43, 174, 102, 0.18);
+}
+
+body.staff-app .staff-login-page::after {
+    width: 420px;
+    height: 420px;
+    right: -130px;
+    bottom: -150px;
+    background: rgba(226, 160, 15, 0.13);
+}
+
+@media (max-width: 576px) {
+    body.staff-app .staff-box {
+        padding: 30px 22px 26px;
+    }
+
+    body.staff-app .staff-box::before {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        font-size: 21px;
+    }
 }
 
 /* ---------- Responsive (mobile-first) ---------- */
