@@ -803,6 +803,10 @@ body.staff-app .staff-box .captcha-label {
     padding: 20px;
 }
 
+.forgot-password-modal[hidden] {
+    display: none;
+}
+
 .forgot-password-modal-box {
     background: #fff;
     border-radius: 12px;
@@ -810,6 +814,7 @@ body.staff-app .staff-box .captcha-label {
     width: 100%;
     max-width: 420px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+    position: relative;
 }
 
 .forgot-password-modal-box h3 {
@@ -832,12 +837,30 @@ body.staff-app .staff-box .captcha-label {
     width: 100%;
     box-sizing: border-box;
     margin-bottom: 12px;
+    font-size: 15px;
 }
 
-.forgot-password-modal-box .forgot-actions {
+.forgot-actions {
     display: flex;
     gap: 10px;
     margin-top: 8px;
+}
+
+.forgot-password-error {
+    margin: 0 0 12px;
+    color: #dc2626;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.forgot-password-status {
+    margin: 0 0 12px;
+    background: #dcfce7;
+    color: #16a34a;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
 }
 
 .forgot-password-modal-box .btn-cancel {
@@ -852,6 +875,10 @@ body.staff-app .staff-box .captcha-label {
     color: #555;
 }
 
+.forgot-password-modal-box .btn-cancel:hover {
+    background: #ececec;
+}
+
 .forgot-password-modal-box .btn-send {
     flex: 1;
     padding: 10px;
@@ -864,9 +891,127 @@ body.staff-app .staff-box .captcha-label {
     cursor: pointer;
 }
 
-.forgot-password-modal-box .btn-send:disabled {
+.forgot-password-modal-box .btn-send:hover {
+    background: #146b3d;
+}
+
+.forgot-password-modal-box .btn-send:disabled,
+.forgot-password-modal-box .btn-cancel:disabled {
     background: #aaa;
     cursor: not-allowed;
+}
+
+.forgot-resend-btn {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 9px;
+    border: none;
+    background: transparent;
+    color: #1b824a;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.forgot-resend-btn:hover {
+    color: #146b3d;
+}
+
+.forgot-resend-btn:disabled {
+    color: #aaa;
+    cursor: not-allowed;
+}
+
+/* Themed to match the staff login card. */
+body.staff-app .forgot-password-modal-box {
+    background: #ffffff;
+    border: 1px solid var(--staff-border);
+    border-radius: 24px;
+    box-shadow: 0 30px 80px rgba(23, 87, 54, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    color: var(--staff-text);
+    padding: 34px 32px 30px;
+}
+
+body.staff-app .forgot-password-modal-box h3 {
+    color: var(--staff-accent-strong);
+    text-align: center;
+    font-weight: 800;
+    font-size: 20px;
+}
+
+body.staff-app .forgot-password-description {
+    color: var(--staff-muted);
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+body.staff-app .forgot-password-modal-box input {
+    background: var(--staff-surface-2);
+    border: 1px solid var(--staff-border);
+    color: var(--staff-text);
+    border-radius: 12px;
+    padding: 11px 14px;
+}
+
+body.staff-app .forgot-password-modal-box input:focus {
+    border-color: var(--staff-accent);
+    box-shadow: 0 0 0 3px rgba(43, 174, 102, 0.18);
+    outline: none;
+}
+
+body.staff-app .forgot-password-modal-box input::placeholder {
+    color: var(--staff-faint);
+}
+
+body.staff-app .forgot-password-modal-box .btn-send {
+    background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
+    box-shadow: 0 10px 24px rgba(43, 174, 102, 0.35);
+    border-radius: 12px;
+    font-weight: 700;
+}
+
+body.staff-app .forgot-password-modal-box .btn-send:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 34px rgba(43, 174, 102, 0.45);
+    filter: brightness(1.05);
+}
+
+body.staff-app .forgot-password-modal-box .btn-cancel {
+    border: 1px solid var(--staff-border);
+    background: var(--staff-surface-2);
+    color: var(--staff-muted);
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+body.staff-app .forgot-password-modal-box .btn-cancel:hover:not(:disabled) {
+    background: var(--staff-accent-softer);
+    color: var(--staff-text);
+}
+
+body.staff-app .forgot-password-modal-box .btn-send:disabled,
+body.staff-app .forgot-password-modal-box .btn-cancel:disabled {
+    background: var(--staff-faint);
+    color: #fff;
+    box-shadow: none;
+    transform: none;
+}
+
+body.staff-app .forgot-resend-btn {
+    color: var(--staff-accent-strong);
+}
+
+body.staff-app .forgot-resend-btn:hover:not(:disabled) {
+    color: var(--staff-accent);
+}
+
+body.staff-app .forgot-password-status {
+    background: var(--staff-accent-soft);
+    color: var(--staff-accent-strong);
 }
 
 .password-toggle-btn {

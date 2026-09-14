@@ -21,7 +21,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // api/* routes always render JSON; any other request that explicitly
+        // asks for JSON (Accept: application/json) does too — this lets the
+        // login-page modal consume validation errors for /forgot-password and
+        // /reset-password as 422 JSON instead of a redirect.
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*'),
+            fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
     })->create();

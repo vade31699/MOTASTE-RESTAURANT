@@ -7,6 +7,7 @@ use App\Mail\AdminResetAttempt;
 use App\Mail\PasswordResetCode;
 use App\Models\Staff;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -67,7 +68,7 @@ class PasswordResetLinkController extends Controller
      *
      * @throws ValidationException
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $request->validate([
             'email' => 'required|email',
@@ -103,7 +104,9 @@ class PasswordResetLinkController extends Controller
         if ($recent && now()->diffInSeconds($recent->created_at) < self::CODE_RESEND_WINDOW_SECONDS) {
             session(['password_reset_email' => $email]);
 
-            return back()->with('codeSent', true);
+            return $this->wantsJson()
+                ? response()->json(['status' => 'code_sent', 'email' => $email])
+                : back()->with('codeSent', true);
         }
 
         $code = $this->createPasswordResetCode($email);
@@ -116,7 +119,9 @@ class PasswordResetLinkController extends Controller
 
         session(['password_reset_email' => $email]);
 
-        return back()->with('codeSent', true);
+        return $this->wantsJson()
+            ? response()->json(['status' => 'code_sent', 'email' => $email])
+            : back()->with('codeSent', true);
     }
 
     /**
@@ -127,7 +132,7 @@ class PasswordResetLinkController extends Controller
      *
      * @throws ValidationException
      */
-    public function verify(Request $request): RedirectResponse
+    public function verify(Request $request): RedirectResponse|JsonResponse
     {
         $request->validate([
             'email' => 'required|email',
@@ -158,14 +163,16 @@ class PasswordResetLinkController extends Controller
 
         session()->forget('password_reset_email');
 
-        return redirect()->route('password.reset', ['token' => $token, 'email' => $email]);
+        return $this->wantsJson()
+            ? response()->json(['status' => 'verified', 'token' => $token, 'email' => $email])
+            : redirect()->route('password.reset', ['token' => $token, 'email' => $email]);
     }
 
     /**
      * Abandon a pending verification (wrong email, changed mind, etc.) and
      * return to the start of the forgot-password flow.
      */
-    public function cancel(Request $request): RedirectResponse
+    public function cancel(Request $request): RedirectResponse|JsonResponse
     {
         $this->ensurePasswordResetCodesTable();
 
@@ -177,7 +184,9 @@ class PasswordResetLinkController extends Controller
         }
         session()->forget('password_reset_email');
 
-        return redirect()->route('password.request');
+        return $this->wantsJson()
+            ? response()->json(['status' => 'cancelled'])
+            : redirect()->route('password.request');
     }
 
     /**
@@ -310,5 +319,10 @@ class PasswordResetLinkController extends Controller
         }
 
         return false;
+    }
+
+    private function wantsJson(): bool
+    {
+        return request()->expectsJson() || request()->isXmlHttpRequest();
     }
 }

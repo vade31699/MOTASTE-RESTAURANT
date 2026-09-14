@@ -51,7 +51,7 @@ function applyLoginSurface() {
     link.textContent = 'Forgot password?';
     link.addEventListener('click', function (e) {
         e.preventDefault();
-        window.location.href = getApiUrl('forgot-password');
+        openForgotPasswordModal();
     });
     wrap.appendChild(link);
 
@@ -65,6 +65,376 @@ function applyLoginSurface() {
 }
 
 applyLoginSurface();
+
+// ---------------------------------------------------------------------------
+// Forgot-password (staff) — inline modal on the login page.
+// Recovery happens entirely inside this modal (email -> code -> new password);
+// it never navigates to the separate /forgot-password blade page. All steps
+// POST to the same Laravel routes and speak JSON.
+// ---------------------------------------------------------------------------
+const forgotModal = document.getElementById('forgotPasswordModal');
+const fpStepEmail = document.getElementById('fpStepEmail');
+const fpStepCode = document.getElementById('fpStepCode');
+const fpStepReset = document.getElementById('fpStepReset');
+const fpStepSuccess = document.getElementById('fpStepSuccess');
+const fpEmailInput = document.getElementById('fpEmailInput');
+const fpCodeInput = document.getElementById('fpCodeInput');
+const fpNewPasswordInput = document.getElementById('fpNewPasswordInput');
+const fpConfirmPasswordInput = document.getElementById('fpConfirmPasswordInput');
+const fpEmailError = document.getElementById('fpEmailError');
+const fpCodeError = document.getElementById('fpCodeError');
+const fpCodeStatus = document.getElementById('fpCodeStatus');
+const fpResetError = document.getElementById('fpResetError');
+const fpEmailSubmitBtn = document.getElementById('fpEmailSubmitBtn');
+const fpCodeSubmitBtn = document.getElementById('fpCodeSubmitBtn');
+const fpResetSubmitBtn = document.getElementById('fpResetSubmitBtn');
+const fpEmailCancelBtn = document.getElementById('fpEmailCancelBtn');
+const fpCodeBackBtn = document.getElementById('fpCodeBackBtn');
+const fpResendBtn = document.getElementById('fpResendBtn');
+const fpResetBackBtn = document.getElementById('fpResetBackBtn');
+const fpSuccessBtn = document.getElementById('fpSuccessBtn');
+const fpCloseBtn = document.getElementById('forgotPasswordCloseBtn');
+const fpCodeEmailText = document.getElementById('fpCodeEmailText');
+
+let fpState = { email: '', token: '' };
+let fpSubmitting = false;
+
+function getLaravelCsrfToken() {
+    const parts = document.cookie.split(';');
+    for (let i = 0; i < parts.length; i++) {
+        const part = parts[i].trim();
+        if (part.indexOf('XSRF-TOKEN=') === 0) {
+            const raw = part.slice('XSRF-TOKEN='.length);
+            try {
+                return decodeURIComponent(raw);
+            } catch (error) {
+                return raw;
+            }
+        }
+    }
+    return '';
+}
+
+// The XSRF-TOKEN cookie is only seeded once a Laravel web route responds.
+// If it is missing (e.g. the static page was loaded from cache), fetch the
+// forgot-password GET route first to start a session, then re-read the cookie.
+async function ensureLaravelCsrfToken() {
+    let token = getLaravelCsrfToken();
+    if (!token) {
+        try {
+            await fetchWithTimeout(getApiUrl('forgot-password'), {
+                method: 'GET',
+                cache: 'no-store'
+            });
+            token = getLaravelCsrfToken();
+        } catch (error) {
+            // No token and no way to get one: the POST will 419, which the
+            // caller surfaces as a generic failure.
+        }
+    }
+    return token;
+}
+
+function showFpStep(name) {
+    const steps = { email: fpStepEmail, code: fpStepCode, reset: fpStepReset, success: fpStepSuccess };
+    Object.keys(steps).forEach(function (key) {
+        if (steps[key]) {
+            steps[key].hidden = key !== name;
+        }
+    });
+}
+
+function showFpError(el, message) {
+    if (!el) return;
+    if (message) {
+        el.textContent = message;
+        el.hidden = false;
+    } else {
+        el.textContent = '';
+        el.hidden = true;
+    }
+}
+
+function showFpStatus(message) {
+    if (!fpCodeStatus) return;
+    if (message) {
+        fpCodeStatus.textContent = message;
+        fpCodeStatus.hidden = false;
+    } else {
+        fpCodeStatus.textContent = '';
+        fpCodeStatus.hidden = true;
+    }
+}
+
+function setFpBusy(button, busy, busyText) {
+    if (!button) return;
+    button.disabled = busy;
+    if (busy) {
+        button.dataset.fpOriginalText = button.textContent;
+        button.textContent = busyText || 'Please wait...';
+    } else {
+        button.textContent = button.dataset.fpOriginalText || button.textContent;
+    }
+}
+
+async function fpPost(url, body) {
+    const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+    const xsrf = await ensureLaravelCsrfToken();
+    if (xsrf) headers['X-XSRF-TOKEN'] = xsrf;
+
+    const response = await fetchWithTimeout(getApiUrl(url), {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(body),
+        cache: 'no-store'
+    });
+
+    let payload = {};
+    try { payload = await response.json(); } catch (error) { /* empty */ }
+    return { response: response, payload: payload };
+}
+
+function firstFpError(payload) {
+    const errors = payload && payload.errors;
+    if (!errors) return '';
+    const firstKey = Object.keys(errors)[0];
+    if (!firstKey) return '';
+    const first = errors[firstKey];
+    if (Array.isArray(first)) return first[0] || '';
+    return String(first || '');
+}
+
+function openForgotPasswordModal() {
+    if (!forgotModal || !isStaffLoginSurface) return;
+    fpState = { email: '', token: '' };
+    if (fpEmailInput) fpEmailInput.value = '';
+    showFpError(fpEmailError, '');
+    showFpError(fpCodeError, '');
+    showFpError(fpResetError, '');
+    showFpStatus('');
+    if (fpNewPasswordInput) fpNewPasswordInput.value = '';
+    if (fpConfirmPasswordInput) fpConfirmPasswordInput.value = '';
+    showFpStep('email');
+    forgotModal.hidden = false;
+    forgotModal.classList.add('active');
+    if (fpEmailInput) {
+        window.setTimeout(function () { fpEmailInput.focus(); }, 50);
+    }
+}
+
+function closeForgotPasswordModal() {
+    if (!forgotModal) return;
+    // Best-effort: clear any pending code the session may hold.
+    if (fpState.email) {
+        try {
+            fpPost('forgot-password/cancel', {}).catch(function () {});
+        } catch (error) { /* ignore */ }
+    }
+    fpState = { email: '', token: '' };
+    forgotModal.hidden = true;
+    forgotModal.classList.remove('active');
+}
+
+async function fpRequestCode() {
+    if (fpSubmitting) return;
+    const email = (fpEmailInput ? fpEmailInput.value : '').trim();
+    if (!email) {
+        showFpError(fpEmailError, 'Please enter your email address.');
+        if (fpEmailInput) fpEmailInput.focus();
+        return;
+    }
+    fpSubmitting = true;
+    setFpBusy(fpEmailSubmitBtn, true, 'Sending...');
+    showFpError(fpEmailError, '');
+    try {
+        const { response, payload } = await fpPost('forgot-password', { email: email });
+        if (response.ok) {
+            fpState.email = email;
+            if (fpCodeEmailText) fpCodeEmailText.textContent = email;
+            if (fpCodeInput) fpCodeInput.value = '';
+            showFpError(fpCodeError, '');
+            showFpStatus('');
+            showFpStep('code');
+            if (fpCodeInput) fpCodeInput.focus();
+        } else {
+            showFpError(fpEmailError, firstFpError(payload) || 'Please try again.');
+        }
+    } catch (error) {
+        showFpError(fpEmailError, 'Something went wrong. Please try again.');
+    } finally {
+        fpSubmitting = false;
+        setFpBusy(fpEmailSubmitBtn, false);
+    }
+}
+
+async function fpVerifyCode() {
+    if (fpSubmitting) return;
+    const code = (fpCodeInput ? fpCodeInput.value : '').trim();
+    if (!code) {
+        showFpError(fpCodeError, 'Please enter the verification code.');
+        if (fpCodeInput) fpCodeInput.focus();
+        return;
+    }
+    if (!fpState.email) {
+        showFpStep('email');
+        return;
+    }
+    fpSubmitting = true;
+    setFpBusy(fpCodeSubmitBtn, true, 'Verifying...');
+    showFpError(fpCodeError, '');
+    showFpStatus('');
+    try {
+        const { response, payload } = await fpPost('forgot-password/verify', { email: fpState.email, code: code });
+        if (response.ok && payload && payload.status === 'verified' && payload.token) {
+            fpState.token = payload.token;
+            if (fpNewPasswordInput) fpNewPasswordInput.value = '';
+            if (fpConfirmPasswordInput) fpConfirmPasswordInput.value = '';
+            showFpError(fpResetError, '');
+            showFpStep('reset');
+            if (fpNewPasswordInput) fpNewPasswordInput.focus();
+        } else {
+            showFpError(fpCodeError, firstFpError(payload) || 'Invalid or expired verification code.');
+        }
+    } catch (error) {
+        showFpError(fpCodeError, 'Something went wrong. Please try again.');
+    } finally {
+        fpSubmitting = false;
+        setFpBusy(fpCodeSubmitBtn, false);
+    }
+}
+
+async function fpResetPassword() {
+    if (fpSubmitting) return;
+    const password = fpNewPasswordInput ? fpNewPasswordInput.value : '';
+    const confirmation = fpConfirmPasswordInput ? fpConfirmPasswordInput.value : '';
+    if (!password) {
+        showFpError(fpResetError, 'Please choose a new password.');
+        if (fpNewPasswordInput) fpNewPasswordInput.focus();
+        return;
+    }
+    if (password !== confirmation) {
+        showFpError(fpResetError, 'The passwords do not match.');
+        if (fpConfirmPasswordInput) fpConfirmPasswordInput.focus();
+        return;
+    }
+    if (!fpState.email || !fpState.token) {
+        showFpStep('email');
+        return;
+    }
+    fpSubmitting = true;
+    setFpBusy(fpResetSubmitBtn, true, 'Resetting...');
+    showFpError(fpResetError, '');
+    try {
+        const { response, payload } = await fpPost('reset-password', {
+            email: fpState.email,
+            token: fpState.token,
+            password: password,
+            password_confirmation: confirmation
+        });
+        if (response.ok && payload && payload.status === 'password_reset') {
+            showFpError(fpResetError, '');
+            showFpStep('success');
+        } else {
+            showFpError(fpResetError, firstFpError(payload) || 'Something went wrong. Please try again.');
+        }
+    } catch (error) {
+        showFpError(fpResetError, 'Something went wrong. Please try again.');
+    } finally {
+        fpSubmitting = false;
+        setFpBusy(fpResetSubmitBtn, false);
+    }
+}
+
+async function fpResendCode() {
+    if (fpSubmitting || !fpState.email) return;
+    fpSubmitting = true;
+    setFpBusy(fpResendBtn, true, 'Sending...');
+    showFpError(fpCodeError, '');
+    showFpStatus('');
+    try {
+        const { response, payload } = await fpPost('forgot-password', { email: fpState.email });
+        if (response.ok) {
+            showFpStatus('A new code has been emailed. Check your inbox and spam folder.');
+        } else {
+            showFpError(fpCodeError, firstFpError(payload) || 'Please try again.');
+        }
+    } catch (error) {
+        showFpError(fpCodeError, 'Something went wrong. Please try again.');
+    } finally {
+        fpSubmitting = false;
+        setFpBusy(fpResendBtn, false);
+    }
+}
+
+if (fpEmailSubmitBtn) {
+    fpEmailSubmitBtn.addEventListener('click', fpRequestCode);
+}
+if (fpCodeSubmitBtn) {
+    fpCodeSubmitBtn.addEventListener('click', fpVerifyCode);
+}
+if (fpResetSubmitBtn) {
+    fpResetSubmitBtn.addEventListener('click', fpResetPassword);
+}
+if (fpEmailCancelBtn) {
+    fpEmailCancelBtn.addEventListener('click', closeForgotPasswordModal);
+}
+if (fpCloseBtn) {
+    fpCloseBtn.addEventListener('click', closeForgotPasswordModal);
+}
+if (fpCodeBackBtn) {
+    fpCodeBackBtn.addEventListener('click', async function () {
+        if (fpSubmitting) return;
+        // Return to the email step and clear the pending code server-side.
+        try { await fpPost('forgot-password/cancel', {}); } catch (error) { /* ignore */ }
+        fpState.email = '';
+        showFpError(fpCodeError, '');
+        showFpStatus('');
+        showFpStep('email');
+        if (fpEmailInput) fpEmailInput.focus();
+    });
+}
+if (fpResetBackBtn) {
+    fpResetBackBtn.addEventListener('click', function () {
+        if (fpSubmitting) return;
+        fpState.token = '';
+        showFpError(fpResetError, '');
+        showFpStep('code');
+        if (fpCodeInput) fpCodeInput.focus();
+    });
+}
+if (fpResendBtn) {
+    fpResendBtn.addEventListener('click', fpResendCode);
+}
+if (fpSuccessBtn) {
+    fpSuccessBtn.addEventListener('click', closeForgotPasswordModal);
+}
+
+[fpEmailInput, fpCodeInput].forEach(function (input) {
+    if (!input) return;
+    input.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' && !fpSubmitting) {
+            event.preventDefault();
+            if (input === fpEmailInput) fpRequestCode();
+            else fpVerifyCode();
+        }
+    });
+});
+if (fpNewPasswordInput) {
+    fpNewPasswordInput.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' && !fpSubmitting) {
+            event.preventDefault();
+            fpResetPassword();
+        }
+    });
+}
+if (fpConfirmPasswordInput) {
+    fpConfirmPasswordInput.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' && !fpSubmitting) {
+            event.preventDefault();
+            fpResetPassword();
+        }
+    });
+}
 
 if (passwordInput && passwordToggleBtn) {
     passwordToggleBtn.addEventListener('click', () => {

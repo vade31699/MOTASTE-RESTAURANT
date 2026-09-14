@@ -553,3 +553,72 @@ test('the verification code self-destructs after 3 failed attempts', function ()
     $this->post('/forgot-password/verify', ['email' => $user->email, 'code' => $code])
         ->assertSessionHasErrors('code');
 });
+
+test('AJAX requests get JSON responses for every forgot-password step', function () {
+    Mail::fake();
+
+    $user = createStaffAccount('Cashier');
+
+    // Step 1: requesting a code answers JSON (the login-page modal posts this way).
+    $this->withHeaders(['Accept' => 'application/json'])
+        ->post('/forgot-password', ['email' => $user->email])
+        ->assertOk()
+        ->assertJson([
+            'status' => 'code_sent',
+            'email' => $user->email,
+        ]);
+
+    $code = null;
+    Mail::assertSent(PasswordResetCode::class, function (PasswordResetCode $mail) use (&$code) {
+        $code = $mail->code;
+        return true;
+    });
+    expect($code)->not->toBeNull();
+
+    // Step 2: verifying the code answers JSON with the reset token.
+    $response = $this->withHeaders(['Accept' => 'application/json'])
+        ->post('/forgot-password/verify', ['email' => $user->email, 'code' => $code])
+        ->assertOk()
+        ->assertJson(['status' => 'verified']);
+
+    $payload = $response->json();
+    expect($payload['token'] ?? '')->not->toBeEmpty();
+    expect($payload['email'] ?? null)->toEqual($user->email);
+
+    // Step 3: storing the new password answers JSON.
+    $this->withHeaders(['Accept' => 'application/json'])
+        ->post('/reset-password', [
+            'token' => $payload['token'],
+            'email' => $user->email,
+            'password' => 'New-Str0ng-Passw0rd',
+            'password_confirmation' => 'New-Str0ng-Passw0rd',
+        ])
+        ->assertOk()
+        ->assertJson(['status' => 'password_reset']);
+
+    // And the new password actually landed.
+    $user->refresh();
+    expect(Hash::check('New-Str0ng-Passw0rd', $user->password))->toBeTrue();
+});
+
+test('AJAX requests get JSON validation errors for unknown and admin email addresses', function () {
+    Mail::fake();
+
+    $admin = createAdminAccount();
+    $unknown = 'nobody@example.com';
+
+    $response = $this->withHeaders(['Accept' => 'application/json'])
+        ->post('/forgot-password', ['email' => $unknown])
+        ->assertStatus(422);
+    expect($response->json('errors'))->toHaveKey('email');
+
+    // An admin address must look exactly like an unknown one.
+    $response = $this->withHeaders(['Accept' => 'application/json'])
+        ->post('/forgot-password', ['email' => $admin->email])
+        ->assertStatus(422);
+    expect($response->json('errors'))->toHaveKey('email');
+    expect($response->json('errors.email.0'))->toBe('Please try again.');
+
+    // No code is ever issued for either address.
+    Mail::assertNotSent(PasswordResetCode::class);
+});

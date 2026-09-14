@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./style.css?v=20260914a">
+    <link rel="stylesheet" href="./style.css?v=20260915a">
     <title>Staff Login - MOTASTE</title>
     <style>
         html,
@@ -992,6 +992,62 @@
         </div>
     </div>
 
+    <!-- Staff password recovery — shown inline on the login page via a modal;
+         the whole email -> code -> new password flow never navigates away. -->
+    <div id="forgotPasswordModal" class="forgot-password-modal" hidden aria-hidden="true">
+        <div class="forgot-password-modal-box" role="dialog" aria-modal="true" aria-labelledby="forgotPasswordTitle">
+            <button type="button" class="modal-close" id="forgotPasswordCloseBtn" aria-label="Close password recovery">&times;</button>
+
+            <!-- Step 1: request a verification code -->
+            <div class="forgot-password-step" id="fpStepEmail">
+                <h3 id="forgotPasswordTitle">Forgot Password</h3>
+                <p class="forgot-password-description">Enter your staff email address. We will send a 6-digit verification code to confirm your identity before you can reset your password.</p>
+                <input type="email" id="fpEmailInput" placeholder="Email" autocomplete="email" required>
+                <p class="forgot-password-error" id="fpEmailError" hidden></p>
+                <div class="forgot-actions">
+                    <button type="button" class="btn-cancel" id="fpEmailCancelBtn">Cancel</button>
+                    <button type="button" class="btn-send" id="fpEmailSubmitBtn">Send Code</button>
+                </div>
+            </div>
+
+            <!-- Step 2: verify the emailed code -->
+            <div class="forgot-password-step" id="fpStepCode" hidden>
+                <h3>Enter Verification Code</h3>
+                <p class="forgot-password-description">We emailed a 6-digit verification code to <strong id="fpCodeEmailText"></strong>. Enter it below.</p>
+                <input type="text" id="fpCodeInput" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" required>
+                <p class="forgot-password-status" id="fpCodeStatus" hidden></p>
+                <p class="forgot-password-error" id="fpCodeError" hidden></p>
+                <div class="forgot-actions">
+                    <button type="button" class="btn-cancel" id="fpCodeBackBtn">Use a Different Email</button>
+                    <button type="button" class="btn-send" id="fpCodeSubmitBtn">Verify Code</button>
+                </div>
+                <button type="button" class="forgot-resend-btn" id="fpResendBtn">Resend Code</button>
+            </div>
+
+            <!-- Step 3: set a new password -->
+            <div class="forgot-password-step" id="fpStepReset" hidden>
+                <h3>Reset Password</h3>
+                <p class="forgot-password-description">Choose a new password. It must be at least 12 characters and include uppercase letters, lowercase letters, and numbers.</p>
+                <input type="password" id="fpNewPasswordInput" placeholder="New password" autocomplete="new-password" required>
+                <input type="password" id="fpConfirmPasswordInput" placeholder="Confirm new password" autocomplete="new-password" required>
+                <p class="forgot-password-error" id="fpResetError" hidden></p>
+                <div class="forgot-actions">
+                    <button type="button" class="btn-cancel" id="fpResetBackBtn">Back</button>
+                    <button type="button" class="btn-send" id="fpResetSubmitBtn">Reset Password</button>
+                </div>
+            </div>
+
+            <!-- Success -->
+            <div class="forgot-password-step" id="fpStepSuccess" hidden>
+                <h3>Password Reset</h3>
+                <p class="forgot-password-description">Your password has been reset. You can now sign in with your new password.</p>
+                <div class="forgot-actions">
+                    <button type="button" class="btn-send" id="fpSuccessBtn">Back to Login</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="login-dark-overlay" aria-hidden="true"></div>
     <div class="staff-login-page">
         <div class="modal-box staff-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -1041,6 +1097,6 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
-    <script src="./script.js?v=20260914p" defer></script>
+    <script src="./script.js?v=20260915a" defer></script>
 </body>
 </html>
