@@ -242,6 +242,18 @@ function ensureStaffEnhancementSchema(): void
 /**
  * Start the PHP-native session with a persistent cookie so the staff session
  * survives browser restarts (mirrors the existing "stay logged in" behavior).
+ *
+ * The cookie parameters belong to the session, not to this function, and
+ * whichever helper starts the session first decides what the browser stores.
+ * In verify_device_login.php the CSRF check runs first and started the session
+ * with `lifetime => 0`, so the staff cookie became a browser-session cookie and
+ * "stay logged in" silently stopped working — every browser restart logged the
+ * user out. A public endpoint (e.g. save_review.php) did the same to an already
+ * logged-in staff member's cookie.
+ *
+ * So when the session is already active the cookie is re-sent with the staff
+ * lifetime, deliberately reusing the SAME session id: regenerating it here
+ * would invalidate the signed CSRF tokens, which are bound to that id.
  */
 function ensureStaffAuthSession(): void
 {
@@ -250,18 +262,40 @@ function ensureStaffAuthSession(): void
     }
     sendSecurityHeaders();
 
-    if (session_status() === PHP_SESSION_ACTIVE) {
-        return;
-    }
-
-    session_set_cookie_params([
+    $cookieParams = [
         'lifetime' => staffSessionLifetimeSeconds(),
         'path' => '/',
         'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
         'httponly' => true,
         'samesite' => 'Lax',
-    ]);
-    session_start();
+    ];
+
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_set_cookie_params($cookieParams);
+        session_start();
+        return;
+    }
+
+    // Already started — possibly by the CSRF guard, possibly by a public
+    // endpoint on an earlier request. Re-issue the cookie with the staff
+    // lifetime so the session keeps lasting STAFF_SESSION_LIFETIME_SECONDS.
+    // Every staff request runs through requireStaffAuth(), so a cookie that was
+    // downgraded elsewhere is repaired on the next one. If headers are already
+    // sent the cookie cannot be changed in this response; the next request
+    // retries.
+    $sessionId = session_id();
+    if (!headers_sent() && $sessionId !== '') {
+        // setcookie() expects 'expires' (a Unix timestamp), NOT the 'lifetime'
+        // (seconds) key that session_set_cookie_params() takes — passing
+        // 'lifetime' through throws a ValueError and 500s the request.
+        setcookie(session_name(), $sessionId, [
+            'expires' => $cookieParams['lifetime'] > 0 ? time() + $cookieParams['lifetime'] : 0,
+            'path' => $cookieParams['path'],
+            'secure' => $cookieParams['secure'],
+            'httponly' => $cookieParams['httponly'],
+            'samesite' => $cookieParams['samesite'],
+        ]);
+    }
 }
 
 /**

@@ -27,8 +27,17 @@ function ensureSessionForCsrf(): void
         return;
     }
 
+    // Whichever helper starts the PHP session first fixes the session cookie the
+    // browser stores, and the CSRF guard runs before the staff auth helper on
+    // login/renewal. Starting the session with `lifetime => 0` there downgraded
+    // the staff cookie to a browser-session cookie, so a hardcoded 0 silently
+    // broke "stay logged in" on exactly those routes. Defer to the staff
+    // lifetime whenever the staff helper is loaded; genuine public routes keep
+    // a browser-session cookie.
+    $lifetime = function_exists('staffSessionLifetimeSeconds') ? staffSessionLifetimeSeconds() : 0;
+
     session_set_cookie_params([
-        'lifetime' => 0,
+        'lifetime' => $lifetime,
         'path' => '/',
         'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
         'httponly' => true,
