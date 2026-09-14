@@ -9961,7 +9961,7 @@ body.staff-app .staff-box {
 }
 
 body.staff-app .staff-box::before {
-    content: "\f2e7";
+    content: "\f3ed";
     font-family: "Font Awesome 6 Free";
     font-weight: 900;
     display: grid;
@@ -9994,6 +9994,32 @@ body.staff-app .login-subtitle {
     color: var(--staff-muted);
     font-size: 0.92rem;
     line-height: 1.5;
+}
+
+/* Surface-specific login branding (admin vs staff portal). The icon swap is
+   driven by the surface-* classes set in applyLoginSurface(). */
+body.staff-app .login-surface-badge {
+    display: flex;
+    justify-content: center;
+    width: fit-content;
+    margin: 0 auto 20px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--staff-accent-strong);
+    background: var(--staff-accent-softer);
+    border: 1px solid rgba(43, 174, 102, 0.22);
+}
+
+body.staff-app.surface-staff .staff-box::before {
+    content: "\f2e7";
+}
+
+body.staff-app.surface-admin .staff-box::before {
+    content: "\f3ed";
 }
 
 body.staff-app .staff-box label {

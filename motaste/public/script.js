@@ -33,6 +33,21 @@ function applyLoginSurface() {
         modalTitle.textContent = isAdminLoginSurface ? 'Admin Login' : 'Staff Login';
     }
 
+    document.body.classList.toggle('surface-admin', isAdminLoginSurface);
+    document.body.classList.toggle('surface-staff', isStaffLoginSurface);
+
+    const surfaceBadge = document.getElementById('loginSurfaceBadge');
+    if (surfaceBadge) {
+        surfaceBadge.textContent = isAdminLoginSurface ? 'Admin Portal' : 'Staff Portal';
+    }
+
+    const surfaceSubtitle = document.getElementById('loginSubtitle');
+    if (surfaceSubtitle) {
+        surfaceSubtitle.textContent = isAdminLoginSurface
+            ? 'Sign in to manage your restaurant operations'
+            : 'Sign in to the cashier and kitchen console';
+    }
+
     if (!isStaffLoginSurface) {
         return;
     }
