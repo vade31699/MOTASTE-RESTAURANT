@@ -9646,6 +9646,37 @@ body.staff-app #highlightsForm button[type="submit"].is-loading::after {
     animation: trusted-device-revoke-spin 0.7s linear infinite;
 }
 
+/* ---------- Generic button loading state ----------
+   Applied via setButtonLoading() to every staff dashboard action button.
+   The spinner is overlaid dead-center so it never shifts the button label;
+   existing bespoke loading styles (trusted dev revoke, highlights upload)
+   keep their own higher-specificity rules. */
+body.staff-app button.btn-loading {
+    position: relative;
+    pointer-events: none;
+    cursor: wait;
+    opacity: 0.82;
+}
+
+body.staff-app button.btn-loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 0.9em;
+    height: 0.9em;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: staff-btn-loading-spin 0.7s linear infinite;
+}
+
+@keyframes staff-btn-loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 body.staff-app #highlightsImagesInput:disabled {
     opacity: 0.5;
     cursor: not-allowed;

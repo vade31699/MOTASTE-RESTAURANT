@@ -177,6 +177,7 @@ function showFpStatus(message) {
 function setFpBusy(button, busy, busyText) {
     if (!button) return;
     button.disabled = busy;
+    button.classList.toggle('btn-loading', busy);
     if (busy) {
         button.dataset.fpOriginalText = button.textContent;
         button.textContent = busyText || 'Please wait...';
@@ -2406,6 +2407,50 @@ function showStaffNotice(message, isError = false) {
     });
 }
 
+// Sets a dashboard action button into a visible loading state: it is disabled
+// so it cannot be clicked twice, and a spinner overlays it via the .btn-loading
+// class. The original button content (including any FontAwesome icon) is saved
+// and restored, so passing a busyText only changes the label while loading.
+function setButtonLoading(button, isLoading, busyText = '') {
+    if (!button) return;
+    if (isLoading) {
+        if (!button.dataset.loadingHtml) {
+            button.dataset.loadingHtml = button.innerHTML;
+        }
+        button.disabled = true;
+        button.classList.add('btn-loading');
+        if (busyText !== '') {
+            button.textContent = busyText;
+        }
+    } else {
+        button.disabled = false;
+        button.classList.remove('btn-loading');
+        if (button.dataset.loadingHtml) {
+            button.innerHTML = button.dataset.loadingHtml;
+            delete button.dataset.loadingHtml;
+        }
+    }
+}
+
+// After an optimistic re-render of the pending-orders list, re-applies the
+// loading state to the freshly-built quantity buttons that match the item that
+// is currently syncing so the spinner survives the DOM refresh.
+function setPendingQuantityLoading(orderIndex, itemId, isComponent, componentName, isLoading) {
+    const list = document.getElementById('pendingOrdersList');
+    if (!list) return;
+    Array.from(list.querySelectorAll(isComponent ? '.pending-item-component-btn' : '.pending-item-qty-btn')).forEach((btn) => {
+        const orderMatches = Number(btn.dataset.orderIndex) === Number(orderIndex);
+        const itemMatches = Number(btn.dataset.itemId) === Number(itemId);
+        if (isComponent) {
+            if (orderMatches && itemMatches && btn.dataset.componentName === componentName) {
+                setButtonLoading(btn, isLoading);
+            }
+        } else if (orderMatches && itemMatches) {
+            setButtonLoading(btn, isLoading);
+        }
+    });
+}
+
 if (noticeModalOkBtn) {
     noticeModalOkBtn.addEventListener('click', closeNoticeModal);
 }
@@ -2921,9 +2966,14 @@ if (loginHistoryDateInput) {
     loginHistoryDateInput.addEventListener('change', () => void loadLoginHistory());
 }
 if (loginHistoryClearDateBtn) {
-    loginHistoryClearDateBtn.addEventListener('click', () => {
+    loginHistoryClearDateBtn.addEventListener('click', async () => {
         if (loginHistoryDateInput) loginHistoryDateInput.value = '';
-        void loadLoginHistory();
+        setButtonLoading(loginHistoryClearDateBtn, true, 'Loading…');
+        try {
+            await loadLoginHistory();
+        } finally {
+            setButtonLoading(loginHistoryClearDateBtn, false);
+        }
     });
 }
 
@@ -2964,6 +3014,7 @@ function attachStaffLoginHandler() {
         const setLoading = (loading) => {
             if (!submitBtn) return;
             submitBtn.disabled = loading;
+            submitBtn.classList.toggle('btn-loading', loading);
             submitBtn.textContent = loading ? 'Logging in…' : 'Login';
         };
 
@@ -5696,11 +5747,14 @@ if (accountForm) {
         }
 
         let invitePayload = null;
+        const accountSubmitBtn = accountForm.querySelector('button[type="submit"]');
+        setButtonLoading(accountSubmitBtn, true, 'Saving…');
         if (accountEditIndex === null) {
             try {
                 invitePayload = await sendStaffInviteEmail(account);
             } catch (error) {
                 await showStaffNotice(error.message || 'Unable to send invite email.', true);
+                setButtonLoading(accountSubmitBtn, false);
                 return;
             }
         }
@@ -5731,6 +5785,7 @@ if (accountForm) {
         const syncResult = await saveStaffAccountsToServer();
         if (!syncResult.success) {
             await showStaffNotice(`Unable to save staff account to the server. ${syncResult.error || 'Please try again or contact support.'}`, true);
+            setButtonLoading(accountSubmitBtn, false);
             return;
         }
 
@@ -5743,6 +5798,7 @@ if (accountForm) {
         } else {
             await showStaffNotice('Invite email sent. The staff account can login after confirming the email verification code.');
         }
+        setButtonLoading(accountSubmitBtn, false);
     });
 }
 
@@ -5759,6 +5815,7 @@ if (accountList) {
                 await showStaffNotice('The admin account cannot be deleted.', true);
                 return;
             }
+            setButtonLoading(button, true, 'Deleting…');
             accounts.splice(index, 1);
             window.motasteStaffAccounts = accounts;
             const saveResult = await saveStaffAccountsToServer();
@@ -5767,6 +5824,7 @@ if (accountList) {
                 accounts.splice(index, 0, removedAccount);
                 window.motasteStaffAccounts = accounts;
                 renderAccounts();
+                setButtonLoading(button, false);
                 return;
             }
             if (removedAccount) {
@@ -5893,6 +5951,9 @@ if (staffEditForm) {
             return;
         }
 
+        const staffSaveBtn = staffEditForm.querySelector('button[type="submit"]');
+        setButtonLoading(staffSaveBtn, true, 'Saving…');
+
         const previousAccount = accounts[index] || null;
         updatedAccount.inviteConfirmed = previousAccount ? previousAccount.inviteConfirmed : false;
 
@@ -5912,6 +5973,7 @@ if (staffEditForm) {
         const syncResult = await saveStaffAccountsToServer();
         if (!syncResult.success) {
             await showStaffNotice(`Unable to save staff account to the server. ${syncResult.error || 'Please try again or contact support.'}`, true);
+            setButtonLoading(staffSaveBtn, false);
             return;
         }
 
@@ -5973,34 +6035,44 @@ if (closeAdminEditPanelBtn) {
 }
 
 if (requestCredentialsChangeBtn) {
-    requestCredentialsChangeBtn.addEventListener('click', () => {
+    requestCredentialsChangeBtn.addEventListener('click', async () => {
         if (!canAccessCredentials()) {
             setCredentialsMessage('Only admin can change credentials.', true);
             return;
         }
-        void requestAdminCredentialsChange({
-            currentEmailInput: adminCurrentEmailInput,
-            currentPasswordInput: adminCurrentPasswordInput,
-            newEmailInput: adminNewEmailInput,
-            newPasswordInput: adminNewPasswordInput,
-            shouldRequireEmail: true
-        });
+        setButtonLoading(requestCredentialsChangeBtn, true, 'Requesting code…');
+        try {
+            await requestAdminCredentialsChange({
+                currentEmailInput: adminCurrentEmailInput,
+                currentPasswordInput: adminCurrentPasswordInput,
+                newEmailInput: adminNewEmailInput,
+                newPasswordInput: adminNewPasswordInput,
+                shouldRequireEmail: true
+            });
+        } finally {
+            setButtonLoading(requestCredentialsChangeBtn, false);
+        }
     });
 }
 
 if (requestPasswordChangeBtn) {
-    requestPasswordChangeBtn.addEventListener('click', () => {
+    requestPasswordChangeBtn.addEventListener('click', async () => {
         if (!canAccessCredentials()) {
             setCredentialsMessage('Only admin can change credentials.', true);
             return;
         }
-        void requestAdminCredentialsChange({
-            currentEmailInput: adminPasswordCurrentEmailInput,
-            currentPasswordInput: adminPasswordCurrentPasswordInput,
-            newEmailInput: null,
-            newPasswordInput: adminPasswordNewPasswordInput,
-            shouldRequireEmail: false
-        });
+        setButtonLoading(requestPasswordChangeBtn, true, 'Requesting code…');
+        try {
+            await requestAdminCredentialsChange({
+                currentEmailInput: adminPasswordCurrentEmailInput,
+                currentPasswordInput: adminPasswordCurrentPasswordInput,
+                newEmailInput: null,
+                newPasswordInput: adminPasswordNewPasswordInput,
+                shouldRequireEmail: false
+            });
+        } finally {
+            setButtonLoading(requestPasswordChangeBtn, false);
+        }
     });
 }
 
@@ -6011,7 +6083,11 @@ if (credentialsForm) {
             setCredentialsMessage('Only admin can change credentials.', true);
             return;
         }
-        void confirmAdminCredentialsChange(event, 'email');
+        const submitButton = credentialsForm.querySelector('button[type="submit"]');
+        setButtonLoading(submitButton, true, 'Applying…');
+        Promise.resolve(confirmAdminCredentialsChange(event, 'email')).finally(() => {
+            setButtonLoading(submitButton, false);
+        });
     });
 }
 
@@ -6022,7 +6098,11 @@ if (passwordCredentialsForm) {
             setCredentialsMessage('Only admin can change credentials.', true);
             return;
         }
-        void confirmAdminCredentialsChange(event, 'password');
+        const submitButton = passwordCredentialsForm.querySelector('button[type="submit"]');
+        setButtonLoading(submitButton, true, 'Applying…');
+        Promise.resolve(confirmAdminCredentialsChange(event, 'password')).finally(() => {
+            setButtonLoading(submitButton, false);
+        });
     });
 }
 
@@ -6400,11 +6480,14 @@ if (highlightsList) {
             // The server removes by position, so the stored images are never
             // sent back up. The list is refreshed from the server afterwards so
             // the dashboard never shows a change the server rejected.
+            setButtonLoading(removeButton, true, 'Removing…');
             await sendHighlightsRequest({ action: 'remove', index });
             await loadHighlightsFromServer();
             setHighlightsMessage('Highlight image removed.');
         } catch (error) {
             setHighlightsMessage(error.message || 'Unable to remove highlight image.', true);
+        } finally {
+            setButtonLoading(removeButton, false);
         }
     });
 }
@@ -6422,7 +6505,7 @@ if (optimizeHighlightsBtn) {
             return;
         }
 
-        optimizeHighlightsBtn.disabled = true;
+        setButtonLoading(optimizeHighlightsBtn, true, 'Optimizing…');
 
         let optimized = 0;
         let savedCharacters = 0;
@@ -6462,7 +6545,7 @@ if (optimizeHighlightsBtn) {
 
             await loadHighlightsFromServer();
         } finally {
-            optimizeHighlightsBtn.disabled = false;
+            setButtonLoading(optimizeHighlightsBtn, false);
         }
 
         const savedKb = Math.round(savedCharacters / 1024);
@@ -7661,8 +7744,14 @@ async function handleOverdueAddMinutes() {
     const minutes = Math.min(180, Math.max(1, Math.round(Number(overdueMinutesInput ? overdueMinutesInput.value : 0) || 15)));
     if (overdueAlertMessage) overdueAlertMessage.textContent = 'Updating preparation time...';
 
+    setButtonLoading(overdueAddMinutesBtn, true, 'Extending…');
     overdueActionInFlight = true;
-    const extended = await startOrderPreparation(orderIndex, minutes);
+    let extended = false;
+    try {
+        extended = await startOrderPreparation(orderIndex, minutes);
+    } finally {
+        setButtonLoading(overdueAddMinutesBtn, false);
+    }
     overdueActionInFlight = false;
     if (extended) {
         // Deliberately do NOT clear the overdue flags here: the client countdown
@@ -7688,8 +7777,14 @@ async function handleOverdueComplete() {
     }
 
     if (overdueAlertMessage) overdueAlertMessage.textContent = 'Completing order...';
+    setButtonLoading(overdueCompleteBtn, true, 'Completing…');
     overdueActionInFlight = true;
-    const completed = await markPendingOrderAsComplete(orderIndex, true);
+    let completed = false;
+    try {
+        completed = await markPendingOrderAsComplete(orderIndex, true);
+    } finally {
+        setButtonLoading(overdueCompleteBtn, false);
+    }
     overdueActionInFlight = false;
     if (completed) {
         // markPendingOrderAsComplete already removed this order from the overdue
@@ -8026,6 +8121,7 @@ async function changePendingOrderItemComponentQuantity(orderIndex, itemId, compo
 
     setCartItemComponentQuantity(item, componentName, nextQuantity);
     renderPendingOrders();
+    setPendingQuantityLoading(orderIndex, itemId, true, componentName, true);
 
     try {
         await updatePendingOrderItemComponentQuantity(order.id, item.id, componentName, nextQuantity);
@@ -8035,6 +8131,8 @@ async function changePendingOrderItemComponentQuantity(orderIndex, itemId, compo
         renderPendingOrders();
         await showStaffNotice(error.message || 'Unable to edit component quantity', true);
         return;
+    } finally {
+        setPendingQuantityLoading(orderIndex, itemId, true, componentName, false);
     }
 
     void loadPendingOrdersFromServer();
@@ -8071,6 +8169,7 @@ async function changePendingOrderItemQuantity(orderIndex, itemId, direction) {
     item.quantity = nextQuantity;
     order.total = previousTotal + (direction === 'increase' ? Number(item.price) || 0 : -(Number(item.price) || 0));
     renderPendingOrders();
+    setPendingQuantityLoading(orderIndex, itemId, false, null, true);
 
     try {
         await updatePendingOrderItemQuantity(order.id, item.id, nextQuantity, item.components);
@@ -8081,6 +8180,8 @@ async function changePendingOrderItemQuantity(orderIndex, itemId, direction) {
         renderPendingOrders();
         await showStaffNotice(error.message || 'Unable to edit order quantity', true);
         return;
+    } finally {
+        setPendingQuantityLoading(orderIndex, itemId, false, null, false);
     }
 
     void loadPendingOrdersFromServer();
@@ -8794,6 +8895,7 @@ if (staffReviewList) {
             if (!deleteConfirmed) return;
         }
 
+        setButtonLoading(actionButton, true, publishButton ? 'Publishing…' : 'Deleting…');
         const actor = getCurrentStaffActor();
         try {
             const endpoint = publishButton ? 'api/publish_review.php' : 'api/delete_review.php';
@@ -8831,6 +8933,8 @@ if (staffReviewList) {
         } catch (error) {
             console.error('Unable to update review status', error);
             await showStaffNotice(error.message || 'Unable to update review status', true);
+        } finally {
+            setButtonLoading(actionButton, false);
         }
     });
 }
@@ -10231,7 +10335,7 @@ async function exportDailySales() {
     }
 
     setExportMessage('Fetching completed orders...');
-    if (exportDailyBtn) exportDailyBtn.disabled = true;
+    setButtonLoading(exportDailyBtn, true);
     try {
         const orders = await fetchSalesReport(date, date);
         if (!orders.length) {
@@ -10259,7 +10363,7 @@ async function exportDailySales() {
         setExportSummary(null);
         setExportMessage(`Export failed: ${error.message || 'Unexpected error'}`, true);
     } finally {
-        if (exportDailyBtn) exportDailyBtn.disabled = false;
+        setButtonLoading(exportDailyBtn, false);
     }
 }
 
@@ -10272,7 +10376,7 @@ async function exportMonthlySales() {
 
     const { label, from, to } = getSelectedExportMonth();
     setExportMessage(`Fetching completed orders for ${label}...`);
-    if (exportMonthlyBtn) exportMonthlyBtn.disabled = true;
+    setButtonLoading(exportMonthlyBtn, true);
     try {
         const orders = await fetchSalesReport(from, to);
         if (!orders.length) {
@@ -10325,7 +10429,7 @@ async function exportMonthlySales() {
         setExportSummary(null);
         setExportMessage(`Export failed: ${error.message || 'Unexpected error'}`, true);
     } finally {
-        if (exportMonthlyBtn) exportMonthlyBtn.disabled = false;
+        setButtonLoading(exportMonthlyBtn, false);
     }
 }
 
@@ -10480,7 +10584,7 @@ async function exportProfitDaily() {
         ? profitExportDateInput.value
         : toLocalDateInputValue(new Date());
     setProfitExportMessage('Fetching completed orders...');
-    if (profitExportDailyBtn) profitExportDailyBtn.disabled = true;
+    setButtonLoading(profitExportDailyBtn, true);
     try {
         const orders = await fetchSalesReport(date, date);
         if (!orders.length) {
@@ -10505,7 +10609,7 @@ async function exportProfitDaily() {
     } catch (error) {
         setProfitExportMessage(`Export failed: ${error.message || 'Unexpected error'}`, true);
     } finally {
-        if (profitExportDailyBtn) profitExportDailyBtn.disabled = false;
+        setButtonLoading(profitExportDailyBtn, false);
     }
 }
 
@@ -10555,7 +10659,7 @@ async function exportProfitMonthly() {
 
     const { label, from, to } = getSelectedProfitExportMonth();
     setProfitExportMessage(`Fetching completed orders for ${label}...`);
-    if (profitExportMonthlyBtn) profitExportMonthlyBtn.disabled = true;
+    setButtonLoading(profitExportMonthlyBtn, true);
     try {
         const orders = await fetchSalesReport(from, to);
         if (!orders.length) {
@@ -10582,7 +10686,7 @@ async function exportProfitMonthly() {
     } catch (error) {
         setProfitExportMessage(`Export failed: ${error.message || 'Unexpected error'}`, true);
     } finally {
-        if (profitExportMonthlyBtn) profitExportMonthlyBtn.disabled = false;
+        setButtonLoading(profitExportMonthlyBtn, false);
     }
 }
 
@@ -11303,9 +11407,7 @@ async function saveInventoryItem(event) {
     }
 
     inventoryEditItemName = null;
-    if (inventorySaveBtn) {
-        inventorySaveBtn.textContent = 'Save Inventory Item';
-    }
+    setButtonLoading(inventorySaveBtn, true, 'Saving…');
 
     saveInventoryData();
     let syncSucceeded = false;
@@ -11352,6 +11454,7 @@ async function saveInventoryItem(event) {
 
     if (!syncSucceeded) {
         inventoryEditLock = false;
+        setButtonLoading(inventorySaveBtn, false);
         void initializeInventoryData(true);
         return;
     }
@@ -11378,6 +11481,7 @@ async function saveInventoryItem(event) {
     // items with a stale server response (15-second cache / race with the
     // initial page-load fetch).
     void loadOrderLogsFromServer(true);
+    setButtonLoading(inventorySaveBtn, false);
     selectedSpecialFoodImageData = '';
 }
 
@@ -11437,6 +11541,8 @@ async function commitInlineInventoryEdit(card) {
 
     saveMenuCatalogItem(previousItem, itemName);
     saveInventoryData();
+    const inlineSaveButton = card.querySelector('.inventory-inline-save');
+    setButtonLoading(inlineSaveButton, true, 'Saving…');
     let syncSucceeded = false;
     try {
         await ensureStaffServerSession();
@@ -11490,6 +11596,7 @@ async function commitInlineInventoryEdit(card) {
     }
 
     if (!syncSucceeded) {
+        setButtonLoading(inlineSaveButton, false);
         return;
     }
 
@@ -11508,6 +11615,7 @@ async function commitInlineInventoryEdit(card) {
     // inventory data. A background re-fetch could overwrite locally-added
     // items with a stale server response.
     void loadOrderLogsFromServer(true);
+    setButtonLoading(inlineSaveButton, false);
 }
 
 function renderOverviewAnalytics(animate = true) {
@@ -14135,7 +14243,12 @@ if (overviewOrderNotificationList) {
             if (!canManageOrders()) return;
             const orderId = Number(refundBtn.dataset.orderId || 0);
             if (orderId) {
-                await refundCompletedOrder(orderId);
+                setButtonLoading(refundBtn, true, 'Refunding…');
+                try {
+                    await refundCompletedOrder(orderId);
+                } finally {
+                    setButtonLoading(refundBtn, false);
+                }
             }
             return;
         }
@@ -14197,14 +14310,24 @@ if (pendingOrdersList) {
             const card = prepareBtn.closest('.pending-order-card');
             const input = card ? card.querySelector('.prep-minutes-input') : null;
             const minutes = input ? Number(input.value) || 15 : 15;
-            await startOrderPreparation(index, minutes);
+            setButtonLoading(prepareBtn, true, 'Preparing…');
+            try {
+                await startOrderPreparation(index, minutes);
+            } finally {
+                setButtonLoading(prepareBtn, false);
+            }
             return;
         }
 
         const button = event.target.closest('.order-complete-btn');
         if (button) {
             const index = Number(button.dataset.orderIndex);
-            await markPendingOrderAsComplete(index, true);
+            setButtonLoading(button, true, 'Completing…');
+            try {
+                await markPendingOrderAsComplete(index, true);
+            } finally {
+                setButtonLoading(button, false);
+            }
             return;
         }
 
@@ -14218,7 +14341,12 @@ if (pendingOrdersList) {
         const cancelBtn = event.target.closest('.order-cancel-btn');
         if (cancelBtn) {
             const index = Number(cancelBtn.dataset.orderIndex);
-            await cancelPendingOrder(index);
+            setButtonLoading(cancelBtn, true, 'Cancelling…');
+            try {
+                await cancelPendingOrder(index);
+            } finally {
+                setButtonLoading(cancelBtn, false);
+            }
         }
     });
 }
@@ -14285,8 +14413,13 @@ if (walkInDraftList) {
 }
 
 if (walkInPlaceOrderBtn) {
-    walkInPlaceOrderBtn.addEventListener('click', () => {
-        void placeWalkInOrder();
+    walkInPlaceOrderBtn.addEventListener('click', async () => {
+        setButtonLoading(walkInPlaceOrderBtn, true, 'Placing order…');
+        try {
+            await placeWalkInOrder();
+        } finally {
+            setButtonLoading(walkInPlaceOrderBtn, false);
+        }
     });
 }
 
@@ -14683,7 +14816,7 @@ function downloadRetentionCsv(batch, headers, rows) {
 async function exportRetentionBatch() {
     if (!retentionSelectedBatch) return;
     setRetentionMessage('Exporting...');
-    if (retentionExportBtn) retentionExportBtn.disabled = true;
+    setButtonLoading(retentionExportBtn, true);
     try {
         const response = await fetch(getApiUrl(`api/export_retention_batch.php?id=${retentionSelectedBatch.id}&_=${Date.now()}`), {
             cache: 'no-store',
@@ -14707,7 +14840,7 @@ async function exportRetentionBatch() {
     } catch (error) {
         setRetentionMessage(`Export failed: ${error.message || 'Unexpected error'}`, true);
     } finally {
-        if (retentionExportBtn) retentionExportBtn.disabled = false;
+        setButtonLoading(retentionExportBtn, false);
     }
 }
 
@@ -14722,7 +14855,7 @@ async function clearRetentionBatch() {
     if (!confirmed) return;
 
     setRetentionMessage('Clearing records...');
-    if (retentionClearBtn) retentionClearBtn.disabled = true;
+    setButtonLoading(retentionClearBtn, true);
     try {
         const headers = await withCsrfHeaders({ 'Content-Type': 'application/json' });
         const response = await fetch(getApiUrl('api/clear_retention_batch.php'), {
@@ -14742,7 +14875,7 @@ async function clearRetentionBatch() {
     } catch (error) {
         setRetentionMessage(`Clear failed: ${error.message || 'Unexpected error'}`, true);
     } finally {
-        if (retentionClearBtn) retentionClearBtn.disabled = false;
+        setButtonLoading(retentionClearBtn, false);
     }
 }
 
