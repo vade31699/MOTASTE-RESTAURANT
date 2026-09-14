@@ -259,7 +259,7 @@ function ensureStaffAuthSession(): void
         'path' => '/',
         'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
         'httponly' => true,
-        'samesite' => 'Strict',
+        'samesite' => 'Lax',
     ]);
     session_start();
 }
@@ -1128,7 +1128,7 @@ function setStaffSessionTokenCookie(?string $token, bool $remember = false): voi
             'path' => '/',
             'secure' => $secure,
             'httponly' => true,
-            'samesite' => 'Strict',
+            'samesite' => 'Lax',
         ]);
         return;
     }
@@ -1137,7 +1137,7 @@ function setStaffSessionTokenCookie(?string $token, bool $remember = false): voi
         'path' => '/',
         'secure' => $secure,
         'httponly' => true,
-        'samesite' => 'Strict',
+        'samesite' => 'Lax',
     ];
 
     if ($remember) {

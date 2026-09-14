@@ -10058,6 +10058,7 @@ async function deleteInventoryItem(name) {
                 actorRole: actor.role,
                 actorEmail: actor.email
             }),
+            credentials: 'same-origin',
             cache: 'no-store'
         });
     };
