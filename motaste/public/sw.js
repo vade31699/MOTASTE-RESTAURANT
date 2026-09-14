@@ -1,5 +1,5 @@
 /* Motaste service worker — offline menu shell with network-first strategy for pages */
-const CACHE_NAME = 'motaste-cache-v9';
+const CACHE_NAME = 'motaste-cache-v10';
 const SHELL_ASSETS = [
     '/',
     '/style.css',

@@ -9647,6 +9647,31 @@ body.staff-app .trusted-device-revoke.is-loading::after {
     }
 }
 
+/* Loading state for the highlights upload button while images are being
+   prepared and sent to the server. */
+body.staff-app #highlightsForm button[type="submit"]:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+body.staff-app #highlightsForm button[type="submit"].is-loading::after {
+    content: '';
+    display: inline-block;
+    width: 0.8em;
+    height: 0.8em;
+    margin-left: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    vertical-align: -0.12em;
+    animation: trusted-device-revoke-spin 0.7s linear infinite;
+}
+
+body.staff-app #highlightsImagesInput:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 body.staff-app .trusted-devices-empty {
     color: var(--staff-muted);
     font-size: 0.85rem;

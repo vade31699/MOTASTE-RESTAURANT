@@ -3316,6 +3316,7 @@ const accountEmailInput = document.getElementById('accountEmail');
 const accountPasswordInput = document.getElementById('accountPassword');
 const highlightsForm = document.getElementById('highlightsForm');
 const highlightsImagesInput = document.getElementById('highlightsImagesInput');
+const highlightsSubmitBtn = highlightsForm ? highlightsForm.querySelector('button[type="submit"]') : null;
 const highlightsMessage = document.getElementById('highlightsMessage');
 const highlightsList = document.getElementById('highlightsList');
 const optimizeHighlightsBtn = document.getElementById('optimizeHighlightsBtn');
@@ -6310,11 +6311,22 @@ if (highlightsForm) {
             return;
         }
 
+        // Show upload progress while images are being prepared and sent.
+        const originalUploadText = highlightsSubmitBtn ? highlightsSubmitBtn.textContent : '';
+        if (highlightsSubmitBtn) {
+            highlightsSubmitBtn.disabled = true;
+            highlightsSubmitBtn.textContent = 'Uploading…';
+            highlightsSubmitBtn.classList.add('is-loading');
+        }
+        if (highlightsImagesInput) highlightsImagesInput.disabled = true;
+        setHighlightsMessage(`Uploading 1/${filesToUpload.length}…`);
+
         const failures = [];
         let uploaded = 0;
 
         for (const file of filesToUpload) {
             try {
+                setHighlightsMessage(`Uploading ${uploaded + 1}/${filesToUpload.length}…`);
                 // Shrink the photo in the browser first, then upload it on its
                 // own request: sending every stored image back with each upload
                 // is what made even a single small image fail before.
@@ -6325,6 +6337,14 @@ if (highlightsForm) {
                 failures.push(`${file.name || 'image'}: ${error.message || 'upload failed'}`);
             }
         }
+
+        // Restore the upload button to its resting state.
+        if (highlightsSubmitBtn) {
+            highlightsSubmitBtn.disabled = false;
+            highlightsSubmitBtn.textContent = originalUploadText;
+            highlightsSubmitBtn.classList.remove('is-loading');
+        }
+        if (highlightsImagesInput) highlightsImagesInput.disabled = false;
 
         if (uploaded > 0) {
             await loadHighlightsFromServer();
