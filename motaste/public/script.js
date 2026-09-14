@@ -1167,7 +1167,7 @@ function ensureStaffServerSession() {
         return staffServerSessionRenewal;
     }
 
-    staffServerSessionRenewal = (async () => {
+    const renewal = (async () => {
         try {
             const response = await fetchWithTimeout(getApiUrl('api/renew_staff_session.php'), {
                 method: 'POST',
@@ -1190,16 +1190,28 @@ function ensureStaffServerSession() {
                 return true;
             }
 
-            // Token invalid/expired or the account was removed: end the session
-            // and return to the login screen.
-            clearStaffSession();
-            forceLogoutCurrentStaffSession();
+            if (payload && payload.authRequired) {
+                // Token invalid/expired or the account was removed: end the
+                // session and return to the login screen.
+                clearStaffSession();
+                forceLogoutCurrentStaffSession();
+            }
             return false;
         } catch (error) {
             console.debug('Unable to renew staff server session', error);
             return false;
+        } finally {
+            // The attempt is finished either way — drop the cached promise so
+            // a transient failure (offline, timeout, server blip) can retry on
+            // the next call instead of being memoized as "not renewed" forever,
+            // which kept failing every staff-gated request with 401s.
+            if (staffServerSessionRenewal === renewal) {
+                staffServerSessionRenewal = null;
+            }
         }
     })();
+
+    staffServerSessionRenewal = renewal;
 
     return staffServerSessionRenewal;
 }
@@ -8560,6 +8572,42 @@ async function loadCustomMenuData() {
         const payload = await response.json();
         if (payload && payload.success && payload.snapshot) {
             const changed = applyCustomMenuSnapshot(payload.snapshot);
+
+            // The snapshot is a whole-payload overwrite written by whichever
+            // staff tab saved last, so it can still contain items that were
+            // deleted from inventory. Rendering it unfiltered made deleted
+            // items reappear for one refresh cycle (the "flicker") before the
+            // inventory reconcile removed them again. Once real inventory has
+            // loaded, drop snapshot items that no longer exist there BEFORE
+            // the first render, and write the pruned snapshot back so the
+            // stale entries stop coming around on every fetch.
+            if (inventoryLoadedFromServer && inventoryData.length) {
+                const inventoryNames = new Set(
+                    inventoryData.map((item) => normalizeInventoryName(item.name))
+                );
+                let removedStaleItems = false;
+                Object.values(menuData).forEach((category) => {
+                    if (!category || !Array.isArray(category.items)) return;
+                    const before = category.items.length;
+                    category.items = category.items.filter((item) =>
+                        inventoryNames.has(normalizeInventoryName(item.name))
+                    );
+                    if (category.items.length !== before) removedStaleItems = true;
+                });
+                for (let i = specialFoods.length - 1; i >= 0; i--) {
+                    if (!inventoryNames.has(normalizeInventoryName(specialFoods[i].name))) {
+                        specialFoods.splice(i, 1);
+                        removedStaleItems = true;
+                    }
+                }
+                // Only a staff tab may write the snapshot back — the save
+                // endpoint is staff-gated and the customer page would just
+                // get a 401.
+                if (removedStaleItems && isStaffPage) {
+                    void saveCustomMenuData();
+                }
+            }
+
             syncMenuPricesWithInventory();
             renderSpecialFoods();
             renderInventoryManagement();
@@ -9998,13 +10046,11 @@ async function deleteInventoryItem(name) {
     if (index < 0) return;
 
     const actor = getCurrentStaffActor();
-    let shouldContinueDelete = false;
-    try {
-        await ensureStaffServerSession();
+    const performDeleteRequest = async () => {
         const headers = await withCsrfHeaders({
             'Content-Type': 'application/json'
         });
-        const response = await fetch(getApiUrl('api/delete_inventory_item.php'), {
+        return fetch(getApiUrl('api/delete_inventory_item.php'), {
             method: 'POST',
             headers,
             body: JSON.stringify({
@@ -10014,21 +10060,35 @@ async function deleteInventoryItem(name) {
             }),
             cache: 'no-store'
         });
+    };
 
-        const payload = await response.json().catch(() => ({}));
-        const errorMessage = String(payload?.error || '').toLowerCase();
+    let response;
+    try {
+        await ensureStaffServerSession();
+        response = await performDeleteRequest();
 
-        if ((!response.ok || !payload.success) && !errorMessage.includes('not found')) {
-            throw new Error(payload.error || `HTTP ${response.status}`);
+        // One auth-recovery retry: a 401 here used to surface as "Staff
+        // authentication required. Please log in again." even while logged
+        // in — typically because this tab's session renewal had failed once
+        // (offline blip, tab slept through the renewal window). Force a fresh
+        // renewal + CSRF token and retry exactly once before giving up.
+        if (response.status === 401) {
+            staffServerSessionRenewal = null;
+            if (await ensureStaffServerSession()) {
+                csrfToken = '';
+                response = await performDeleteRequest();
+            }
         }
-
-        shouldContinueDelete = true;
     } catch (error) {
         await showStaffNotice(error.message || 'Unable to delete inventory item', true);
         return;
     }
 
-    if (!shouldContinueDelete) {
+    const payload = await response.json().catch(() => ({}));
+    const errorMessage = String(payload?.error || '').toLowerCase();
+
+    if ((!response.ok || !payload.success) && !errorMessage.includes('not found')) {
+        await showStaffNotice(payload.error || `Unable to delete inventory item (HTTP ${response.status})`, true);
         return;
     }
 

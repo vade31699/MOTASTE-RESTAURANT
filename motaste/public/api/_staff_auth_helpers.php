@@ -1309,16 +1309,14 @@ function rotateStaffSessionToken(string $email, string $role, ?string $currentTo
     $normalizedEmail = strtolower(trim((string)$email));
     $normalizedRole = trim((string)$role);
 
+    // Revoke ONLY the token being rotated. Every renewal (page reload,
+    // ensureStaffServerSession()) calls this, and a renewal happens per
+    // browser tab on its own schedule — sweeping away the account's other
+    // live tokens here logged out every OTHER open tab (they got 401
+    // "Staff authentication required" on their next staff-gated request
+    // even though nobody logged them out).
     if ($currentToken !== null && trim((string)$currentToken) !== '') {
         revokeStaffSessionToken($currentToken);
-    }
-
-    try {
-        DB::table('staff_session_tokens')
-            ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
-            ->delete();
-    } catch (Throwable $error) {
-        error_log('rotateStaffSessionToken cleanup failed: ' . $error->getMessage());
     }
 
     return issueStaffSessionToken($normalizedEmail, $normalizedRole);

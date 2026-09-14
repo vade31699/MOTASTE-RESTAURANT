@@ -224,6 +224,28 @@ test('rotating a staff session keeps a valid replacement token available', funct
     DB::table('staff_session_tokens')->where('email', $email)->delete();
 });
 
+test('rotating one tab session does not revoke other tabs tokens', function () {
+    bootTestApp();
+
+    $email = 'rotate-multitab-test@example.com';
+    DB::table('staff_session_tokens')->where('email', $email)->delete();
+
+    // Two tabs log in, each holding its own live token.
+    $tabAToken = issueStaffSessionToken($email, 'Admin');
+    $tabBToken = issueStaffSessionToken($email, 'Admin');
+
+    // Tab A reloads and renews its session.
+    $tabARenewed = rotateStaffSessionToken($email, 'Admin', $tabAToken);
+
+    // Tab B's token must still resolve — its tab stays logged in.
+    expect(resolveStaffSessionToken($tabBToken))->not->toBeNull();
+    expect(resolveStaffSessionToken($tabBToken)['email'])->toBe($email);
+    expect(resolveStaffSessionToken($tabAToken))->toBeNull();
+    expect(resolveStaffSessionToken($tabARenewed)['email'])->toBe($email);
+
+    DB::table('staff_session_tokens')->where('email', $email)->delete();
+});
+
 test('revoking all tokens ends every session for the account', function () {
     bootTestApp();
 
