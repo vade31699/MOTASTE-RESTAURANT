@@ -3344,15 +3344,14 @@ function renderAccounts() {
 
     accountList.innerHTML = '';
 
-    const managedAccounts = accounts
-        .map((account, index) => ({ ...account, _index: index }))
-        .filter((account) => account.role !== 'Admin');
+    const managedAccounts = accounts.map((account, index) => ({ ...account, _index: index }));
 
     managedAccounts.forEach((account) => {
         const item = document.createElement('li');
+        const isAdmin = account.role === 'Admin';
         const inviteLabel = account.inviteConfirmed ? 'Confirmed' : 'Pending Email Confirmation';
 
-        if (accountEditIndex === account._index) {
+        if (!isAdmin && accountEditIndex === account._index) {
             item.innerHTML = `
                 <div class="account-inline-editor">
                     <input type="text" value="${escapeHtml(account.name)}" data-field="name" aria-label="Staff name">
@@ -3370,11 +3369,14 @@ function renderAccounts() {
                 </div>
             `;
         } else {
+            item.classList.toggle('account-row-admin', isAdmin);
             item.innerHTML = `
-                <span>${escapeHtml(account.name)} — ${escapeHtml(account.role)} — ${escapeHtml(account.email)} — ${escapeHtml(inviteLabel)}</span>
+                <span>
+                    ${isAdmin ? '<span class="account-role-tag">Admin</span> ' : ''}${escapeHtml(account.name)} — ${escapeHtml(account.role)} — ${escapeHtml(account.email)} — ${escapeHtml(inviteLabel)}
+                </span>
                 <div>
                     <button type="button" class="edit-btn" data-index="${account._index}">Edit</button>
-                    <button type="button" class="delete-btn" data-index="${account._index}">Delete</button>
+                    ${isAdmin ? '' : `<button type="button" class="delete-btn" data-index="${account._index}">Delete</button>`}
                 </div>
             `;
         }
@@ -3396,6 +3398,17 @@ function toggleAccountForm(showForm) {
     if (!showForm) {
         resetAccountForm();
     }
+    // Opening the staff add/edit form takes over the section, so collapse the
+    // admin edit panel that can be opened from the account list.
+    closeAdminEditPanel();
+}
+
+function closeAdminEditPanel() {
+    const adminPanel = document.getElementById('adminCredentialSettings');
+    if (adminPanel) adminPanel.hidden = true;
+    if (credentialsForm) credentialsForm.hidden = true;
+    if (passwordCredentialsForm) passwordCredentialsForm.hidden = true;
+    accountEditIndex = null;
 }
 
 function setCredentialsMessage(message, isError = false) {
@@ -5824,7 +5837,7 @@ if (accountList) {
         if (button.classList.contains('delete-btn')) {
             const removedAccount = accounts[index];
             if (removedAccount && removedAccount.role === 'Admin') {
-                await showStaffNotice('Admin account is managed through Credentials only.', true);
+                await showStaffNotice('The admin account cannot be deleted.', true);
                 return;
             }
             accounts.splice(index, 1);
@@ -5869,13 +5882,23 @@ if (accountList) {
         if (button.classList.contains('edit-btn')) {
             const selectedAccount = accounts[index];
             if (selectedAccount) {
-                if (selectedAccount.role === 'Admin') {
-                    await showStaffNotice('Admin account is managed through Credentials only.', true);
-                    return;
-                }
                 accountEditIndex = index;
                 if (accountForm) {
                     accountForm.hidden = true;
+                }
+                // Editing the admin opens the admin change-email/password panel
+                // in the same section instead of a separate Credentials area.
+                const adminPanel = document.getElementById('adminCredentialSettings');
+                if (adminPanel) {
+                    adminPanel.hidden = selectedAccount.role !== 'Admin';
+                }
+                if (selectedAccount.role === 'Admin') {
+                    if (credentialsForm) credentialsForm.hidden = true;
+                    if (passwordCredentialsForm) passwordCredentialsForm.hidden = true;
+                    void loadAdminCredentials();
+                    window.setTimeout(() => {
+                        if (adminPanel) adminPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 50);
                 }
                 renderAccounts();
             }
@@ -5916,6 +5939,14 @@ if (togglePasswordFormBtn) {
                 if (adminPasswordCurrentPasswordInput) adminPasswordCurrentPasswordInput.focus();
             }
         }
+    });
+}
+
+const closeAdminEditPanelBtn = document.getElementById('closeAdminEditPanelBtn');
+if (closeAdminEditPanelBtn) {
+    closeAdminEditPanelBtn.addEventListener('click', () => {
+        closeAdminEditPanel();
+        renderAccounts();
     });
 }
 

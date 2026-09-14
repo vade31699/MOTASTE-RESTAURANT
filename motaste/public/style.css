@@ -9409,6 +9409,37 @@ body.staff-app .account-list .delete-btn {
     border: 1px solid rgba(220, 38, 38, 0.35);
 }
 
+/* The admin account lives in the same list; give its row a distinct tag and a
+   quiet highlight so it is identifiable without a separate section. */
+body.staff-app .account-list .account-role-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    margin-right: 6px;
+    background: var(--staff-accent);
+    color: #fff;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+body.staff-app .account-list li.account-row-admin {
+    background: var(--staff-surface-2);
+    box-shadow: inset 3px 0 0 var(--staff-accent), var(--staff-shadow-sm);
+}
+
+/* Admin edit panel: same card language as the account rows, revealed only
+   while the admin account is being edited from the list. */
+body.staff-app #adminCredentialSettings {
+    margin-top: 14px;
+    padding: 14px;
+    background: var(--staff-surface-2);
+    border: 1px solid var(--staff-border);
+    border-radius: 12px;
+}
+
 /* ---------- Credentials: floating labels + helper text ---------- */
 body.staff-app .floating-field {
     position: relative;

@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./style.css?v=20260915j">
+    <link rel="stylesheet" href="./style.css?v=20260915k">
     <title>Login - MOTASTE</title>
     <style>
         html,
@@ -810,7 +810,7 @@
 
     <section id="account-management" class="account-management" hidden>
         <h2>Account Management</h2>
-        <p>Manage cashier and inventory accounts below. Admin Gmail, password, trusted devices, and login history are also managed here. Staff invites are Gmail-only and require email confirmation before first login.</p>
+        <p>Manage every account from one list, including the admin. Click Edit to change an account's details, password, or email. Staff invites are Gmail-only and require email confirmation before first login.</p>
 
         <button type="button" id="toggleAccountFormBtn" class="add-staff-btn">Add Staff Account</button>
 
@@ -831,9 +831,9 @@
 
         <ul id="accountList" class="account-list"></ul>
 
-        <div id="adminCredentialSettings">
-            <h3>Admin Credentials</h3>
-            <p>Admin-only settings for main Gmail and password. Changes require email verification code before applying.</p>
+        <div id="adminCredentialSettings" hidden>
+            <h3>Edit Admin Account</h3>
+            <p>Changing the admin Gmail or password requires a verification code sent to the current admin email.</p>
 
             <button type="button" id="toggleCredentialsFormBtn" class="add-staff-btn">CHANGE ADMIN EMAIL</button>
 
@@ -887,6 +887,7 @@
                 <button type="submit" id="confirmPasswordChangeBtn">Verify and Apply</button>
             </form>
 
+            <button type="button" id="closeAdminEditPanelBtn" class="secondary-btn" style="margin-top: 14px;">Cancel</button>
             <p id="credentialsMessage" class="menu-order-message" aria-live="polite"></p>
         </div>
     </section>
@@ -1103,6 +1104,6 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
-    <script src="./script.js?v=20260915e" defer></script>
+    <script src="./script.js?v=20260915f" defer></script>
 </body>
 </html>
