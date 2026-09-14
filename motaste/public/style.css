@@ -5215,16 +5215,13 @@ body.staff-app .retention-clear-btn {
 
     .inventory-modal {
         position: fixed;
-        top: 20px;
-        left: 0;
-        right: 0;
-        bottom: 0;
+        inset: 0;
         display: grid;
+        align-items: center;
         justify-items: center;
-        align-items: start;
-        background: rgba(0, 0, 0, 0.5);
-        padding: 20px 18px 18px;
-        z-index: 40;
+        background: rgba(0, 0, 0, 0.55);
+        padding: 20px;
+        z-index: 2600;
         overflow-y: auto;
         overscroll-behavior: contain;
     }
@@ -5236,7 +5233,7 @@ body.staff-app .retention-clear-btn {
     .inventory-modal-card {
         position: relative;
         width: min(720px, 100%);
-        max-height: 480px;
+        max-height: min(88vh, 720px);
         overflow: hidden;
         display: flex;
         flex-direction: column;
@@ -5259,7 +5256,7 @@ body.staff-app .retention-clear-btn {
 
     .inventory-form {
         min-height: 0;
-        max-height: 360px;
+        max-height: 560px;
         overflow-y: auto;
         padding-right: 8px;
         display: grid;
@@ -9037,6 +9034,26 @@ body.staff-app .inventory-item-card {
     border-radius: 14px;
     box-shadow: var(--staff-shadow-sm);
     color: var(--staff-text);
+}
+
+/* Fills the list area when there are no products, so the Inventory
+   section doesn't collapse into a tiny strip while empty. */
+body.staff-app .inventory-items-wrapper .menu-cart-empty {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 48px 24px;
+    min-height: 220px;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    text-align: center;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.6;
+    color: var(--staff-muted);
+    background: var(--staff-surface-2);
+    border: 1.5px dashed var(--staff-border);
+    border-radius: 14px;
 }
 
 body.staff-app .inventory-item-card h4,
