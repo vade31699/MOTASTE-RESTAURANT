@@ -5245,7 +5245,7 @@ body.staff-app .retention-clear-btn {
     .inventory-modal-card {
         position: relative;
         width: min(720px, 100%);
-        max-height: min(88vh, 720px);
+        max-height: min(92vh, 780px);
         overflow: hidden;
         display: flex;
         flex-direction: column;
@@ -5268,7 +5268,7 @@ body.staff-app .retention-clear-btn {
 
     .inventory-form {
         min-height: 0;
-        max-height: 560px;
+        max-height: min(72vh, 660px);
         overflow-y: auto;
         padding-right: 8px;
         display: grid;
