@@ -19,18 +19,21 @@ const staffForm = document.getElementById('staffLoginForm');
 const staffLoginPage = document.querySelector('.staff-login-page');
 
 // The portal serves two login surfaces from the same page:
-//   /admin → admin entry point, offers password recovery
-//   /staff → cashier / inventory entry point, never offers recovery
+//   /admin → admin entry point, never offers password recovery
+//   /staff → cashier / inventory entry point, offers password recovery
 const isAdminLoginSurface = /\/admin\/?$/.test(window.location.pathname);
+const isStaffLoginSurface = /\/staff\/?$/.test(window.location.pathname);
 
-// Password recovery is an admin-only option. The link is rendered into the DOM
-// only on the /admin surface, so /staff has no way to start a reset at all.
+// Password recovery belongs to the staff portal: staff accounts live in the
+// `staff` table, and the reset flow rejects the Admin's address (which lives in
+// the `admins` table). The link is therefore rendered into the DOM only on the
+// /staff surface, so /admin has no way to start a reset at all.
 function applyLoginSurface() {
     if (modalTitle) {
         modalTitle.textContent = isAdminLoginSurface ? 'Admin Login' : 'Staff Login';
     }
 
-    if (!isAdminLoginSurface) {
+    if (!isStaffLoginSurface) {
         return;
     }
 

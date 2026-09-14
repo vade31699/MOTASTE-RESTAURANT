@@ -1,10 +1,20 @@
 <?php
 
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Mail\AdminResetAttempt;
 use App\Mail\PasswordResetCode;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+
+/**
+ * Password recovery is a STAFF feature: staff accounts live in the `staff`
+ * table, and the flow only ever consults that table. The Admin keeps its
+ * credentials in the dedicated `admins` table, so an admin address is never
+ * eligible — asking for a reset with it fails exactly like an unknown address.
+ * These tests pin that contract down.
+ */
 
 /**
  * POST the forgot-password form and return the 6-digit code that was emailed.
@@ -46,30 +56,10 @@ function verifyCodeAndGetResetToken(User $user, $test, string $code): string
 }
 
 /**
- * Create the single Admin account: the users row (the reset store) plus the
- * matching staff row that marks it as the Admin.
+ * Create a staff account: the users row (the reset store) plus the matching
+ * `staff` row that the staff portal authenticates against.
  */
-function createAdminUser(): User
-{
-    $admin = User::factory()->create();
-
-    DB::table('staff')->insert([
-        'user_id' => $admin->id,
-        'full_name' => 'Admin',
-        'role' => 'Admin',
-        'email' => $admin->email,
-        'password_hash' => $admin->password,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    return $admin;
-}
-
-/**
- * Create a non-admin staff account (Cashier or Inventory Manager).
- */
-function createStaffUser(string $role): User
+function createStaffAccount(string $role = 'Cashier'): User
 {
     $staff = User::factory()->create();
 
@@ -86,16 +76,39 @@ function createStaffUser(string $role): User
     return $staff;
 }
 
+/**
+ * Create the Admin account. It only exists in the `admins` table (plus its
+ * users row) — never in `staff`.
+ */
+function createAdminAccount(): User
+{
+    $admin = User::factory()->create();
+
+    DB::table('admins')->insert([
+        'full_name' => 'Test Admin',
+        'email' => $admin->email,
+        'password_hash' => $admin->password,
+        'role' => 'Admin',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    return $admin;
+}
+
 test('reset password screen can be rendered', function () {
     $response = $this->get('/forgot-password');
 
     $response->assertStatus(200);
+
+    // Recovery belongs to the staff portal, so the page leads back there.
+    $response->assertSee('href="'.route('staff').'"', false);
 });
 
 test('a verification code is emailed before any reset form is shown', function () {
     Mail::fake();
 
-    $user = createAdminUser();
+    $user = createStaffAccount('Cashier');
 
     $this->post('/forgot-password', ['email' => $user->email])
         ->assertSessionHasNoErrors()
@@ -111,50 +124,203 @@ test('an unknown email is rejected with a Please try again message', function ()
     $this->post('/forgot-password', ['email' => 'nobody@example.com'])
         ->assertSessionHasErrors('email');
 
-    expect(session('errors')->get('email'))->toContain('Please try again.');
+    // Unknown addresses stay deliberately vague: only the admin address is
+    // named, so a real staff address cannot be probed out of this form.
+    $errors = session('errors')->get('email');
+    expect($errors)->toContain('Please try again.');
+    expect($errors)->not->toContain(PasswordResetLinkController::ADMIN_RECOVERY_MESSAGE);
     Mail::assertNothingSent();
 });
 
-test('a cashier cannot start a password reset', function () {
+test('a cashier can start a password reset', function () {
     Mail::fake();
 
-    $cashier = createStaffUser('Cashier');
+    $cashier = createStaffAccount('Cashier');
 
     $this->post('/forgot-password', ['email' => $cashier->email])
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('password_reset_email', $cashier->email);
+
+    Mail::assertSent(PasswordResetCode::class);
+});
+
+test('an inventory manager can start a password reset', function () {
+    Mail::fake();
+
+    $inventory = createStaffAccount('Inventory Manager');
+
+    $this->post('/forgot-password', ['email' => $inventory->email])
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('password_reset_email', $inventory->email);
+
+    Mail::assertSent(PasswordResetCode::class);
+});
+
+test('the admin email cannot start a staff password reset', function () {
+    Mail::fake();
+
+    $admin = createAdminAccount();
+
+    // The admin address lives in the `admins` table, which this flow never
+    // consults — and the form says so plainly instead of a vague failure.
+    $this->post('/forgot-password', ['email' => $admin->email])
         ->assertSessionHasErrors('email');
 
-    expect(session('errors')->get('email'))->toContain('Please try again.');
-    Mail::assertNothingSent();
+    $errors = session('errors')->get('email');
+    expect($errors)->toContain(PasswordResetLinkController::ADMIN_RECOVERY_MESSAGE);
+    expect($errors)->not->toContain('Please try again.');
 
-    $this->post('/forgot-password/verify', ['email' => $cashier->email, 'code' => '000000'])
+    // No verification code is ever issued for the admin address — the only
+    // mail that goes out is the alert to the Admin (covered separately).
+    Mail::assertNotSent(PasswordResetCode::class);
+
+    // And the code step refuses it too, so no session state can be built up.
+    $this->post('/forgot-password/verify', ['email' => $admin->email, 'code' => '000000'])
         ->assertSessionHasErrors('code');
 });
 
-test('an inventory manager cannot start a password reset', function () {
+test('the admin message is rendered on the reset form', function () {
     Mail::fake();
 
-    $inventory = createStaffUser('Inventory Manager');
+    $admin = createAdminAccount();
 
-    $this->post('/forgot-password', ['email' => $inventory->email])
+    $this->from('/forgot-password')
+        ->post('/forgot-password', ['email' => $admin->email])
+        ->assertRedirect('/forgot-password');
+
+    // The person who typed the admin address actually sees the explanation.
+    $this->get('/forgot-password')
+        ->assertStatus(200)
+        ->assertSee(PasswordResetLinkController::ADMIN_RECOVERY_MESSAGE, false);
+});
+
+test('the admin email is named clearly even when it is a legacy staff row', function () {
+    Mail::fake();
+
+    // Older deployments kept the Admin as a role = 'Admin' row in `staff`.
+    // Such a row must not become a reset loophole, and it gets the same clear
+    // message as the `admins` table shape.
+    $user = User::factory()->create();
+    DB::table('staff')->insert([
+        'user_id' => $user->id,
+        'full_name' => 'Legacy Admin',
+        'role' => 'Admin',
+        'email' => $user->email,
+        'password_hash' => $user->password,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->post('/forgot-password', ['email' => $user->email])
         ->assertSessionHasErrors('email');
 
-    expect(session('errors')->get('email'))->toContain('Please try again.');
-    Mail::assertNothingSent();
+    expect(session('errors')->get('email'))->toContain(PasswordResetLinkController::ADMIN_RECOVERY_MESSAGE);
+    Mail::assertNotSent(PasswordResetCode::class);
+});
+
+test('the admin is emailed when a reset is attempted with the admin address', function () {
+    Mail::fake();
+
+    $admin = createAdminAccount();
+
+    $this->post('/forgot-password', ['email' => $admin->email])
+        ->assertSessionHasErrors('email');
+
+    Mail::assertSent(AdminResetAttempt::class, function (AdminResetAttempt $mail) use ($admin) {
+        return $mail->hasTo($admin->email)
+            && $mail->email === $admin->email
+            && $mail->occurredAt !== ''
+            && $mail->ipAddress !== '';
+    });
+});
+
+test('staff and unknown addresses never alert the admin', function () {
+    Mail::fake();
+
+    $staff = createStaffAccount();
+
+    // A real staff account starts the flow normally...
+    $this->post('/forgot-password', ['email' => $staff->email])
+        ->assertSessionHasNoErrors();
+
+    // ...and an unknown address is rejected without an alert.
+    $this->post('/forgot-password', ['email' => 'nobody@example.com'])
+        ->assertSessionHasErrors('email');
+
+    Mail::assertNotSent(AdminResetAttempt::class);
+    Mail::assertSent(PasswordResetCode::class);
+});
+
+test('the admin notice body carries the attempt details', function () {
+    // Mail::fake() never renders the template, so render it here: a typo in the
+    // view would otherwise only surface in production.
+    $body = (new AdminResetAttempt(
+        'admin@example.com',
+        '2026-09-14 15:04:05',
+        '203.0.113.7',
+        'TestAgent/1.0'
+    ))->render();
+
+    expect($body)->toContain('MOTASTE Admin Password Recovery Notice');
+    expect($body)->toContain('admin@example.com');
+    expect($body)->toContain('2026-09-14 15:04:05');
+    expect($body)->toContain('203.0.113.7');
+    expect($body)->toContain('TestAgent/1.0');
+    // The notice must never imply the admin password was changed.
+    expect($body)->toContain('the admin password was NOT changed');
+});
+
+test('repeated attempts do not flood the admin inbox', function () {
+    Mail::fake();
+
+    $admin = createAdminAccount();
+
+    foreach (range(1, 3) as $ignored) {
+        $this->post('/forgot-password', ['email' => $admin->email])
+            ->assertSessionHasErrors('email');
+    }
+
+    // The per-address notice window collapses the burst into one email.
+    Mail::assertSent(AdminResetAttempt::class, 1);
+});
+
+test('the admin email cannot be redeemed even with a reset token', function () {
+    Mail::fake();
+
+    $admin = createAdminAccount();
+
+    // Re-check at the write step: a stale token must never be redeemable for
+    // the admin account, whose credentials live in `admins`.
+    $this->post('/reset-password', [
+        'token' => 'any-token',
+        'email' => $admin->email,
+        'password' => 'New-Str0ng-Passw0rd',
+        'password_confirmation' => 'New-Str0ng-Passw0rd',
+    ])->assertSessionHasErrors('email');
+
+    expect(session('errors')->get('email'))
+        ->toContain(PasswordResetLinkController::ADMIN_RECOVERY_MESSAGE);
+
+    // The admin credential is untouched.
+    $adminHash = DB::table('admins')
+        ->whereRaw('LOWER(email) = ?', [strtolower($admin->email)])
+        ->value('password_hash');
+    expect(Hash::check('New-Str0ng-Passw0rd', (string) $adminHash))->toBeFalse();
 });
 
 test('forgot-password is rate limited per IP', function () {
     Mail::fake();
 
-    $admin = createAdminUser();
+    $staff = createStaffAccount();
 
     // The limiter allows five requests per minute per IP.
     foreach (range(1, 5) as $ignored) {
-        $this->post('/forgot-password', ['email' => $admin->email])
+        $this->post('/forgot-password', ['email' => $staff->email])
             ->assertRedirect();
     }
 
     // The sixth is refused before the controller runs.
-    $this->post('/forgot-password', ['email' => $admin->email])
+    $this->post('/forgot-password', ['email' => $staff->email])
         ->assertStatus(429);
 });
 
@@ -202,12 +368,13 @@ test('forgot-password cancel is rate limited per IP', function () {
 test('the reset form is reached only after the code is verified', function () {
     Mail::fake();
 
-    $user = createAdminUser();
+    $user = createStaffAccount();
 
     $code = requestPasswordResetCode($user, $this);
 
     // A wrong code is rejected and does not advance the flow.
     $wrong = str_pad((string)(((int)$code + 1) % 1000000), 6, '0', STR_PAD_LEFT);
+
     $this->post('/forgot-password/verify', ['email' => $user->email, 'code' => $wrong])
         ->assertSessionHasErrors('code');
 
@@ -220,7 +387,7 @@ test('the reset form is reached only after the code is verified', function () {
 test('reset password screen can be rendered with a verified code', function () {
     Mail::fake();
 
-    $user = createAdminUser();
+    $user = createStaffAccount();
 
     $code = requestPasswordResetCode($user, $this);
     $token = verifyCodeAndGetResetToken($user, $this, $code);
@@ -232,7 +399,7 @@ test('reset password screen can be rendered with a verified code', function () {
 test('password can be reset with valid token', function () {
     Mail::fake();
 
-    $user = createAdminUser();
+    $user = createStaffAccount();
 
     $code = requestPasswordResetCode($user, $this);
     $token = verifyCodeAndGetResetToken($user, $this, $code);
@@ -261,10 +428,34 @@ test('password can be reset with valid token', function () {
         ->assertSessionHasNoErrors();
 });
 
+test('password reset syncs the hash into the staff table', function () {
+    Mail::fake();
+
+    $user = createStaffAccount('Inventory Manager');
+
+    $code = requestPasswordResetCode($user, $this);
+    $token = verifyCodeAndGetResetToken($user, $this, $code);
+
+    $this->post('/reset-password', [
+        'token' => $token,
+        'email' => $user->email,
+        'password' => 'New-Str0ng-Passw0rd',
+        'password_confirmation' => 'New-Str0ng-Passw0rd',
+    ])->assertSessionHasNoErrors()->assertRedirect(route('password.success'));
+
+    // The staff portal (authenticate_staff.php) reads staff.password_hash, so
+    // the reset is only complete once that row carries the new hash too.
+    $staffHash = DB::table('staff')
+        ->whereRaw('LOWER(email) = ?', [strtolower($user->email)])
+        ->value('password_hash');
+
+    expect(Hash::check('New-Str0ng-Passw0rd', (string) $staffHash))->toBeTrue();
+});
+
 test('password cannot be reset to the current password', function () {
     Mail::fake();
 
-    $user = createAdminUser();
+    $user = createStaffAccount();
     $current = 'March031699!';
     $user->forceFill(['password' => Hash::make($current)])->save();
 
@@ -288,11 +479,11 @@ test('password cannot be reset to the current password', function () {
 test('password cannot be reset to the staff portal current password', function () {
     Mail::fake();
 
-    $user = createAdminUser();
+    $user = createStaffAccount();
     $staffCurrent = 'Staff-Current-9';
 
-    // The admin's staff portal credential is the same account, so a reset must
-    // not be allowed to land on the portal's current hash either.
+    // The staff portal credential is what the account logs in with, so a reset
+    // must not be allowed to land on the portal's current hash either.
     DB::table('staff')
         ->whereRaw('LOWER(email) = ?', [$user->email])
         ->update(['password_hash' => Hash::make($staffCurrent)]);
@@ -308,68 +499,10 @@ test('password cannot be reset to the staff portal current password', function (
     ])->assertSessionHasErrors('password');
 });
 
-test('password reset syncs the hash into the admin credentials table', function () {
-    Mail::fake();
-
-    $user = User::factory()->create();
-
-    // The Admin now keeps its hash in a dedicated `admins` table.
-    DB::table('admins')->insert([
-        'full_name' => 'Test Admin',
-        'email' => $user->email,
-        'password_hash' => Hash::make('Admin-Current-9'),
-        'role' => 'Admin',
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    $code = requestPasswordResetCode($user, $this);
-    $token = verifyCodeAndGetResetToken($user, $this, $code);
-
-    $this->post('/reset-password', [
-        'token' => $token,
-        'email' => $user->email,
-        'password' => 'New-Str0ng-Passw0rd',
-        'password_confirmation' => 'New-Str0ng-Passw0rd',
-    ])->assertSessionHasNoErrors()->assertRedirect(route('password.success'));
-
-    $adminHash = DB::table('admins')
-        ->whereRaw('LOWER(email) = ?', [strtolower($user->email)])
-        ->value('password_hash');
-
-    expect(Hash::check('New-Str0ng-Passw0rd', $adminHash))->toBeTrue();
-});
-
-test('password cannot be reset to the admin current password', function () {
-    Mail::fake();
-
-    $user = User::factory()->create();
-    $adminCurrent = 'Admin-Current-9';
-
-    DB::table('admins')->insert([
-        'full_name' => 'Test Admin',
-        'email' => $user->email,
-        'password_hash' => Hash::make($adminCurrent),
-        'role' => 'Admin',
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    $code = requestPasswordResetCode($user, $this);
-    $token = verifyCodeAndGetResetToken($user, $this, $code);
-
-    $this->post('/reset-password', [
-        'token' => $token,
-        'email' => $user->email,
-        'password' => $adminCurrent,
-        'password_confirmation' => $adminCurrent,
-    ])->assertSessionHasErrors('password');
-});
-
 test('password reset requires the elevated 12-character policy', function () {
     Mail::fake();
 
-    $user = createAdminUser();
+    $user = createStaffAccount();
 
     $code = requestPasswordResetCode($user, $this);
     $token = verifyCodeAndGetResetToken($user, $this, $code);
@@ -386,7 +519,7 @@ test('password reset requires the elevated 12-character policy', function () {
 test('the verification code is single-use', function () {
     Mail::fake();
 
-    $user = createAdminUser();
+    $user = createStaffAccount();
 
     $code = requestPasswordResetCode($user, $this);
 
@@ -402,7 +535,7 @@ test('the verification code is single-use', function () {
 test('the verification code self-destructs after 3 failed attempts', function () {
     Mail::fake();
 
-    $user = createAdminUser();
+    $user = createStaffAccount();
 
     $code = requestPasswordResetCode($user, $this);
     $wrong = str_pad((string)(((int)$code + 1) % 1000000), 6, '0', STR_PAD_LEFT);

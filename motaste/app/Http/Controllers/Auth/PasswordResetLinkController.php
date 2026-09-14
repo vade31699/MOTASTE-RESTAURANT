@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Mail\AdminResetAttempt;
 use App\Mail\PasswordResetCode;
-use App\Models\Admin;
 use App\Models\Staff;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -12,21 +12,37 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Throwable;
 
 class PasswordResetLinkController extends Controller
 {
+    /**
+     * Shown when the entered address is the Admin account, which this staff-only
+     * flow can never reset. Kept identical to the message the write step uses.
+     */
+    public const ADMIN_RECOVERY_MESSAGE = 'This is the admin account, which cannot be reset here. Staff password recovery works for staff accounts only — the admin can change the password from the dashboard.';
+
     private const CODE_TTL_MINUTES = 3;
     private const CODE_RESEND_WINDOW_SECONDS = 60;
     private const CODE_MAX_ATTEMPTS = 3;
 
     /**
+     * How long after a notice is sent before the same admin address can trigger
+     * another one. The notice exists to alert the Admin, not to be a way to
+     * flood their inbox from many source addresses.
+     */
+    private const ADMIN_NOTICE_WINDOW_SECONDS = 1800;
+
+    /**
      * Display the password reset request view.
      *
      * When a verification code is pending for an email (session), the view
-     * shows the code-entry step instead of the email form.
+     * shows the code-entry step instead of the email form. The reset form is
+     * only ever reached after the emailed code is confirmed (see verify()).
      */
     public function create(): View
     {
@@ -59,12 +75,21 @@ class PasswordResetLinkController extends Controller
 
         $email = strtolower(trim($request->email));
 
-        // Password recovery is admin-only, and the flow must ask for the email
-        // first before any code is sent. Unknown or non-admin addresses are not
-        // allowed to begin a reset and should get the same user-facing error.
-        if (!$this->isAdminResetEligible($email)) {
+        // Password recovery belongs to the staff portal: staff accounts live in
+        // the `staff` table, and the admin address (which lives in `admins`) is
+        // never eligible. The admin address is named outright — there is nothing
+        // to gain from making the admin type it again — while unknown addresses
+        // stay vague so they cannot be probed (the endpoint is rate limited).
+        $rejection = Staff::passwordResetRejection($email);
+        if ($rejection !== null) {
+            if ($rejection === 'admin') {
+                $this->notifyAdminOfResetAttempt($request, $email);
+            }
+
             throw ValidationException::withMessages([
-                'email' => ['Please try again.'],
+                'email' => [$rejection === 'admin'
+                    ? self::ADMIN_RECOVERY_MESSAGE
+                    : 'Please try again.'],
             ]);
         }
 
@@ -126,7 +151,7 @@ class PasswordResetLinkController extends Controller
         // Code confirmed — create a reset token and go straight to the form.
         $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
 
-        if (!$user || !$this->isAdminResetEligible($email)) {
+        if (!$user || !Staff::canResetPassword($email)) {
             throw ValidationException::withMessages([
                 'email' => ['Please try again.'],
             ]);
@@ -158,22 +183,35 @@ class PasswordResetLinkController extends Controller
         return redirect()->route('password.request');
     }
 
-    private function isAdminResetEligible(string $email): bool
+    /**
+     * Alert the Admin that someone just tried the staff recovery flow with the
+     * admin address: an admin password can never be reset here, so the attempt
+     * is either a mistyped email or someone probing for the admin account, and
+     * only the Admin can tell which.
+     */
+    private function notifyAdminOfResetAttempt(Request $request, string $adminEmail): void
     {
-        $normalized = strtolower(trim($email));
-        if ($normalized === '') {
-            return false;
-        }
+        // Wholly best-effort: the notice is a courtesy, so neither an
+        // unavailable limiter/cache store nor a mail failure may change the
+        // answer the form gives (the address is still not eligible).
+        try {
+            $throttleKey = 'admin-reset-notice:' . sha1(strtolower(trim($adminEmail)));
 
-        $adminExists = Admin::whereRaw('LOWER(email) = ?', [$normalized])->exists();
-        if ($adminExists) {
-            return true;
-        }
+            if (RateLimiter::tooManyAttempts($throttleKey, 1)) {
+                return;
+            }
 
-        return DB::table('staff')
-            ->whereRaw('LOWER(email) = ?', [$normalized])
-            ->whereRaw('LOWER(role) = ?', ['admin'])
-            ->exists();
+            RateLimiter::hit($throttleKey, self::ADMIN_NOTICE_WINDOW_SECONDS);
+
+            Mail::to($adminEmail)->send(new AdminResetAttempt(
+                $adminEmail,
+                now()->toDateTimeString(),
+                (string) $request->ip(),
+                trim((string) $request->userAgent()),
+            ));
+        } catch (Throwable $error) {
+            report($error);
+        }
     }
 
     private function ensurePasswordResetCodesTable(): void

@@ -9,7 +9,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
@@ -42,8 +41,8 @@ class NewPasswordController extends Controller
         $request->validate([
             'token' => 'required',
             'email' => 'required|email',
-            // Elevated policy (12+ chars) because a reset on a staff-linked
-            // account syncs the new hash into the staff portal's staff table.
+            // Elevated policy (12+ chars) because the reset syncs the new hash
+            // into the staff portal's `staff` table.
             // NotCurrentPassword blocks "resetting" to the password that is
             // already in place, which would leave the old credential valid.
             'password' => [
@@ -55,12 +54,15 @@ class NewPasswordController extends Controller
             ],
         ]);
 
-        // Only the Admin account may be reset through this flow. The token can
-        // only have been issued by the admin-scoped verify step, but re-check
-        // here so a stale token can never be redeemed for a staff account.
-        if (!Staff::isAdminEmail((string) $request->email)) {
+        // Only a staff account may be reset through this flow. The token can
+        // only have been issued by the staff-scoped verify step, but re-check
+        // here so a stale token can never be redeemed for an admin address.
+        $rejection = Staff::passwordResetRejection((string) $request->email);
+        if ($rejection !== null) {
             throw ValidationException::withMessages([
-                'email' => ['We could not find an account with that email address.'],
+                'email' => [$rejection === 'admin'
+                    ? PasswordResetLinkController::ADMIN_RECOVERY_MESSAGE
+                    : 'We could not find an account with that email address.'],
             ]);
         }
 
@@ -79,10 +81,11 @@ class NewPasswordController extends Controller
             }
         );
 
-        // If the password was successfully reset, also update the staff/admin
-        // credential tables so the staff portal (authenticate_staff.php) can
-        // log in with the same password. The Admin lives in its own `admins`
-        // table, so both are synced.
+        // If the password was successfully reset, also update the `staff` row
+        // so the staff portal (authenticate_staff.php, which reads
+        // staff.password_hash) accepts the same new password. Only the staff
+        // table is synced: the Admin keeps its hash in `admins`, which this
+        // staff-only flow never touches.
         if ($status == Password::PASSWORD_RESET) {
             $staffEmail = strtolower(trim($request->email));
             $newHash = DB::table('users')
@@ -92,12 +95,6 @@ class NewPasswordController extends Controller
                 DB::table('staff')
                     ->whereRaw('LOWER(email) = ?', [$staffEmail])
                     ->update(['password_hash' => $newHash]);
-
-                if (Schema::hasTable('admins')) {
-                    DB::table('admins')
-                        ->whereRaw('LOWER(email) = ?', [$staffEmail])
-                        ->update(['password_hash' => $newHash]);
-                }
             }
 
             return redirect()->route('password.success');

@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 class Staff extends Authenticatable
@@ -46,9 +48,9 @@ class Staff extends Authenticatable
     }
 
     /**
-     * Whether the given address belongs to the Admin account. Public password
-     * recovery is restricted to the Admin: cashier and inventory accounts can
-     * never start a reset, even with a known address.
+     * Whether the given address belongs to the Admin account recorded as a
+     * `staff` row (older deployments). Password recovery is staff-only, so this
+     * is used to keep the admin address out of the staff reset flow.
      */
     public static function isAdminEmail(?string $email): bool
     {
@@ -56,5 +58,66 @@ class Staff extends Authenticatable
         $adminEmail = static::adminEmail();
 
         return $normalized !== '' && $adminEmail !== null && $normalized === $adminEmail;
+    }
+
+    /**
+     * Whether this address is the Admin account, in any deployment shape: the
+     * dedicated `admins` table, or the role = 'Admin' row older installs kept
+     * in `staff`.
+     */
+    public static function isAdminAccount(?string $email): bool
+    {
+        $normalized = strtolower(trim((string) $email));
+        if ($normalized === '') {
+            return false;
+        }
+
+        try {
+            if (static::isAdminEmail($normalized)) {
+                return true;
+            }
+
+            return Schema::hasTable('admins')
+                && DB::table('admins')->whereRaw('LOWER(email) = ?', [$normalized])->exists();
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Why this address cannot start a staff password reset, or null when it can.
+     *
+     * - 'admin':   the address belongs to the Admin account. A staff reset can
+     *              never apply to it, and the caller can say so plainly.
+     * - 'unknown': no matching account (or the lookup itself failed — this
+     *              fails closed). Callers must keep this vague so addresses
+     *              cannot be probed.
+     */
+    public static function passwordResetRejection(?string $email): ?string
+    {
+        $normalized = strtolower(trim((string) $email));
+        if ($normalized === '') {
+            return 'unknown';
+        }
+
+        if (static::isAdminAccount($normalized)) {
+            return 'admin';
+        }
+
+        try {
+            // Staff accounts live in the `staff` table, so that is the only
+            // table this flow consults.
+            return DB::table('staff')->whereRaw('LOWER(email) = ?', [$normalized])->exists() ? null : 'unknown';
+        } catch (Throwable) {
+            return 'unknown';
+        }
+    }
+
+    /**
+     * Whether this address may start (and complete) a staff password reset.
+     */
+    public static function canResetPassword(?string $email): bool
+    {
+        return static::passwordResetRejection($email) === null;
     }
 }

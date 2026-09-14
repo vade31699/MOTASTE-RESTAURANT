@@ -145,7 +145,8 @@
                 <button type="submit" class="btn" id="sendBtn" data-loading-text="Please wait...">Send Verification Code</button>
             </form>
 
-            <a href="{{ route('login') }}" class="back-link">&larr; Back to login</a>
+            {{-- Recovery belongs to the staff portal, so the page leads back to the staff login. --}}
+            <a href="{{ route('staff') }}" class="back-link">&larr; Back to staff login</a>
         @endif
     </div>
 
