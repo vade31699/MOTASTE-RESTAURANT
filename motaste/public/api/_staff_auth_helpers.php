@@ -992,6 +992,41 @@ function requireAdminAuth(): ?array
 }
 
 /**
+ * Gate an endpoint to the Admin role, distinguishing "not signed in" from
+ * "signed in as the wrong role".
+ *
+ * requireAdminAuth() returns null for BOTH cases, and the endpoints using it
+ * answer `abortStaffAuthRequired()` — a 401. That told a perfectly logged-in
+ * Cashier their session had expired (and, once the dashboard started reacting
+ * to 401s by returning to the login screen, would have logged them out).
+ *
+ * Exits with:
+ *   401 + authRequired — no valid staff session; the client must log in again
+ *   403 + forbidden    — valid session, insufficient role
+ */
+function requireAdminAuthOrExit(): array
+{
+    $staff = requireStaffAuth();
+    if (!$staff) {
+        abortStaffAuthRequired();
+    }
+
+    if (strtolower(trim((string)($staff['role'] ?? ''))) !== 'admin') {
+        if (!headers_sent()) {
+            http_response_code(403);
+        }
+        echo json_encode([
+            'success' => false,
+            'error' => 'Admin access required',
+            'forbidden' => true,
+        ]);
+        exit;
+    }
+
+    return $staff;
+}
+
+/**
  * Returns the authenticated staff array for Admin or Cashier accounts, or
  * null. Guards order-management endpoints (create/complete/cancel/refund).
  */

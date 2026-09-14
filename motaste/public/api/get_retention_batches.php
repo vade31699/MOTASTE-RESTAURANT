@@ -9,9 +9,9 @@ require __DIR__ . '/../../vendor/autoload.php';
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_staff_auth_helpers.php';
-if (!requireAdminAuth()) {
-    abortStaffAuthRequired();
-}
+// 401 when the session is gone (the client must log in again), 403 when a
+// signed-in non-admin reaches an admin-only read.
+requireAdminAuthOrExit();
 
 require_once __DIR__ . '/_retention_helpers.php';
 

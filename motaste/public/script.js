@@ -239,11 +239,11 @@ async function loadStaffAccountsFromServer(forceRefresh = false) {
             await ensureStaffServerSession();
         }
 
-        const response = await fetch(getApiUrl(`api/get_staff_accounts.php?_=${Date.now()}`), { cache: 'no-store' });
-        if (!response.ok) return false;
-
-        const payload = await response.json();
-        console.debug('submitOrderToServer: response', { status: response.status, payload });
+        // Admin-gated read: a stale session is recovered once and, if that
+        // fails, the user is sent back to the login screen instead of being
+        // shown an empty (or stale) staff account list.
+        const payload = await fetchStaffGatedJson(`api/get_staff_accounts.php?_=${Date.now()}`);
+        console.debug('loadStaffAccountsFromServer: response', { payload });
         if (!payload || payload.success !== true) return false;
 
         if (Array.isArray(payload.accounts)) {
@@ -1279,6 +1279,10 @@ async function fetchStaffGatedJson(path) {
  */
 function handleStaffAuthFailure() {
     if (staffAuthFailureHandled) return;
+
+    // The login screen lives on the staff page; a customer page browsing with a
+    // stale staff session in storage must never be bounced to it.
+    if (!isStaffPage) return;
 
     // A 401 while nobody is logged in is the normal pre-login state: the
     // dashboard page loads its sections behind the login form, so those
@@ -2815,10 +2819,13 @@ function setCredentialsMessage(message, isError = false) {
 async function loadAdminCredentials() {
     if (!adminCurrentEmailInput) return;
     try {
-        const response = await fetch(getApiUrl(`api/get_admin_credentials.php?_=${Date.now()}`), { cache: 'no-store' });
-        if (!response.ok) return;
-        const payload = await response.json();
-        if (!payload || payload.success !== true || !payload.credentials) {
+        // Admin-gated read: a stale session is recovered once (and the tab sent
+        // back to login when it cannot be renewed). A valid session that simply
+        // lacks the Admin role is a 403, which throws below instead of logging
+        // the account out.
+        const payload = await fetchStaffGatedJson(`api/get_admin_credentials.php?_=${Date.now()}`);
+        if (!payload) return;
+        if (payload.success !== true || !payload.credentials) {
             adminCurrentEmailInput.value = adminDefaultEmail;
             if (adminPasswordCurrentEmailInput) adminPasswordCurrentEmailInput.value = adminDefaultEmail;
             return;
@@ -3772,11 +3779,14 @@ async function refreshInsightsOrdersFromServer() {
         const now = new Date();
         const [from, to] = getInsightPeriodRange(key, now);
         if (!from || !to) return;
-        const url = getApiUrl(`api/get_completed_orders.php?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}&_=${Date.now()}`);
-        const response = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
-        if (!response.ok) return;
-        const payload = await response.json();
-        if (!payload || payload.success !== true || !Array.isArray(payload.orders)) return;
+        // Staff-gated read: recover a stale session once (and return to login
+        // when that fails) instead of silently leaving the Insights period
+        // showing no orders.
+        const payload = await fetchStaffGatedJson(
+            `api/get_completed_orders.php?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}&_=${Date.now()}`
+        );
+        if (!payload) return;
+        if (payload.success !== true || !Array.isArray(payload.orders)) return;
         // Only apply the result if the filter hasn't changed while fetching.
         if (getInsightsCacheKey() !== cacheKey) return;
         const normalized = payload.orders.map(normalizeCompletedOrder);
@@ -7682,17 +7692,15 @@ async function loadOrderLogsFromServer(forceRefresh = false) {
         if (isStaffPage) {
             await ensureStaffServerSession();
         }
-        const [logsResponse, reviewLogsResponse] = await Promise.all([
-            fetch(getApiUrl(`api/get_order_logs.php?_=${Date.now()}`), { cache: 'no-store' }),
-            fetch(getApiUrl(`api/get_review_logs.php?_=${Date.now()}`), { cache: 'no-store' })
-        ]);
-        if (!logsResponse.ok || !reviewLogsResponse.ok) return false;
-
+        // Both log feeds are admin-gated: a stale session is recovered once and
+        // the tab returned to login if that fails, instead of silently
+        // rendering an empty log list.
         const [logsPayload, reviewLogsPayload] = await Promise.all([
-            logsResponse.json(),
-            reviewLogsResponse.json()
+            fetchStaffGatedJson(`api/get_order_logs.php?_=${Date.now()}`),
+            fetchStaffGatedJson(`api/get_review_logs.php?_=${Date.now()}`)
         ]);
-        if (!logsPayload || logsPayload.success !== true || !reviewLogsPayload || reviewLogsPayload.success !== true) return false;
+        if (!logsPayload || !reviewLogsPayload) return false;
+        if (logsPayload.success !== true || reviewLogsPayload.success !== true) return false;
 
         orderActivityLogs = Array.isArray(logsPayload.logs) ? logsPayload.logs : [];
         reviewActivityLogs = Array.isArray(reviewLogsPayload.logs) ? reviewLogsPayload.logs : [];
@@ -7823,9 +7831,19 @@ async function loadReviewsFromServer(forceRefresh = false) {
 
     try {
         const scope = staffReviewList ? 'staff' : 'public';
-        const response = await fetch(getApiUrl(`api/get_reviews.php?scope=${scope}&_=${Date.now()}`), { cache: 'no-store' });
-        if (!response.ok) return false;
-        const payload = await response.json();
+        const reviewsPath = `api/get_reviews.php?scope=${scope}&_=${Date.now()}`;
+
+        // Only the staff scope is auth-gated (it exposes unpublished reviews);
+        // the public scope is fetched directly so a customer page never tries
+        // to renew a staff session.
+        let payload = null;
+        if (scope === 'staff') {
+            payload = await fetchStaffGatedJson(reviewsPath);
+        } else {
+            const response = await fetch(getApiUrl(reviewsPath), { cache: 'no-store', credentials: 'same-origin' });
+            if (!response.ok) return false;
+            payload = await response.json();
+        }
         if (!payload || payload.success !== true) return false;
 
         const incomingReviews = Array.isArray(payload.reviews) ? payload.reviews : [];
@@ -8015,11 +8033,12 @@ async function loadCompletedOrdersFromServer(forceRefresh = false) {
         if (isStaffPage) {
             await ensureStaffServerSession();
         }
-        const response = await fetch(getApiUrl(`api/get_completed_orders.php?_=${Date.now()}`), { cache: 'no-store', credentials: 'same-origin' });
-        if (!response.ok) return false;
-
-        const payload = await response.json();
-        if (!payload || payload.success !== true || !Array.isArray(payload.orders)) return false;
+        // Staff-gated read: a stale session is recovered once and the tab
+        // returned to login if that fails, instead of silently showing no
+        // completed orders (and therefore no sales/profit figures).
+        const payload = await fetchStaffGatedJson(`api/get_completed_orders.php?_=${Date.now()}`);
+        if (!payload) return false;
+        if (payload.success !== true || !Array.isArray(payload.orders)) return false;
 
         completedOrders = payload.orders.map(normalizeCompletedOrder);
         completedOrders.sort((a, b) => b.timestamp - a.timestamp);
@@ -13223,59 +13242,60 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Overview metrics: fetch counts for staff logins and completed orders
 async function fetchOverviewMetrics() {
+    // The KPI cards only exist on the staff dashboard — never call the gated
+    // count endpoints from the customer page (which would just 401).
+    if (!isStaffPage) return;
+
     try {
         // The count endpoints are gated by the server session; wait for the
         // page-load renewal so the numbers render on the first try.
-        if (isStaffPage) {
-            await ensureStaffServerSession();
-        }
+        await ensureStaffServerSession();
 
         // Lightweight summary endpoints: the overview KPI cards only need
         // counts and aggregates, so fetch those in parallel instead of
         // shipping the full pending (100 orders + items) and completed (500
         // orders + items) payloads over the wire on every 15s refresh.
         const utcOffset = new Date().getTimezoneOffset() * -1; // minutes east of UTC
-        const [pendingRes, summaryRes] = await Promise.all([
-            fetch(getApiUrl(`api/get_pending_orders.php?count=1&_=${Date.now()}`), { cache: 'no-store', credentials: 'same-origin' }),
-            fetch(getApiUrl(`api/get_completed_orders.php?summary=1&utcOffset=${utcOffset}&_=${Date.now()}`), { cache: 'no-store', credentials: 'same-origin' })
+
+        // Both reads are auth-gated, so each goes through the recovering fetch.
+        // A null payload means it could not be authenticated (or the endpoint
+        // failed) — handleStaffAuthFailure() has already returned the tab to
+        // the login screen, so the cards are left untouched rather than
+        // showing a confident-looking 0 that reads as "no orders today".
+        const [pendingPayload, summaryPayload] = await Promise.all([
+            fetchStaffGatedJson(`api/get_pending_orders.php?count=1&_=${Date.now()}`).catch((error) => {
+                console.debug('Unable to load pending orders count', error);
+                return null;
+            }),
+            fetchStaffGatedJson(`api/get_completed_orders.php?summary=1&utcOffset=${utcOffset}&_=${Date.now()}`).catch((error) => {
+                console.debug('Unable to load completed orders summary', error);
+                return null;
+            })
         ]);
 
         // Pending orders count
-        let pendingCount = 0;
-        try {
-            if (pendingRes.ok) {
-                const p = await pendingRes.json().catch(() => ({}));
-                pendingCount = Number(p.count ?? 0) || 0;
-            }
-        } catch (e) {
-            console.debug('Unable to load pending orders count', e);
+        const pendingEl = document.getElementById('pendingOrdersCount');
+        if (pendingEl && pendingPayload) {
+            pendingEl.textContent = String(Number(pendingPayload.count ?? 0) || 0);
         }
 
-        const pendingEl = document.getElementById('pendingOrdersCount');
-        if (pendingEl) pendingEl.textContent = String(pendingCount);
-
         // Completed orders summary (counts by type, today's revenue, best seller)
-        try {
-            if (summaryRes.ok) {
-                const payload = await summaryRes.json().catch(() => ({}));
-                const summary = payload.summary || {};
+        if (summaryPayload) {
+            const summary = summaryPayload.summary || {};
 
-                const total = Number(summary.total ?? 0) || 0;
-                const walkin = Number(summary.walkin ?? 0) || 0;
-                const online = Number(summary.online ?? 0) || 0;
+            const total = Number(summary.total ?? 0) || 0;
+            const walkin = Number(summary.walkin ?? 0) || 0;
+            const online = Number(summary.online ?? 0) || 0;
 
-                const totalEl = document.getElementById('ordersCompletedCount');
-                const walkinEl = document.getElementById('walkinCompletedCount');
-                const onlineEl = document.getElementById('onlineCompletedCount');
+            const totalEl = document.getElementById('ordersCompletedCount');
+            const walkinEl = document.getElementById('walkinCompletedCount');
+            const onlineEl = document.getElementById('onlineCompletedCount');
 
-                if (totalEl) totalEl.textContent = String(total);
-                if (walkinEl) walkinEl.textContent = String(walkin);
-                if (onlineEl) onlineEl.textContent = String(online);
+            if (totalEl) totalEl.textContent = String(total);
+            if (walkinEl) walkinEl.textContent = String(walkin);
+            if (onlineEl) onlineEl.textContent = String(online);
 
-                renderDashboardKpis(summary);
-            }
-        } catch (e) {
-            console.debug('Unable to load completed orders summary', e);
+            renderDashboardKpis(summary);
         }
     } catch (error) {
         console.error('fetchOverviewMetrics error', error);
@@ -13356,15 +13376,13 @@ async function loadRetentionBatches() {
 
     try {
         await ensureStaffServerSession();
-        const response = await fetch(getApiUrl(`api/get_retention_batches.php?_=${Date.now()}`), {
-            cache: 'no-store',
-            credentials: 'same-origin'
-        });
-        if (!response.ok) {
+        // Admin-gated read: recover a stale session once, then return to login
+        // if that fails instead of silently hiding the retention banner.
+        const payload = await fetchStaffGatedJson(`api/get_retention_batches.php?_=${Date.now()}`);
+        if (!payload) {
             retentionBanner.hidden = true;
             return;
         }
-        const payload = await response.json().catch(() => ({}));
         const batches = Array.isArray(payload.batches) ? payload.batches : [];
 
         // Only surface batches that still have something to do (pending or
