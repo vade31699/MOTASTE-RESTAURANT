@@ -8581,7 +8581,7 @@ async function loadCustomMenuData() {
             // loaded, drop snapshot items that no longer exist there BEFORE
             // the first render, and write the pruned snapshot back so the
             // stale entries stop coming around on every fetch.
-            if (inventoryLoadedFromServer && inventoryData.length) {
+            if (inventoryLoadedFromServer) {
                 const inventoryNames = new Set(
                     inventoryData.map((item) => normalizeInventoryName(item.name))
                 );
@@ -10480,6 +10480,11 @@ let _lastSpecialFoodsHash = '';
 
 function renderSpecialFoods() {
     if (!specialFoodsList) return;
+
+    // Hide the entire special-foods section when there are no items to display
+    // so customers don't see an empty "Special Foods" card when inventory is empty.
+    const section = specialFoodsList.closest('.special-foods-section');
+    if (section) section.hidden = specialFoods.length === 0;
 
     // Build a lightweight signature so we skip the DOM wipe when nothing changed
     const signature = specialFoods.map((s) => `${s.name}|${s.price}|${s.image || ''}|${s.description || ''}`).join('\n');
