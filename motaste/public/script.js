@@ -41,13 +41,6 @@ function applyLoginSurface() {
         surfaceBadge.textContent = isAdminLoginSurface ? 'Admin Portal' : 'Staff Portal';
     }
 
-    const surfaceSubtitle = document.getElementById('loginSubtitle');
-    if (surfaceSubtitle) {
-        surfaceSubtitle.textContent = isAdminLoginSurface
-            ? 'Sign in to manage your restaurant operations'
-            : 'Sign in to the cashier and kitchen console';
-    }
-
     if (!isStaffLoginSurface) {
         return;
     }

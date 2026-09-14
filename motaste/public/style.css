@@ -9985,15 +9985,7 @@ body.staff-app .staff-box h2 {
     font-weight: 800;
     font-size: 1.55rem;
     letter-spacing: -0.02em;
-    margin: 0 0 4px;
-}
-
-body.staff-app .login-subtitle {
-    margin: 0 0 24px;
-    text-align: center;
-    color: var(--staff-muted);
-    font-size: 0.92rem;
-    line-height: 1.5;
+    margin: 0 0 26px;
 }
 
 /* Surface-specific login branding (admin vs staff portal). The icon swap is
