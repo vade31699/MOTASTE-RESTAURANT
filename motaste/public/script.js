@@ -2931,6 +2931,7 @@ const highlightsForm = document.getElementById('highlightsForm');
 const highlightsImagesInput = document.getElementById('highlightsImagesInput');
 const highlightsMessage = document.getElementById('highlightsMessage');
 const highlightsList = document.getElementById('highlightsList');
+const optimizeHighlightsBtn = document.getElementById('optimizeHighlightsBtn');
 const highlightsStorageKey = 'motasteHighlightsSlides';
 const highlightsMaxImages = 15;
 const credentialsForm = document.getElementById('credentialsForm');
@@ -5606,6 +5607,12 @@ let highlightsSlides = [];
 let highlightsCurrentIndex = 0;
 let highlightsTimer = null;
 
+// Upload limits. The target is what the browser shrinks a photo down to before
+// uploading; the maximum mirrors HIGHLIGHTS_MAX_SLIDE_LENGTH in api/_helpers.php.
+const highlightsMaxDimension = 1600;
+const highlightsTargetDataUrlLength = 700000;
+const highlightsMaxDataUrlLength = 2000000;
+
 const highlightsLightbox = document.createElement('div');
 highlightsLightbox.className = 'image-lightbox hidden';
 highlightsLightbox.innerHTML = '<button type="button" class="close-btn" aria-label="Close image">×</button><img alt="Expanded view">';
@@ -5662,7 +5669,7 @@ async function loadHighlightsFromServer() {
     }
 }
 
-async function saveHighlightsToServer() {
+async function sendHighlightsRequest(payload) {
     const headers = await withCsrfHeaders({
         'Content-Type': 'application/json'
     });
@@ -5670,14 +5677,16 @@ async function saveHighlightsToServer() {
     const response = await fetch(getApiUrl('api/save_highlights.php'), {
         method: 'POST',
         headers,
-        body: JSON.stringify({ slides: highlightsSlides.slice(0, highlightsMaxImages) }),
+        body: JSON.stringify(payload),
         cache: 'no-store'
     });
 
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok || !payload.success) {
-        throw new Error(payload.error || `Unable to save highlights (HTTP ${response.status})`);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.success) {
+        throw new Error(result.error || `Unable to save highlights (HTTP ${response.status})`);
     }
+
+    return result;
 }
 
 function renderHighlightsSlideshow() {
@@ -5769,6 +5778,89 @@ function readImageAsDataUrl(file) {
     });
 }
 
+function loadImageElement(source) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error('Unable to read that image.'));
+        image.src = source;
+    });
+}
+
+function encodeCanvasToDataUrl(image, maxDimension, quality) {
+    const sourceWidth = image.naturalWidth || image.width;
+    const sourceHeight = image.naturalHeight || image.height;
+    const scale = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight));
+    const width = Math.max(1, Math.round(sourceWidth * scale));
+    const height = Math.max(1, Math.round(sourceHeight * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Unable to process that image.');
+
+    // JPEG has no alpha channel, so paint a white background first — otherwise
+    // transparent PNGs come out with black boxes behind them.
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+
+    return canvas.toDataURL('image/jpeg', quality);
+}
+
+/**
+ * Downscale/re-encode an image value until it is slideshow-sized. Camera photos
+ * are several megabytes and are stored base64 (about a third larger again), so
+ * anything above the target is reduced. Input that is already small — or that
+ * the canvas step cannot handle — comes back untouched.
+ */
+async function shrinkImageDataUrl(source) {
+    if (source.length <= highlightsTargetDataUrlLength) {
+        return source;
+    }
+
+    let smallest = null;
+    try {
+        const image = await loadImageElement(source);
+        const attempts = [
+            [highlightsMaxDimension, 0.85],
+            [highlightsMaxDimension, 0.7],
+            [1280, 0.72],
+            [1000, 0.68],
+            [800, 0.62]
+        ];
+
+        for (const [maxDimension, quality] of attempts) {
+            const candidate = encodeCanvasToDataUrl(image, maxDimension, quality);
+            if (smallest === null || candidate.length < smallest.length) {
+                smallest = candidate;
+            }
+            if (candidate.length <= highlightsTargetDataUrlLength) {
+                return candidate;
+            }
+        }
+    } catch (error) {
+        return source;
+    }
+
+    return smallest && smallest.length < source.length ? smallest : source;
+}
+
+/**
+ * Turn a picked file into a slideshow-sized image value, refusing anything that
+ * is still too large for the server to store after shrinking.
+ */
+async function prepareHighlightImage(file) {
+    const result = await shrinkImageDataUrl(await readImageAsDataUrl(file));
+    if (result.length > highlightsMaxDataUrlLength) {
+        throw new Error('image is too large to upload, please use a smaller one');
+    }
+
+    return result;
+}
+
 if (highlightsForm) {
     highlightsForm.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -5798,25 +5890,35 @@ if (highlightsForm) {
             return;
         }
 
-        try {
-            const newSlides = await Promise.all(filesToUpload.map((file) => readImageAsDataUrl(file)));
-            highlightsSlides = [...highlightsSlides, ...newSlides].slice(0, highlightsMaxImages);
-            persistHighlightsToStorage();
-            await saveHighlightsToServer();
+        const failures = [];
+        let uploaded = 0;
 
-            renderHighlightsSlideshow();
-            renderHighlightsManagement();
+        for (const file of filesToUpload) {
+            try {
+                // Shrink the photo in the browser first, then upload it on its
+                // own request: sending every stored image back with each upload
+                // is what made even a single small image fail before.
+                const imageDataUrl = await prepareHighlightImage(file);
+                await sendHighlightsRequest({ action: 'append', image: imageDataUrl });
+                uploaded += 1;
+            } catch (error) {
+                failures.push(`${file.name || 'image'}: ${error.message || 'upload failed'}`);
+            }
+        }
+
+        if (uploaded > 0) {
+            await loadHighlightsFromServer();
             if (highlightsImagesInput) {
                 highlightsImagesInput.value = '';
             }
+        }
 
-            if (files.length > filesToUpload.length) {
-                setHighlightsMessage(`Uploaded ${filesToUpload.length} image(s). Extra files were skipped by the ${highlightsMaxImages}-image limit.`);
-            } else {
-                setHighlightsMessage(`Uploaded ${filesToUpload.length} image(s).`);
-            }
-        } catch (error) {
-            setHighlightsMessage(error.message || 'Unable to upload highlights.', true);
+        if (failures.length) {
+            setHighlightsMessage(`Uploaded ${uploaded} image(s). Failed — ${failures.join(' | ')}`, true);
+        } else if (files.length > filesToUpload.length) {
+            setHighlightsMessage(`Uploaded ${uploaded} image(s). Extra files were skipped by the ${highlightsMaxImages}-image limit.`);
+        } else {
+            setHighlightsMessage(`Uploaded ${uploaded} image(s).`);
         }
     });
 }
@@ -5833,18 +5935,83 @@ if (highlightsList) {
         const index = Number(removeButton.dataset.index);
         if (Number.isNaN(index) || index < 0 || index >= highlightsSlides.length) return;
 
-        highlightsSlides.splice(index, 1);
-        if (highlightsCurrentIndex >= highlightsSlides.length) {
-            highlightsCurrentIndex = Math.max(0, highlightsSlides.length - 1);
-        }
-
         try {
-            persistHighlightsToStorage();
-            await saveHighlightsToServer();
-            renderHighlightsSlideshow();
-            renderHighlightsManagement();
+            // The server removes by position, so the stored images are never
+            // sent back up. The list is refreshed from the server afterwards so
+            // the dashboard never shows a change the server rejected.
+            await sendHighlightsRequest({ action: 'remove', index });
+            await loadHighlightsFromServer();
+            setHighlightsMessage('Highlight image removed.');
         } catch (error) {
             setHighlightsMessage(error.message || 'Unable to remove highlight image.', true);
+        }
+    });
+}
+
+if (optimizeHighlightsBtn) {
+    optimizeHighlightsBtn.addEventListener('click', async () => {
+        if (!canManageHighlights()) {
+            setHighlightsMessage('Only admin can manage highlights.', true);
+            return;
+        }
+
+        const total = highlightsSlides.length;
+        if (!total) {
+            setHighlightsMessage('There are no highlight images to optimize yet.', true);
+            return;
+        }
+
+        optimizeHighlightsBtn.disabled = true;
+
+        let optimized = 0;
+        let savedCharacters = 0;
+        const failures = [];
+
+        try {
+            // One image per request: each stored image is re-encoded in the
+            // browser and sent back alone, so this works even when the stored
+            // slideshow is far too big to upload in one piece.
+            for (let index = 0; index < highlightsSlides.length; index += 1) {
+                const stored = highlightsSlides[index];
+
+                // Leave anything that is already small (or not an image we can
+                // decode) exactly as it is.
+                if (typeof stored !== 'string' || !stored.startsWith('data:image/') || stored.length <= highlightsTargetDataUrlLength) {
+                    continue;
+                }
+
+                setHighlightsMessage(`Optimizing image ${index + 1}/${total}...`);
+
+                try {
+                    const shrunk = await shrinkImageDataUrl(stored);
+                    if (shrunk.length >= stored.length) {
+                        continue;
+                    }
+                    if (shrunk.length > highlightsMaxDataUrlLength) {
+                        throw new Error('image is too large to store, please replace it with a smaller one');
+                    }
+
+                    await sendHighlightsRequest({ action: 'replaceAt', index, image: shrunk });
+                    savedCharacters += stored.length - shrunk.length;
+                    optimized += 1;
+                } catch (error) {
+                    failures.push(`image ${index + 1}: ${error.message || 'failed'}`);
+                }
+            }
+
+            await loadHighlightsFromServer();
+        } finally {
+            optimizeHighlightsBtn.disabled = false;
+        }
+
+        const savedKb = Math.round(savedCharacters / 1024);
+
+        if (failures.length) {
+            setHighlightsMessage(`Optimized ${optimized} image(s), saved ${savedKb} KB. Failed — ${failures.join(' | ')}`, true);
+        } else if (optimized === 0) {
+            setHighlightsMessage('All stored images are already optimized.');
+        } else {
+            setHighlightsMessage(`Optimized ${optimized} image(s), saved ${savedKb} KB. The homepage will reload faster now.`);
         }
     });
 }

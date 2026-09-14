@@ -138,6 +138,166 @@ function rejectUnsafeInputOrExit(...$values): void
 }
 
 /**
+ * A request failure the client should see verbatim, with the HTTP status to
+ * answer it with. Thrown by shared helpers so callers can wrap their own
+ * database work in a transaction and still roll back cleanly on rejection.
+ */
+class ApiRequestException extends RuntimeException
+{
+    public function __construct(string $message, public int $status = 422)
+    {
+        parent::__construct($message);
+    }
+}
+
+/** Maximum number of homepage highlight slides the snapshot may hold. */
+const HIGHLIGHTS_MAX_SLIDES = 15;
+
+/**
+ * Maximum length of a single stored highlight slide (a base64 data URI, so
+ * roughly 1.5 MB of image bytes). The admin UI downscales photos before
+ * uploading, so a real slide lands far below this; the cap exists so one
+ * oversized image cannot fill the snapshot row or blow past post_max_size.
+ */
+const HIGHLIGHTS_MAX_SLIDE_LENGTH = 2000000;
+
+/**
+ * Keep only usable slide values (non-empty strings) and reindex the list.
+ * Used for both incoming requests and stored snapshot payloads so a corrupt or
+ * legacy row can never leak non-string entries into the slideshow markup.
+ */
+function normalizeHighlightSlides($value): array
+{
+    if (!is_array($value)) {
+        return [];
+    }
+
+    $slides = [];
+    foreach ($value as $item) {
+        if (!is_string($item)) {
+            continue;
+        }
+
+        $item = trim($item);
+        if ($item === '') {
+            continue;
+        }
+
+        $slides[] = $item;
+    }
+
+    return $slides;
+}
+
+/**
+ * Return the first slide that exceeds the per-image size cap, or null when all
+ * of them fit. Slides are already-normalized strings.
+ */
+function findOversizedHighlightSlide(array $slides): ?string
+{
+    foreach ($slides as $slide) {
+        if (strlen($slide) > HIGHLIGHTS_MAX_SLIDE_LENGTH) {
+            return $slide;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Append one slide to a stored list, enforcing the maximum. Throws an
+ * ApiRequestException when the slideshow is already full.
+ */
+function appendHighlightSlide(array $slides, string $slide): array
+{
+    $slides = normalizeHighlightSlides($slides);
+    if (count($slides) >= HIGHLIGHTS_MAX_SLIDES) {
+        throw new ApiRequestException('Maximum of ' . HIGHLIGHTS_MAX_SLIDES . ' highlight images is allowed.');
+    }
+
+    $slides[] = trim($slide);
+
+    return $slides;
+}
+
+/**
+ * Drop the slide at the given position, so a removal never has to send the
+ * (potentially huge) stored image data back up. Throws an ApiRequestException
+ * when the position no longer exists — the admin page is out of date.
+ */
+function removeHighlightSlideAt(array $slides, int $index): array
+{
+    $slides = normalizeHighlightSlides($slides);
+    if ($index < 0 || !array_key_exists($index, $slides)) {
+        throw new ApiRequestException('That highlight image no longer exists. Please refresh and try again.');
+    }
+
+    array_splice($slides, $index, 1);
+
+    return $slides;
+}
+
+/**
+ * Swap the slide at the given position in place (used to replace an oversized
+ * stored image with a smaller re-encoded version without sending the whole
+ * slideshow back). Throws an ApiRequestException when the position no longer
+ * exists — the admin page is out of date.
+ */
+function replaceHighlightSlideAt(array $slides, int $index, string $slide): array
+{
+    $slides = normalizeHighlightSlides($slides);
+    if ($index < 0 || !array_key_exists($index, $slides)) {
+        throw new ApiRequestException('That highlight image no longer exists. Please refresh and try again.');
+    }
+
+    $slides[$index] = trim($slide);
+
+    return $slides;
+}
+
+/**
+ * Decode a stored highlights snapshot payload into a clean slide list.
+ */
+function decodeHighlightSlidesPayload(?string $payload): array
+{
+    if ($payload === null || $payload === '') {
+        return [];
+    }
+
+    return normalizeHighlightSlides(json_decode($payload, true));
+}
+
+/**
+ * Ensure the highlights snapshot table exists. Schema is normally managed by
+ * Laravel migrations; the inline fallback keeps the admin highlights tab
+ * working on a deployment where the migration has not been run yet (otherwise
+ * every upload fails with "Unable to save highlights snapshot").
+ */
+function ensureHighlightsSnapshotTable(): void
+{
+    static $verified = false;
+    if ($verified) {
+        return;
+    }
+
+    try {
+        if (!Schema::hasTable('highlights_snapshots')) {
+            Schema::create('highlights_snapshots', function (Blueprint $table) {
+                $table->id();
+                $table->string('snapshot_key', 191)->unique();
+                $table->text('snapshot_payload');
+                $table->timestamps();
+            });
+        }
+        $verified = true;
+    } catch (Throwable $error) {
+        // Surface the failure through the caller's own error handling rather
+        // than masking it here.
+        error_log('highlights_snapshots table check failed: ' . $error->getMessage());
+    }
+}
+
+/**
  * Ensure the order preparation timer columns exist. Schema is normally managed
  * by Laravel migrations; the inline fallback keeps order endpoints working even
  * when migrations have not been run on the deployment yet.
