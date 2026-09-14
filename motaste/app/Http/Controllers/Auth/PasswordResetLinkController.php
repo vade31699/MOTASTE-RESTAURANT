@@ -77,9 +77,8 @@ class PasswordResetLinkController extends Controller
 
         // Password recovery belongs to the staff portal: staff accounts live in
         // the `staff` table, and the admin address (which lives in `admins`) is
-        // never eligible. The admin address is named outright — there is nothing
-        // to gain from making the admin type it again — while unknown addresses
-        // stay vague so they cannot be probed (the endpoint is rate limited).
+        // never eligible. Both admin and unknown addresses are rejected with the
+        // same vague message so the admin account cannot be probed.
         $rejection = Staff::passwordResetRejection($email);
         if ($rejection !== null) {
             if ($rejection === 'admin') {
@@ -87,9 +86,7 @@ class PasswordResetLinkController extends Controller
             }
 
             throw ValidationException::withMessages([
-                'email' => [$rejection === 'admin'
-                    ? self::ADMIN_RECOVERY_MESSAGE
-                    : 'Please try again.'],
+                'email' => ['Please try again.'],
             ]);
         }
 

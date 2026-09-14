@@ -162,13 +162,14 @@ test('the admin email cannot start a staff password reset', function () {
     $admin = createAdminAccount();
 
     // The admin address lives in the `admins` table, which this flow never
-    // consults — and the form says so plainly instead of a vague failure.
+    // consults — the form gives the same vague message as an unknown address
+    // so the admin account cannot be probed.
     $this->post('/forgot-password', ['email' => $admin->email])
         ->assertSessionHasErrors('email');
 
     $errors = session('errors')->get('email');
-    expect($errors)->toContain(PasswordResetLinkController::ADMIN_RECOVERY_MESSAGE);
-    expect($errors)->not->toContain('Please try again.');
+    expect($errors)->toContain('Please try again.');
+    expect($errors)->not->toContain(PasswordResetLinkController::ADMIN_RECOVERY_MESSAGE);
 
     // No verification code is ever issued for the admin address — the only
     // mail that goes out is the alert to the Admin (covered separately).
@@ -179,7 +180,7 @@ test('the admin email cannot start a staff password reset', function () {
         ->assertSessionHasErrors('code');
 });
 
-test('the admin message is rendered on the reset form', function () {
+test('the admin rejection is indistinguishable from an unknown address', function () {
     Mail::fake();
 
     $admin = createAdminAccount();
@@ -188,18 +189,20 @@ test('the admin message is rendered on the reset form', function () {
         ->post('/forgot-password', ['email' => $admin->email])
         ->assertRedirect('/forgot-password');
 
-    // The person who typed the admin address actually sees the explanation.
+    // The person who typed the admin address sees the same vague message as
+    // an unknown email — the admin account must not be identifiable.
     $this->get('/forgot-password')
         ->assertStatus(200)
-        ->assertSee(PasswordResetLinkController::ADMIN_RECOVERY_MESSAGE, false);
+        ->assertSee('Please try again.', false)
+        ->assertDontSee(PasswordResetLinkController::ADMIN_RECOVERY_MESSAGE, false);
 });
 
-test('the admin email is named clearly even when it is a legacy staff row', function () {
+test('the admin email is rejected even when it is a legacy staff row', function () {
     Mail::fake();
 
     // Older deployments kept the Admin as a role = 'Admin' row in `staff`.
-    // Such a row must not become a reset loophole, and it gets the same clear
-    // message as the `admins` table shape.
+    // Such a row must not become a reset loophole, and it gets the same vague
+    // message as an unknown address.
     $user = User::factory()->create();
     DB::table('staff')->insert([
         'user_id' => $user->id,
@@ -214,7 +217,8 @@ test('the admin email is named clearly even when it is a legacy staff row', func
     $this->post('/forgot-password', ['email' => $user->email])
         ->assertSessionHasErrors('email');
 
-    expect(session('errors')->get('email'))->toContain(PasswordResetLinkController::ADMIN_RECOVERY_MESSAGE);
+    expect(session('errors')->get('email'))->toContain('Please try again.');
+    expect(session('errors')->get('email'))->not->toContain(PasswordResetLinkController::ADMIN_RECOVERY_MESSAGE);
     Mail::assertNotSent(PasswordResetCode::class);
 });
 
@@ -299,7 +303,7 @@ test('the admin email cannot be redeemed even with a reset token', function () {
     ])->assertSessionHasErrors('email');
 
     expect(session('errors')->get('email'))
-        ->toContain(PasswordResetLinkController::ADMIN_RECOVERY_MESSAGE);
+        ->toContain('We could not find an account with that email address.');
 
     // The admin credential is untouched.
     $adminHash = DB::table('admins')

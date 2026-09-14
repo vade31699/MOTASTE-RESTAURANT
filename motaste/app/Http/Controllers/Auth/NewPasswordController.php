@@ -60,9 +60,7 @@ class NewPasswordController extends Controller
         $rejection = Staff::passwordResetRejection((string) $request->email);
         if ($rejection !== null) {
             throw ValidationException::withMessages([
-                'email' => [$rejection === 'admin'
-                    ? PasswordResetLinkController::ADMIN_RECOVERY_MESSAGE
-                    : 'We could not find an account with that email address.'],
+                'email' => ['We could not find an account with that email address.'],
             ]);
         }
 
