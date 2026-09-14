@@ -713,9 +713,11 @@ function clearStaffSession() {
         console.warn('Unable to clear persisted staff session', error);
     }
 
-    // A cleared session invalidates any cached renewal result — the next
-    // ensureStaffServerSession() call must attempt a fresh renewal.
+    // A cleared session invalidates any cached renewal result and the "session
+    // is fresh" shortcut — the next ensureStaffServerSession() call must attempt
+    // a fresh renewal.
     staffServerSessionRenewal = null;
+    staffServerSessionFresh = false;
 }
 
 function saveActiveSection(sectionId) {
@@ -1149,6 +1151,17 @@ async function verifyDeviceLogin(email, password, code, deviceToken, remember = 
 
 let staffServerSessionRenewal = null;
 
+// True while a renewal request is actually in flight. A 401 must never drop an
+// in-flight renewal from the cache (see fetchStaffGatedJson): starting a second
+// one would rotate the bearer token twice and revoke the token the first
+// rotation just issued, so every request racing behind them 401s.
+let staffServerSessionRenewalPending = false;
+
+// True while the server session was established at most moments ago by this
+// tab (login / device verification / a succeeded renewal), so it is already
+// valid. See ensureStaffServerSession().
+let staffServerSessionFresh = false;
+
 /**
  * Re-establishes the server-side staff session on page load using the persisted
  * opaque session token (no plaintext password is ever stored or re-sent). The
@@ -1159,6 +1172,14 @@ let staffServerSessionRenewal = null;
  * session cookie to be valid before calling gated endpoints.
  */
 function ensureStaffServerSession() {
+    // A session established moments ago (login, device verification, or a
+    // renewal that just succeeded) is already valid, so renewing it is pure
+    // risk: renew_staff_session.php rotates the bearer token AND regenerates
+    // the PHP session id, which invalidates the credentials every request
+    // already in flight is still carrying. That race bounced freshly
+    // logged-in staff straight back to the login screen.
+    if (staffServerSessionFresh) return Promise.resolve(true);
+
     if (staffServerSessionRenewal) return staffServerSessionRenewal;
 
     const session = getPersistedStaffSession();
@@ -1187,14 +1208,15 @@ function ensureStaffServerSession() {
                 if (payload.csrfToken) {
                     adoptCsrfToken(payload.csrfToken);
                 }
+                staffServerSessionFresh = true;
                 return true;
             }
 
             if (payload && payload.authRequired) {
                 // Token invalid/expired or the account was removed: end the
-                // session and return to the login screen.
-                clearStaffSession();
-                forceLogoutCurrentStaffSession();
+                // session and return to the login screen — surfacing the
+                // server's reason instead of silently bouncing the user out.
+                handleStaffAuthFailure(payload.error);
             }
             return false;
         } catch (error) {
@@ -1205,12 +1227,14 @@ function ensureStaffServerSession() {
             // a transient failure (offline, timeout, server blip) can retry on
             // the next call instead of being memoized as "not renewed" forever,
             // which kept failing every staff-gated request with 401s.
+            staffServerSessionRenewalPending = false;
             if (staffServerSessionRenewal === renewal) {
                 staffServerSessionRenewal = null;
             }
         }
     })();
 
+    staffServerSessionRenewalPending = true;
     staffServerSessionRenewal = renewal;
 
     return staffServerSessionRenewal;
@@ -1244,8 +1268,15 @@ async function fetchStaffGatedJson(path) {
 
     if (response.status === 401) {
         // Drop the memoized renewal so this really re-attempts one — it may be
-        // holding a stale "not renewed" result from an earlier blip.
-        staffServerSessionRenewal = null;
+        // holding a stale "not renewed" result from an earlier blip — and clear
+        // the "session is fresh" shortcut, since this 401 proves it is not.
+        // Only drop a *settled* result: a renewal already in flight must be
+        // awaited, because starting a second one rotates the bearer token again
+        // and revokes the token the first rotation just issued.
+        if (!staffServerSessionRenewalPending) {
+            staffServerSessionRenewal = null;
+        }
+        staffServerSessionFresh = false;
 
         let renewed = false;
         try {
@@ -1260,7 +1291,8 @@ async function fetchStaffGatedJson(path) {
     }
 
     if (response.status === 401) {
-        handleStaffAuthFailure();
+        const body = await response.json().catch(() => ({}));
+        handleStaffAuthFailure(body && body.error);
         return null;
     }
 
@@ -1277,7 +1309,7 @@ async function fetchStaffGatedJson(path) {
  * user why, and return to the login screen rather than leaving an empty
  * dashboard behind.
  */
-function handleStaffAuthFailure() {
+function handleStaffAuthFailure(reason = '') {
     if (staffAuthFailureHandled) return;
 
     // The login screen lives on the staff page; a customer page browsing with a
@@ -1301,7 +1333,16 @@ function handleStaffAuthFailure() {
         pendingOrdersCountdownTicker = null;
     }
 
-    void showStaffNotice('Your staff session has expired. Please log in again.', true);
+    // Include the server's own message when it gave one: it distinguishes a
+    // missing bearer cookie from an unknown/expired token, which is the
+    // difference between a browser/cookie problem and a server-side one.
+    const detail = String(reason || '').trim();
+    void showStaffNotice(
+        detail
+            ? `Your staff session is no longer valid: ${detail}`
+            : 'Your staff session has expired. Please log in again.',
+        true
+    );
     forceLogoutCurrentStaffSession();
 }
 
@@ -2513,9 +2554,11 @@ async function handleStaffLogin(email, password, role, remember) {
     // The server delivered the session token as an HttpOnly cookie; only the
     // non-secret role/email hints are persisted client-side.
     saveStaffSession(detectedRole, email, remember);
-    // The server session was (re)established — drop any stale cached renewal so
-    // future calls re-check against the server.
+    // The login just established a brand-new session server-side, so mark it
+    // fresh: a renewal here would rotate the token and regenerate the session id
+    // out from under the dashboard fetches starting below.
     staffServerSessionRenewal = null;
+    staffServerSessionFresh = true;
 
     // The page-load fetches ran before this login established the server
     // session, so they skipped auth-gated requests. Re-fetch the dashboard
