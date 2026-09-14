@@ -724,6 +724,117 @@ function clearStaffSession() {
     // a fresh renewal.
     staffServerSessionRenewal = null;
     staffServerSessionFresh = false;
+
+    // Nothing is logged in, so nothing can be signed out for inactivity.
+    stopStaffIdleWatchdog();
+}
+
+/* ---- Inactivity logout (30 minutes by default) ---------------------- */
+
+// Idle window for the open tab, in ms. The server enforces the same window on
+// staff_session_tokens.last_used_at (so a closed browser is signed out too) and
+// reports its configured value on renewal — this is the open-tab half of the
+// same rule, which background polling would otherwise keep alive forever.
+let staffIdleTimeoutMs = 30 * 60 * 1000;
+
+// Shared across tabs: activity in ANY tab of this browser counts as activity,
+// so an untouched background tab cannot sign out a session another tab is
+// actively using (all tabs share one session token).
+const STAFF_LAST_ACTIVITY_STORAGE_KEY = 'motasteStaffLastActivity';
+
+let staffIdleWatcherTimer = null;
+let staffIdleLogoutInFlight = false;
+let lastStaffActivityWriteAt = 0;
+
+function recordStaffUserActivity() {
+    if (!isStaffPage) return;
+
+    // Throttled: scroll/wheel can fire hundreds of times a minute and this
+    // writes to localStorage.
+    const now = Date.now();
+    if (now - lastStaffActivityWriteAt < 15000) return;
+    lastStaffActivityWriteAt = now;
+
+    try {
+        window.localStorage.setItem(STAFF_LAST_ACTIVITY_STORAGE_KEY, String(now));
+    } catch (error) {
+        // Storage unavailable (private mode) — the in-memory interval still
+        // tracks this tab, which is the common case.
+    }
+}
+
+function getStaffLastActivityAt() {
+    try {
+        const stored = Number(window.localStorage.getItem(STAFF_LAST_ACTIVITY_STORAGE_KEY));
+        if (Number.isFinite(stored) && stored > 0) return stored;
+    } catch (error) {
+        // ignore
+    }
+
+    // No recorded activity means "active right now" rather than "idle since
+    // the epoch" — a fresh login must never be signed out instantly.
+    return Date.now();
+}
+
+function stopStaffIdleWatchdog() {
+    if (staffIdleWatcherTimer) {
+        window.clearInterval(staffIdleWatcherTimer);
+        staffIdleWatcherTimer = null;
+    }
+    staffIdleLogoutInFlight = false;
+
+    try {
+        window.localStorage.removeItem(STAFF_LAST_ACTIVITY_STORAGE_KEY);
+    } catch (error) {
+        // ignore
+    }
+}
+
+function handleStaffIdleTimeout() {
+    if (staffIdleLogoutInFlight) return;
+    staffIdleLogoutInFlight = true;
+
+    // A 401 from the same inactivity must not stack a second notice on top of
+    // this one.
+    staffAuthFailureHandled = true;
+
+    const minutes = Math.max(1, Math.round(staffIdleTimeoutMs / 60000));
+    void showStaffNotice(`You were signed out after ${minutes} minutes of inactivity. Please log in again.`, true);
+    void revokeStaffSessionOnServer();
+    forceLogoutCurrentStaffSession();
+}
+
+function checkStaffIdleTimeout() {
+    if (!isStaffPage || staffIdleLogoutInFlight) return;
+    if (!getPersistedStaffSession()) return;
+    if (Date.now() - getStaffLastActivityAt() < staffIdleTimeoutMs) return;
+
+    handleStaffIdleTimeout();
+}
+
+function startStaffIdleWatchdog() {
+    if (!isStaffPage) return;
+
+    recordStaffUserActivity();
+
+    if (staffIdleWatcherTimer) return;
+    staffIdleWatcherTimer = window.setInterval(checkStaffIdleTimeout, 30000);
+}
+
+if (isStaffPage) {
+    ['pointerdown', 'keydown', 'touchstart', 'wheel', 'scroll'].forEach((eventName) => {
+        window.addEventListener(eventName, recordStaffUserActivity, { passive: true });
+    });
+
+    // A tab restored after the machine slept never ran its interval, and a
+    // hidden tab's timers are throttled — re-check on the way back in. The
+    // check comes FIRST: returning after a long absence is not activity, so a
+    // session that idled past the window ends here instead of being revived.
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) return;
+        checkStaffIdleTimeout();
+        recordStaffUserActivity();
+    });
 }
 
 function saveActiveSection(sectionId) {
@@ -861,6 +972,10 @@ function restoreStaffSession() {
     // showStaffLoadingOverlay() above is what keeps the overlay up from here,
     // so clearing the class in this order leaves no seam to flash through.
     clearStaffAuthPendingState();
+
+    // Start counting inactivity for the restored session (also picks up the
+    // server's configured idle window once the renewal lands).
+    startStaffIdleWatchdog();
 
     return true;
 }
@@ -1229,6 +1344,14 @@ function ensureStaffServerSession() {
                 // revoke...) pass CSRF validation.
                 if (payload.csrfToken) {
                     adoptCsrfToken(payload.csrfToken);
+                }
+                // Follow the deployment's configured inactivity window instead
+                // of a hardcoded 30 minutes (see staffSessionIdleTimeoutSeconds()).
+                if (payload.idleTimeoutSeconds) {
+                    const configuredIdleMs = Number(payload.idleTimeoutSeconds) * 1000;
+                    if (Number.isFinite(configuredIdleMs) && configuredIdleMs > 0) {
+                        staffIdleTimeoutMs = configuredIdleMs;
+                    }
                 }
                 staffServerSessionFresh = true;
                 return true;
@@ -2656,6 +2779,9 @@ async function handleStaffLogin(email, password, role, remember) {
         // Ensure dashboard panel is closed (main content visible)
         setDashboardPanelState(false);
 
+        // A fresh login is activity; start the inactivity countdown for it.
+        startStaffIdleWatchdog();
+
         void notifyStaffSessionEvent('login', detectedRole, email.toLowerCase());
 }
 
@@ -2893,6 +3019,10 @@ function setCredentialsMessage(message, isError = false) {
 async function loadAdminCredentials() {
     if (!adminCurrentEmailInput) return;
     try {
+        // Gated by the server session: wait for the page-load renewal so this
+        // read does not race it (a racing request used to 401 on the renewal's
+        // token rotation and start a needless second renewal).
+        await ensureStaffServerSession();
         // Admin-gated read: a stale session is recovered once (and the tab sent
         // back to login when it cannot be renewed). A valid session that simply
         // lacks the Admin role is a 403, which throws below instead of logging
@@ -7929,6 +8059,9 @@ async function loadReviewsFromServer(forceRefresh = false) {
         // to renew a staff session.
         let payload = null;
         if (scope === 'staff') {
+            // Staff-gated read: wait for the page-load renewal so the first
+            // fetch does not race it (see renew_staff_session.php).
+            await ensureStaffServerSession();
             payload = await fetchStaffGatedJson(reviewsPath);
         } else {
             const response = await fetch(getApiUrl(reviewsPath), { cache: 'no-store', credentials: 'same-origin' });

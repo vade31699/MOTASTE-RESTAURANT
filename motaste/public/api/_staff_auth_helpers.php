@@ -49,6 +49,13 @@ const STAFF_LOGIN_CAPTCHA_THRESHOLD_DEFAULT = 3;
 const STAFF_SESSION_LIFETIME_SECONDS_DEFAULT = 30 * 24 * 60 * 60; // 30 days
 const STAFF_SESSION_TOKEN_TTL_DAYS_DEFAULT = 30;
 
+// Inactivity window for a logged-in staff session. A token that has not been
+// used by any request for this long is dropped even though its own TTL (and the
+// PHP session cookie) are still valid — the browser being closed, or a tab left
+// untouched, is what "inactive" means here. Every authenticated staff request
+// refreshes the window (see resolveStaffSessionToken).
+const STAFF_SESSION_IDLE_TIMEOUT_SECONDS_DEFAULT = 30 * 60; // 30 minutes
+
 /**
  * Read a staff security setting from its env var, falling back to $default
  * when the var is blank/non-numeric and clamping to at least $min so a
@@ -111,6 +118,33 @@ function staffSessionTokenTtlDays(): int
 }
 
 /**
+ * Seconds of inactivity after which a staff session is dropped, even when the
+ * session cookie and the bearer token are still technically valid.
+ *
+ * Overridable with STAFF_SESSION_IDLE_TIMEOUT_SECONDS (clamped to at least 1,
+ * so a blank/zero setting can never make the check a no-op).
+ */
+function staffSessionIdleTimeoutSeconds(): int
+{
+    return staffEnvLimit('STAFF_SESSION_IDLE_TIMEOUT_SECONDS', STAFF_SESSION_IDLE_TIMEOUT_SECONDS_DEFAULT);
+}
+
+/**
+ * Flag set by resolveStaffSessionToken() when a token was rejected because the
+ * idle window had lapsed rather than because it was unknown/expired/revoked.
+ * Lets the 401 responses say why the user has to log in again.
+ */
+function noteStaffSessionIdleTimeout(): void
+{
+    $GLOBALS['motaste_staff_session_idle_timeout'] = true;
+}
+
+function staffSessionIdleTimeoutTripped(): bool
+{
+    return !empty($GLOBALS['motaste_staff_session_idle_timeout']);
+}
+
+/**
  * Ensure every schema addition used by the enhancement features exists.
  * Follows the codebase convention of creating tables/columns on demand so new
  * deployments work even before migrations have run.
@@ -126,7 +160,10 @@ function ensureStaffEnhancementSchema(): void
     }
 
     try {
-        if (Cache::has('motaste_schema_ok_v1')) {
+        // Versioned key: bump it whenever a new column/table is introduced so a
+        // deployment re-checks the schema instead of trusting a cached result
+        // from before the change (staff_session_tokens.last_used_at is v2).
+        if (Cache::has('motaste_schema_ok_v2')) {
             $verifiedThisRequest = true;
             return;
         }
@@ -163,9 +200,17 @@ function ensureStaffEnhancementSchema(): void
                 // SHA-256 hash of the opaque bearer token (never stored in plaintext).
                 $table->string('token_hash', 64)->unique();
                 $table->timestamp('expires_at');
+                // Last request that used this token — drives the inactivity logout.
+                $table->timestamp('last_used_at')->nullable();
                 $table->timestamps();
 
                 $table->index('email', 'staff_session_tokens_email_idx');
+            });
+        } elseif (!Schema::hasColumn('staff_session_tokens', 'last_used_at')) {
+            // Existing deployment: add the inactivity column on demand so the
+            // idle timeout works before/without the migration being run.
+            Schema::table('staff_session_tokens', function (Blueprint $table) {
+                $table->timestamp('last_used_at')->nullable()->after('expires_at');
             });
         }
 
@@ -228,7 +273,7 @@ function ensureStaffEnhancementSchema(): void
         // Schema verified successfully — remember it briefly so subsequent
         // requests skip the introspection round-trips.
         try {
-            Cache::put('motaste_schema_ok_v1', true, 600);
+            Cache::put('motaste_schema_ok_v2', true, 600);
         } catch (Throwable $cacheError) {
             // Best effort.
         }
@@ -531,13 +576,22 @@ function abortStaffAuthRequired(): void
 {
     logStaffApiRequest((string)($_SERVER['REQUEST_URI'] ?? basename((string)($_SERVER['SCRIPT_NAME'] ?? 'api'))));
 
+    // Distinguish "signed out for being inactive" from the generic gate: the
+    // client shows this string verbatim, and a staff member who was away for
+    // half an hour deserves to know why they are back at the login screen.
+    $idle = staffSessionIdleTimeoutTripped();
+    $idleMinutes = (int) round(staffSessionIdleTimeoutSeconds() / 60);
+
     if (!headers_sent()) {
         http_response_code(401);
     }
     echo json_encode([
         'success' => false,
-        'error' => 'Staff authentication required. Please log in again.',
+        'error' => $idle
+            ? 'Signed out after ' . $idleMinutes . ' minute' . ($idleMinutes === 1 ? '' : 's') . ' of inactivity. Please log in again.'
+            : 'Staff authentication required. Please log in again.',
         'authRequired' => true,
+        'idleTimeout' => $idle,
     ]);
     exit;
 }
@@ -1260,9 +1314,14 @@ function ensureStaffSessionTokenTable(): void
                 $table->string('role', 100)->nullable();
                 $table->string('token_hash', 64)->unique();
                 $table->timestamp('expires_at');
+                $table->timestamp('last_used_at')->nullable();
                 $table->timestamps();
 
                 $table->index('email', 'staff_session_tokens_email_idx');
+            });
+        } elseif (!Schema::hasColumn('staff_session_tokens', 'last_used_at')) {
+            Schema::table('staff_session_tokens', function (Blueprint $table) {
+                $table->timestamp('last_used_at')->nullable()->after('expires_at');
             });
         }
     } catch (Throwable $error) {
@@ -1312,6 +1371,8 @@ function issueStaffSessionToken(string $email, string $role): ?string
             'role' => trim($role),
             'token_hash' => hash('sha256', $token),
             'expires_at' => now()->addDays(staffSessionTokenTtlDays())->toDateTimeString(),
+            // A brand-new token starts its inactivity window now.
+            'last_used_at' => now()->toDateTimeString(),
             'created_at' => now()->toDateTimeString(),
             'updated_at' => now()->toDateTimeString(),
         ]);
@@ -1345,6 +1406,11 @@ function issueStaffSessionToken(string $email, string $role): ?string
  */
 function resolveStaffSessionToken(?string $token): ?array
 {
+    // Reset the reason flag for THIS lookup: long-lived workers (and tests)
+    // reuse the process, so a stale "idle timeout" from an earlier request would
+    // otherwise mislabel the next generic auth failure.
+    $GLOBALS['motaste_staff_session_idle_timeout'] = false;
+
     if ($token === null || trim($token) === '') {
         return null;
     }
@@ -1361,6 +1427,39 @@ function resolveStaffSessionToken(?string $token): ?array
             DB::table('staff_session_tokens')->where('id', $row->id)->delete();
             return null;
         }
+
+        // Inactivity logout. A token nobody has used for the configured window
+        // is dropped even though its TTL (and the browser's session/token
+        // cookies) are still valid, so closing the browser — or leaving a tab
+        // untouched — signs the account out 30 minutes later instead of only on
+        // the 30-day expiry. This is the single choke point every staff request
+        // passes through (requireStaffAuth() and renew_staff_session.php).
+        //
+        // Rows created before this column existed have no timestamp: they are
+        // treated as "used now" so a deploy does not log everyone out at once —
+        // the window applies from that first request onward.
+        $idleTimeout = staffSessionIdleTimeoutSeconds();
+        $lastUsedAt = $row->last_used_at ?? null;
+        if ($lastUsedAt !== null) {
+            $lastUsedTimestamp = strtotime((string)$lastUsedAt);
+            if ($lastUsedTimestamp !== false && (time() - $lastUsedTimestamp) > $idleTimeout) {
+                DB::table('staff_session_tokens')->where('id', $row->id)->delete();
+                noteStaffSessionIdleTimeout();
+                return null;
+            }
+        }
+
+        // This request counts as activity — push the window forward. Best
+        // effort: a failed touch (locked row, schema drift) must not reject an
+        // otherwise valid session.
+        try {
+            DB::table('staff_session_tokens')
+                ->where('id', $row->id)
+                ->update(['last_used_at' => now()->toDateTimeString()]);
+        } catch (Throwable $touchError) {
+            error_log('staff session last_used_at touch failed: ' . $touchError->getMessage());
+        }
+
         return [
             'email' => strtolower(trim((string)$row->email)),
             'role' => trim((string)($row->role ?? '')),

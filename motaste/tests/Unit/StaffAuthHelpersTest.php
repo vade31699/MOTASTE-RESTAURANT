@@ -261,6 +261,88 @@ test('revoking all tokens ends every session for the account', function () {
     expect(resolveStaffSessionToken($tokenB))->toBeNull();
 });
 
+test('a session idle past the inactivity window is dropped', function () {
+    bootTestApp();
+
+    $email = 'idle-test@example.com';
+    DB::table('staff_session_tokens')->where('email', $email)->delete();
+
+    $token = issueStaffSessionToken($email, 'Cashier');
+
+    // A brand-new token is inside the window, and using it pushes the window
+    // forward (last_used_at is refreshed on every resolution).
+    expect(resolveStaffSessionToken($token))->not->toBeNull();
+
+    $touchedAt = DB::table('staff_session_tokens')->where('email', $email)->value('last_used_at');
+    expect($touchedAt)->not->toBeNull();
+    expect(abs(now()->diffInSeconds(\Illuminate\Support\Carbon::parse($touchedAt))))->toBeLessThan(60);
+
+    // Just inside the window: still valid.
+    DB::table('staff_session_tokens')->where('email', $email)->update([
+        'last_used_at' => now()->subSeconds(staffSessionIdleTimeoutSeconds() - 5)->toDateTimeString(),
+    ]);
+    expect(resolveStaffSessionToken($token))->not->toBeNull();
+
+    // Past the window: the token is dropped outright, so it cannot be replayed
+    // and the client is sent back to the login screen.
+    DB::table('staff_session_tokens')->where('email', $email)->update([
+        'last_used_at' => now()->subSeconds(staffSessionIdleTimeoutSeconds() + 5)->toDateTimeString(),
+    ]);
+    expect(resolveStaffSessionToken($token))->toBeNull();
+    expect(staffSessionIdleTimeoutTripped())->toBeTrue();
+    expect(DB::table('staff_session_tokens')->where('email', $email)->count())->toBe(0);
+
+    // A rejected lookup for any other reason must not claim "inactivity".
+    expect(resolveStaffSessionToken('not-a-real-token'))->toBeNull();
+    expect(staffSessionIdleTimeoutTripped())->toBeFalse();
+});
+
+test('the inactivity window honors the STAFF_SESSION_IDLE_TIMEOUT_SECONDS override', function () {
+    bootTestApp();
+
+    $original = getenv('STAFF_SESSION_IDLE_TIMEOUT_SECONDS');
+    setStaffLoginTestEnv('STAFF_SESSION_IDLE_TIMEOUT_SECONDS', '60');
+
+    try {
+        expect(staffSessionIdleTimeoutSeconds())->toBe(60);
+
+        $email = 'idle-override-test@example.com';
+        DB::table('staff_session_tokens')->where('email', $email)->delete();
+
+        $token = issueStaffSessionToken($email, 'Admin');
+
+        // 90 seconds of inactivity is inside the default 30-minute window but
+        // outside the 60-second override.
+        DB::table('staff_session_tokens')->where('email', $email)->update([
+            'last_used_at' => now()->subSeconds(90)->toDateTimeString(),
+        ]);
+        expect(resolveStaffSessionToken($token))->toBeNull();
+
+        DB::table('staff_session_tokens')->where('email', $email)->delete();
+    } finally {
+        setStaffLoginTestEnv('STAFF_SESSION_IDLE_TIMEOUT_SECONDS', $original === false ? null : $original);
+    }
+});
+
+test('a token issued before the idle column existed is allowed and then tracked', function () {
+    bootTestApp();
+
+    $email = 'idle-legacy-test@example.com';
+    DB::table('staff_session_tokens')->where('email', $email)->delete();
+
+    $token = issueStaffSessionToken($email, 'Admin');
+
+    // Deploy-time state: the row predates the column, so it has no timestamp.
+    DB::table('staff_session_tokens')->where('email', $email)->update(['last_used_at' => null]);
+
+    // Treated as active (a deploy must not sign everyone out at once) and the
+    // timestamp is written from that request onward.
+    expect(resolveStaffSessionToken($token))->not->toBeNull();
+    expect(DB::table('staff_session_tokens')->where('email', $email)->value('last_used_at'))->not->toBeNull();
+
+    DB::table('staff_session_tokens')->where('email', $email)->delete();
+});
+
 test('expired session tokens are rejected', function () {
     bootTestApp();
 

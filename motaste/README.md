@@ -120,6 +120,7 @@ All optional. Each falls back to the default shown when unset, and is clamped to
 | `STAFF_LOGIN_CAPTCHA_THRESHOLD` | `3` | Failed attempts (per account or per IP, within the lockout window) before the CAPTCHA checkbox is demanded — the 4th submit is gated. Suspicious-login detection can still demand it earlier. |
 | `STAFF_SESSION_LIFETIME_SECONDS` | `2592000` (30 days) | Lifetime of the persistent staff session cookie. |
 | `STAFF_SESSION_TOKEN_TTL_DAYS` | `30` | Lifetime of an issued session token (revoked on password/email change). |
+| `STAFF_SESSION_IDLE_TIMEOUT_SECONDS` | `1800` (30 minutes) | Inactivity window: a staff session unused for this long is dropped, so closing the browser (or leaving a tab untouched) signs the account out 30 minutes later. Every authenticated staff request refreshes the window. |
 
 ## Troubleshooting
 
