@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./style.css?v=20260915h">
+    <link rel="stylesheet" href="./style.css?v=20260915i">
     <title>Login - MOTASTE</title>
     <style>
         html,
@@ -171,7 +171,6 @@
         <a href="#logs" id="logsLink"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i><span>Logs</span></a>
         <a href="#account-management" id="accountManagementLink"><i class="fa-solid fa-users-gear" aria-hidden="true"></i><span>Account Management</span></a>
         <a href="#highlights" id="highlightsLink"><i class="fa-solid fa-images" aria-hidden="true"></i><span>Highlights</span></a>
-        <a href="#credentials" id="credentialsLink"><i class="fa-solid fa-key" aria-hidden="true"></i><span>Credentials</span></a>
         <button type="button" id="logoutBtn" class="logout-btn" hidden><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i><span>Logout</span></button>
     </div>
 
@@ -810,7 +809,7 @@
 
     <section id="account-management" class="account-management" hidden>
         <h2>Account Management</h2>
-        <p>Manage cashier and inventory accounts below. Staff invites are Gmail-only and require email confirmation before first login.</p>
+        <p>Manage cashier and inventory accounts below. Admin Gmail, password, trusted devices, and login history are also managed here. Staff invites are Gmail-only and require email confirmation before first login.</p>
 
         <button type="button" id="toggleAccountFormBtn" class="add-staff-btn">Add Staff Account</button>
 
@@ -830,6 +829,88 @@
         </form>
 
         <ul id="accountList" class="account-list"></ul>
+
+        <div id="adminCredentialSettings">
+            <h3>Admin Credentials</h3>
+            <p>Admin-only settings for main Gmail and password. Changes require email verification code before applying.</p>
+
+            <button type="button" id="toggleCredentialsFormBtn" class="add-staff-btn">CHANGE ADMIN EMAIL</button>
+
+            <form id="credentialsForm" class="account-form" hidden>
+                <div class="floating-field">
+                    <input type="email" id="adminCurrentEmail" placeholder=" " readonly autocomplete="off">
+                    <label for="adminCurrentEmail">Current admin Gmail</label>
+                </div>
+                <div class="floating-field">
+                    <input type="password" id="adminCurrentPassword" placeholder=" " required autocomplete="current-password">
+                    <label for="adminCurrentPassword">Current admin password</label>
+                </div>
+                <div class="floating-field">
+                    <input type="email" id="adminNewEmail" placeholder=" " required autocomplete="off">
+                    <label for="adminNewEmail">New admin Gmail</label>
+                </div>
+                <div class="floating-field">
+                    <input type="password" id="adminNewPassword" placeholder=" " minlength="12" required autocomplete="new-password">
+                    <label for="adminNewPassword">New admin password</label>
+                    <small class="field-helper">Use at least 12 characters with uppercase, lowercase, and a number. Common passwords are rejected.</small>
+                </div>
+                <button type="button" id="requestCredentialsChangeBtn">Send Verification Code</button>
+                <div class="floating-field">
+                    <input type="text" id="adminChangeCode" placeholder=" " maxlength="8" inputmode="numeric" autocomplete="one-time-code">
+                    <label for="adminChangeCode">Verification code</label>
+                </div>
+                <button type="submit" id="confirmCredentialsChangeBtn">Verify and Apply</button>
+            </form>
+
+            <button type="button" id="togglePasswordFormBtn" class="add-staff-btn" style="margin-top: 12px;">CHANGE ADMIN PASSWORD</button>
+
+            <form id="passwordCredentialsForm" class="account-form" hidden>
+                <div class="floating-field">
+                    <input type="email" id="adminPasswordCurrentEmail" placeholder=" " readonly autocomplete="off">
+                    <label for="adminPasswordCurrentEmail">Current admin Gmail</label>
+                </div>
+                <div class="floating-field">
+                    <input type="password" id="adminPasswordCurrentPassword" placeholder=" " required autocomplete="current-password">
+                    <label for="adminPasswordCurrentPassword">Current admin password</label>
+                </div>
+                <div class="floating-field">
+                    <input type="password" id="adminPasswordNewPassword" placeholder=" " minlength="12" required autocomplete="new-password">
+                    <label for="adminPasswordNewPassword">New admin password</label>
+                    <small class="field-helper">Use at least 12 characters with uppercase, lowercase, and a number. Common passwords are rejected.</small>
+                </div>
+                <button type="button" id="requestPasswordChangeBtn">Send Verification Code</button>
+                <div class="floating-field">
+                    <input type="text" id="adminPasswordChangeCode" placeholder=" " maxlength="8" inputmode="numeric" autocomplete="one-time-code">
+                    <label for="adminPasswordChangeCode">Verification code</label>
+                </div>
+                <button type="submit" id="confirmPasswordChangeBtn">Verify and Apply</button>
+            </form>
+
+            <div class="trusted-devices-card" id="trustedDevicesCard">
+                <div class="trusted-devices-header">
+                    <h3>Trusted Devices</h3>
+                    <p>Devices that have completed a verified login for this account. Every staff login requires a fresh verification code sent to the account email.</p>
+                </div>
+                <div id="trustedDevicesList" class="trusted-devices-list"></div>
+                <p id="trustedDevicesMessage" class="menu-order-message" aria-live="polite"></p>
+            </div>
+
+            <div class="trusted-devices-card login-history-card" id="loginHistoryCard">
+                <div class="trusted-devices-header">
+                    <h3>Login History</h3>
+                    <p>Audit trail of successful staff logins with date, time, and role.</p>
+                </div>
+                <div id="loginOnlineList" class="login-online-list"></div>
+                <div class="login-history-filter-row">
+                    <label for="loginHistoryDateInput">Filter by date</label>
+                    <input type="date" id="loginHistoryDateInput" aria-label="Filter login history by date">
+                    <button type="button" id="loginHistoryClearDateBtn" class="login-history-clear-btn">Show all</button>
+                </div>
+                <div id="loginHistoryList" class="login-history-list"></div>
+            </div>
+
+            <p id="credentialsMessage" class="menu-order-message" aria-live="polite"></p>
+        </div>
     </section>
 
     <section id="highlights" class="account-management" hidden>
@@ -846,88 +927,6 @@
 
         <p id="highlightsMessage" class="menu-order-message" aria-live="polite"></p>
         <div id="highlightsList" class="highlights-list"></div>
-    </section>
-
-    <section id="credentials" class="account-management" hidden>
-        <h2>Credentials</h2>
-        <p>Admin-only settings for main Gmail and password. Changes require email verification code before applying.</p>
-
-        <button type="button" id="toggleCredentialsFormBtn" class="add-staff-btn">CHANGE ADMIN EMAIL</button>
-
-        <form id="credentialsForm" class="account-form" hidden>
-            <div class="floating-field">
-                <input type="email" id="adminCurrentEmail" placeholder=" " readonly autocomplete="off">
-                <label for="adminCurrentEmail">Current admin Gmail</label>
-            </div>
-            <div class="floating-field">
-                <input type="password" id="adminCurrentPassword" placeholder=" " required autocomplete="current-password">
-                <label for="adminCurrentPassword">Current admin password</label>
-            </div>
-            <div class="floating-field">
-                <input type="email" id="adminNewEmail" placeholder=" " required autocomplete="off">
-                <label for="adminNewEmail">New admin Gmail</label>
-            </div>
-            <div class="floating-field">
-                <input type="password" id="adminNewPassword" placeholder=" " minlength="12" required autocomplete="new-password">
-                <label for="adminNewPassword">New admin password</label>
-                <small class="field-helper">Use at least 12 characters with uppercase, lowercase, and a number. Common passwords are rejected.</small>
-            </div>
-            <button type="button" id="requestCredentialsChangeBtn">Send Verification Code</button>
-            <div class="floating-field">
-                <input type="text" id="adminChangeCode" placeholder=" " maxlength="8" inputmode="numeric" autocomplete="one-time-code">
-                <label for="adminChangeCode">Verification code</label>
-            </div>
-            <button type="submit" id="confirmCredentialsChangeBtn">Verify and Apply</button>
-        </form>
-
-        <button type="button" id="togglePasswordFormBtn" class="add-staff-btn" style="margin-top: 12px;">CHANGE ADMIN PASSWORD</button>
-
-        <form id="passwordCredentialsForm" class="account-form" hidden>
-            <div class="floating-field">
-                <input type="email" id="adminPasswordCurrentEmail" placeholder=" " readonly autocomplete="off">
-                <label for="adminPasswordCurrentEmail">Current admin Gmail</label>
-            </div>
-            <div class="floating-field">
-                <input type="password" id="adminPasswordCurrentPassword" placeholder=" " required autocomplete="current-password">
-                <label for="adminPasswordCurrentPassword">Current admin password</label>
-            </div>
-            <div class="floating-field">
-                <input type="password" id="adminPasswordNewPassword" placeholder=" " minlength="12" required autocomplete="new-password">
-                <label for="adminPasswordNewPassword">New admin password</label>
-                <small class="field-helper">Use at least 12 characters with uppercase, lowercase, and a number. Common passwords are rejected.</small>
-            </div>
-            <button type="button" id="requestPasswordChangeBtn">Send Verification Code</button>
-            <div class="floating-field">
-                <input type="text" id="adminPasswordChangeCode" placeholder=" " maxlength="8" inputmode="numeric" autocomplete="one-time-code">
-                <label for="adminPasswordChangeCode">Verification code</label>
-            </div>
-            <button type="submit" id="confirmPasswordChangeBtn">Verify and Apply</button>
-        </form>
-
-        <div class="trusted-devices-card" id="trustedDevicesCard">
-            <div class="trusted-devices-header">
-                <h3>Trusted Devices</h3>
-                <p>Devices that have completed a verified login for this account. Every staff login requires a fresh verification code sent to the account email.</p>
-            </div>
-            <div id="trustedDevicesList" class="trusted-devices-list"></div>
-            <p id="trustedDevicesMessage" class="menu-order-message" aria-live="polite"></p>
-        </div>
-
-        <div class="trusted-devices-card login-history-card" id="loginHistoryCard">
-            <div class="trusted-devices-header">
-                <h3>Login History</h3>
-                <p>Audit trail of successful staff logins with date, time, and role.</p>
-            </div>
-            <div id="loginOnlineList" class="login-online-list"></div>
-            <div class="login-history-filter-row">
-                <label for="loginHistoryDateInput">Filter by date</label>
-                <input type="date" id="loginHistoryDateInput" aria-label="Filter login history by date">
-                <button type="button" id="loginHistoryClearDateBtn" class="login-history-clear-btn">Show all</button>
-            </div>
-            <div id="loginHistoryList" class="login-history-list"></div>
-        </div>
-
-        <p id="credentialsMessage" class="menu-order-message" aria-live="polite"></p>
     </section>
 
     <div id="deviceVerifyModal" class="modal-overlay" hidden aria-hidden="true">
@@ -1098,6 +1097,6 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
-    <script src="./script.js?v=20260915c" defer></script>
+    <script src="./script.js?v=20260915d" defer></script>
 </body>
 </html>

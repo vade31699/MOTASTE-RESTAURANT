@@ -331,13 +331,13 @@ body.dashboard-panel-open .menu-btn {
     margin: 16px 0;
 }
 
-#credentials .account-form,
+#adminCredentialSettings .account-form,
 #passwordCredentialsForm {
     width: 100%;
 }
 
-#credentials .account-form input,
-#credentials .account-form button,
+#adminCredentialSettings .account-form input,
+#adminCredentialSettings .account-form button,
 #passwordCredentialsForm input,
 #passwordCredentialsForm button {
     width: 100%;
@@ -4413,8 +4413,7 @@ body.staff-app .chart-scroll-vertical {
 .orders-section[hidden],
 #pending-orders[hidden],
 #logs[hidden],
-#highlights[hidden],
-#credentials[hidden] {
+#highlights[hidden] {
     display: none !important;
     height: 0 !important;
     margin: 0 !important;
@@ -5775,7 +5774,7 @@ body.staff-app .retention-clear-btn {
 }
 
 @media (max-width: 760px) {
-    #credentials .account-form,
+    #adminCredentialSettings .account-form,
     #passwordCredentialsForm,
     .account-form,
     .inventory-form-grid,
@@ -5783,7 +5782,7 @@ body.staff-app .retention-clear-btn {
         grid-template-columns: 1fr;
     }
 
-    #credentials .account-form button,
+    #adminCredentialSettings .account-form button,
     #passwordCredentialsForm button,
     #togglePasswordFormBtn,
     #toggleCredentialsFormBtn {

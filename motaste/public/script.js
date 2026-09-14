@@ -680,7 +680,6 @@ function forceLogoutCurrentStaffSession() {
     if (logsSection) logsSection.hidden = true;
     if (accountManagementSection) accountManagementSection.hidden = true;
     if (highlightsSection) highlightsSection.hidden = true;
-    if (credentialsSection) credentialsSection.hidden = true;
 
     // Last, once the login surface is actually revealed: drop the "a staff
     // session may exist" class that staff.html sets before first paint. Doing it
@@ -1458,7 +1457,6 @@ function resolveAccessibleSection(sectionId) {
     if (requested === 'pending-orders' && !canManageOrders()) return 'overview';
     if (requested === 'account-management' && !canManageAccounts()) return 'overview';
     if (requested === 'highlights' && !canManageHighlights()) return 'overview';
-    if (requested === 'credentials' && !canAccessCredentials()) return 'overview';
     return requested || 'overview';
 }
 
@@ -2522,8 +2520,9 @@ async function loadTrustedDevices(options = {}) {
             email: actor.email,
             deviceToken: getOrCreateDeviceToken()
         });
-        // The Credentials section is admin-only and lists every staff device so
-        // Cashier and Inventory Manager devices can be labelled separately.
+        // The account management section is admin-only and lists every staff
+        // device so Cashier and Inventory Manager devices can be labelled
+        // separately.
         if (actor.role === 'Admin') {
             query.set('includeAll', '1');
         }
@@ -2552,10 +2551,11 @@ async function loadTrustedDevices(options = {}) {
     }
 }
 
-// While the Credentials section is open, subscribe to the SSE stream so
-// revokes made by another admin disappear here instantly. If SSE is killed by
-// the hosting platform (some serverless hosts terminate long-lived requests),
-// the connection errors repeatedly and we fall back to 10s interval polling.
+// While the account management section is open, subscribe to the SSE stream
+// so revokes made by another admin disappear here instantly. If SSE is killed
+// by the hosting platform (some serverless hosts terminate long-lived
+// requests), the connection errors repeatedly and we fall back to 10s interval
+// polling.
 function startTrustedDevicesRefresh() {
     if (!trustedDevicesList || trustedDevicesStream || trustedDevicesRefreshTimer) return;
 
@@ -2921,9 +2921,9 @@ if (loginHistoryClearDateBtn) {
     });
 }
 
-// Keep the online status + history fresh while the credentials section is open.
+// Keep the online status + history fresh while the account management section is open.
 window.setInterval(() => {
-    if (typeof credentialsSection !== 'undefined' && credentialsSection && !credentialsSection.hidden && loginHistoryList) {
+    if (typeof accountManagementSection !== 'undefined' && accountManagementSection && !accountManagementSection.hidden && loginHistoryList) {
         void loadLoginHistory();
     }
 }, 30000);
@@ -3226,9 +3226,6 @@ if (logoutBtn) {
         if (highlightsSection) {
             highlightsSection.hidden = true;
         }
-        if (credentialsSection) {
-            credentialsSection.hidden = true;
-        }
 
         updateAccountManagementAccess();
         setAuthButtonsVisible(false);
@@ -3294,11 +3291,9 @@ if (closePanelBtn) {
 
 const accountManagementLink = document.getElementById('accountManagementLink');
 const highlightsLink = document.getElementById('highlightsLink');
-const credentialsLink = document.getElementById('credentialsLink');
 const logsLink = document.getElementById('logsLink');
 const accountManagementSection = document.getElementById('account-management');
 const highlightsSection = document.getElementById('highlights');
-const credentialsSection = document.getElementById('credentials');
 const accountForm = document.getElementById('accountForm');
 const accountPasswordConfirmationInput = document.getElementById('accountPasswordConfirmation');
 const toggleAccountFormBtn = document.getElementById('toggleAccountFormBtn');
@@ -3607,6 +3602,17 @@ if (accountManagementLink && accountManagementSection) {
         if (showAccountManagement && salesSection) {
             salesSection.hidden = true;
         }
+
+        // Admin credential changes, trusted devices, and login history moved
+        // into this section, so they initialize each time it is opened.
+        if (showAccountManagement) {
+            void loadAdminCredentials();
+            void loadTrustedDevices();
+            void loadLoginHistory();
+            startTrustedDevicesRefresh();
+        } else {
+            stopTrustedDevicesRefresh();
+        }
     });
 }
 
@@ -3618,20 +3624,6 @@ if (highlightsLink && highlightsSection) {
         }
         showDashboardSection(highlightsSection);
         renderHighlightsManagement();
-    });
-}
-
-if (credentialsLink && credentialsSection) {
-    credentialsLink.addEventListener('click', (event) => {
-        event.preventDefault();
-        if (!canAccessCredentials()) {
-            return;
-        }
-        showDashboardSection(credentialsSection);
-        void loadAdminCredentials();
-        void loadTrustedDevices();
-        void loadLoginHistory();
-        startTrustedDevicesRefresh();
     });
 }
 
@@ -3648,13 +3640,12 @@ function updateAccountManagementAccess() {
     setLinkState(logsLink, canAccessLogs());
     setLinkState(accountManagementLink, canManageAccounts());
     setLinkState(highlightsLink, canManageHighlights());
-    setLinkState(credentialsLink, canAccessCredentials());
 
     if (!document.body.classList.contains('auth')) {
         return;
     }
 
-    const activeSection = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, highlightsSection, credentialsSection]
+    const activeSection = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, highlightsSection]
         .find((section) => section && section.hidden === false);
     if (!activeSection) return;
 
@@ -11465,9 +11456,9 @@ function renderOverviewAnalytics(animate = true) {
 function showDashboardSection(section) {
     setInventoryModalVisible(false);
 
-    // Leaving the Credentials section frees the SSE worker (one worker per
-    // stream on PHP-FPM); it is reopened when the section returns.
-    if (typeof trustedDevicesStream !== 'undefined' && trustedDevicesStream && section !== credentialsSection) {
+    // Leaving the account management section frees the SSE worker (one worker
+    // per stream on PHP-FPM); it is reopened when the section returns.
+    if (typeof trustedDevicesStream !== 'undefined' && trustedDevicesStream && section !== accountManagementSection) {
         stopTrustedDevicesRefresh();
     }
 
@@ -11475,7 +11466,7 @@ function showDashboardSection(section) {
         syncLogsDateFilterToToday();
     }
 
-    const sections = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, highlightsSection, credentialsSection];
+    const sections = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, highlightsSection];
     sections.forEach((el) => {
         if (!el) return;
         el.hidden = el !== section;
@@ -11484,8 +11475,9 @@ function showDashboardSection(section) {
     // Chart pan buttons need a refresh once the section is visible again.
     setupChartScrollControls();
 
-    if (section === credentialsSection) {
+    if (section === accountManagementSection) {
         syncLoginHistoryDateToToday();
+        void loadAdminCredentials();
         void loadTrustedDevices();
         void loadLoginHistory();
         startTrustedDevicesRefresh();
@@ -11505,7 +11497,6 @@ function showDashboardSection(section) {
             logs: logsLink,
             'account-management': accountManagementLink,
             highlights: highlightsLink,
-            credentials: credentialsLink,
         };
 
         Object.values(linkMap).forEach((lnk) => {
@@ -14006,7 +13997,7 @@ if (dashboardPanel) {
             syncLogsDateFilterToToday();
             showDashboardSection(logsSection);
             void loadOrderLogsFromServer(true);
-        } else if (href === '#account-management') {
+        } else if (href === '#account-management' || href === '#credentials') {
             if (!canManageAccounts()) {
                 return;
             }
@@ -14017,12 +14008,6 @@ if (dashboardPanel) {
             }
             showDashboardSection(highlightsSection);
             renderHighlightsManagement();
-        } else if (href === '#credentials') {
-            if (!canAccessCredentials()) {
-                return;
-            }
-            showDashboardSection(credentialsSection);
-            void loadAdminCredentials();
         }
 
         setDashboardPanelState(false);
