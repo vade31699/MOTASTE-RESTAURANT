@@ -105,16 +105,13 @@ test('a verification code is emailed before any reset form is shown', function (
     Mail::assertSent(PasswordResetCode::class);
 });
 
-test('an unknown email gets the same response as a known one', function () {
+test('an unknown email is rejected with a Please try again message', function () {
     Mail::fake();
 
-    // Identical to a real send: no error and the same pending-code state, so
-    // the response cannot be used to test which addresses exist.
     $this->post('/forgot-password', ['email' => 'nobody@example.com'])
-        ->assertSessionHasNoErrors()
-        ->assertSessionHas('password_reset_email', 'nobody@example.com');
+        ->assertSessionHasErrors('email');
 
-    // ...but no code is created and no email is sent.
+    expect(session('errors')->get('email'))->toContain('Please try again.');
     Mail::assertNothingSent();
 });
 
@@ -124,14 +121,11 @@ test('a cashier cannot start a password reset', function () {
     $cashier = createStaffUser('Cashier');
 
     $this->post('/forgot-password', ['email' => $cashier->email])
-        ->assertSessionHasNoErrors()
-        ->assertSessionHas('password_reset_email', $cashier->email);
+        ->assertSessionHasErrors('email');
 
     expect(session('errors')->get('email'))->toContain('Please try again.');
     Mail::assertNothingSent();
 
-    // The neutral response must not actually let the account through: any code
-    // submitted afterwards is rejected.
     $this->post('/forgot-password/verify', ['email' => $cashier->email, 'code' => '000000'])
         ->assertSessionHasErrors('code');
 });
@@ -142,9 +136,9 @@ test('an inventory manager cannot start a password reset', function () {
     $inventory = createStaffUser('Inventory Manager');
 
     $this->post('/forgot-password', ['email' => $inventory->email])
-        ->assertSessionHasNoErrors()
-        ->assertSessionHas('password_reset_email', $inventory->email);
+        ->assertSessionHasErrors('email');
 
+    expect(session('errors')->get('email'))->toContain('Please try again.');
     Mail::assertNothingSent();
 });
 

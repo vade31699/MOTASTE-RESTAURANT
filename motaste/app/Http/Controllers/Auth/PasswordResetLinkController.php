@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Mail\PasswordResetCode;
+use App\Models\Admin;
 use App\Models\Staff;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -59,13 +60,9 @@ class PasswordResetLinkController extends Controller
         $email = strtolower(trim($request->email));
 
         // Password recovery is admin-only, and the flow must ask for the email
-        // first before any code is sent. Unknown or non-admin addresses get the
-        // same user-facing "Please try again." message rather than revealing a
-        // valid account.
-        $isAdminAccount = Staff::isAdminEmail($email)
-            && DB::table('users')->whereRaw('LOWER(email) = ?', [$email])->exists();
-
-        if (!$isAdminAccount) {
+        // first before any code is sent. Unknown or non-admin addresses are not
+        // allowed to begin a reset and should get the same user-facing error.
+        if (!$this->isAdminResetEligible($email)) {
             throw ValidationException::withMessages([
                 'email' => ['Please try again.'],
             ]);
@@ -129,7 +126,7 @@ class PasswordResetLinkController extends Controller
         // Code confirmed — create a reset token and go straight to the form.
         $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
 
-        if (!$user || !Staff::isAdminEmail($email)) {
+        if (!$user || !$this->isAdminResetEligible($email)) {
             throw ValidationException::withMessages([
                 'email' => ['Please try again.'],
             ]);
@@ -159,6 +156,24 @@ class PasswordResetLinkController extends Controller
         session()->forget('password_reset_email');
 
         return redirect()->route('password.request');
+    }
+
+    private function isAdminResetEligible(string $email): bool
+    {
+        $normalized = strtolower(trim($email));
+        if ($normalized === '') {
+            return false;
+        }
+
+        $adminExists = Admin::whereRaw('LOWER(email) = ?', [$normalized])->exists();
+        if ($adminExists) {
+            return true;
+        }
+
+        return DB::table('staff')
+            ->whereRaw('LOWER(email) = ?', [$normalized])
+            ->whereRaw('LOWER(role) = ?', ['admin'])
+            ->exists();
     }
 
     private function ensurePasswordResetCodesTable(): void

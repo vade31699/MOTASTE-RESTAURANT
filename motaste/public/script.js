@@ -1216,6 +1216,91 @@ function ensureStaffServerSession() {
     return staffServerSessionRenewal;
 }
 
+// True once a background poller has already bounced this tab back to the login
+// screen, so a poller firing every 10s cannot repeat the logout/notice.
+let staffAuthFailureHandled = false;
+
+/**
+ * Fetch a staff-gated JSON endpoint, recovering from a stale session once.
+ *
+ * A 401 here means this tab's PHP session and its bearer token no longer
+ * agree — typically because the HttpOnly token cookie expired/died while the
+ * longer-lived session cookie survived, or because another tab rotated the
+ * account's tokens. Callers used to swallow that 401 and render their empty
+ * initial state, which left the dashboard looking logged in but permanently
+ * empty (no inventory, no pending orders) even though nothing had been
+ * deleted. Recover once by forcing a real renewal, then hand back to the login
+ * screen instead of showing misleadingly empty data.
+ *
+ * Returns the parsed payload, or null when the request could not be
+ * authenticated (the caller must stop and render nothing).
+ */
+async function fetchStaffGatedJson(path) {
+    const request = () => fetch(getApiUrl(path), { cache: 'no-store', credentials: 'same-origin' });
+
+    // Network failures deliberately propagate: callers already handle them by
+    // keeping the data they have and re-rendering it.
+    let response = await request();
+
+    if (response.status === 401) {
+        // Drop the memoized renewal so this really re-attempts one — it may be
+        // holding a stale "not renewed" result from an earlier blip.
+        staffServerSessionRenewal = null;
+
+        let renewed = false;
+        try {
+            renewed = await ensureStaffServerSession();
+        } catch (error) {
+            console.debug('Unable to renew staff server session', error);
+        }
+
+        if (renewed) {
+            response = await request();
+        }
+    }
+
+    if (response.status === 401) {
+        handleStaffAuthFailure();
+        return null;
+    }
+
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+
+    staffAuthFailureHandled = false;
+    return response.json();
+}
+
+/**
+ * The staff session is gone server-side: stop the background pollers, tell the
+ * user why, and return to the login screen rather than leaving an empty
+ * dashboard behind.
+ */
+function handleStaffAuthFailure() {
+    if (staffAuthFailureHandled) return;
+
+    // A 401 while nobody is logged in is the normal pre-login state: the
+    // dashboard page loads its sections behind the login form, so those
+    // requests are expected to be rejected. Only a tab that actually holds a
+    // staff session has lost something worth reporting (and re-logging in).
+    if (!getPersistedStaffSession()) return;
+
+    staffAuthFailureHandled = true;
+
+    if (pendingOrdersRefreshTimer) {
+        window.clearInterval(pendingOrdersRefreshTimer);
+        pendingOrdersRefreshTimer = null;
+    }
+    if (pendingOrdersCountdownTicker) {
+        window.clearInterval(pendingOrdersCountdownTicker);
+        pendingOrdersCountdownTicker = null;
+    }
+
+    void showStaffNotice('Your staff session has expired. Please log in again.', true);
+    forceLogoutCurrentStaffSession();
+}
+
 /* ---- Device verification modal (replaces native prompt) ---- */
 const deviceVerifyModal = document.getElementById('deviceVerifyModal');
 const deviceVerifyCodeStep = document.getElementById('deviceVerifyCodeStep');
@@ -6474,17 +6559,17 @@ document.addEventListener('click', (event) => {
 });
 
 async function loadPendingOrdersFromServer() {
+    if (!isStaffPage) return;
+
     try {
         // Gated by the server session; wait for the page-load renewal first.
-        if (isStaffPage) {
-            await ensureStaffServerSession();
-        }
-        const response = await fetch(getApiUrl('api/get_pending_orders.php'), { cache: 'no-store', credentials: 'same-origin' });
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
+        // The read is auth-gated too: a stale session is recovered once and,
+        // if that fails, the user is returned to the login screen — the 401
+        // used to be swallowed so the list simply rendered empty.
+        await ensureStaffServerSession();
+        const payload = await fetchStaffGatedJson('api/get_pending_orders.php');
+        if (!payload) return;
 
-        const payload = await response.json();
         const serverOrders = Array.isArray(payload.orders) ? payload.orders : [];
 
         pendingOrders = serverOrders.map((order) => {
@@ -8080,13 +8165,22 @@ async function initializeInventoryData(forceRefresh = false) {
         if (scopeParam) {
             await ensureStaffServerSession();
         }
-        const inventoryUrl = getApiUrl(`api/get_inventory.php?_=${Date.now()}${scopeParam}`);
-        const response = await fetch(inventoryUrl, { cache: 'no-store', credentials: 'same-origin' });
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+        const inventoryPath = `api/get_inventory.php?_=${Date.now()}${scopeParam}`;
+        let payload;
+        if (scopeParam) {
+            // Staff scope is auth-gated: recover from a stale session once and,
+            // if that fails, hand back to the login screen instead of leaving
+            // an empty (but logged-in looking) inventory list.
+            payload = await fetchStaffGatedJson(inventoryPath);
+            if (!payload) return;
+        } else {
+            const response = await fetch(getApiUrl(inventoryPath), { cache: 'no-store', credentials: 'same-origin' });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            payload = await response.json();
         }
 
-        const payload = await response.json();
         const serverItems = Array.isArray(payload.items) ? payload.items : [];
         const merged = serverItems.map((item) => {
             const normalizedServerName = normalizeInventoryName(item.name);

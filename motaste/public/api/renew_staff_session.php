@@ -19,9 +19,19 @@ $input = json_decode(file_get_contents('php://input'), true);
 // automatically; the request body is a legacy fallback for older clients.
 $token = resolveStaffSessionRequestToken($input['sessionToken'] ?? '');
 
+// No bearer token at all: the client still believes it has a staff session,
+// but the HttpOnly token cookie is gone (expired, cleared, or the browser was
+// restarted after a login that did not ask to be remembered). Answer with the
+// standard authRequired shape so the dashboard returns to the login screen,
+// instead of staying "logged in" while every staff-gated request 401s and the
+// inventory / pending orders lists silently render empty.
 if ($token === null) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Session token is required']);
+    http_response_code(401);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Session token is missing. Please log in again.',
+        'authRequired' => true,
+    ]);
     exit;
 }
 
