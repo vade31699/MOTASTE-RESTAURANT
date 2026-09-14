@@ -64,9 +64,10 @@ if (!$staffRow || strtolower(trim((string)$staffRow->role)) !== strtolower(trim(
 }
 
 // Rotate the account's staff bearer token so the renewal does not leave the
-// browser pointing at a token that was just invalidated. This keeps the
-// current session valid for the next staff-only request while still preventing
-// stale tokens from being replayed.
+// browser pointing at a token that was just invalidated. The replacement is
+// issued before the current token is revoked, so a null result means rotation
+// failed and the token the browser already holds is STILL VALID — keep it
+// rather than leaving the client with a cookie that authenticates nowhere.
 $freshToken = rotateStaffSessionToken($identity['email'], $identity['role'], $token);
 
 // Re-establish the PHP-native session so staff-only endpoints recognize the user.
@@ -83,15 +84,25 @@ $_SESSION['staff'] = [
 ];
 
 $freshCsrf = function_exists('getOrCreateCsrfToken') ? getOrCreateCsrfToken() : '';
-setStaffSessionTokenCookie($freshToken, true);
 
-// Make the CURRENT request see the freshly rotated bearer token too.
-$_COOKIE[STAFF_SESSION_COOKIE_NAME] = $freshToken;
-
-echo json_encode([
+$response = [
     'success' => true,
     'role' => $identity['role'],
     'email' => $identity['email'],
     'name' => trim((string)($staffRow->full_name ?? '')),
     'csrfToken' => $freshCsrf,
-]);
+];
+
+if ($freshToken !== null) {
+    setStaffSessionTokenCookie($freshToken, true);
+
+    // Make the CURRENT request see the freshly rotated bearer token too.
+    $_COOKIE[STAFF_SESSION_COOKIE_NAME] = $freshToken;
+} else {
+    // Surface it instead of leaving the client silently on an unrotated token.
+    error_log('[MOTASTE] staff session token rotation failed for ' . $identity['email']);
+    $response['tokenRotationFailed'] = true;
+    $response['warning'] = 'The session token could not be rotated; the current one is still in use.';
+}
+
+echo json_encode($response);

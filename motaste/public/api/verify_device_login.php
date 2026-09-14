@@ -152,6 +152,29 @@ try {
 
     $sessionToken = issueStaffSessionToken($email, $role);
 
+    // Never report a successful login with a token that was not persisted: the
+    // browser would hold a bearer with no backing row, so every staff-gated
+    // request would be rejected as a stale session and the user would be sent
+    // straight back to the login screen. Fail loudly instead.
+    if ($sessionToken === null) {
+        error_log('[MOTASTE] staff session token could not be persisted for ' . $email);
+
+        // Tear down the half-established session: leaving the server holding an
+        // authenticated session the browser has no usable token for would just
+        // be 401'd as a stale session on the very next request.
+        $_SESSION = [];
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_destroy();
+        }
+
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Unable to establish the staff session. Please try again, or contact the administrator.',
+        ]);
+        exit;
+    }
+
     // Deliver the token as an HttpOnly cookie instead of returning it in the
     // JSON body — that is what kept it out of XSS reach. It is intentionally
     // NOT echoed back in the response, so no client can persist it again.

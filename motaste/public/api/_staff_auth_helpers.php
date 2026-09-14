@@ -1238,10 +1238,17 @@ function ensureStaffSessionTokenTable(): void
 
 /**
  * Issue a new opaque bearer token for a staff account. Only the SHA-256 hash
- * is stored; the plaintext token is returned exactly once for the client to
- * keep in browser storage (replacing plaintext passwords).
+ * is stored; the plaintext token is returned exactly once.
+ *
+ * Returns null when the token could NOT be persisted, and callers must treat
+ * that as a failed login/renewal. This used to swallow the insert error and
+ * return the token anyway; the browser then held a token with no backing row,
+ * so `requireStaffAuth()` saw a PHP session with an unresolvable bearer and
+ * (Case B) destroyed the session on the next request. The visible symptom was
+ * an "empty" dashboard — or, once 401s started returning the user to the login
+ * screen, a login that could never stick.
  */
-function issueStaffSessionToken(string $email, string $role): string
+function issueStaffSessionToken(string $email, string $role): ?string
 {
     ensureStaffSessionTokenTable();
     $email = strtolower(trim($email));
@@ -1276,6 +1283,24 @@ function issueStaffSessionToken(string $email, string $role): string
         ]);
     } catch (Throwable $error) {
         error_log('issueStaffSessionToken failed: ' . $error->getMessage());
+        return null;
+    }
+
+    // Confirm the row really landed. Without this the caller cannot tell a
+    // stored token from a schema/permission failure that was logged and
+    // swallowed, and would hand out a token that can never authenticate.
+    try {
+        $stored = DB::table('staff_session_tokens')
+            ->where('token_hash', hash('sha256', $token))
+            ->exists();
+    } catch (Throwable $error) {
+        error_log('issueStaffSessionToken verify failed: ' . $error->getMessage());
+        return null;
+    }
+
+    if (!$stored) {
+        error_log('issueStaffSessionToken: token row was not persisted');
+        return null;
     }
 
     return $token;
@@ -1333,16 +1358,26 @@ function revokeStaffSessionToken(?string $token): void
 
 /**
  * Rotate a staff account's session token after a renewal or security event.
- * Any stale tokens are revoked, and a single fresh replacement is issued so the
- * current browser keeps a valid authenticated session instead of being locked out
- * immediately after the renewal request.
+ *
+ * The replacement is issued FIRST and the caller's current token is revoked
+ * only once the replacement is safely persisted: revoking first meant a failed
+ * insert left the browser holding a dead token, which `requireStaffAuth()`
+ * then treated as a stale session and destroyed.
+ *
+ * Returns null when no replacement could be persisted — callers must keep the
+ * token the browser already has rather than clearing it.
  */
-function rotateStaffSessionToken(string $email, string $role, ?string $currentToken = null): string
+function rotateStaffSessionToken(string $email, string $role, ?string $currentToken = null): ?string
 {
     ensureStaffSessionTokenTable();
 
     $normalizedEmail = strtolower(trim((string)$email));
     $normalizedRole = trim((string)$role);
+
+    $replacement = issueStaffSessionToken($normalizedEmail, $normalizedRole);
+    if ($replacement === null) {
+        return null;
+    }
 
     // Revoke ONLY the token being rotated. Every renewal (page reload,
     // ensureStaffServerSession()) calls this, and a renewal happens per
@@ -1354,7 +1389,7 @@ function rotateStaffSessionToken(string $email, string $role, ?string $currentTo
         revokeStaffSessionToken($currentToken);
     }
 
-    return issueStaffSessionToken($normalizedEmail, $normalizedRole);
+    return $replacement;
 }
 
 /**
