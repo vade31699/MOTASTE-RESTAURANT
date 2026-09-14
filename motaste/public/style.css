@@ -8224,6 +8224,11 @@ body.staff-app .logout-btn:hover {
     .staff-loading-spinner {
         animation-duration: 1.8s;
     }
+
+    /* Note: the .is-confirmed tick has no animation to slow down. */
+    body.staff-app .inventory-delete-status:not(.is-confirmed)::before {
+        animation-duration: 1.8s;
+    }
 }
 
 body.staff-app .overview-section,
@@ -8713,6 +8718,55 @@ body.staff-app .inventory-admin-panel,
 body.staff-app .inventory-toolbar,
 body.staff-app .inventory-panel-header {
     background: transparent;
+}
+
+/* Progress for an optimistic deletion. The row is removed from the list the
+   moment the staff member confirms, so this line is the only visible sign that
+   a slow request is still in flight. */
+body.staff-app .inventory-delete-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 10px;
+    color: var(--staff-muted);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+body.staff-app .inventory-delete-status[hidden] {
+    display: none;
+}
+
+body.staff-app .inventory-delete-status::before {
+    content: '';
+    flex: 0 0 auto;
+    width: 0.85em;
+    height: 0.85em;
+    border: 2px solid rgba(43, 174, 102, 0.25);
+    border-top-color: var(--staff-accent, #2bae66);
+    border-radius: 50%;
+    animation: staff-loading-spin 0.7s linear infinite;
+}
+
+/* Server confirmed the delete: swap the spinner for a tick. */
+body.staff-app .inventory-delete-status.is-confirmed {
+    color: var(--staff-accent, #2bae66);
+}
+
+body.staff-app .inventory-delete-status.is-confirmed::before {
+    content: '✓';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1em;
+    height: 1.1em;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(43, 174, 102, 0.16);
+    font-size: 0.72em;
+    font-weight: 700;
+    line-height: 1;
+    animation: none;
 }
 
 body.staff-app .inventory-panel-header h3 {

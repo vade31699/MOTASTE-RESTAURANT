@@ -1259,8 +1259,10 @@ let staffAuthFailureHandled = false;
  * Returns the parsed payload, or null when the request could not be
  * authenticated (the caller must stop and render nothing).
  */
-async function fetchStaffGatedJson(path) {
-    const request = () => fetch(getApiUrl(path), { cache: 'no-store', credentials: 'same-origin' });
+async function fetchStaffGatedJson(path, options = {}) {
+    // Extra request options (method, headers, body) let writes reuse the same
+    // recovery path as the reads.
+    const request = () => fetch(getApiUrl(path), { cache: 'no-store', credentials: 'same-origin', ...options });
 
     // Network failures deliberately propagate: callers already handle them by
     // keeping the data they have and re-rendering it.
@@ -1297,7 +1299,13 @@ async function fetchStaffGatedJson(path) {
     }
 
     if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        // Keep the historical `HTTP <status>` message (callers may log it), but
+        // attach the parsed body so callers can surface the server's own
+        // explanation instead of a bare status code.
+        const error = new Error(`HTTP ${response.status}`);
+        error.status = response.status;
+        error.payload = await response.json().catch(() => null);
+        throw error;
     }
 
     staffAuthFailureHandled = false;
@@ -1924,10 +1932,11 @@ function closeConfirmModal() {
  */
 function showStaffConfirm(message, options = {}) {
     if (!confirmModal) return Promise.resolve(false);
-    const { title = 'Are you sure?', confirmLabel = 'Confirm' } = options;
+    const { title = 'Are you sure?', confirmLabel = 'Confirm', cancelLabel = 'Cancel' } = options;
     if (confirmModalTitle) confirmModalTitle.textContent = title;
     if (confirmModalText) confirmModalText.textContent = message;
     if (confirmModalConfirmBtn) confirmModalConfirmBtn.textContent = confirmLabel;
+    if (confirmModalCancelBtn) confirmModalCancelBtn.textContent = cancelLabel;
     if (confirmModalIcon) {
         const iconEl = confirmModalIcon.querySelector('i');
         if (iconEl) iconEl.className = 'fa-solid fa-triangle-exclamation';
@@ -4240,6 +4249,8 @@ const productDetailAddBtn = document.getElementById('productDetailAddBtn');
 const productDetailPurchaseBtn = document.getElementById('productDetailPurchaseBtn');
 const inventorySaveBtn = document.getElementById('inventorySaveBtn');
 const inventoryItemsWrapper = document.getElementById('inventoryItemsWrapper');
+const inventoryDeleteStatus = document.getElementById('inventoryDeleteStatus');
+const inventoryDeleteStatusText = document.getElementById('inventoryDeleteStatusText');
 const inventorySearchInput = document.getElementById('inventorySearchInput');
 const inventoryCategoryTabs = document.querySelectorAll('.inventory-category-tab');
 const inventoryAddFab = document.getElementById('inventoryAddFab');
@@ -5813,6 +5824,21 @@ let pendingOrders = [];
 let completedOrders = [];
 let completedOrdersSyncInFlight = false;
 let inventoryData = [];
+// Deletions applied optimistically but not yet confirmed by the server, keyed by
+// normalized name with the display name as the value. Without this a concurrent
+// inventory refresh (get_inventory.php) would re-add the row from the server's
+// still-unchanged list and make it reappear, and the dashboard could not show
+// which deletion is still in flight.
+const pendingInventoryDeletions = new Map();
+// Give up on an optimistic delete after this long, so neither the "Deleting…"
+// indicator nor the removed row can hang forever on a stalled request.
+const DELETE_INVENTORY_TIMEOUT_MS = 15000;
+// Inline "deleted" confirmation shown in that same status line once the server
+// confirms — deliberately not the notice modal, which grabs focus and blocks the
+// screen on every item when clearing several in a row.
+let inventoryDeleteConfirmation = null;
+let inventoryDeleteConfirmationTimer = null;
+const INVENTORY_DELETE_CONFIRMATION_MS = 2500;
 let currentMenuCategoryId = null;
 let showMenuCategoryRecursing = false;
 let suppressMenuOverlay = false; // when true, prevent menu overlay from opening
@@ -8264,7 +8290,10 @@ async function initializeInventoryData(forceRefresh = false) {
                 reorderLevel: item.reorder_level != null ? Number(item.reorder_level) || 0 : (localMatch?.reorderLevel || 0),
                 isAvailable: item.is_available !== false && item.is_available !== 'false' && item.is_available !== 0 && item.is_available !== '0'
             };
-        }).filter((item) => !blockedProductNames.has(normalizeInventoryName(item.name)));
+        }).filter((item) => !blockedProductNames.has(normalizeInventoryName(item.name))
+            // Hide rows whose deletion this tab has applied but not yet had
+            // confirmed, so a refresh racing the request cannot resurrect them.
+            && !pendingInventoryDeletions.has(normalizeInventoryName(item.name)));
 
         // On success, trust the server exclusively — do NOT merge defaults
         // back in. Defaults are only used when the server fetch fails (see
@@ -8307,9 +8336,7 @@ async function initializeInventoryData(forceRefresh = false) {
     // once. On a fresh page load inventoryData is [] which would incorrectly
     // wipe all menu/special items.
     if (inventoryLoadedFromServer) {
-        const inventoryNames = new Set(
-            inventoryData.map((item) => normalizeInventoryName(item.name))
-        );
+        const inventoryNames = getInventoryNamesForMenuReconcile();
         let menuChanged = false;
         Object.values(menuData).forEach((category) => {
             if (!category || !Array.isArray(category.items)) return;
@@ -8739,9 +8766,7 @@ async function loadCustomMenuData() {
             // the first render, and write the pruned snapshot back so the
             // stale entries stop coming around on every fetch.
             if (inventoryLoadedFromServer) {
-                const inventoryNames = new Set(
-                    inventoryData.map((item) => normalizeInventoryName(item.name))
-                );
+                const inventoryNames = getInventoryNamesForMenuReconcile();
                 let removedStaleItems = false;
                 Object.values(menuData).forEach((category) => {
                     if (!category || !Array.isArray(category.items)) return;
@@ -10176,6 +10201,108 @@ function saveMenuCatalogItem(item, previousName = null) {
     saveCustomMenuData();
 }
 
+/**
+ * Record an optimistic deletion and refresh the in-flight indicator. Any
+ * confirmation left over from a previous delete is dropped here, so a stale
+ * "deleted" message can never be shown against a later delete's outcome.
+ */
+function markPendingInventoryDeletion(normalizedName, displayName) {
+    clearInventoryDeleteConfirmation();
+    pendingInventoryDeletions.set(normalizedName, displayName);
+    renderInventoryDeleteStatus();
+}
+
+/**
+ * Drop an optimistic deletion (confirmed, failed, or abandoned) and refresh the
+ * in-flight indicator.
+ */
+function releasePendingInventoryDeletion(normalizedName) {
+    pendingInventoryDeletions.delete(normalizedName);
+    // A confirmation is queued behind the spinner while other deletions are
+    // still in flight, so restart its timer once the line belongs to it again
+    // instead of letting it expire unseen.
+    if (!pendingInventoryDeletions.size && inventoryDeleteConfirmation) {
+        startInventoryDeleteConfirmationTimer();
+    }
+    renderInventoryDeleteStatus();
+}
+
+/**
+ * Flash "<name> was deleted." in the status line. Deliberately inline rather
+ * than the notice modal: clearing several items in a row would otherwise grab
+ * focus and block the screen on every one.
+ */
+function showInventoryDeleteConfirmation(displayName) {
+    inventoryDeleteConfirmation = `"${displayName}" was deleted.`;
+    startInventoryDeleteConfirmationTimer();
+    renderInventoryDeleteStatus();
+}
+
+function startInventoryDeleteConfirmationTimer() {
+    if (inventoryDeleteConfirmationTimer) {
+        window.clearTimeout(inventoryDeleteConfirmationTimer);
+    }
+    inventoryDeleteConfirmationTimer = window.setTimeout(() => {
+        inventoryDeleteConfirmationTimer = null;
+        inventoryDeleteConfirmation = null;
+        renderInventoryDeleteStatus();
+    }, INVENTORY_DELETE_CONFIRMATION_MS);
+}
+
+function clearInventoryDeleteConfirmation() {
+    if (inventoryDeleteConfirmationTimer) {
+        window.clearTimeout(inventoryDeleteConfirmationTimer);
+        inventoryDeleteConfirmationTimer = null;
+    }
+    inventoryDeleteConfirmation = null;
+}
+
+/**
+ * Names that still count as "in the inventory" when reconciling the customer
+ * menu. A deletion applied optimistically in this tab is not confirmed yet, so
+ * its dish must not be pruned from menuData/specialFoods (and that pruning must
+ * not be persisted) before the server agrees the item is gone.
+ */
+function getInventoryNamesForMenuReconcile() {
+    const names = new Set(inventoryData.map((item) => normalizeInventoryName(item.name)));
+    pendingInventoryDeletions.forEach((_displayName, normalizedName) => names.add(normalizedName));
+    return names;
+}
+
+/**
+ * Drive the delete status line. Rows are removed from the list optimistically,
+ * so this is the only feedback that a delete is in flight (`Deleting "X"…` with
+ * a spinner) or that the server confirmed it (`"X" was deleted.` with a tick).
+ * In-flight deletions take priority — they are the unresolved ones.
+ */
+function renderInventoryDeleteStatus() {
+    if (!inventoryDeleteStatus) return;
+
+    const pending = Array.from(pendingInventoryDeletions.values());
+
+    if (pending.length) {
+        inventoryDeleteStatus.classList.remove('is-confirmed');
+        if (inventoryDeleteStatusText) {
+            inventoryDeleteStatusText.textContent = pending.length === 1
+                ? `Deleting "${pending[0]}"…`
+                : `Deleting ${pending.length} items…`;
+        }
+        inventoryDeleteStatus.hidden = false;
+        return;
+    }
+
+    if (inventoryDeleteConfirmation) {
+        inventoryDeleteStatus.classList.add('is-confirmed');
+        if (inventoryDeleteStatusText) inventoryDeleteStatusText.textContent = inventoryDeleteConfirmation;
+        inventoryDeleteStatus.hidden = false;
+        return;
+    }
+
+    inventoryDeleteStatus.classList.remove('is-confirmed');
+    if (inventoryDeleteStatusText) inventoryDeleteStatusText.textContent = '';
+    inventoryDeleteStatus.hidden = true;
+}
+
 function removeMenuItemByName(itemName) {
     const normalizedName = (itemName || '').trim().toLowerCase();
     if (!normalizedName) return false;
@@ -10208,12 +10335,67 @@ async function deleteInventoryItem(name) {
     const index = inventoryData.findIndex((item) => normalizeInventoryName(item.name) === normalizedTargetName);
     if (index < 0) return;
 
+    // Deleting an inventory item is irreversible and also removes it from the
+    // customer menu (server-side custom menu snapshot), so confirm it first in
+    // the shared styled modal — this was the only destructive staff action that
+    // ran straight off the click.
+    const confirmed = await showStaffConfirm(
+        `Delete "${name}" from the inventory? It is also removed from the customer menu, and this cannot be undone.`,
+        { title: 'Confirm delete?', confirmLabel: 'Yes', cancelLabel: 'No' }
+    );
+    if (!confirmed) return;
+
     const actor = getCurrentStaffActor();
-    const performDeleteRequest = async () => {
-        const headers = await withCsrfHeaders({
+
+    // Apply the removal to the list immediately so clicking Yes feels instant —
+    // the request below either confirms it or puts the item back with an error
+    // notice. The name goes into pendingInventoryDeletions so a concurrent
+    // inventory refresh cannot re-add the row from the server's unchanged list.
+    // The customer menu is deliberately left alone until the server confirms,
+    // so a failed delete never flashes the dish out of the menu.
+    const currentIndex = inventoryData.findIndex((item) => normalizeInventoryName(item.name) === normalizedTargetName);
+    if (currentIndex < 0) return;
+
+    const removedItem = inventoryData[currentIndex];
+    inventoryData.splice(currentIndex, 1);
+    markPendingInventoryDeletion(normalizedTargetName, removedItem.name || name);
+    inventoryEditItemName = null;
+    saveInventoryData();
+    renderInventoryManagement();
+
+    // Put the row back where it was (the menu was never touched, so only the
+    // inventory list needs restoring) and report why the delete failed.
+    const restoreOptimisticRemoval = async (message) => {
+        releasePendingInventoryDeletion(normalizedTargetName);
+        if (!inventoryData.some((item) => normalizeInventoryName(item.name) === normalizedTargetName)) {
+            inventoryData.splice(Math.min(currentIndex, inventoryData.length), 0, removedItem);
+        }
+        saveInventoryData();
+        renderInventoryManagement();
+        await showStaffNotice(message, true);
+    };
+
+    let headers;
+    try {
+        await ensureStaffServerSession();
+        headers = await withCsrfHeaders({
             'Content-Type': 'application/json'
         });
-        return fetch(getApiUrl('api/delete_inventory_item.php'), {
+    } catch (error) {
+        await restoreOptimisticRemoval(error.message || 'Unable to delete inventory item');
+        return;
+    }
+
+    let payload;
+    const controller = new AbortController();
+    const deleteTimeout = window.setTimeout(() => controller.abort(), DELETE_INVENTORY_TIMEOUT_MS);
+    try {
+        // Shared staff-gated helper: recovers a stale session once (renewing the
+        // token + CSRF token properly) and, if that fails, returns to the login
+        // screen with the reason. The old inline retry nulled the cached renewal
+        // directly and left the "session is fresh" shortcut set, so it retried
+        // with the same dead credentials and always failed.
+        payload = await fetchStaffGatedJson('api/delete_inventory_item.php', {
             method: 'POST',
             headers,
             body: JSON.stringify({
@@ -10221,51 +10403,54 @@ async function deleteInventoryItem(name) {
                 actorRole: actor.role,
                 actorEmail: actor.email
             }),
-            credentials: 'same-origin',
-            cache: 'no-store'
+            signal: controller.signal
         });
-    };
-
-    let response;
-    try {
-        await ensureStaffServerSession();
-        response = await performDeleteRequest();
-
-        // One auth-recovery retry: a 401 here used to surface as "Staff
-        // authentication required. Please log in again." even while logged
-        // in — typically because this tab's session renewal had failed once
-        // (offline blip, tab slept through the renewal window). Force a fresh
-        // renewal + CSRF token and retry exactly once before giving up.
-        if (response.status === 401) {
-            staffServerSessionRenewal = null;
-            if (await ensureStaffServerSession()) {
-                csrfToken = '';
-                response = await performDeleteRequest();
-            }
-        }
     } catch (error) {
-        await showStaffNotice(error.message || 'Unable to delete inventory item', true);
+        // Transient failure or a non-2xx response — restore and report it,
+        // preferring the endpoint's own message when it sent one. A timeout
+        // restores the row too, so a stalled request can never leave it hidden.
+        const timedOut = Boolean(error) && error.name === 'AbortError';
+        await restoreOptimisticRemoval(
+            timedOut
+                ? 'The delete request timed out, so the item was kept.'
+                : (error.payload && error.payload.error) || error.message || 'Unable to delete inventory item'
+        );
+        return;
+    } finally {
+        window.clearTimeout(deleteTimeout);
+    }
+
+    if (payload === null) {
+        // The staff session is gone: handleStaffAuthFailure() has already
+        // returned the tab to the login screen and the server never committed
+        // the delete. Drop the optimistic hold instead of leaving the item
+        // hidden — the next load reads the authoritative server list.
+        releasePendingInventoryDeletion(normalizedTargetName);
         return;
     }
 
-    const payload = await response.json().catch(() => ({}));
-    const errorMessage = String(payload?.error || '').toLowerCase();
+    const errorMessage = String((payload && payload.error) || '').toLowerCase();
 
-    if ((!response.ok || !payload.success) && !errorMessage.includes('not found')) {
-        await showStaffNotice(payload.error || `Unable to delete inventory item (HTTP ${response.status})`, true);
+    if (payload.success !== true && !errorMessage.includes('not found')) {
+        await restoreOptimisticRemoval(payload.error || 'Unable to delete inventory item');
         return;
     }
 
-    inventoryData.splice(index, 1);
-    saveInventoryData();
+    // Confirmed deleted server-side — now drop it from the customer menu, which
+    // also persists the menu snapshot without the item.
+    releasePendingInventoryDeletion(normalizedTargetName);
     removeMenuItemByName(name);
     syncMenuPricesWithInventory();
-    inventoryEditItemName = null;
     renderInventoryManagement();
     renderSpecialFoods();
     if (currentMenuCategoryId) {
         showMenuCategory(currentMenuCategoryId);
     }
+
+    // Confirm the server actually committed the delete. The row already left
+    // the list optimistically, so without this a delete the server silently
+    // refused would look exactly like a successful one.
+    showInventoryDeleteConfirmation(removedItem.name || name);
 }
 
 async function saveInventoryItem(event) {
