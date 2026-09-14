@@ -2855,6 +2855,70 @@ body.modal-open {
     background: #111;
     color: #fff;
 }
+.checkout-info-tip {
+    position: relative;
+    align-self: center;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid #111;
+    border-radius: 50%;
+    background: #fff;
+    color: #111;
+    font-size: 0.72rem;
+    line-height: 1;
+    cursor: help;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+.checkout-info-tip:hover,
+.checkout-info-tip:focus {
+    background: #111;
+    color: #fff;
+    outline: none;
+}
+.checkout-info-tooltip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    width: max-content;
+    max-width: min(260px, calc(100vw - 64px));
+    background: #111;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.4;
+    text-align: left;
+    white-space: normal;
+    padding: 8px 10px;
+    border-radius: 10px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+    z-index: 6;
+}
+.checkout-info-tip:hover .checkout-info-tooltip,
+.checkout-info-tip:focus .checkout-info-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+body.site-home .checkout-info-tip {
+    border-color: #FF6B00;
+    color: #FF6B00;
+}
+body.site-home .checkout-info-tip:hover,
+body.site-home .checkout-info-tip:focus {
+    background: #FF6B00;
+    border-color: #FF6B00;
+    color: #fff;
+}
 .order-checkout-items {
     display: grid;
     gap: 10px;
