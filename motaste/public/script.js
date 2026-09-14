@@ -8072,7 +8072,6 @@ async function initializeInventoryData(forceRefresh = false) {
     if (inventoryEditLock && !forceRefresh) return;
 
     inventorySyncInFlight = true;
-    const defaults = buildDefaultInventoryFromMenu();
     try {
         const scopeParam = isStaffPage ? '&scope=staff' : '';
         // The staff scope is gated by the server session. On a page load the
@@ -8134,9 +8133,11 @@ async function initializeInventoryData(forceRefresh = false) {
         inventoryLoadedFromServer = true;
         debugInventory('Applied server inventory', 'server');
     } catch (error) {
-        inventoryData = inventoryData.length ? inventoryData : defaults;
+        // On fetch failure, keep existing data if available; do NOT inject
+        // menu-based defaults (stock=0) which cause phantom items to appear
+        // in the admin inventory list when the real DB data is different.
         saveInventoryData();
-        debugInventory('initializeInventoryData error — kept local or defaults', 'server-error');
+        debugInventory('initializeInventoryData error — kept local data', 'server-error');
     } finally {
         inventorySyncInFlight = false;
     }
@@ -8610,7 +8611,13 @@ async function loadCustomMenuData() {
 
             syncMenuPricesWithInventory();
             renderSpecialFoods();
-            renderInventoryManagement();
+            // Only re-render inventory management when real server data is
+            // available. Before that, initializeInventoryData() will call
+            // renderInventoryManagement() once the fetch completes, so skip
+            // it here to avoid flashing an empty/phantom list.
+            if (inventoryLoadedFromServer) {
+                renderInventoryManagement();
+            }
             hydrateWalkInDraftItemsFromSpecialFoods();
             renderWalkInOrderBuilder();
             // Re-render the currently open category.  Skip if we are already
