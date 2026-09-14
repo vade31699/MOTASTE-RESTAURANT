@@ -3054,6 +3054,18 @@ body.modal-open {
     transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
     z-index: 6;
 }
+/* The SakayKo reminder carries a multi-line Friendly Reminder message, so its
+   bubble gets extra room on wide screens to keep the text comfortable. */
+#orderTypeOptions .checkout-info-tooltip {
+    max-width: min(24rem, calc(100vw - 80px));
+}
+.checkout-info-tooltip .tooltip-lead {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
 .checkout-info-tooltip.is-below {
     /* Flipped under the options row by script.js when the bubble would be cut
        off above the checkout scroll container. */

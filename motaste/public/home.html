@@ -31,7 +31,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260914c">
+    <link rel="stylesheet" href="style.css?v=20260914d">
     <title>Motaste Restaurant — Crafted Silog</title>
     <script type="application/ld+json">
     {
@@ -337,7 +337,7 @@
                                     class="checkout-info-tip"
                                     tabindex="0"
                                     role="img"
-                                    aria-label="Choosing SakayKo Rider Pick-up means you book the ride yourself; the restaurant will not book the rider for you."
+                                    aria-label="Friendly Reminder: Motaste is not directly connected with SakayKo. Once your order is ready for pickup, you will need to book a rider through SakayKo or your preferred delivery service. Kindly coordinate directly with your rider and provide them with your order details to ensure a smooth and timely pickup."
                                 >
                                     <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
                                 </span>
@@ -347,8 +347,15 @@
                                  revealed only while the marker itself is hovered/focused —
                                  script.js toggles .is-open, hovering the option never opens it. -->
                             <span class="checkout-info-tooltip" role="tooltip">
-                                Choosing SakayKo Rider Pick-up means you book the ride yourself — the restaurant
-                                will not book the rider for you.
+                                <span class="tooltip-lead">Friendly Reminder:</span>
+                                Please note that Motaste is not directly connected with SakayKo. Once your order
+                                is ready for pickup, you will need to book a rider through SakayKo or your preferred
+                                delivery service.
+                                <br>
+                                Kindly coordinate directly with your rider and provide them with your order details
+                                to ensure a smooth and timely pickup.
+                                <br>
+                                Thank you for your understanding and cooperation!
                             </span>
                         </div>
                     </div>
@@ -361,7 +368,7 @@
                             maxlength="300"
                             placeholder="Enter the complete delivery address (e.g. Barangay, Street, Landmark)"
                         ></textarea>
-                        <small class="checkout-hint">A SakayKo rider will pick up your order and deliver it to this address.</small>
+                        <small class="checkout-hint">You book the SakayKo rider yourself (Motaste is not connected to SakayKo) — give the rider this address and your order details when it's ready.</small>
                     </div>
                     <div class="order-checkout-items" id="orderCheckoutItems"></div>
                     <div class="order-checkout-total">
