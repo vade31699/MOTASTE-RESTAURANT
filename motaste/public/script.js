@@ -680,6 +680,7 @@ function forceLogoutCurrentStaffSession() {
     if (logsSection) logsSection.hidden = true;
     if (accountManagementSection) accountManagementSection.hidden = true;
     if (highlightsSection) highlightsSection.hidden = true;
+    if (loginLogsSection) loginLogsSection.hidden = true;
 
     // Last, once the login surface is actually revealed: drop the "a staff
     // session may exist" class that staff.html sets before first paint. Doing it
@@ -1450,6 +1451,10 @@ function canAccessCredentials() {
     return getCurrentStaffRole() === 'Admin';
 }
 
+function canAccessLoginLogs() {
+    return getCurrentStaffRole() === 'Admin';
+}
+
 function resolveAccessibleSection(sectionId) {
     const requested = (sectionId || 'overview').trim();
     if (requested === 'inventory' && !canAccessInventory()) return 'overview';
@@ -1457,6 +1462,7 @@ function resolveAccessibleSection(sectionId) {
     if (requested === 'pending-orders' && !canManageOrders()) return 'overview';
     if (requested === 'account-management' && !canManageAccounts()) return 'overview';
     if (requested === 'highlights' && !canManageHighlights()) return 'overview';
+    if (requested === 'login-logs' && !canAccessLoginLogs()) return 'overview';
     return requested || 'overview';
 }
 
@@ -2520,7 +2526,7 @@ async function loadTrustedDevices(options = {}) {
             email: actor.email,
             deviceToken: getOrCreateDeviceToken()
         });
-        // The account management section is admin-only and lists every staff
+        // The Login Logs section is admin-only and lists every staff
         // device so Cashier and Inventory Manager devices can be labelled
         // separately.
         if (actor.role === 'Admin') {
@@ -2551,7 +2557,7 @@ async function loadTrustedDevices(options = {}) {
     }
 }
 
-// While the account management section is open, subscribe to the SSE stream
+// While the Login Logs section is open, subscribe to the SSE stream
 // so revokes made by another admin disappear here instantly. If SSE is killed
 // by the hosting platform (some serverless hosts terminate long-lived
 // requests), the connection errors repeatedly and we fall back to 10s interval
@@ -2921,9 +2927,9 @@ if (loginHistoryClearDateBtn) {
     });
 }
 
-// Keep the online status + history fresh while the account management section is open.
+// Keep the online status + history fresh while the Login Logs section is open.
 window.setInterval(() => {
-    if (typeof accountManagementSection !== 'undefined' && accountManagementSection && !accountManagementSection.hidden && loginHistoryList) {
+    if (typeof loginLogsSection !== 'undefined' && loginLogsSection && !loginLogsSection.hidden && loginHistoryList) {
         void loadLoginHistory();
     }
 }, 30000);
@@ -3226,6 +3232,9 @@ if (logoutBtn) {
         if (highlightsSection) {
             highlightsSection.hidden = true;
         }
+        if (loginLogsSection) {
+            loginLogsSection.hidden = true;
+        }
 
         updateAccountManagementAccess();
         setAuthButtonsVisible(false);
@@ -3291,9 +3300,11 @@ if (closePanelBtn) {
 
 const accountManagementLink = document.getElementById('accountManagementLink');
 const highlightsLink = document.getElementById('highlightsLink');
+const loginLogsLink = document.getElementById('loginLogsLink');
 const logsLink = document.getElementById('logsLink');
 const accountManagementSection = document.getElementById('account-management');
 const highlightsSection = document.getElementById('highlights');
+const loginLogsSection = document.getElementById('login-logs');
 const accountForm = document.getElementById('accountForm');
 const accountPasswordConfirmationInput = document.getElementById('accountPasswordConfirmation');
 const toggleAccountFormBtn = document.getElementById('toggleAccountFormBtn');
@@ -3603,16 +3614,21 @@ if (accountManagementLink && accountManagementSection) {
             salesSection.hidden = true;
         }
 
-        // Admin credential changes, trusted devices, and login history moved
-        // into this section, so they initialize each time it is opened.
+        // Admin credential changes live in this section, so the current admin
+        // Gmail is refreshed each time it is opened.
         if (showAccountManagement) {
             void loadAdminCredentials();
-            void loadTrustedDevices();
-            void loadLoginHistory();
-            startTrustedDevicesRefresh();
-        } else {
-            stopTrustedDevicesRefresh();
         }
+    });
+}
+
+if (loginLogsLink && loginLogsSection) {
+    loginLogsLink.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (!canAccessLoginLogs()) {
+            return;
+        }
+        showDashboardSection(loginLogsSection);
     });
 }
 
@@ -3640,12 +3656,13 @@ function updateAccountManagementAccess() {
     setLinkState(logsLink, canAccessLogs());
     setLinkState(accountManagementLink, canManageAccounts());
     setLinkState(highlightsLink, canManageHighlights());
+    setLinkState(loginLogsLink, canAccessLoginLogs());
 
     if (!document.body.classList.contains('auth')) {
         return;
     }
 
-    const activeSection = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, highlightsSection]
+    const activeSection = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, highlightsSection, loginLogsSection]
         .find((section) => section && section.hidden === false);
     if (!activeSection) return;
 
@@ -11456,9 +11473,9 @@ function renderOverviewAnalytics(animate = true) {
 function showDashboardSection(section) {
     setInventoryModalVisible(false);
 
-    // Leaving the account management section frees the SSE worker (one worker
-    // per stream on PHP-FPM); it is reopened when the section returns.
-    if (typeof trustedDevicesStream !== 'undefined' && trustedDevicesStream && section !== accountManagementSection) {
+    // Leaving the Login Logs section frees the SSE worker (one worker per
+    // stream on PHP-FPM); it is reopened when the section returns.
+    if (typeof trustedDevicesStream !== 'undefined' && trustedDevicesStream && section !== loginLogsSection) {
         stopTrustedDevicesRefresh();
     }
 
@@ -11466,7 +11483,7 @@ function showDashboardSection(section) {
         syncLogsDateFilterToToday();
     }
 
-    const sections = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, highlightsSection];
+    const sections = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, highlightsSection, loginLogsSection];
     sections.forEach((el) => {
         if (!el) return;
         el.hidden = el !== section;
@@ -11476,8 +11493,11 @@ function showDashboardSection(section) {
     setupChartScrollControls();
 
     if (section === accountManagementSection) {
-        syncLoginHistoryDateToToday();
         void loadAdminCredentials();
+    }
+
+    if (section === loginLogsSection) {
+        syncLoginHistoryDateToToday();
         void loadTrustedDevices();
         void loadLoginHistory();
         startTrustedDevicesRefresh();
@@ -11497,6 +11517,7 @@ function showDashboardSection(section) {
             logs: logsLink,
             'account-management': accountManagementLink,
             highlights: highlightsLink,
+            'login-logs': loginLogsLink,
         };
 
         Object.values(linkMap).forEach((lnk) => {
@@ -14008,6 +14029,11 @@ if (dashboardPanel) {
             }
             showDashboardSection(highlightsSection);
             renderHighlightsManagement();
+        } else if (href === '#login-logs') {
+            if (!canAccessLoginLogs()) {
+                return;
+            }
+            showDashboardSection(loginLogsSection);
         }
 
         setDashboardPanelState(false);

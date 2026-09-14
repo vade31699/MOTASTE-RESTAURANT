@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./style.css?v=20260915i">
+    <link rel="stylesheet" href="./style.css?v=20260915j">
     <title>Login - MOTASTE</title>
     <style>
         html,
@@ -170,6 +170,7 @@
         <a href="#sales" id="salesLink"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span>Sales</span></a>
         <a href="#logs" id="logsLink"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i><span>Logs</span></a>
         <a href="#account-management" id="accountManagementLink"><i class="fa-solid fa-users-gear" aria-hidden="true"></i><span>Account Management</span></a>
+        <a href="#login-logs" id="loginLogsLink"><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i><span>Login Logs</span></a>
         <a href="#highlights" id="highlightsLink"><i class="fa-solid fa-images" aria-hidden="true"></i><span>Highlights</span></a>
         <button type="button" id="logoutBtn" class="logout-btn" hidden><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i><span>Logout</span></button>
     </div>
@@ -886,30 +887,35 @@
                 <button type="submit" id="confirmPasswordChangeBtn">Verify and Apply</button>
             </form>
 
-            <div class="trusted-devices-card" id="trustedDevicesCard">
-                <div class="trusted-devices-header">
-                    <h3>Trusted Devices</h3>
-                    <p>Devices that have completed a verified login for this account. Every staff login requires a fresh verification code sent to the account email.</p>
-                </div>
-                <div id="trustedDevicesList" class="trusted-devices-list"></div>
-                <p id="trustedDevicesMessage" class="menu-order-message" aria-live="polite"></p>
-            </div>
-
-            <div class="trusted-devices-card login-history-card" id="loginHistoryCard">
-                <div class="trusted-devices-header">
-                    <h3>Login History</h3>
-                    <p>Audit trail of successful staff logins with date, time, and role.</p>
-                </div>
-                <div id="loginOnlineList" class="login-online-list"></div>
-                <div class="login-history-filter-row">
-                    <label for="loginHistoryDateInput">Filter by date</label>
-                    <input type="date" id="loginHistoryDateInput" aria-label="Filter login history by date">
-                    <button type="button" id="loginHistoryClearDateBtn" class="login-history-clear-btn">Show all</button>
-                </div>
-                <div id="loginHistoryList" class="login-history-list"></div>
-            </div>
-
             <p id="credentialsMessage" class="menu-order-message" aria-live="polite"></p>
+        </div>
+    </section>
+
+    <section id="login-logs" class="account-management" hidden>
+        <h2>Login Logs</h2>
+        <p>Devices that have completed a verified staff login and the audit trail of successful logins with date, time, and role.</p>
+
+        <div class="trusted-devices-card" id="trustedDevicesCard">
+            <div class="trusted-devices-header">
+                <h3>Trusted Devices</h3>
+                <p>Devices that have completed a verified login for this account. Every staff login requires a fresh verification code sent to the account email.</p>
+            </div>
+            <div id="trustedDevicesList" class="trusted-devices-list"></div>
+            <p id="trustedDevicesMessage" class="menu-order-message" aria-live="polite"></p>
+        </div>
+
+        <div class="trusted-devices-card login-history-card" id="loginHistoryCard">
+            <div class="trusted-devices-header">
+                <h3>Login History</h3>
+                <p>Audit trail of successful staff logins with date, time, and role.</p>
+            </div>
+            <div id="loginOnlineList" class="login-online-list"></div>
+            <div class="login-history-filter-row">
+                <label for="loginHistoryDateInput">Filter by date</label>
+                <input type="date" id="loginHistoryDateInput" aria-label="Filter login history by date">
+                <button type="button" id="loginHistoryClearDateBtn" class="login-history-clear-btn">Show all</button>
+            </div>
+            <div id="loginHistoryList" class="login-history-list"></div>
         </div>
     </section>
 
@@ -1097,6 +1103,6 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
-    <script src="./script.js?v=20260915d" defer></script>
+    <script src="./script.js?v=20260915e" defer></script>
 </body>
 </html>
