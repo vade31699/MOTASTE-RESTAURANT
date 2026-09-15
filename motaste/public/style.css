@@ -9368,8 +9368,18 @@ body.staff-app .account-list-item:last-child {
 
 body.staff-app .account-list-item:hover,
 body.staff-app .account-list-item:focus-visible {
-    background: var(--staff-surface-soft);
+    background: rgba(43, 174, 102, 0.09);
+    cursor: pointer;
     outline: none;
+}
+
+body.staff-app .account-list-item:active {
+    background: rgba(43, 174, 102, 0.14);
+}
+
+body.staff-app .account-list-item.account-row-admin:hover,
+body.staff-app .account-list-item.account-row-admin:focus-visible {
+    background: rgba(43, 174, 102, 0.12);
 }
 
 body.staff-app .account-list-avatar {
@@ -9600,8 +9610,12 @@ body.staff-app .account-setting-option:last-child {
 
 body.staff-app .account-setting-option:hover,
 body.staff-app .account-setting-option:focus-visible {
-    background: var(--staff-surface);
+    background: rgba(43, 174, 102, 0.09);
     outline: none;
+}
+
+body.staff-app .account-setting-option:active {
+    background: rgba(43, 174, 102, 0.14);
 }
 
 body.staff-app .account-setting-option-icon {
@@ -9672,7 +9686,11 @@ body.staff-app .account-setting-option-danger .account-setting-option-text stron
 
 body.staff-app .account-setting-option-danger:hover,
 body.staff-app .account-setting-option-danger:focus-visible {
-    background: rgba(220, 38, 38, 0.06);
+    background: rgba(220, 38, 38, 0.1);
+}
+
+body.staff-app .account-setting-option-danger:active {
+    background: rgba(220, 38, 38, 0.14);
 }
 
 body.staff-app .account-settings-message {
