@@ -814,19 +814,44 @@
 
         <button type="button" id="toggleAccountFormBtn" class="add-staff-btn">Add Staff Account</button>
 
+        <!-- Add form. Field, card, and action-row markup is identical to the
+             staff and admin edit panels below so all three read as one form. -->
         <form id="accountForm" class="account-form" hidden>
-            <input type="text" id="accountName" placeholder="Full Name" required>
-            <select id="accountRole" required>
-                <option value="">Select role</option>
-                <option value="Cashier">Cashier</option>
-                <option value="Inventory Manager">Inventory Manager</option>
-            </select>
-            <input type="email" id="accountEmail" placeholder="Gmail only (example@gmail.com)" required>
-            <input type="password" id="accountPassword" placeholder="Password set by Admin" minlength="8" required>
-            <input type="password" id="accountPasswordConfirmation" placeholder="Confirm password" minlength="8" required>
-            <small class="field-helper">Use 8+ characters with uppercase, lowercase, and a number. Common passwords are rejected.</small>
-            <button type="submit">Save Account</button>
-            <button type="button" id="cancelAccountFormBtn" class="secondary-btn">Cancel</button>
+            <h3>New Staff Account</h3>
+            <p>Create a Cashier or Inventory Manager account. The invite email must be confirmed before the first login.</p>
+
+            <div class="floating-field">
+                <input type="text" id="accountName" placeholder=" " maxlength="80" autocomplete="name" title="Letters, spaces, hyphens, apostrophes, and periods only." required>
+                <label for="accountName">Full Name</label>
+                <small class="field-helper">Letters, spaces, hyphens, apostrophes, and periods only.</small>
+            </div>
+            <div class="floating-field">
+                <select id="accountRole" required>
+                    <option value="">Select role</option>
+                    <option value="Cashier">Cashier</option>
+                    <option value="Inventory Manager">Inventory Manager</option>
+                </select>
+                <label for="accountRole">Role</label>
+            </div>
+            <div class="floating-field">
+                <input type="email" id="accountEmail" placeholder=" " autocomplete="email" required>
+                <label for="accountEmail">Gmail</label>
+                <small class="field-helper">Gmail only (example@gmail.com).</small>
+            </div>
+            <div class="floating-field">
+                <input type="password" id="accountPassword" placeholder=" " minlength="8" autocomplete="new-password" required>
+                <label for="accountPassword">Password</label>
+                <small class="field-helper">Use 8+ characters with uppercase, lowercase, and a number. Common passwords are rejected.</small>
+            </div>
+            <div class="floating-field">
+                <input type="password" id="accountPasswordConfirmation" placeholder=" " minlength="8" autocomplete="new-password" required>
+                <label for="accountPasswordConfirmation">Confirm password</label>
+            </div>
+
+            <div class="account-form-actions">
+                <button type="submit">Save Account</button>
+                <button type="button" id="cancelAccountFormBtn" class="secondary-btn">Cancel</button>
+            </div>
         </form>
 
         <ul id="accountList" class="account-list"></ul>
@@ -835,9 +860,10 @@
             <h3>Edit Admin Account</h3>
             <p>Changing the admin Gmail or password requires a verification code sent to the current admin email.</p>
 
-            <button type="button" id="toggleCredentialsFormBtn" class="add-staff-btn">CHANGE ADMIN EMAIL</button>
+            <button type="button" id="toggleCredentialsFormBtn" class="add-staff-btn">Change Admin Email</button>
 
             <form id="credentialsForm" class="account-form" hidden>
+                <p class="account-form-note">Enter the current admin credentials, then the new Gmail. We email a verification code to the current admin address and apply the change once it is entered.</p>
                 <div class="floating-field">
                     <input type="email" id="adminCurrentEmail" placeholder=" " readonly autocomplete="off">
                     <label for="adminCurrentEmail">Current admin Gmail</label>
@@ -855,17 +881,22 @@
                     <label for="adminNewPassword">New admin password</label>
                     <small class="field-helper">Use at least 12 characters with uppercase, lowercase, and a number. Common passwords are rejected.</small>
                 </div>
-                <button type="button" id="requestCredentialsChangeBtn">Send Verification Code</button>
+                <div class="account-form-actions">
+                    <button type="button" id="requestCredentialsChangeBtn">Send Verification Code</button>
+                </div>
                 <div class="floating-field">
                     <input type="text" id="adminChangeCode" placeholder=" " maxlength="8" inputmode="numeric" autocomplete="one-time-code">
                     <label for="adminChangeCode">Verification code</label>
                 </div>
-                <button type="submit" id="confirmCredentialsChangeBtn">Verify and Apply</button>
+                <div class="account-form-actions">
+                    <button type="submit" id="confirmCredentialsChangeBtn">Verify and Apply</button>
+                </div>
             </form>
 
-            <button type="button" id="togglePasswordFormBtn" class="add-staff-btn" style="margin-top: 12px;">CHANGE ADMIN PASSWORD</button>
+            <button type="button" id="togglePasswordFormBtn" class="add-staff-btn">Change Admin Password</button>
 
             <form id="passwordCredentialsForm" class="account-form" hidden>
+                <p class="account-form-note">Confirm the current admin password, choose the new one, then enter the verification code we email to the current admin address.</p>
                 <div class="floating-field">
                     <input type="email" id="adminPasswordCurrentEmail" placeholder=" " readonly autocomplete="off">
                     <label for="adminPasswordCurrentEmail">Current admin Gmail</label>
@@ -879,15 +910,21 @@
                     <label for="adminPasswordNewPassword">New admin password</label>
                     <small class="field-helper">Use at least 12 characters with uppercase, lowercase, and a number. Common passwords are rejected.</small>
                 </div>
-                <button type="button" id="requestPasswordChangeBtn">Send Verification Code</button>
+                <div class="account-form-actions">
+                    <button type="button" id="requestPasswordChangeBtn">Send Verification Code</button>
+                </div>
                 <div class="floating-field">
                     <input type="text" id="adminPasswordChangeCode" placeholder=" " maxlength="8" inputmode="numeric" autocomplete="one-time-code">
                     <label for="adminPasswordChangeCode">Verification code</label>
                 </div>
-                <button type="submit" id="confirmPasswordChangeBtn">Verify and Apply</button>
+                <div class="account-form-actions">
+                    <button type="submit" id="confirmPasswordChangeBtn">Verify and Apply</button>
+                </div>
             </form>
 
-            <button type="button" id="closeAdminEditPanelBtn" class="secondary-btn" style="margin-top: 14px;">Cancel</button>
+            <div class="account-form-actions">
+                <button type="button" id="closeAdminEditPanelBtn" class="secondary-btn">Cancel</button>
+            </div>
             <p id="credentialsMessage" class="menu-order-message" aria-live="polite"></p>
         </div>
 
@@ -897,8 +934,9 @@
 
             <form id="staffEditForm" class="account-form">
                 <div class="floating-field">
-                    <input type="text" id="staffEditName" placeholder=" " autocomplete="off">
+                    <input type="text" id="staffEditName" placeholder=" " maxlength="80" autocomplete="off" title="Letters, spaces, hyphens, apostrophes, and periods only.">
                     <label for="staffEditName">Full Name</label>
+                    <small class="field-helper">Letters, spaces, hyphens, apostrophes, and periods only.</small>
                 </div>
                 <div class="floating-field">
                     <select id="staffEditRole">
@@ -920,8 +958,10 @@
                     <input type="password" id="staffEditPasswordConfirmation" placeholder=" " minlength="8" autocomplete="new-password">
                     <label for="staffEditPasswordConfirmation">Confirm password</label>
                 </div>
-                <button type="submit">Save Changes</button>
-                <button type="button" id="closeStaffEditPanelBtn" class="secondary-btn">Cancel</button>
+                <div class="account-form-actions">
+                    <button type="submit">Save Changes</button>
+                    <button type="button" id="closeStaffEditPanelBtn" class="secondary-btn">Cancel</button>
+                </div>
             </form>
         </div>
     </section>

@@ -909,6 +909,36 @@ function isGmailAddress(email) {
     return /@gmail\.com$/.test(normalized);
 }
 
+// Mirrors staffNameValidationError() in public/api/_helpers.php so the form and
+// the server agree on what a full name may contain: letters (any script) plus
+// the separators real names use — never digits, quotes, or markup.
+const staffNameDisallowedChars = /[^\p{L}\p{M} .'-]/gu;
+const staffNameStructurePattern = /^\p{L}[\p{L}\p{M}]*(?:(?:[- ']|\. ?)\p{L}[\p{L}\p{M}]+)*\.?$/u;
+
+function collapseNameWhitespace(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function isValidStaffName(name) {
+    const value = collapseNameWhitespace(name);
+    return value.length >= 2 && value.length <= 80 && staffNameStructurePattern.test(value);
+}
+
+// Drops digits and symbols as they are typed (so they never reach the submit
+// handler), keeping the caret where the user left it.
+function attachStaffNameInputFilter(input) {
+    if (!input) return;
+    input.addEventListener('input', () => {
+        const original = input.value;
+        const cleaned = original.replace(staffNameDisallowedChars, '');
+        if (cleaned === original) return;
+        const caret = input.selectionStart === null ? original.length : input.selectionStart;
+        const caretAfterCleaning = original.slice(0, caret).replace(staffNameDisallowedChars, '').length;
+        input.value = cleaned;
+        input.setSelectionRange(caretAfterCleaning, caretAfterCleaning);
+    });
+}
+
 async function notifyStaffSessionEvent(eventName, actorRole, actorEmail) {
     if (!eventName || !actorRole || !actorEmail) return;
 
@@ -5690,6 +5720,11 @@ if (cancelAccountFormBtn) {
     });
 }
 
+// Full names accept letters and name separators only; digits and symbols are
+// dropped at input time so the submit-time policy check rarely trips.
+attachStaffNameInputFilter(accountNameInput);
+attachStaffNameInputFilter(staffEditNameInput);
+
 if (accountForm) {
     accountForm.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -5700,7 +5735,7 @@ if (accountForm) {
         }
 
         const account = {
-            name: accountNameInput ? accountNameInput.value.trim() : '',
+            name: collapseNameWhitespace(accountNameInput ? accountNameInput.value : ''),
             role: accountRoleInput ? accountRoleInput.value : '',
             email: accountEmailInput ? accountEmailInput.value.trim().toLowerCase() : '',
             password: accountPasswordInput ? accountPasswordInput.value : '',
@@ -5709,6 +5744,12 @@ if (accountForm) {
         };
 
         if (!account.name || !account.role || !account.email || !account.password) {
+            await showStaffNotice('Please complete all account fields.', true);
+            return;
+        }
+
+        if (!isValidStaffName(account.name)) {
+            await showStaffNotice('Full name may only contain letters, spaces, hyphens, apostrophes, and periods (2-80 characters).', true);
             return;
         }
 
@@ -5917,7 +5958,7 @@ if (staffEditForm) {
 
         const index = staffEditIndex;
         const updatedAccount = {
-            name: staffEditNameInput ? staffEditNameInput.value.trim() : '',
+            name: collapseNameWhitespace(staffEditNameInput ? staffEditNameInput.value : ''),
             role: staffEditRoleInput ? staffEditRoleInput.value : '',
             email: staffEditEmailInput ? staffEditEmailInput.value.trim().toLowerCase() : '',
             password: staffEditPasswordInput ? staffEditPasswordInput.value : '',
@@ -5927,6 +5968,11 @@ if (staffEditForm) {
 
         if (!updatedAccount.name || !updatedAccount.role || !updatedAccount.email || !updatedAccount.password) {
             await showStaffNotice('Please complete all account fields.', true);
+            return;
+        }
+
+        if (!isValidStaffName(updatedAccount.name)) {
+            await showStaffNotice('Full name may only contain letters, spaces, hyphens, apostrophes, and periods (2-80 characters).', true);
             return;
         }
 

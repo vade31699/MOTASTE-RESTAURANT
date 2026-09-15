@@ -1,9 +1,10 @@
 <?php
 
 /**
- * Tests for the stored-XSS input guard (inputContainsUnsafeHtml /
- * rejectUnsafeInputOrExit in public/api/_helpers.php). Boots the app on the
- * in-memory testing database like the other helper tests.
+ * Tests for the shared input guards in public/api/_helpers.php: the stored-XSS
+ * check (inputContainsUnsafeHtml / rejectUnsafeInputOrExit) and the staff name
+ * policy (staffNameValidationError). Boots the app on the in-memory testing
+ * database like the other helper tests.
  */
 function bootInputValidationTestApp(): void
 {
@@ -91,4 +92,48 @@ test('nested payloads are checked recursively', function () {
 
     $injectedInventory = ['name' => 'Rice', 'description' => 'Steamed <img src=x onerror=alert(1)> rice'];
     expect(inputContainsUnsafeHtml($injectedInventory))->toBeTrue();
+});
+
+test('plain text names pass the name policy', function () {
+    expect(staffNameValidationError('Juan Dela Cruz'))->toBeNull();
+    expect(staffNameValidationError('  Maria   Clara  '))->toBeNull();
+    expect(staffNameValidationError('Jean-Luc Picard'))->toBeNull();
+    expect(staffNameValidationError("O'Brien"))->toBeNull();
+    expect(staffNameValidationError('Juan Dela Cruz Jr.'))->toBeNull();
+    // Abbreviation and initial forms are common on Filipino staff records.
+    expect(staffNameValidationError('Ma. Cristina Reyes'))->toBeNull();
+    expect(staffNameValidationError('J. R. Smith'))->toBeNull();
+    expect(staffNameValidationError('José María'))->toBeNull();
+});
+
+test('names with digits are rejected', function () {
+    expect(staffNameValidationError('Juan123'))->not->toBeNull();
+    expect(staffNameValidationError('Juan Dela Cruz 2nd'))->not->toBeNull();
+    expect(staffNameValidationError('12345'))->not->toBeNull();
+});
+
+test('names carrying injection payloads are rejected', function () {
+    expect(staffNameValidationError("Robert'); DROP TABLE staff;--"))->not->toBeNull();
+    expect(staffNameValidationError('Juan\' OR 1=1 --'))->not->toBeNull();
+    expect(staffNameValidationError('Juan; DELETE FROM staff'))->not->toBeNull();
+    expect(staffNameValidationError('<script>alert(1)</script>'))->not->toBeNull();
+});
+
+test('empty, non-string, and malformed names are rejected', function () {
+    expect(staffNameValidationError(''))->not->toBeNull();
+    expect(staffNameValidationError('   '))->not->toBeNull();
+    expect(staffNameValidationError(null))->not->toBeNull();
+    expect(staffNameValidationError(['Juan']))->not->toBeNull();
+    expect(staffNameValidationError('J'))->not->toBeNull();
+    expect(staffNameValidationError('A'))->not->toBeNull();
+    expect(staffNameValidationError(str_repeat('a', 81)))->not->toBeNull();
+    expect(staffNameValidationError('A--B'))->not->toBeNull();
+    expect(staffNameValidationError('.Juan'))->not->toBeNull();
+    expect(staffNameValidationError('Juan.. Cruz'))->not->toBeNull();
+});
+
+test('names are normalized before they are stored', function () {
+    expect(normalizeStaffName('  Juan   Dela  Cruz '))->toBe('Juan Dela Cruz');
+    expect(normalizeStaffName(null))->toBe('');
+    expect(normalizeStaffName(['Juan']))->toBe('');
 });

@@ -36,6 +36,16 @@ if ($name === '' || $role === '' || $email === '') {
     exit;
 }
 
+// The invite must describe the same person the account will be created for, so
+// the name has to satisfy the shared name policy here too.
+$nameError = staffNameValidationError($name);
+if ($nameError !== null) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => $nameError]);
+    exit;
+}
+$name = normalizeStaffName($name);
+
 if (!in_array($role, ['Cashier', 'Inventory Manager'], true)) {
     http_response_code(422);
     echo json_encode(['success' => false, 'error' => 'Only Cashier and Inventory Manager are supported']);

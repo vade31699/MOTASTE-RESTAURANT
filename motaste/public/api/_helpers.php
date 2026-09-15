@@ -137,6 +137,71 @@ function rejectUnsafeInputOrExit(...$values): void
     }
 }
 
+/** Longest accepted staff/admin display name. */
+const STAFF_NAME_MAX_LENGTH = 80;
+
+/** Shortest accepted staff/admin display name. */
+const STAFF_NAME_MIN_LENGTH = 2;
+
+/**
+ * Collapse runs of whitespace and trim a submitted display name so
+ * " Juan   Dela  Cruz " and "Juan Dela Cruz" are stored identically.
+ */
+function normalizeStaffName($name): string
+{
+    if (!is_string($name) && !is_numeric($name)) {
+        return '';
+    }
+
+    $name = trim((string)$name);
+
+    return preg_replace('/\s+/u', ' ', $name) ?? $name;
+}
+
+/**
+ * Validate a staff/admin display name.
+ *
+ * A name is letters (any script) plus the separators real names use: spaces,
+ * hyphens, apostrophes, and periods. Digits, quotes, semicolons, parentheses,
+ * backslashes and angle brackets are rejected, so a name can never carry a
+ * number, an SQL fragment, markup, or a delimiter that would break out of a
+ * query or a log line — even if the request skips the browser form entirely.
+ *
+ * @param  mixed  $name  The raw submitted value (non-strings are rejected).
+ * @return string|null   A human-readable error, or null when the name is valid.
+ */
+function staffNameValidationError($name): ?string
+{
+    if (!is_string($name)) {
+        return 'Full name is required.';
+    }
+
+    $name = normalizeStaffName($name);
+
+    if ($name === '') {
+        return 'Full name is required.';
+    }
+
+    $length = mb_strlen($name);
+    if ($length < STAFF_NAME_MIN_LENGTH) {
+        return 'Full name must be at least ' . STAFF_NAME_MIN_LENGTH . ' characters.';
+    }
+
+    if ($length > STAFF_NAME_MAX_LENGTH) {
+        return 'Full name must be no more than ' . STAFF_NAME_MAX_LENGTH . ' characters.';
+    }
+
+    // Every word must start with a letter, and each separator (space, hyphen,
+    // apostrophe, or an abbreviation period as in "Ma. Cristina") must be
+    // followed by another word — so leading, trailing, or doubled punctuation
+    // ("A--B", "Juan.. Cruz", ".Juan") is rejected.
+    if (preg_match("/^\\p{L}[\\p{L}\\p{M}]*(?:(?:[- ']|\. ?)[\\p{L}\\p{M}]+)*\.?$/u", $name) !== 1) {
+        return 'Full name may only contain letters, spaces, hyphens, apostrophes, and periods.';
+    }
+
+    return null;
+}
+
 /**
  * A request failure the client should see verbatim, with the HTTP status to
  * answer it with. Thrown by shared helpers so callers can wrap their own

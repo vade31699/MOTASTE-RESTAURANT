@@ -40,6 +40,29 @@ try {
         }
     }
 
+    // Name policy: letters and the usual separators only, with a sane length.
+    // The whole account list is re-validated on every save so a hand-crafted
+    // request cannot smuggle digits or delimiters into a name column.
+    foreach ($input as $index => $account) {
+        if (!is_array($account)) {
+            continue;
+        }
+        $nameError = staffNameValidationError($account['name'] ?? null);
+        if ($nameError !== null) {
+            $accountLabel = trim((string)($account['email'] ?? '')) !== ''
+                ? trim((string)$account['email'])
+                : 'one of the accounts';
+            http_response_code(422);
+            echo json_encode([
+                'success' => false,
+                'error' => $nameError . ' (' . $accountLabel . ')',
+            ]);
+            exit;
+        }
+        // Store the cleaned name so whitespace runs never reach the database.
+        $input[$index]['name'] = normalizeStaffName($account['name']);
+    }
+
     // Strong password policy: reject weak plaintext passwords before they are
     // hashed and persisted. Admin accounts get the elevated 12-character
     // minimum; Cashier / Inventory Manager accounts use the standard 8.

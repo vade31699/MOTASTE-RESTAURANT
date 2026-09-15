@@ -337,9 +337,7 @@ body.dashboard-panel-open .menu-btn {
 }
 
 #adminCredentialSettings .account-form input,
-#adminCredentialSettings .account-form button,
-#passwordCredentialsForm input,
-#passwordCredentialsForm button {
+#passwordCredentialsForm input {
     width: 100%;
     box-sizing: border-box;
 }
@@ -9365,8 +9363,10 @@ body.staff-app .account-list li.account-row-admin {
     box-shadow: inset 3px 0 0 var(--staff-accent), var(--staff-shadow-sm);
 }
 
-/* Admin edit panel: same card language as the account rows, revealed only
-   while the admin account is being edited from the list. */
+/* Account forms: the add-staff form, the staff edit panel, and the admin
+   credentials panel share one card so the three roles finally read as a single
+   component instead of three different forms. */
+body.staff-app #accountForm,
 body.staff-app #adminCredentialSettings,
 body.staff-app #staffEditPanel {
     margin-top: 14px;
@@ -9377,6 +9377,7 @@ body.staff-app #staffEditPanel {
     box-shadow: var(--staff-shadow-sm);
 }
 
+body.staff-app #accountForm h3,
 body.staff-app #adminCredentialSettings h3,
 body.staff-app #staffEditPanel h3 {
     margin: 0 0 4px;
@@ -9384,11 +9385,21 @@ body.staff-app #staffEditPanel h3 {
     font-size: 1.05rem;
 }
 
+body.staff-app #accountForm > p,
 body.staff-app #adminCredentialSettings > p,
 body.staff-app #staffEditPanel > p {
     margin: 0 0 12px;
     color: var(--staff-muted);
     font-size: 0.85rem;
+}
+
+/* The two-step admin flows open with a short explanation of what happens next. */
+body.staff-app .account-form-note {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--staff-muted);
 }
 
 /* ---------- Credentials: floating labels + helper text ---------- */
@@ -9941,6 +9952,78 @@ body.staff-app .secondary-btn:hover {
     background: var(--staff-accent-soft);
     color: var(--staff-accent-strong);
     border-color: var(--staff-accent);
+}
+
+/* The section's trigger buttons (Add Staff Account, Change Admin Email/Password)
+   match the action-row buttons so every control in the section is one size. */
+body.staff-app .add-staff-btn {
+    padding: 11px 18px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    line-height: 1.2;
+}
+
+/* Shared action row for every account form: the primary action sits next to a
+   neutral Cancel (or alone, full width) instead of a stack of identical green
+   buttons. */
+body.staff-app .account-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    grid-column: 1 / -1;
+    margin-top: 2px;
+}
+
+body.staff-app .account-form-actions button {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 150px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease,
+        background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+/* Explicit colors so a Cancel never inherits the primary green from
+   .account-form button. */
+body.staff-app .account-form-actions button[type="submit"] {
+    background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(43, 174, 102, 0.3);
+}
+
+body.staff-app .account-form-actions button[type="submit"]:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px rgba(43, 174, 102, 0.42);
+    filter: brightness(1.05);
+}
+
+body.staff-app .account-form-actions .secondary-btn {
+    background: #ffffff;
+    color: var(--staff-text);
+    border: 1px solid var(--staff-border);
+    box-shadow: none;
+}
+
+body.staff-app .account-form-actions .secondary-btn:hover {
+    background: var(--staff-accent-soft);
+    color: var(--staff-accent-strong);
+    border-color: var(--staff-accent);
+    transform: translateY(-2px);
+}
+
+body.staff-app #togglePasswordFormBtn {
+    margin-top: 12px;
+}
+
+/* Panel-level Cancel row sits below both admin forms and their toggle buttons. */
+body.staff-app #adminCredentialSettings > .account-form-actions {
+    margin-top: 12px;
 }
 
 body.staff-app .account-form {

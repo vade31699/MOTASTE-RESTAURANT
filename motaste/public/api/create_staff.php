@@ -33,7 +33,7 @@ if (!is_array($input)) {
 
 validateCsrfOrExit();
 
-$full = isset($input['name']) ? trim($input['name']) : '';
+$full = isset($input['name']) && is_string($input['name']) ? trim($input['name']) : '';
 $role = isset($input['role']) ? trim($input['role']) : '';
 $email = isset($input['email']) ? strtolower(trim($input['email'])) : '';
 $password = isset($input['password']) ? (string)$input['password'] : '';
@@ -47,6 +47,16 @@ if (!$full || !$role || !$email || !$password) {
 
 // Stored-XSS guard: the staff name must be plain text.
 rejectUnsafeInputOrExit($full);
+
+// Name policy: letters and the usual separators only — never digits, quotes,
+// or delimiters. Re-validated here because the browser form can be bypassed.
+$nameError = staffNameValidationError($full);
+if ($nameError !== null) {
+    http_response_code(422);
+    echo json_encode(['error' => $nameError]);
+    exit;
+}
+$full = normalizeStaffName($full);
 
 // Password confirmation: the two fields must match exactly.
 if ($password !== $passwordConfirmation) {
