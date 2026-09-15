@@ -360,10 +360,22 @@ function sendSystemEmail(string $to, string $subject, string $body, ?array $atta
     if ($smtpPass === '') $missing[] = 'MAIL_PASSWORD';
 
     if ($missing) {
-        // No SMTP credentials configured (typical for local development). Fall
-        // back to the configured default mailer (log/array) so the flow still
-        // completes, and write the message to the server log so verification
-        // codes remain retrievable.
+        // No SMTP credentials configured (typical for local development). The
+        // `log` mailer would write the full message — verification code
+        // included — to storage/logs. That is acceptable on a developer's own
+        // machine, but never in production: there, missing SMTP configuration
+        // is a deployment error, so fail closed rather than leak codes to disk.
+        if (app()->environment('production')) {
+            return [
+                'success' => false,
+                'driver' => 'smtp',
+                'delivered' => false,
+                'error' => 'Email is not configured for this environment.',
+            ];
+        }
+
+        // Local development: fall back to the configured default mailer
+        // (typically `log`, so the code can be read from the dev log).
         $driver = (string)config('mail.default', 'log');
         try {
             Mail::raw($body, function ($message) use ($to, $subject, $attachment): void {
@@ -386,7 +398,7 @@ function sendSystemEmail(string $to, string $subject, string $body, ?array $atta
                 'success' => true,
                 'driver' => $driver,
                 'delivered' => false,
-                'warning' => 'SMTP is not configured; the message was written to the server log instead of being emailed. Missing: ' . implode(', ', $missing),
+                'warning' => 'SMTP is not configured; the message was written to the development log instead of being emailed. Missing: ' . implode(', ', $missing),
             ];
         } catch (Throwable $mailError) {
             Log::error('Fallback email send failed', [

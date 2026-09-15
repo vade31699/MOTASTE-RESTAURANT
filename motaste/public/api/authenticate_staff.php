@@ -275,13 +275,14 @@ try {
 
     if (empty($emailResult['success'])) {
         // SMTP may be misconfigured or the provider may have rejected the
-        // message; the code itself was already written to the server log as a
-        // fallback. Supersede the provider's error detail with a generic
-        // message so the failure reason is not exposed to the browser.
-        $response['warning'] = 'The verification code could not be delivered to your email. Check the server logs for the code.';
+        // message. The failure is reported generically so the reason (and any
+        // mailer detail) is not exposed to the browser. Codes are never
+        // written to a production log, so there is nothing to point the user
+        // at — fail closed and let them retry or contact the administrator.
+        $response['warning'] = 'The verification code could not be delivered to your email. Please try again later or contact the administrator.';
     }
-    // NOTE: when SMTP fails, sendSystemEmail() already falls back to
-    // writing the code to the server log — never log the raw code again.
+    // NOTE: codes are never logged in production; sendSystemEmail() fails
+    // closed rather than falling back to a file-based mailer.
 
     echo json_encode($response);
     exit;

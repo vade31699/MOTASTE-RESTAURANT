@@ -74,6 +74,17 @@ class PasswordResetLinkController extends Controller
             'email' => 'required|email',
         ]);
 
+        // SECURITY: reset codes travel by email only. If production's default
+        // mailer is `log`, the message (code included) would be written to
+        // storage/logs and become account-takeover ammunition. That is a
+        // deployment misconfiguration, so fail closed with the same vague
+        // message instead of leaking the code.
+        if (app()->environment('production') && (string)config('mail.default') === 'log') {
+            throw ValidationException::withMessages([
+                'email' => ['Please try again.'],
+            ]);
+        }
+
         $email = strtolower(trim($request->email));
 
         // Password recovery belongs to the staff portal: staff accounts live in
