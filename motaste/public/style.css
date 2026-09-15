@@ -9809,6 +9809,16 @@ body.staff-app .notice-modal .device-verify-actions button {
     line-height: 1.2;
 }
 
+/* The notice modal has a single OK button, which would otherwise sit in the
+   left column of the two-column grid above. Span both columns and center it
+   so it lines up with the icon, title and message. */
+body.staff-app .notice-modal .device-verify-actions button:only-child {
+    grid-column: 1 / -1;
+    justify-self: center;
+    max-width: 220px;
+    width: 100%;
+}
+
 body.staff-app .notice-modal .secondary-btn {
     background: #ffffff;
     color: #111827;
