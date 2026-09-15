@@ -685,6 +685,7 @@ function forceLogoutCurrentStaffSession() {
     if (pendingOrdersSection) pendingOrdersSection.hidden = true;
     if (logsSection) logsSection.hidden = true;
     if (accountManagementSection) accountManagementSection.hidden = true;
+    if (accountSettingsSection) accountSettingsSection.hidden = true;
     if (highlightsSection) highlightsSection.hidden = true;
     if (loginLogsSection) loginLogsSection.hidden = true;
 
@@ -1460,6 +1461,10 @@ function getCurrentStaffRole() {
     return selectedRoleInput && selectedRoleInput.value ? selectedRoleInput.value.trim() : '';
 }
 
+function getCurrentStaffEmail() {
+    return emailInput ? emailInput.value.trim().toLowerCase() : '';
+}
+
 function canAccessInventory() {
     const role = getCurrentStaffRole();
     return role === 'Admin' || role === 'Inventory Manager';
@@ -1480,10 +1485,6 @@ function canManageAccounts() {
 }
 
 function canManageHighlights() {
-    return getCurrentStaffRole() === 'Admin';
-}
-
-function canAccessCredentials() {
     return getCurrentStaffRole() === 'Admin';
 }
 
@@ -3393,6 +3394,9 @@ if (logoutBtn) {
         if (accountManagementSection) {
             accountManagementSection.hidden = true;
         }
+        if (accountSettingsSection) {
+            accountSettingsSection.hidden = true;
+        }
         if (highlightsSection) {
             highlightsSection.hidden = true;
         }
@@ -3486,32 +3490,50 @@ const highlightsList = document.getElementById('highlightsList');
 const optimizeHighlightsBtn = document.getElementById('optimizeHighlightsBtn');
 const highlightsStorageKey = 'motasteHighlightsSlides';
 const highlightsMaxImages = 15;
-const credentialsForm = document.getElementById('credentialsForm');
-const toggleCredentialsFormBtn = document.getElementById('toggleCredentialsFormBtn');
-const passwordCredentialsForm = document.getElementById('passwordCredentialsForm');
-const togglePasswordFormBtn = document.getElementById('togglePasswordFormBtn');
-const adminCurrentEmailInput = document.getElementById('adminCurrentEmail');
-const adminCurrentPasswordInput = document.getElementById('adminCurrentPassword');
-const adminNewEmailInput = document.getElementById('adminNewEmail');
-const adminNewPasswordInput = document.getElementById('adminNewPassword');
-const adminChangeCodeInput = document.getElementById('adminChangeCode');
-const adminPasswordCurrentEmailInput = document.getElementById('adminPasswordCurrentEmail');
-const adminPasswordCurrentPasswordInput = document.getElementById('adminPasswordCurrentPassword');
-const adminPasswordNewPasswordInput = document.getElementById('adminPasswordNewPassword');
-const adminPasswordChangeCodeInput = document.getElementById('adminPasswordChangeCode');
-const requestCredentialsChangeBtn = document.getElementById('requestCredentialsChangeBtn');
-const requestPasswordChangeBtn = document.getElementById('requestPasswordChangeBtn');
-const credentialsMessage = document.getElementById('credentialsMessage');
-const staffEditPanel = document.getElementById('staffEditPanel');
-const staffEditForm = document.getElementById('staffEditForm');
-const staffEditNameInput = document.getElementById('staffEditName');
-const staffEditRoleInput = document.getElementById('staffEditRole');
-const staffEditEmailInput = document.getElementById('staffEditEmail');
-const staffEditPasswordInput = document.getElementById('staffEditPassword');
-const staffEditPasswordConfirmationInput = document.getElementById('staffEditPasswordConfirmation');
-const closeStaffEditPanelBtn = document.getElementById('closeStaffEditPanelBtn');
-let accountEditIndex = null;
-let staffEditIndex = null;
+const accountSettingsSection = document.getElementById('account-settings');
+const accountSettingsBackBtn = document.getElementById('accountSettingsBackBtn');
+const accountSettingsAvatar = document.getElementById('accountSettingsAvatar');
+const accountSettingsName = document.getElementById('accountSettingsName');
+const accountSettingsMeta = document.getElementById('accountSettingsMeta');
+const changeEmailOptionBtn = document.getElementById('changeEmailOptionBtn');
+const changePasswordOptionBtn = document.getElementById('changePasswordOptionBtn');
+const removeAccountOptionBtn = document.getElementById('removeAccountOptionBtn');
+const accountSettingsMessage = document.getElementById('accountSettingsMessage');
+
+// Admin-authorized account change wizard (change email / change password).
+const accountChangeModal = document.getElementById('accountChangeModal');
+const accountChangeCloseBtn = document.getElementById('accountChangeCloseBtn');
+const acmStepRequest = document.getElementById('acmStepRequest');
+const acmStepCode = document.getElementById('acmStepCode');
+const acmStepNewValue = document.getElementById('acmStepNewValue');
+const acmStepSuccess = document.getElementById('acmStepSuccess');
+const acmTitle = document.getElementById('accountChangeTitle');
+const acmRequestDescription = document.getElementById('acmRequestDescription');
+const acmAdminPasswordInput = document.getElementById('acmAdminPasswordInput');
+const acmRequestError = document.getElementById('acmRequestError');
+const acmRequestCancelBtn = document.getElementById('acmRequestCancelBtn');
+const acmRequestBtn = document.getElementById('acmRequestBtn');
+const acmSentToText = document.getElementById('acmSentToText');
+const acmCodeInput = document.getElementById('acmCodeInput');
+const acmCodeStatus = document.getElementById('acmCodeStatus');
+const acmCodeError = document.getElementById('acmCodeError');
+const acmCodeBackBtn = document.getElementById('acmCodeBackBtn');
+const acmCodeBtn = document.getElementById('acmCodeBtn');
+const acmResendBtn = document.getElementById('acmResendBtn');
+const acmNewValueTitle = document.getElementById('acmNewValueTitle');
+const acmNewValueDescription = document.getElementById('acmNewValueDescription');
+const acmNewEmailInput = document.getElementById('acmNewEmailInput');
+const acmNewPasswordInput = document.getElementById('acmNewPasswordInput');
+const acmNewPasswordConfirmInput = document.getElementById('acmNewPasswordConfirmInput');
+const acmNewValueError = document.getElementById('acmNewValueError');
+const acmNewValueBackBtn = document.getElementById('acmNewValueBackBtn');
+const acmNewValueBtn = document.getElementById('acmNewValueBtn');
+const acmSuccessTitle = document.getElementById('acmSuccessTitle');
+const acmSuccessText = document.getElementById('acmSuccessText');
+const acmSuccessBtn = document.getElementById('acmSuccessBtn');
+
+let accountSettingsIndex = null;
+let accountChangeState = { type: null, targetEmail: '', targetName: '', targetRole: '', code: '' };
 
 // The account list is fetched from the server (page load + 10s refresh), so it
 // stays empty for the first request. Placeholder rows stand in until the first
@@ -3560,17 +3582,31 @@ function renderAccounts() {
     accounts.forEach((account, index) => {
         const item = document.createElement('li');
         const isAdmin = account.role === 'Admin';
-        const inviteLabel = account.inviteConfirmed ? 'Confirmed' : 'Pending Email Confirmation';
+        const inviteConfirmed = Boolean(account.inviteConfirmed);
+        const initial = (account.name || '?').trim().charAt(0).toUpperCase() || '?';
+        const inviteLabel = inviteConfirmed ? 'Confirmed' : 'Pending Email Confirmation';
 
+        item.classList.add('account-list-item');
         item.classList.toggle('account-row-admin', isAdmin);
+        item.setAttribute('role', 'button');
+        item.setAttribute('tabindex', '0');
+        item.dataset.index = String(index);
+        item.setAttribute('aria-label', `Open settings for ${account.name || 'this account'}`);
+
         item.innerHTML = `
-            <span>
-                ${isAdmin ? '<span class="account-role-tag">Admin</span> ' : ''}${escapeHtml(account.name)} — ${escapeHtml(account.role)} — ${escapeHtml(account.email)} — ${escapeHtml(inviteLabel)}
+            <span class="account-list-avatar" aria-hidden="true">${escapeHtml(initial)}</span>
+            <span class="account-list-main">
+                <strong>${escapeHtml(account.name || 'Staff account')}</strong>
+                <small>${escapeHtml(account.email || '')}</small>
             </span>
-            <div>
-                <button type="button" class="edit-btn" data-index="${index}">Edit</button>
-                ${isAdmin ? '' : `<button type="button" class="delete-btn" data-index="${index}">Delete</button>`}
-            </div>
+            <span class="account-list-meta">
+                <span class="account-role-tag${isAdmin ? ' is-admin' : ''}">${isAdmin ? 'Admin' : escapeHtml(account.role || 'Staff')}</span>
+                <span class="account-invite-status${inviteConfirmed ? ' is-confirmed' : ''}">
+                    <i class="fa-solid fa-${inviteConfirmed ? 'circle-check' : 'hourglass-half'}" aria-hidden="true"></i>
+                    ${escapeHtml(inviteLabel)}
+                </span>
+            </span>
+            <i class="fa-solid fa-chevron-right account-list-chevron" aria-hidden="true"></i>
         `;
 
         accountList.appendChild(item);
@@ -3581,7 +3617,6 @@ function resetAccountForm() {
     if (accountForm) {
         accountForm.reset();
     }
-    accountEditIndex = null;
 }
 
 function toggleAccountForm(showForm) {
@@ -3590,126 +3625,183 @@ function toggleAccountForm(showForm) {
     if (!showForm) {
         resetAccountForm();
     }
-    // Opening the staff add/edit form takes over the section, so collapse the
-    // admin edit panel that can be opened from the account list.
-    closeAdminEditPanel();
+    // Opening the add form takes over the section, so collapse the per-account
+    // settings view that can be opened from the account list.
+    closeAccountSettings();
 }
 
-function closeAdminEditPanel() {
-    const adminPanel = document.getElementById('adminCredentialSettings');
-    if (adminPanel) adminPanel.hidden = true;
-    const editPanel = document.getElementById('staffEditPanel');
-    if (editPanel) editPanel.hidden = true;
-    if (credentialsForm) credentialsForm.hidden = true;
-    if (passwordCredentialsForm) passwordCredentialsForm.hidden = true;
-    accountEditIndex = null;
-    staffEditIndex = null;
+/* ---- Account Settings view (per-account navigation) ------------------ */
+
+function setAccountSettingsMessage(message, isError = false) {
+    if (!accountSettingsMessage) return;
+    accountSettingsMessage.textContent = message || '';
+    accountSettingsMessage.style.color = isError ? 'var(--staff-danger)' : 'var(--staff-accent-strong)';
 }
 
-// The admin edit panel has two credential flows (email + password, or password
-// only). Swapping between them now works like the portal's other segmented
-// tabs: the switch keeps the active state and exactly one form stays visible.
-function setAdminCredentialMode(mode) {
-    const showPasswordOnly = mode === 'password';
-
-    if (credentialsForm) credentialsForm.hidden = showPasswordOnly;
-    if (passwordCredentialsForm) passwordCredentialsForm.hidden = !showPasswordOnly;
-
-    if (toggleCredentialsFormBtn) {
-        toggleCredentialsFormBtn.classList.toggle('active', !showPasswordOnly);
-        toggleCredentialsFormBtn.setAttribute('aria-pressed', String(!showPasswordOnly));
+function openAccountSettings(index) {
+    if (!canManageAccounts()) {
+        showStaffNotice('Only the admin can manage accounts.', true);
+        return;
     }
-    if (togglePasswordFormBtn) {
-        togglePasswordFormBtn.classList.toggle('active', showPasswordOnly);
-        togglePasswordFormBtn.setAttribute('aria-pressed', String(showPasswordOnly));
+
+    const account = accounts[index];
+    if (!account) return;
+
+    accountSettingsIndex = index;
+
+    if (accountSettingsAvatar) {
+        const initial = (account.name || '?').trim().charAt(0).toUpperCase() || '?';
+        accountSettingsAvatar.textContent = initial;
+        accountSettingsAvatar.classList.toggle('is-admin', account.role === 'Admin');
+    }
+    if (accountSettingsName) accountSettingsName.textContent = account.name || 'Staff account';
+    if (accountSettingsMeta) {
+        accountSettingsMeta.textContent = `${account.role || 'Staff'} &middot; ${account.email || ''}`.replace(/&middot;/g, '·');
+    }
+
+    setAccountSettingsMessage('');
+
+    // Leave the add form and the account list behind.
+    if (accountForm) accountForm.hidden = true;
+    if (accountManagementSection) accountManagementSection.hidden = true;
+    if (accountSettingsSection) accountSettingsSection.hidden = false;
+
+    window.setTimeout(() => {
+        if (accountSettingsSection) accountSettingsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+}
+
+function closeAccountSettings() {
+    accountSettingsIndex = null;
+    accountChangeState = { type: null, targetEmail: '', targetName: '', targetRole: '', code: '' };
+    setAccountSettingsMessage('');
+    if (accountSettingsSection) accountSettingsSection.hidden = true;
+}
+
+/* ---- Admin-authorized account change wizard -------------------------- */
+
+function acmShowStep(stepName) {
+    const steps = { request: acmStepRequest, code: acmStepCode, newValue: acmStepNewValue, success: acmStepSuccess };
+    Object.keys(steps).forEach((key) => {
+        if (steps[key]) steps[key].hidden = key !== stepName;
+    });
+}
+
+function acmShowError(el, message) {
+    if (!el) return;
+    if (message) {
+        el.textContent = message;
+        el.hidden = false;
+    } else {
+        el.textContent = '';
+        el.hidden = true;
     }
 }
 
-function setCredentialsMessage(message, isError = false) {
-    if (!credentialsMessage) return;
-    credentialsMessage.textContent = message || '';
-    credentialsMessage.style.color = isError ? '#b00020' : '#0b6b2f';
+function acmShowStatus(message) {
+    if (!acmCodeStatus) return;
+    if (message) {
+        acmCodeStatus.textContent = message;
+        acmCodeStatus.hidden = false;
+    } else {
+        acmCodeStatus.textContent = '';
+        acmCodeStatus.hidden = true;
+    }
 }
 
-async function loadAdminCredentials() {
-    if (!adminCurrentEmailInput) return;
-    try {
-        // Gated by the server session: wait for the page-load renewal so this
-        // read does not race it (a racing request used to 401 on the renewal's
-        // token rotation and start a needless second renewal).
-        await ensureStaffServerSession();
-        // Admin-gated read: a stale session is recovered once (and the tab sent
-        // back to login when it cannot be renewed). A valid session that simply
-        // lacks the Admin role is a 403, which throws below instead of logging
-        // the account out.
-        const payload = await fetchStaffGatedJson(`api/get_admin_credentials.php?_=${Date.now()}`);
-        if (!payload) return;
-        if (payload.success !== true || !payload.credentials) {
-            adminCurrentEmailInput.value = adminDefaultEmail;
-            if (adminPasswordCurrentEmailInput) adminPasswordCurrentEmailInput.value = adminDefaultEmail;
-            return;
+function acmSetBusy(button, busy, busyText = '') {
+    if (!button) return;
+    if (busy) {
+        button.dataset.acmOriginalText = button.textContent;
+        button.disabled = true;
+        button.classList.add('btn-loading');
+        if (busyText !== '') button.textContent = busyText;
+    } else {
+        button.disabled = false;
+        button.classList.remove('btn-loading');
+        if (button.dataset.acmOriginalText !== undefined) {
+            button.textContent = button.dataset.acmOriginalText;
+            delete button.dataset.acmOriginalText;
         }
-
-        const adminEmail = payload.credentials.email || adminDefaultEmail;
-        adminCurrentEmailInput.value = adminEmail;
-        if (adminPasswordCurrentEmailInput) adminPasswordCurrentEmailInput.value = adminEmail;
-    } catch (error) {
-        adminCurrentEmailInput.value = adminDefaultEmail;
-        if (adminPasswordCurrentEmailInput) adminPasswordCurrentEmailInput.value = adminDefaultEmail;
-        console.error('Unable to load admin credentials', error);
     }
 }
 
-async function requestAdminCredentialsChange({
-    currentEmailInput = adminCurrentEmailInput,
-    currentPasswordInput = adminCurrentPasswordInput,
-    newEmailInput = adminNewEmailInput,
-    newPasswordInput = adminNewPasswordInput,
-    shouldRequireEmail = true
-} = {}) {
-    if (!currentEmailInput || !currentPasswordInput) return;
+function openAccountChangeModal(type) {
+    if (!accountChangeModal || !canManageAccounts()) return;
 
-    const currentEmail = currentEmailInput.value.trim().toLowerCase();
-    const currentPassword = currentPasswordInput.value;
-    const nextEmail = newEmailInput ? newEmailInput.value.trim().toLowerCase() : '';
-    const nextPassword = newPasswordInput ? newPasswordInput.value : '';
+    const account = accounts[accountSettingsIndex];
+    if (!account) return;
 
-    if (!currentEmail || !currentPassword) {
-        setCredentialsMessage('Current email and current password are required.', true);
+    accountChangeState = {
+        type: type === 'password' ? 'password' : 'email',
+        targetEmail: (account.email || '').trim().toLowerCase(),
+        targetName: account.name || 'Staff account',
+        targetRole: account.role || 'Staff',
+        code: ''
+    };
+
+    if (acmTitle) {
+        acmTitle.textContent = type === 'password' ? 'Change Password' : 'Change Email';
+    }
+    if (acmRequestDescription) {
+        acmRequestDescription.textContent = `Enter the current admin password to authorize the change for ${account.name || 'this account'} (${account.email || ''}). We will email a 6-digit verification code to the admin address before the change is applied.`;
+    }
+
+    if (acmAdminPasswordInput) acmAdminPasswordInput.value = '';
+    if (acmCodeInput) acmCodeInput.value = '';
+    if (acmNewEmailInput) acmNewEmailInput.value = '';
+    if (acmNewPasswordInput) acmNewPasswordInput.value = '';
+    if (acmNewPasswordConfirmInput) acmNewPasswordConfirmInput.value = '';
+    acmShowError(acmRequestError, '');
+    acmShowError(acmCodeError, '');
+    acmShowError(acmNewValueError, '');
+    acmShowStatus('');
+
+    acmShowStep('request');
+    accountChangeModal.hidden = false;
+    accountChangeModal.classList.add('active');
+    accountChangeModal.setAttribute('aria-hidden', 'false');
+
+    window.setTimeout(() => {
+        if (acmAdminPasswordInput) acmAdminPasswordInput.focus();
+    }, 50);
+}
+
+function closeAccountChangeModal() {
+    if (!accountChangeModal) return;
+    accountChangeModal.hidden = true;
+    accountChangeModal.classList.remove('active');
+    accountChangeModal.setAttribute('aria-hidden', 'true');
+    accountChangeState = { type: null, targetEmail: '', targetName: '', targetRole: '', code: '' };
+    acmShowStatus('');
+}
+
+function showAccountChangeSuccess(title, text) {
+    if (acmSuccessTitle) acmSuccessTitle.textContent = title;
+    if (acmSuccessText) acmSuccessText.textContent = text;
+    acmShowStep('success');
+}
+
+async function acmRequestCode() {
+    if (!accountChangeState.targetEmail) return;
+    const adminPassword = acmAdminPasswordInput ? acmAdminPasswordInput.value : '';
+    if (!adminPassword) {
+        acmShowError(acmRequestError, 'Enter the current admin password.');
+        if (acmAdminPasswordInput) acmAdminPasswordInput.focus();
         return;
     }
 
-    const emailChangeRequested = shouldRequireEmail && nextEmail !== '';
-    const passwordChangeRequested = !shouldRequireEmail && nextPassword !== '';
-    if (!emailChangeRequested && !passwordChangeRequested) {
-        setCredentialsMessage('Please complete the new email or password field before requesting the code.', true);
-        return;
-    }
-
-    if (emailChangeRequested && !isGmailAddress(nextEmail)) {
-        setCredentialsMessage('Admin email must be a Gmail address.', true);
-        return;
-    }
-
-    // Mirror of the server's strong password policy (12+ chars, complexity).
-    if (nextPassword !== '' && (nextPassword.length < 12 || !/[A-Z]/.test(nextPassword) || !/[a-z]/.test(nextPassword) || !/[0-9]/.test(nextPassword))) {
-        setCredentialsMessage('Admin password must be at least 12 characters and include uppercase, lowercase, and a number.', true);
-        return;
-    }
-
+    acmShowError(acmRequestError, '');
+    acmSetBusy(acmRequestBtn, true, 'Sending…');
     try {
-        const headers = await withCsrfHeaders({
-            'Content-Type': 'application/json'
-        });
-
-        const response = await fetch(getApiUrl('api/request_admin_credentials_change.php'), {
+        const headers = await withCsrfHeaders({ 'Content-Type': 'application/json' });
+        const response = await fetch(getApiUrl('api/request_account_change.php'), {
             method: 'POST',
             headers,
             body: JSON.stringify({
-                currentEmail,
-                currentPassword,
-                newEmail: shouldRequireEmail ? nextEmail : currentEmail,
-                newPassword: shouldRequireEmail ? nextPassword : nextPassword
+                targetEmail: accountChangeState.targetEmail,
+                changeType: accountChangeState.type,
+                adminPassword
             }),
             cache: 'no-store'
         });
@@ -3721,112 +3813,291 @@ async function requestAdminCredentialsChange({
         }
 
         if (payload.delivered === false) {
-            throw new Error(payload.error || 'Email was not delivered. Check Laravel SMTP settings and try again.');
+            throw new Error(payload.warning || payload.error || 'Email was not delivered. Check Laravel SMTP settings and try again.');
         }
 
-        setCredentialsMessage('Verification code sent to current admin email. Enter code to apply changes.');
+        if (acmSentToText) {
+            const admin = accounts.find((acc) => acc.role === 'Admin');
+            acmSentToText.textContent = admin && admin.email ? admin.email : 'the admin email';
+        }
+        if (acmCodeInput) acmCodeInput.value = '';
+        acmShowError(acmCodeError, '');
+        acmShowStatus('');
+        acmShowStep('code');
+        window.setTimeout(() => {
+            if (acmCodeInput) acmCodeInput.focus();
+        }, 50);
     } catch (error) {
-        setCredentialsMessage(error.message || 'Unable to send verification code.', true);
+        acmShowError(acmRequestError, error.message || 'Unable to send verification code.');
+    } finally {
+        acmSetBusy(acmRequestBtn, false);
     }
 }
 
-async function confirmAdminCredentialsChange(event, formType = 'email') {
-    if (event && event.preventDefault) event.preventDefault();
-
-    const isEmailForm = formType === 'email';
-    const currentEmailInput = isEmailForm ? adminCurrentEmailInput : adminPasswordCurrentEmailInput;
-    const currentPasswordInput = isEmailForm ? adminCurrentPasswordInput : adminPasswordCurrentPasswordInput;
-    const codeInput = isEmailForm ? adminChangeCodeInput : adminPasswordChangeCodeInput;
-    const nextEmailInput = isEmailForm ? adminNewEmailInput : null;
-    const nextPasswordInput = isEmailForm ? adminNewPasswordInput : adminPasswordNewPasswordInput;
-
-    if (!currentEmailInput || !currentPasswordInput || !codeInput) return;
-
-    const currentEmail = currentEmailInput.value.trim().toLowerCase();
-    const currentPassword = currentPasswordInput.value;
-    const code = codeInput.value.trim();
-    if (!currentEmail || !currentPassword || !code) {
-        setCredentialsMessage('Current email, current password, and verification code are required.', true);
+async function acmVerifyCode() {
+    if (!accountChangeState.targetEmail) return;
+    const code = (acmCodeInput ? acmCodeInput.value : '').trim();
+    if (!code) {
+        acmShowError(acmCodeError, 'Enter the verification code.');
+        if (acmCodeInput) acmCodeInput.focus();
         return;
     }
 
+    acmShowError(acmCodeError, '');
+    acmShowStatus('Verifying code…');
+    acmSetBusy(acmCodeBtn, true, 'Verifying…');
     try {
-        const headers = await withCsrfHeaders({
-            'Content-Type': 'application/json'
-        });
-
-        const response = await fetch(getApiUrl('api/confirm_admin_credentials_change.php'), {
+        const headers = await withCsrfHeaders({ 'Content-Type': 'application/json' });
+        const response = await fetch(getApiUrl('api/verify_account_change_code.php'), {
             method: 'POST',
             headers,
-            body: JSON.stringify({ currentEmail, currentPassword, code }),
+            body: JSON.stringify({
+                targetEmail: accountChangeState.targetEmail,
+                changeType: accountChangeState.type,
+                code
+            }),
             cache: 'no-store'
         });
 
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload.success) {
-            throw new Error(payload.error || `Unable to apply credentials change (HTTP ${response.status})`);
+            throw new Error(payload.error || `Unable to verify code (HTTP ${response.status})`);
+        }
+
+        accountChangeState.code = code;
+        acmShowStatus('');
+
+        if (accountChangeState.type === 'email') {
+            if (acmNewValueTitle) acmNewValueTitle.textContent = 'Set New Email';
+            if (acmNewValueDescription) {
+                acmNewValueDescription.textContent = `Choose the new Gmail address for ${accountChangeState.targetName} (${accountChangeState.targetEmail}).`;
+            }
+            if (acmNewEmailInput) {
+                acmNewEmailInput.hidden = false;
+                acmNewEmailInput.required = true;
+            }
+            if (acmNewPasswordInput) {
+                acmNewPasswordInput.hidden = true;
+                acmNewPasswordInput.required = false;
+                acmNewPasswordInput.value = '';
+            }
+            if (acmNewPasswordConfirmInput) {
+                acmNewPasswordConfirmInput.hidden = true;
+                acmNewPasswordConfirmInput.required = false;
+                acmNewPasswordConfirmInput.value = '';
+            }
+        } else {
+            if (acmNewValueTitle) acmNewValueTitle.textContent = 'Set New Password';
+            if (acmNewValueDescription) {
+                const minLength = accountChangeState.targetRole === 'Admin' ? 'at least 12' : 'at least 8';
+                acmNewValueDescription.textContent = `Choose a new password for ${accountChangeState.targetName} (${accountChangeState.targetEmail}). It must be ${minLength} characters and include uppercase, lowercase, and a number.`;
+            }
+            if (acmNewEmailInput) {
+                acmNewEmailInput.hidden = true;
+                acmNewEmailInput.required = false;
+                acmNewEmailInput.value = '';
+            }
+            if (acmNewPasswordInput) {
+                acmNewPasswordInput.hidden = false;
+                acmNewPasswordInput.required = true;
+                acmNewPasswordInput.minLength = accountChangeState.targetRole === 'Admin' ? 12 : 8;
+            }
+            if (acmNewPasswordConfirmInput) {
+                acmNewPasswordConfirmInput.hidden = false;
+                acmNewPasswordConfirmInput.required = true;
+                acmNewPasswordConfirmInput.minLength = accountChangeState.targetRole === 'Admin' ? 12 : 8;
+            }
+        }
+
+        acmShowError(acmNewValueError, '');
+        acmShowStep('newValue');
+        window.setTimeout(() => {
+            if (accountChangeState.type === 'email' && acmNewEmailInput) {
+                acmNewEmailInput.focus();
+            } else if (acmNewPasswordInput) {
+                acmNewPasswordInput.focus();
+            }
+        }, 50);
+    } catch (error) {
+        acmShowError(acmCodeError, error.message || 'Invalid or expired verification code.');
+    } finally {
+        acmSetBusy(acmCodeBtn, false);
+    }
+}
+
+async function acmApplyChange() {
+    if (!accountChangeState.targetEmail || !accountChangeState.code) return;
+
+    let newEmail = '';
+    let newPassword = '';
+    let newPasswordConfirmation = '';
+
+    if (accountChangeState.type === 'email') {
+        newEmail = (acmNewEmailInput ? acmNewEmailInput.value : '').trim().toLowerCase();
+        if (!newEmail) {
+            acmShowError(acmNewValueError, 'Enter the new Gmail address.');
+            if (acmNewEmailInput) acmNewEmailInput.focus();
+            return;
+        }
+        if (!isGmailAddress(newEmail)) {
+            acmShowError(acmNewValueError, 'New email must be a Gmail address.');
+            return;
+        }
+        if (newEmail === accountChangeState.targetEmail) {
+            acmShowError(acmNewValueError, 'New email must be different from the current email.');
+            return;
+        }
+    } else {
+        newPassword = acmNewPasswordInput ? acmNewPasswordInput.value : '';
+        newPasswordConfirmation = acmNewPasswordConfirmInput ? acmNewPasswordConfirmInput.value : '';
+        if (!newPassword) {
+            acmShowError(acmNewValueError, 'Enter a new password.');
+            if (acmNewPasswordInput) acmNewPasswordInput.focus();
+            return;
+        }
+        if (newPassword !== newPasswordConfirmation) {
+            acmShowError(acmNewValueError, 'The passwords do not match.');
+            if (acmNewPasswordConfirmInput) acmNewPasswordConfirmInput.focus();
+            return;
+        }
+        const minLength = accountChangeState.targetRole === 'Admin' ? 12 : 8;
+        if (newPassword.length < minLength || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+            acmShowError(acmNewValueError, `Password must be at least ${minLength} characters and include uppercase, lowercase, and a number.`);
+            return;
+        }
+    }
+
+    acmShowError(acmNewValueError, '');
+    acmSetBusy(acmNewValueBtn, true, 'Applying…');
+    try {
+        const headers = await withCsrfHeaders({ 'Content-Type': 'application/json' });
+        const response = await fetch(getApiUrl('api/confirm_account_change.php'), {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                targetEmail: accountChangeState.targetEmail,
+                changeType: accountChangeState.type,
+                code: accountChangeState.code,
+                newEmail,
+                newPassword,
+                newPasswordConfirmation
+            }),
+            cache: 'no-store'
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || `Unable to apply the change (HTTP ${response.status})`);
         }
 
         if (Array.isArray(payload.accounts)) {
             applyStaffAccountsSnapshot(payload.accounts);
-            renderAccounts();
+        }
+        void loadStaffAccountsFromServer(true);
+
+        const changedTargetEmail = accountChangeState.type === 'email' ? newEmail : accountChangeState.targetEmail;
+        const isCurrentAdminSession = getCurrentStaffRole() === 'Admin'
+            && (getCurrentStaffEmail() || '').toLowerCase() === accountChangeState.targetEmail;
+
+        if (accountChangeState.type === 'email') {
+            showAccountChangeSuccess('Email Updated', `${accountChangeState.targetName}'s email is now ${newEmail}.`);
+        } else {
+            showAccountChangeSuccess('Password Updated', `${accountChangeState.targetName}'s password was changed successfully.`);
         }
 
-        const nextEmail = nextEmailInput ? nextEmailInput.value.trim().toLowerCase() : currentEmail;
-        const nextPassword = nextPasswordInput ? nextPasswordInput.value : '';
-
-        // The credentials change revokes every previously issued session token,
-        // so re-authenticate to obtain a fresh token for the restored session.
-        // Every login requires an emailed verification code, so the re-auth may
-        // need the same code-entry step as a normal login.
-        if (nextEmail && nextPassword) {
-            const deviceToken = getOrCreateDeviceToken();
-            let reAuth = await authenticateStaffAccount(nextEmail, nextPassword, 'Admin', deviceToken, true);
-            if (reAuth && reAuth.needsDeviceVerification) {
-                const code = await requestDeviceVerificationCode(reAuth.warning || '');
-                if (code) {
-                    reAuth = await verifyDeviceLogin(nextEmail, nextPassword, code, deviceToken, false);
-                }
+        // The admin session email follows the admin account when its own email
+        // is changed and the change revoked the current session token.
+        if (isCurrentAdminSession && accountChangeState.type === 'email') {
+            if (emailInput) emailInput.value = changedTargetEmail;
+            saveStaffSession('Admin', changedTargetEmail, false);
+            updateDashboardProfile();
+            skipNextLogoutValidation = true;
+            window.setTimeout(() => void restoreStaffSession(), 0);
+        }
+        void logStaffActivity(
+            accountChangeState.type === 'email' ? 'account_email_changed' : 'account_password_changed',
+            `${accountChangeState.targetName} (${accountChangeState.targetRole})`,
+            {
+                target_email: accountChangeState.targetEmail,
+                next_email: changedTargetEmail
             }
-            if (reAuth && reAuth.success) {
-                if (selectedRoleInput) {
-                    selectedRoleInput.value = 'Admin';
-                }
-                if (emailInput) {
-                    emailInput.value = nextEmail;
-                }
-                if (passwordInput) {
-                    passwordInput.value = nextPassword;
-                }
-                saveStaffSession('Admin', nextEmail, false);
-                updateDashboardProfile();
-            }
-        }
-
-        skipNextLogoutValidation = true;
-        await loadStaffAccountsFromServer(true);
-        restoreStaffSession();
-        await loadAdminCredentials();
-
-        if (isEmailForm && credentialsForm) {
-            credentialsForm.reset();
-        }
-        if (!isEmailForm && passwordCredentialsForm) {
-            passwordCredentialsForm.reset();
-        }
-        if (adminCurrentEmailInput) {
-            const admin = accounts.find((account) => account.role === 'Admin');
-            adminCurrentEmailInput.value = admin ? admin.email : currentEmail;
-        }
-        if (adminPasswordCurrentEmailInput) {
-            const admin = accounts.find((account) => account.role === 'Admin');
-            adminPasswordCurrentEmailInput.value = admin ? admin.email : currentEmail;
-        }
-        setCredentialsMessage('Admin credentials updated successfully.');
+        );
     } catch (error) {
-        setCredentialsMessage(error.message || 'Unable to verify code.', true);
+        acmShowError(acmNewValueError, error.message || 'Unable to apply the change.');
+    } finally {
+        acmSetBusy(acmNewValueBtn, false);
     }
 }
+
+/* ---- Remove account (confirmation then delete) ----------------------- */
+
+async function removeSelectedAccount() {
+    const account = accounts[accountSettingsIndex];
+    if (!account) return;
+
+    if (account.role === 'Admin') {
+        await showStaffNotice('The admin account cannot be removed.', true);
+        return;
+    }
+
+    const confirmed = await showStaffConfirm(
+        `Remove ${account.name || 'this account'} (${account.email || ''})? This permanently deletes the account and revokes its access. This cannot be undone.`,
+        { title: 'Confirm Delete Account', confirmLabel: 'Yes', cancelLabel: 'No' }
+    );
+    if (!confirmed) return;
+
+    const index = accountSettingsIndex;
+    const removedAccount = accounts[index];
+
+    const deleteButton = removeAccountOptionBtn;
+    if (deleteButton) acmSetBusy(deleteButton, true, 'Removing…');
+    try {
+        accounts.splice(index, 1);
+        window.motasteStaffAccounts = accounts;
+        const saveResult = await saveStaffAccountsToServer();
+        if (!saveResult.success) {
+            accounts.splice(index, 0, removedAccount);
+            window.motasteStaffAccounts = accounts;
+            await showStaffNotice(`Unable to remove the account on the server. ${saveResult.error || 'Please try again.'}`, true);
+            return;
+        }
+
+        if (removedAccount) {
+            void logStaffActivity('account_deleted', `${removedAccount.name} (${removedAccount.role})`, {
+                email: removedAccount.email,
+                role: removedAccount.role
+            });
+        }
+        void loadOrderLogsFromServer(true);
+
+        renderAccounts();
+        closeAccountSettings();
+        if (accountManagementSection) accountManagementSection.hidden = false;
+        await showStaffNotice('Account removed successfully.');
+
+        // If the admin removed their own (non-admin) session, force a logout.
+        const currentRole = getCurrentStaffRole();
+        const currentEmail = (getCurrentStaffEmail() || '').trim().toLowerCase();
+        const removedEmail = (removedAccount.email || '').trim().toLowerCase();
+        if (currentRole === removedAccount.role && currentEmail === removedEmail) {
+            clearStaffSession();
+            if (selectedRoleInput) selectedRoleInput.value = '';
+            if (emailInput) emailInput.value = '';
+            if (passwordInput) passwordInput.value = '';
+            if (loginFields) loginFields.hidden = false;
+            if (modalTitle) modalTitle.textContent = 'Staff Login';
+            document.body.classList.remove('auth');
+            updateDashboardProfile();
+            setAuthButtonsVisible(false);
+            updateAccountManagementAccess();
+            setDashboardPanelState(false);
+        }
+    } finally {
+        if (deleteButton) acmSetBusy(deleteButton, false);
+    }
+}
+
+/* ---- Account settings navigation events ------------------------------ */
 
 if (accountManagementLink && accountManagementSection) {
     accountManagementLink.addEventListener('click', (event) => {
@@ -3834,20 +4105,166 @@ if (accountManagementLink && accountManagementSection) {
         if (!canManageAccounts()) {
             return;
         }
-        const showAccountManagement = accountManagementSection.hidden;
-        accountManagementSection.hidden = !accountManagementSection.hidden;
+        showDashboardSection(accountManagementSection);
+    });
+}
 
-        if (showAccountManagement && salesSection) {
-            salesSection.hidden = true;
+if (accountSettingsBackBtn) {
+    accountSettingsBackBtn.addEventListener('click', () => {
+        closeAccountSettings();
+        if (accountManagementSection) accountManagementSection.hidden = false;
+        if (accountList) renderAccounts();
+    });
+}
+
+if (changeEmailOptionBtn) {
+    changeEmailOptionBtn.addEventListener('click', () => {
+        if (!canManageAccounts()) {
+            showStaffNotice('Only the admin can manage accounts.', true);
+            return;
         }
+        openAccountChangeModal('email');
+    });
+}
 
-        // Admin credential changes live in this section, so the current admin
-        // Gmail is refreshed each time it is opened.
-        if (showAccountManagement) {
-            void loadAdminCredentials();
+if (changePasswordOptionBtn) {
+    changePasswordOptionBtn.addEventListener('click', () => {
+        if (!canManageAccounts()) {
+            showStaffNotice('Only the admin can manage accounts.', true);
+            return;
+        }
+        openAccountChangeModal('password');
+    });
+}
+
+if (removeAccountOptionBtn) {
+    removeAccountOptionBtn.addEventListener('click', () => {
+        if (!canManageAccounts()) {
+            showStaffNotice('Only the admin can manage accounts.', true);
+            return;
+        }
+        void removeSelectedAccount();
+    });
+}
+
+/* ---- Account change wizard events ------------------------------------- */
+
+if (acmRequestBtn) {
+    acmRequestBtn.addEventListener('click', () => {
+        void acmRequestCode();
+    });
+}
+
+if (acmCodeBtn) {
+    acmCodeBtn.addEventListener('click', () => {
+        void acmVerifyCode();
+    });
+}
+
+if (acmResendBtn) {
+    acmResendBtn.addEventListener('click', () => {
+        if (!accountChangeState.targetEmail) return;
+        acmShowStep('request');
+        if (acmAdminPasswordInput) acmAdminPasswordInput.value = '';
+        acmShowError(acmRequestError, '');
+        if (accountChangeState.type === 'email') {
+            if (acmTitle) acmTitle.textContent = 'Change Email';
+        } else if (acmTitle) {
+            acmTitle.textContent = 'Change Password';
+        }
+        window.setTimeout(() => {
+            if (acmAdminPasswordInput) acmAdminPasswordInput.focus();
+        }, 50);
+    });
+}
+
+if (acmNewValueBtn) {
+    acmNewValueBtn.addEventListener('click', () => {
+        void acmApplyChange();
+    });
+}
+
+if (acmCodeBackBtn) {
+    acmCodeBackBtn.addEventListener('click', () => {
+        acmShowStep('request');
+        if (acmAdminPasswordInput) acmAdminPasswordInput.value = '';
+        acmShowError(acmRequestError, '');
+        window.setTimeout(() => {
+            if (acmAdminPasswordInput) acmAdminPasswordInput.focus();
+        }, 50);
+    });
+}
+
+if (acmNewValueBackBtn) {
+    acmNewValueBackBtn.addEventListener('click', () => {
+        acmShowStep('code');
+        if (acmCodeInput) acmCodeInput.value = '';
+        acmShowError(acmCodeError, '');
+        window.setTimeout(() => {
+            if (acmCodeInput) acmCodeInput.focus();
+        }, 50);
+    });
+}
+
+if (acmCodeInput) {
+    acmCodeInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            void acmVerifyCode();
         }
     });
 }
+
+if (acmNewPasswordInput && acmNewPasswordConfirmInput) {
+    [acmNewPasswordInput, acmNewPasswordConfirmInput].forEach((input) => {
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                void acmApplyChange();
+            }
+        });
+    });
+}
+
+function acmShowSuccessDone() {
+    const changeType = accountChangeState.type;
+    const targetEmail = accountChangeState.targetEmail;
+    const targetName = accountChangeState.targetName;
+    const account = accounts[accountSettingsIndex];
+    closeAccountChangeModal();
+    closeAccountSettings();
+    if (accountManagementSection) accountManagementSection.hidden = false;
+    if (accountList) renderAccounts();
+    void showStaffNotice(
+        changeType === 'email'
+            ? `${targetName}'s email was updated to ${account ? account.email : targetEmail}.`
+            : `${targetName}'s password was updated successfully.`
+    );
+}
+
+if (acmSuccessBtn) {
+    acmSuccessBtn.addEventListener('click', acmShowSuccessDone);
+}
+
+if (accountChangeCloseBtn) {
+    accountChangeCloseBtn.addEventListener('click', closeAccountChangeModal);
+}
+
+if (acmRequestCancelBtn) {
+    acmRequestCancelBtn.addEventListener('click', closeAccountChangeModal);
+}
+
+if (accountChangeModal) {
+    accountChangeModal.addEventListener('click', (event) => {
+        if (event.target === accountChangeModal) closeAccountChangeModal();
+    });
+}
+
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && accountChangeModal && !accountChangeModal.hidden) {
+        closeAccountChangeModal();
+    }
+});
 
 if (loginLogsLink && loginLogsSection) {
     loginLogsLink.addEventListener('click', (event) => {
@@ -3889,9 +4306,19 @@ function updateAccountManagementAccess() {
         return;
     }
 
-    const activeSection = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, highlightsSection, loginLogsSection]
+    const activeSection = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, accountSettingsSection, highlightsSection, loginLogsSection]
         .find((section) => section && section.hidden === false);
     if (!activeSection) return;
+
+    // The account-settings view is a sub-screen of account management: both
+    // need the admin role, and returning to the list is not a section change.
+    if (activeSection.id === 'account-settings') {
+        if (!canManageAccounts()) {
+            closeAccountSettings();
+            showDashboardSection(overviewSection || accountManagementSection);
+        }
+        return;
+    }
 
     const allowedSectionId = resolveAccessibleSection(activeSection.id);
     if (allowedSectionId !== activeSection.id) {
@@ -5846,7 +6273,6 @@ if (toggleAccountFormBtn) {
             showStaffNotice('Only the admin can manage accounts.', true);
             return;
         }
-        accountEditIndex = null;
         renderAccounts();
         toggleAccountForm(true);
         if (accountNameInput) {
@@ -5864,7 +6290,6 @@ if (cancelAccountFormBtn) {
 // Full names accept letters and name separators only; digits and symbols are
 // dropped at input time so the submit-time policy check rarely trips.
 attachStaffNameInputFilter(accountNameInput);
-attachStaffNameInputFilter(staffEditNameInput);
 
 if (accountForm) {
     accountForm.addEventListener('submit', async (event) => {
@@ -5916,51 +6341,31 @@ if (accountForm) {
             return;
         }
 
-        const duplicateIndex = accounts.findIndex((entry, idx) => idx !== accountEditIndex && (entry.email || '').toLowerCase() === account.email);
+        const duplicateIndex = accounts.findIndex((entry) => (entry.email || '').toLowerCase() === account.email);
         if (duplicateIndex >= 0) {
             await showStaffNotice('This email is already registered.', true);
             return;
         }
 
-        const previousAccount = accountEditIndex !== null ? accounts[accountEditIndex] : null;
-
-        if (accountEditIndex !== null && previousAccount) {
-            account.inviteConfirmed = previousAccount.inviteConfirmed;
-        }
+        account.inviteConfirmed = false;
 
         let invitePayload = null;
         const accountSubmitBtn = accountForm.querySelector('button[type="submit"]');
         setButtonLoading(accountSubmitBtn, true, 'Saving…');
-        if (accountEditIndex === null) {
-            try {
-                invitePayload = await sendStaffInviteEmail(account);
-            } catch (error) {
-                await showStaffNotice(error.message || 'Unable to send invite email.', true);
-                setButtonLoading(accountSubmitBtn, false);
-                return;
-            }
+        try {
+            invitePayload = await sendStaffInviteEmail(account);
+        } catch (error) {
+            await showStaffNotice(error.message || 'Unable to send invite email.', true);
+            setButtonLoading(accountSubmitBtn, false);
+            return;
         }
 
-        if (accountEditIndex !== null) {
-            accounts[accountEditIndex] = account;
-            void logStaffActivity('account_updated', `${account.name} (${account.role})`, {
-                previous_name: previousAccount ? previousAccount.name : null,
-                previous_role: previousAccount ? previousAccount.role : null,
-                previous_email: previousAccount ? previousAccount.email : null,
-                password_changed: previousAccount ? previousAccount.password !== account.password : false,
-                invite_confirmation_reset: true,
-                next_name: account.name,
-                next_role: account.role,
-                next_email: account.email
-            });
-        } else {
-            accounts.push(account);
-            void logStaffActivity('account_created', `${account.name} (${account.role})`, {
-                email: account.email,
-                role: account.role,
-                invite_confirmation_required: true
-            });
-        }
+        accounts.push(account);
+        void logStaffActivity('account_created', `${account.name} (${account.role})`, {
+            email: account.email,
+            role: account.role,
+            invite_confirmation_required: true
+        });
         void loadOrderLogsFromServer(true);
 
         window.motasteStaffAccounts = accounts;
@@ -5973,9 +6378,7 @@ if (accountForm) {
 
         renderAccounts();
         toggleAccountForm(false);
-        if (accountEditIndex !== null) {
-            await showStaffNotice('Staff account updated successfully.');
-        } else if (invitePayload && invitePayload.delivered === false) {
+        if (invitePayload && invitePayload.delivered === false) {
             await showStaffNotice(invitePayload.error || 'Invite email was not delivered. Check Laravel SMTP settings and try again.', true);
         } else {
             await showStaffNotice('Invite email sent. The staff account can login after confirming the email verification code.');
@@ -5985,308 +6388,39 @@ if (accountForm) {
 }
 
 if (accountList) {
-    accountList.addEventListener('click', async (event) => {
-        const button = event.target.closest('button');
-        if (!button) return;
+    accountList.addEventListener('click', (event) => {
+        const item = event.target.closest('.account-list-item');
+        if (!item) return;
 
-        const index = Number(button.dataset.index);
-
-        if (button.classList.contains('delete-btn')) {
-            const removedAccount = accounts[index];
-            if (removedAccount && removedAccount.role === 'Admin') {
-                await showStaffNotice('The admin account cannot be deleted.', true);
-                return;
-            }
-            setButtonLoading(button, true, 'Deleting…');
-            accounts.splice(index, 1);
-            window.motasteStaffAccounts = accounts;
-            const saveResult = await saveStaffAccountsToServer();
-            if (!saveResult.success) {
-                await showStaffNotice(`Unable to delete staff account on the server. ${saveResult.error || 'Please try again.'}`, true);
-                accounts.splice(index, 0, removedAccount);
-                window.motasteStaffAccounts = accounts;
-                renderAccounts();
-                setButtonLoading(button, false);
-                return;
-            }
-            if (removedAccount) {
-                void logStaffActivity('account_deleted', `${removedAccount.name} (${removedAccount.role})`, {
-                    email: removedAccount.email,
-                    role: removedAccount.role
-                });
-            }
-            void loadOrderLogsFromServer(true);
-            renderAccounts();
-            if (removedAccount) {
-                const currentRole = selectedRoleInput ? selectedRoleInput.value : '';
-                const currentEmail = emailInput ? emailInput.value.trim().toLowerCase() : '';
-                const removedEmail = (removedAccount.email || '').trim().toLowerCase();
-                if (currentRole === removedAccount.role && currentEmail === removedEmail) {
-                    clearStaffSession();
-                    if (selectedRoleInput) selectedRoleInput.value = '';
-                    if (emailInput) emailInput.value = '';
-                    if (passwordInput) passwordInput.value = '';
-                    if (loginFields) loginFields.hidden = false;
-                    if (modalTitle) modalTitle.textContent = 'Staff Login';
-                    document.body.classList.remove('auth');
-                    updateDashboardProfile();
-                    setAuthButtonsVisible(false);
-                    updateAccountManagementAccess();
-                    setDashboardPanelState(false);
-                }
-            }
-            return;
-        }
-
-        if (button.classList.contains('edit-btn')) {
-            const selectedAccount = accounts[index];
-            if (!selectedAccount) return;
-
-            if (accountForm) {
-                accountForm.hidden = true;
-            }
-
-            // Editing an account opens its panel in the same section: the admin
-            // panel for the main admin, the staff panel for cashier/inventory.
-            const adminPanel = document.getElementById('adminCredentialSettings');
-            if (adminPanel) adminPanel.hidden = true;
-            if (staffEditPanel) staffEditPanel.hidden = true;
-
-            if (selectedAccount.role === 'Admin') {
-                setAdminCredentialMode('email');
-                if (adminPanel) adminPanel.hidden = false;
-                void loadAdminCredentials();
-                window.setTimeout(() => {
-                    if (adminPanel) adminPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }, 50);
-            } else {
-                staffEditIndex = index;
-                if (staffEditPanel) {
-                    if (staffEditNameInput) staffEditNameInput.value = selectedAccount.name || '';
-                    if (staffEditRoleInput) staffEditRoleInput.value = selectedAccount.role || 'Cashier';
-                    if (staffEditEmailInput) staffEditEmailInput.value = selectedAccount.email || '';
-                    if (staffEditPasswordInput) staffEditPasswordInput.value = selectedAccount.password || '';
-                    if (staffEditPasswordConfirmationInput) staffEditPasswordConfirmationInput.value = '';
-                    const panelHeading = staffEditPanel.querySelector('h3');
-                    if (panelHeading) panelHeading.textContent = `Edit ${selectedAccount.role || 'Staff'} Account`;
-                    staffEditPanel.hidden = false;
-                    if (staffEditNameInput) staffEditNameInput.focus();
-                    window.setTimeout(() => {
-                        staffEditPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }, 50);
-                }
-            }
-            renderAccounts();
-        }
+        const index = Number(item.dataset.index);
+        if (!Number.isInteger(index) || index < 0 || index >= accounts.length) return;
+        openAccountSettings(index);
     });
 }
 
-if (staffEditForm) {
-    staffEditForm.addEventListener('submit', async (event) => {
+if (accountList) {
+    accountList.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+
+        const item = event.target.closest('.account-list-item');
+        if (!item) return;
+
         event.preventDefault();
-
-        if (!document.body.classList.contains('auth') || !(selectedRoleInput && selectedRoleInput.value === 'Admin')) {
-            await showStaffNotice('Only the admin can manage accounts.', true);
-            return;
-        }
-
-        if (staffEditIndex === null) {
-            closeAdminEditPanel();
-            renderAccounts();
-            return;
-        }
-
-        const index = staffEditIndex;
-        const updatedAccount = {
-            name: collapseNameWhitespace(staffEditNameInput ? staffEditNameInput.value : ''),
-            role: staffEditRoleInput ? staffEditRoleInput.value : '',
-            email: staffEditEmailInput ? staffEditEmailInput.value.trim().toLowerCase() : '',
-            password: staffEditPasswordInput ? staffEditPasswordInput.value : '',
-            password_confirmation: staffEditPasswordConfirmationInput ? staffEditPasswordConfirmationInput.value : '',
-            inviteConfirmed: false
-        };
-
-        if (!updatedAccount.name || !updatedAccount.role || !updatedAccount.email || !updatedAccount.password) {
-            await showStaffNotice('Please complete all account fields.', true);
-            return;
-        }
-
-        if (!isValidStaffName(updatedAccount.name)) {
-            await showStaffNotice('Full name may only contain letters, spaces, hyphens, apostrophes, and periods (2-80 characters).', true);
-            return;
-        }
-
-        if (updatedAccount.password !== updatedAccount.password_confirmation) {
-            await showStaffNotice('Password confirmation does not match.', true);
-            return;
-        }
-
-        if (updatedAccount.role !== 'Cashier' && updatedAccount.role !== 'Inventory Manager') {
-            await showStaffNotice('Only Cashier and Inventory Manager accounts can be managed here.', true);
-            return;
-        }
-
-        if (!isGmailAddress(updatedAccount.email)) {
-            await showStaffNotice('Only Gmail addresses are allowed for these accounts.', true);
-            return;
-        }
-
-        const duplicateIndex = accounts.findIndex((entry, idx) => idx !== index && (entry.email || '').toLowerCase() === updatedAccount.email);
-        if (duplicateIndex >= 0) {
-            await showStaffNotice('This email is already registered.', true);
-            return;
-        }
-
-        const staffSaveBtn = staffEditForm.querySelector('button[type="submit"]');
-        setButtonLoading(staffSaveBtn, true, 'Saving…');
-
-        const previousAccount = accounts[index] || null;
-        updatedAccount.inviteConfirmed = previousAccount ? previousAccount.inviteConfirmed : false;
-
-        accounts[index] = updatedAccount;
-        void logStaffActivity('account_updated', `${updatedAccount.name} (${updatedAccount.role})`, {
-            previous_name: previousAccount ? previousAccount.name : null,
-            previous_role: previousAccount ? previousAccount.role : null,
-            previous_email: previousAccount ? previousAccount.email : null,
-            password_changed: previousAccount ? previousAccount.password !== updatedAccount.password : false,
-            invite_confirmation_reset: true,
-            next_name: updatedAccount.name,
-            next_role: updatedAccount.role,
-            next_email: updatedAccount.email
-        });
-
-        window.motasteStaffAccounts = accounts;
-        const syncResult = await saveStaffAccountsToServer();
-        if (!syncResult.success) {
-            await showStaffNotice(`Unable to save staff account to the server. ${syncResult.error || 'Please try again or contact support.'}`, true);
-            setButtonLoading(staffSaveBtn, false);
-            return;
-        }
-
-        closeAdminEditPanel();
-        renderAccounts();
-        await showStaffNotice('Staff account updated successfully.');
-    });
-}
-
-if (closeStaffEditPanelBtn) {
-    closeStaffEditPanelBtn.addEventListener('click', () => {
-        closeAdminEditPanel();
-        renderAccounts();
-    });
-}
-
-if (toggleCredentialsFormBtn) {
-    toggleCredentialsFormBtn.addEventListener('click', () => {
-        if (!canAccessCredentials()) {
-            setCredentialsMessage('Only admin can change credentials.', true);
-            return;
-        }
-        setAdminCredentialMode('email');
-    });
-}
-
-if (togglePasswordFormBtn) {
-    togglePasswordFormBtn.addEventListener('click', () => {
-        if (!canAccessCredentials()) {
-            setCredentialsMessage('Only admin can change credentials.', true);
-            return;
-        }
-        setAdminCredentialMode('password');
-    });
-}
-
-const closeAdminEditPanelBtn = document.getElementById('closeAdminEditPanelBtn');
-if (closeAdminEditPanelBtn) {
-    closeAdminEditPanelBtn.addEventListener('click', () => {
-        closeAdminEditPanel();
-        renderAccounts();
-    });
-}
-
-if (requestCredentialsChangeBtn) {
-    requestCredentialsChangeBtn.addEventListener('click', async () => {
-        if (!canAccessCredentials()) {
-            setCredentialsMessage('Only admin can change credentials.', true);
-            return;
-        }
-        setButtonLoading(requestCredentialsChangeBtn, true, 'Requesting code…');
-        try {
-            await requestAdminCredentialsChange({
-                currentEmailInput: adminCurrentEmailInput,
-                currentPasswordInput: adminCurrentPasswordInput,
-                newEmailInput: adminNewEmailInput,
-                newPasswordInput: adminNewPasswordInput,
-                shouldRequireEmail: true
-            });
-        } finally {
-            setButtonLoading(requestCredentialsChangeBtn, false);
-        }
-    });
-}
-
-if (requestPasswordChangeBtn) {
-    requestPasswordChangeBtn.addEventListener('click', async () => {
-        if (!canAccessCredentials()) {
-            setCredentialsMessage('Only admin can change credentials.', true);
-            return;
-        }
-        setButtonLoading(requestPasswordChangeBtn, true, 'Requesting code…');
-        try {
-            await requestAdminCredentialsChange({
-                currentEmailInput: adminPasswordCurrentEmailInput,
-                currentPasswordInput: adminPasswordCurrentPasswordInput,
-                newEmailInput: null,
-                newPasswordInput: adminPasswordNewPasswordInput,
-                shouldRequireEmail: false
-            });
-        } finally {
-            setButtonLoading(requestPasswordChangeBtn, false);
-        }
-    });
-}
-
-if (credentialsForm) {
-    credentialsForm.addEventListener('submit', (event) => {
-        if (!canAccessCredentials()) {
-            event.preventDefault();
-            setCredentialsMessage('Only admin can change credentials.', true);
-            return;
-        }
-        const submitButton = credentialsForm.querySelector('button[type="submit"]');
-        setButtonLoading(submitButton, true, 'Applying…');
-        Promise.resolve(confirmAdminCredentialsChange(event, 'email')).finally(() => {
-            setButtonLoading(submitButton, false);
-        });
-    });
-}
-
-if (passwordCredentialsForm) {
-    passwordCredentialsForm.addEventListener('submit', (event) => {
-        if (!canAccessCredentials()) {
-            event.preventDefault();
-            setCredentialsMessage('Only admin can change credentials.', true);
-            return;
-        }
-        const submitButton = passwordCredentialsForm.querySelector('button[type="submit"]');
-        setButtonLoading(submitButton, true, 'Applying…');
-        Promise.resolve(confirmAdminCredentialsChange(event, 'password')).finally(() => {
-            setButtonLoading(submitButton, false);
-        });
+        const index = Number(item.dataset.index);
+        if (!Number.isInteger(index) || index < 0 || index >= accounts.length) return;
+        openAccountSettings(index);
     });
 }
 
 renderAccounts();
 toggleAccountForm(false);
-setAdminCredentialMode('email');
+
 if (isStaffPage) {
     scrubLegacyStaffSessionStorage();
     void ensureCsrfToken();
-    // Ensure dashboard is open by default for staff pages
     setDashboardPanelState(true);
     void loadStaffAccountsFromServer();
     void loadHighlightsFromServer();
-    void loadAdminCredentials();
     startStaffAccountsRefresh();
     void loadOrderLogsFromServer();
     startOrderLogsRefresh();
@@ -11841,7 +11975,7 @@ function showDashboardSection(section) {
         syncLogsDateFilterToToday();
     }
 
-    const sections = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, highlightsSection, loginLogsSection];
+    const sections = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, accountSettingsSection, highlightsSection, loginLogsSection];
     sections.forEach((el) => {
         if (!el) return;
         el.hidden = el !== section;
@@ -11850,8 +11984,10 @@ function showDashboardSection(section) {
     // Chart pan buttons need a refresh once the section is visible again.
     setupChartScrollControls();
 
+    // Switching back to the account list from another section resets the
+    // per-account settings sub-view so it doesn't stick open behind it.
     if (section === accountManagementSection) {
-        void loadAdminCredentials();
+        closeAccountSettings();
     }
 
     if (section === loginLogsSection) {
@@ -11874,6 +12010,7 @@ function showDashboardSection(section) {
             sales: salesLink,
             logs: logsLink,
             'account-management': accountManagementLink,
+            'account-settings': accountManagementLink,
             highlights: highlightsLink,
             'login-logs': loginLogsLink,
         };

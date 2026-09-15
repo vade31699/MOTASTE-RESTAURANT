@@ -9325,49 +9325,321 @@ body.staff-app .order-log-card .review-log-comment .review-log-comment-text {
 }
 
 /* ---------- Account management ---------- */
-body.staff-app .account-list li {
+body.staff-app .account-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Account rows are pure navigation now: no inline edit/delete buttons, the
+   whole row opens the per-account settings view. */
+body.staff-app .account-list-item {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 14px;
+    padding: 13px 16px;
     background: var(--staff-surface-2);
     border: 1px solid var(--staff-border);
-    border-radius: 12px;
+    border-radius: 14px;
     box-shadow: var(--staff-shadow-sm);
     color: var(--staff-text);
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, transform 0.15s ease;
 }
 
-body.staff-app .account-list span {
+body.staff-app .account-list-item:hover,
+body.staff-app .account-list-item:focus-visible {
+    background: var(--staff-surface-soft);
+    border-color: var(--staff-accent);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    outline: none;
+}
+
+body.staff-app .account-list-item:active {
+    transform: translateY(1px);
+}
+
+body.staff-app .account-list-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--staff-accent-soft);
+    color: var(--staff-accent-strong);
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1;
+    user-select: none;
+}
+
+body.staff-app .account-list-avatar.is-admin {
+    background: var(--staff-accent);
+    color: #fff;
+}
+
+body.staff-app .account-list-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1 1 auto;
     color: var(--staff-text);
 }
 
-body.staff-app .account-list .edit-btn {
-    background: var(--staff-accent-soft);
-    color: var(--staff-accent-strong);
-    border: 1px solid rgba(43, 174, 102, 0.35);
+body.staff-app .account-list-main strong {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--staff-text);
 }
 
-body.staff-app .account-list .delete-btn {
-    background: rgba(220, 38, 38, 0.1);
-    color: var(--staff-danger);
-    border: 1px solid rgba(220, 38, 38, 0.35);
+body.staff-app .account-list-main small {
+    font-size: 0.8rem;
+    color: var(--staff-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-/* The admin account lives in the same list; give its row a distinct tag and a
-   quiet highlight so it is identifiable without a separate section. */
+body.staff-app .account-list-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex: 0 0 auto;
+    color: var(--staff-text);
+}
+
 body.staff-app .account-list .account-role-tag {
-    display: inline-block;
-    padding: 2px 8px;
-    margin-right: 6px;
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
     background: var(--staff-accent);
     color: #fff;
-    border-radius: 5px;
+    border-radius: 6px;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    vertical-align: middle;
+    white-space: nowrap;
 }
 
-body.staff-app .account-list li.account-row-admin {
-    background: var(--staff-surface-2);
+body.staff-app .account-invite-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    white-space: nowrap;
+    color: var(--staff-muted);
+}
+
+body.staff-app .account-invite-status.is-confirmed {
+    color: var(--staff-accent-strong);
+}
+
+body.staff-app .account-list-chevron {
+    flex: 0 0 auto;
+    color: var(--staff-muted);
+    font-size: 0.8rem;
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+body.staff-app .account-list-item:hover .account-list-chevron,
+body.staff-app .account-list-item:focus-visible .account-list-chevron {
+    color: var(--staff-accent);
+    transform: translateX(2px);
+}
+
+/* The admin account lives in the same list; give its row a distinct tag and a
+   quiet highlight so it is identifiable without a separate section. */
+body.staff-app .account-list-item.account-row-admin {
     box-shadow: inset 3px 0 0 var(--staff-accent), var(--staff-shadow-sm);
+}
+
+/* ---------- Account settings (per-account navigation view) ---------- */
+body.staff-app .account-settings-back-btn {
+    margin-bottom: 14px;
+}
+
+body.staff-app .account-settings-summary {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    background: var(--staff-surface-2);
+    border: 1px solid var(--staff-border);
+    border-radius: 14px;
+    box-shadow: var(--staff-shadow-sm);
+}
+
+body.staff-app .account-settings-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--staff-accent-soft);
+    color: var(--staff-accent-strong);
+    font-size: 1.4rem;
+    font-weight: 800;
+    line-height: 1;
+    user-select: none;
+}
+
+body.staff-app .account-settings-avatar.is-admin {
+    background: var(--staff-accent);
+    color: #fff;
+}
+
+body.staff-app .account-settings-identity {
+    min-width: 0;
+}
+
+body.staff-app .account-settings-identity strong {
+    display: block;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--staff-text);
+}
+
+body.staff-app .account-settings-identity small {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.8rem;
+    color: var(--staff-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.staff-app .account-settings-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+body.staff-app .account-setting-option {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    width: 100%;
+    padding: 14px 16px;
+    text-align: left;
+    background: var(--staff-surface-2);
+    color: var(--staff-text);
+    border: 1px solid var(--staff-border);
+    border-radius: 12px;
+    box-shadow: var(--staff-shadow-sm);
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, transform 0.15s ease;
+}
+
+body.staff-app .account-setting-option:hover,
+body.staff-app .account-setting-option:focus-visible {
+    background: var(--staff-surface-soft);
+    border-color: var(--staff-accent);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    outline: none;
+}
+
+body.staff-app .account-setting-option:active {
+    transform: translateY(1px);
+}
+
+body.staff-app .account-setting-option-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--staff-accent-soft);
+    color: var(--staff-accent-strong);
+    font-size: 0.95rem;
+}
+
+body.staff-app .account-setting-option-text {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+body.staff-app .account-setting-option-text strong {
+    display: block;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--staff-text);
+}
+
+body.staff-app .account-setting-option-text small {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.76rem;
+    line-height: 1.4;
+    color: var(--staff-muted);
+}
+
+body.staff-app .account-setting-option-chevron {
+    flex: 0 0 auto;
+    color: var(--staff-muted);
+    font-size: 0.8rem;
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+body.staff-app .account-setting-option:hover .account-setting-option-chevron,
+body.staff-app .account-setting-option:focus-visible .account-setting-option-chevron {
+    color: var(--staff-accent);
+    transform: translateX(2px);
+}
+
+body.staff-app .account-setting-option-danger {
+    border-color: rgba(220, 38, 38, 0.35);
+}
+
+body.staff-app .account-setting-option-danger .account-setting-option-icon {
+    background: rgba(220, 38, 38, 0.1);
+    color: var(--staff-danger);
+}
+
+body.staff-app .account-setting-option-danger:hover,
+body.staff-app .account-setting-option-danger:focus-visible {
+    border-color: var(--staff-danger);
+    background: rgba(220, 38, 38, 0.06);
+}
+
+body.staff-app .account-settings .menu-order-message {
+    margin-top: 12px;
+}
+
+body.staff-app .account-list li.is-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 15px 16px;
+    background: var(--staff-surface-2);
+    border: 1px solid var(--staff-border);
+    border-radius: 14px;
+    box-shadow: var(--staff-shadow-sm);
+}
+
+@media (max-width: 900px) {
+    body.staff-app .account-list-item {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    body.staff-app .account-list-meta {
+        align-items: flex-start;
+    }
 }
 
 /* Account forms: the add-staff form, the staff edit panel, and the admin

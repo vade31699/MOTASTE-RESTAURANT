@@ -810,12 +810,11 @@
 
     <section id="account-management" class="account-management" hidden>
         <h2>Account Management</h2>
-        <p>Manage every account from one list, including the admin. Click Edit to change an account's details, password, or email. Staff invites are Gmail-only and require email confirmation before first login.</p>
+        <p>Manage every account from one list, including the admin. Tap an account to open its settings (change email, change password, or remove the account). Sensitive changes require a verification code sent to the admin email. Staff invites are Gmail-only and require email confirmation before first login.</p>
 
         <button type="button" id="toggleAccountFormBtn" class="add-staff-btn">Add Staff Account</button>
 
-        <!-- Add form. Field, card, and action-row markup is identical to the
-             staff and admin edit panels below so all three read as one form. -->
+        <!-- Add form for Cashier / Inventory Manager accounts. -->
         <form id="accountForm" class="account-form" hidden>
             <h3>New Staff Account</h3>
             <p>Create a Cashier or Inventory Manager account. The invite email must be confirmed before the first login.</p>
@@ -855,117 +854,54 @@
         </form>
 
         <ul id="accountList" class="account-list"></ul>
+    </section>
 
-        <div id="adminCredentialSettings" hidden>
-            <h3>Edit Admin Account</h3>
-            <p>Changing the admin Gmail or password requires a verification code sent to the current admin email.</p>
+    <section id="account-settings" class="account-management account-settings" hidden>
+        <button type="button" id="accountSettingsBackBtn" class="secondary-btn account-settings-back-btn">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to Accounts
+        </button>
 
-            <!-- Same segmented switch the portal uses elsewhere (see the Orders
-                 and Export tabs). It replaces the two loose buttons that used to
-                 sit between the heading and the forms. -->
-            <div class="admin-edit-mode-switch" aria-label="Admin credential change type">
-                <button type="button" id="toggleCredentialsFormBtn" class="admin-edit-mode-btn active" aria-pressed="true">Email &amp; Password</button>
-                <button type="button" id="togglePasswordFormBtn" class="admin-edit-mode-btn" aria-pressed="false">Password Only</button>
+        <h2>Account Settings</h2>
+        <p>Choose what to change for this account. Email and password changes require a verification code sent to the admin email before they are applied.</p>
+
+        <div id="accountSettingsSummary" class="account-settings-summary">
+            <span id="accountSettingsAvatar" class="account-settings-avatar" aria-hidden="true"></span>
+            <div class="account-settings-identity">
+                <strong id="accountSettingsName"></strong>
+                <small id="accountSettingsMeta"></small>
             </div>
-
-            <form id="credentialsForm" class="account-form">
-                <p class="account-form-note">Enter the current admin credentials, then the new Gmail. We email a verification code to the current admin address and apply the change once it is entered.</p>
-                <div class="floating-field">
-                    <input type="email" id="adminCurrentEmail" placeholder=" " readonly autocomplete="off">
-                    <label for="adminCurrentEmail">Current admin Gmail</label>
-                </div>
-                <div class="floating-field">
-                    <input type="password" id="adminCurrentPassword" placeholder=" " required autocomplete="current-password">
-                    <label for="adminCurrentPassword">Current admin password</label>
-                </div>
-                <div class="floating-field">
-                    <input type="email" id="adminNewEmail" placeholder=" " required autocomplete="off">
-                    <label for="adminNewEmail">New admin Gmail</label>
-                </div>
-                <div class="floating-field">
-                    <input type="password" id="adminNewPassword" placeholder=" " minlength="12" required autocomplete="new-password">
-                    <label for="adminNewPassword">New admin password</label>
-                    <small class="field-helper">Use at least 12 characters with uppercase, lowercase, and a number. Common passwords are rejected.</small>
-                </div>
-                <div class="floating-field">
-                    <input type="text" id="adminChangeCode" placeholder=" " maxlength="8" inputmode="numeric" autocomplete="one-time-code">
-                    <label for="adminChangeCode">Verification code</label>
-                    <small class="field-helper">Sent to the current admin email after you request a code.</small>
-                </div>
-                <div class="account-form-actions">
-                    <button type="button" id="requestCredentialsChangeBtn" class="secondary-btn">Send Verification Code</button>
-                    <button type="submit" id="confirmCredentialsChangeBtn">Verify and Apply</button>
-                </div>
-            </form>
-
-            <form id="passwordCredentialsForm" class="account-form" hidden>
-                <p class="account-form-note">Confirm the current admin password, choose the new one, then enter the verification code we email to the current admin address.</p>
-                <div class="floating-field">
-                    <input type="email" id="adminPasswordCurrentEmail" placeholder=" " readonly autocomplete="off">
-                    <label for="adminPasswordCurrentEmail">Current admin Gmail</label>
-                </div>
-                <div class="floating-field">
-                    <input type="password" id="adminPasswordCurrentPassword" placeholder=" " required autocomplete="current-password">
-                    <label for="adminPasswordCurrentPassword">Current admin password</label>
-                </div>
-                <div class="floating-field">
-                    <input type="password" id="adminPasswordNewPassword" placeholder=" " minlength="12" required autocomplete="new-password">
-                    <label for="adminPasswordNewPassword">New admin password</label>
-                    <small class="field-helper">Use at least 12 characters with uppercase, lowercase, and a number. Common passwords are rejected.</small>
-                </div>
-                <div class="floating-field">
-                    <input type="text" id="adminPasswordChangeCode" placeholder=" " maxlength="8" inputmode="numeric" autocomplete="one-time-code">
-                    <label for="adminPasswordChangeCode">Verification code</label>
-                    <small class="field-helper">Sent to the current admin email after you request a code.</small>
-                </div>
-                <div class="account-form-actions">
-                    <button type="button" id="requestPasswordChangeBtn" class="secondary-btn">Send Verification Code</button>
-                    <button type="submit" id="confirmPasswordChangeBtn">Verify and Apply</button>
-                </div>
-            </form>
-
-            <div class="account-form-actions">
-                <button type="button" id="closeAdminEditPanelBtn" class="secondary-btn">Cancel</button>
-            </div>
-            <p id="credentialsMessage" class="menu-order-message" aria-live="polite"></p>
         </div>
 
-        <div id="staffEditPanel" hidden>
-            <h3>Edit Staff Account</h3>
-            <p>Update the name, role, Gmail, or password for this account. Password changes apply immediately.</p>
+        <div class="account-settings-options">
+            <button type="button" id="changeEmailOptionBtn" class="account-setting-option">
+                <span class="account-setting-option-icon" aria-hidden="true"><i class="fa-solid fa-envelope"></i></span>
+                <span class="account-setting-option-text">
+                    <strong>Change Email</strong>
+                    <small>Update this account's Gmail address. A verification code is sent to the admin email first.</small>
+                </span>
+                <i class="fa-solid fa-chevron-right account-setting-option-chevron" aria-hidden="true"></i>
+            </button>
 
-            <form id="staffEditForm" class="account-form">
-                <div class="floating-field">
-                    <input type="text" id="staffEditName" placeholder=" " maxlength="80" autocomplete="off" title="Letters, spaces, hyphens, apostrophes, and periods only.">
-                    <label for="staffEditName">Full Name</label>
-                    <small class="field-helper">Letters, spaces, hyphens, apostrophes, and periods only.</small>
-                </div>
-                <div class="floating-field">
-                    <select id="staffEditRole">
-                        <option value="Cashier">Cashier</option>
-                        <option value="Inventory Manager">Inventory Manager</option>
-                    </select>
-                    <label for="staffEditRole">Role</label>
-                </div>
-                <div class="floating-field">
-                    <input type="email" id="staffEditEmail" placeholder=" " autocomplete="off">
-                    <label for="staffEditEmail">Gmail</label>
-                </div>
-                <div class="floating-field">
-                    <input type="password" id="staffEditPassword" placeholder=" " minlength="8" autocomplete="new-password">
-                    <label for="staffEditPassword">Password</label>
-                    <small class="field-helper">Use 8+ characters with uppercase, lowercase, and a number.</small>
-                </div>
-                <div class="floating-field">
-                    <input type="password" id="staffEditPasswordConfirmation" placeholder=" " minlength="8" autocomplete="new-password">
-                    <label for="staffEditPasswordConfirmation">Confirm password</label>
-                </div>
-                <div class="account-form-actions">
-                    <button type="submit">Save Changes</button>
-                    <button type="button" id="closeStaffEditPanelBtn" class="secondary-btn">Cancel</button>
-                </div>
-            </form>
+            <button type="button" id="changePasswordOptionBtn" class="account-setting-option">
+                <span class="account-setting-option-icon" aria-hidden="true"><i class="fa-solid fa-key"></i></span>
+                <span class="account-setting-option-text">
+                    <strong>Change Password</strong>
+                    <small>Set a new password for this account. A verification code is sent to the admin email first.</small>
+                </span>
+                <i class="fa-solid fa-chevron-right account-setting-option-chevron" aria-hidden="true"></i>
+            </button>
+
+            <button type="button" id="removeAccountOptionBtn" class="account-setting-option account-setting-option-danger">
+                <span class="account-setting-option-icon" aria-hidden="true"><i class="fa-solid fa-trash-can"></i></span>
+                <span class="account-setting-option-text">
+                    <strong>Remove Account</strong>
+                    <small>Permanently delete this account and revoke its access. A confirmation step is required.</small>
+                </span>
+                <i class="fa-solid fa-chevron-right account-setting-option-chevron" aria-hidden="true"></i>
+            </button>
         </div>
+
+        <p id="accountSettingsMessage" class="menu-order-message" aria-live="polite"></p>
     </section>
 
     <section id="login-logs" class="account-management" hidden>
@@ -1070,6 +1006,64 @@
             <div class="device-verify-actions">
                 <button type="button" id="confirmModalCancelBtn" class="secondary-btn">Cancel</button>
                 <button type="button" id="confirmModalConfirmBtn" class="menu-place-order-btn confirm-danger-btn">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin-authorized account change (email / password). A verification code
+         is emailed to the admin address and must be entered before the new
+         value can be applied. Steps mirror the forgot-password wizard. -->
+    <div id="accountChangeModal" class="forgot-password-modal" hidden aria-hidden="true">
+        <div class="forgot-password-modal-box" role="dialog" aria-modal="true" aria-labelledby="accountChangeTitle">
+            <button type="button" class="modal-close" id="accountChangeCloseBtn" aria-label="Close account change">&times;</button>
+
+            <!-- Step 1: authorize with the current admin password -->
+            <div class="forgot-password-step" id="acmStepRequest">
+                <h3 id="accountChangeTitle">Confirm Identity</h3>
+                <p class="forgot-password-description" id="acmRequestDescription">Enter the current admin password to start. We will email a 6-digit verification code to the admin address before the change is applied.</p>
+                <input type="password" id="acmAdminPasswordInput" placeholder="Current admin password" autocomplete="current-password" required>
+                <p class="forgot-password-error" id="acmRequestError" hidden></p>
+                <div class="forgot-actions">
+                    <button type="button" class="btn-cancel" id="acmRequestCancelBtn">Cancel</button>
+                    <button type="button" class="btn-send" id="acmRequestBtn">Send Code</button>
+                </div>
+            </div>
+
+            <!-- Step 2: enter the emailed code -->
+            <div class="forgot-password-step" id="acmStepCode" hidden>
+                <h3>Enter Verification Code</h3>
+                <p class="forgot-password-description">We emailed a 6-digit verification code to <strong id="acmSentToText"></strong>. Enter it below.</p>
+                <input type="text" id="acmCodeInput" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" required>
+                <p class="forgot-password-status" id="acmCodeStatus" hidden></p>
+                <p class="forgot-password-error" id="acmCodeError" hidden></p>
+                <div class="forgot-actions">
+                    <button type="button" class="btn-cancel" id="acmCodeBackBtn">Back</button>
+                    <button type="button" class="btn-send" id="acmCodeBtn">Verify Code</button>
+                </div>
+                <button type="button" class="forgot-resend-btn" id="acmResendBtn">Resend Code</button>
+            </div>
+
+            <!-- Step 3: set the new email or password -->
+            <div class="forgot-password-step" id="acmStepNewValue" hidden>
+                <h3 id="acmNewValueTitle">Set New Email</h3>
+                <p class="forgot-password-description" id="acmNewValueDescription"></p>
+                <input type="email" id="acmNewEmailInput" placeholder="New Gmail address" autocomplete="email" required>
+                <input type="password" id="acmNewPasswordInput" placeholder="New password" autocomplete="new-password" minlength="8" required>
+                <input type="password" id="acmNewPasswordConfirmInput" placeholder="Confirm new password" autocomplete="new-password" minlength="8" required>
+                <p class="forgot-password-error" id="acmNewValueError" hidden></p>
+                <div class="forgot-actions">
+                    <button type="button" class="btn-cancel" id="acmNewValueBackBtn">Back</button>
+                    <button type="button" class="btn-send" id="acmNewValueBtn">Apply Changes</button>
+                </div>
+            </div>
+
+            <!-- Step 4: success -->
+            <div class="forgot-password-step" id="acmStepSuccess" hidden>
+                <h3 id="acmSuccessTitle">Email Updated</h3>
+                <p class="forgot-password-description" id="acmSuccessText"></p>
+                <div class="forgot-actions">
+                    <button type="button" class="btn-send" id="acmSuccessBtn">Done</button>
+                </div>
             </div>
         </div>
     </div>

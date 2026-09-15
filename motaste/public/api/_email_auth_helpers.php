@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
 
 function ensureStaffAccountSnapshotsTable(): void
 {
@@ -21,6 +22,30 @@ function ensureAdminCredentialChangeTokensTable(): void
 {
     // Schema is managed by Laravel migrations.
     return;
+}
+
+/**
+ * Ensure the `account_change_tokens` table exists. Schema is primarily managed
+ * by the Laravel migration; this runtime fallback mirrors ensureAdminsTable()
+ * so a deployed static portal keeps working before migrations run.
+ */
+function ensureAccountChangeTokensTable(): void
+{
+    try {
+        if (!Schema::hasTable('account_change_tokens')) {
+            Schema::create('account_change_tokens', function (Blueprint $table) {
+                $table->id();
+                $table->string('target_email', 191);
+                $table->string('change_type', 20);
+                $table->string('code_hash', 191);
+                $table->timestamp('expires_at');
+                $table->unsignedInteger('attempts')->default(0);
+                $table->timestamps();
+            });
+        }
+    } catch (Throwable $error) {
+        error_log('ensureAccountChangeTokensTable failed: ' . $error->getMessage());
+    }
 }
 
 function normalizeStaffAccountsSnapshot($snapshot): array
