@@ -9477,53 +9477,39 @@ body.staff-app .account-list-item.account-row-admin {
     background: rgba(43, 174, 102, 0.04);
 }
 
-/* ---------- Account settings (Facebook "Password and security" style) ---------- */
+/* ---------- Account settings (native dashboard card style) ---------- */
 body.staff-app .account-settings-back-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 12px;
-    padding: 6px 8px 6px 4px;
-    background: none;
-    border: none;
-    color: var(--staff-muted);
-    font-size: 0.88rem;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding: 8px 14px;
+    background: var(--staff-surface-2);
+    border: 1px solid var(--staff-border);
+    color: var(--staff-text);
+    border-radius: 9px;
+    font-size: 0.82rem;
     font-weight: 700;
-    border-radius: 6px;
+    box-shadow: var(--staff-shadow-sm);
     cursor: pointer;
-    transition: color 0.15s ease, background 0.15s ease;
+    transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
 }
 
 body.staff-app .account-settings-back-btn:hover,
 body.staff-app .account-settings-back-btn:focus-visible {
-    color: var(--staff-text);
-    background: var(--staff-surface-soft);
+    background: var(--staff-accent-soft);
+    border-color: var(--staff-accent);
+    color: var(--staff-accent-strong);
     outline: none;
 }
 
-body.staff-app .account-settings-card {
-    background: var(--staff-surface);
-    border: 1px solid var(--staff-border);
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-body.staff-app .account-settings-title {
-    margin: 0;
-    padding: 18px 20px 12px;
-    font-size: 1.25rem;
-    font-weight: 800;
-    letter-spacing: -0.01em;
-    color: var(--staff-text);
-}
-
-/* Flat identity header row: avatar, name/email, role badge. */
+/* The current account being managed, shown as a row under the card header. */
 body.staff-app .account-settings-head {
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 14px 20px 16px;
-    border-bottom: 1px solid var(--staff-border-soft);
+    padding: 14px 0 4px;
+    border-top: 1px solid var(--staff-border);
 }
 
 body.staff-app .account-settings-avatar {
@@ -9531,12 +9517,12 @@ body.staff-app .account-settings-avatar {
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     background: var(--staff-accent-soft);
     color: var(--staff-accent-strong);
-    font-size: 1.15rem;
+    font-size: 1.25rem;
     font-weight: 800;
     line-height: 1;
     user-select: none;
@@ -9554,15 +9540,15 @@ body.staff-app .account-settings-identity {
 
 body.staff-app .account-settings-identity strong {
     display: block;
-    font-size: 0.98rem;
-    font-weight: 700;
+    font-size: 1rem;
+    font-weight: 800;
     color: var(--staff-text);
 }
 
 body.staff-app .account-settings-identity small {
     display: block;
-    margin-top: 2px;
-    font-size: 0.82rem;
+    margin-top: 3px;
+    font-size: 0.84rem;
     color: var(--staff-muted);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -9573,12 +9559,12 @@ body.staff-app .account-settings-role-badge {
     display: inline-flex;
     align-items: center;
     flex: 0 0 auto;
-    padding: 3px 10px;
-    background: var(--staff-surface-soft);
-    color: var(--staff-muted);
-    border: 1px solid var(--staff-border);
-    border-radius: 6px;
-    font-size: 0.7rem;
+    padding: 5px 12px;
+    background: var(--staff-accent-soft);
+    color: var(--staff-accent-strong);
+    border: 1px solid rgba(43, 174, 102, 0.3);
+    border-radius: 999px;
+    font-size: 0.72rem;
     font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -9590,47 +9576,31 @@ body.staff-app .account-settings-role-badge.is-admin {
     color: #fff;
 }
 
-body.staff-app .account-settings-group {
-    display: flex;
-    flex-direction: column;
-}
-
-body.staff-app .account-settings-group + .account-settings-group {
-    border-top: 1px solid var(--staff-border-soft);
-}
-
-body.staff-app .account-settings-group-label {
-    padding: 16px 20px 6px;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--staff-faint);
-}
-
-/* Flat option rows with thin dividers: title + short muted subtitle + chevron. */
+/* Action rows mirror the trusted-device rows: icon tile, title + subtitle,
+   chevron affordance, thin divider between rows. */
 body.staff-app .account-setting-option {
     display: flex;
     align-items: center;
     gap: 12px;
     width: 100%;
-    padding: 13px 20px;
+    padding: 12px 6px;
     text-align: left;
     background: none;
     color: var(--staff-text);
     border: none;
+    border-bottom: 1px solid var(--staff-border-soft);
     border-radius: 0;
     cursor: pointer;
-    transition: background 0.15s ease;
+    transition: background 0.18s ease;
 }
 
-body.staff-app .account-setting-option + .account-setting-option {
-    border-top: 1px solid var(--staff-border-soft);
+body.staff-app .account-setting-option:last-child {
+    border-bottom: none;
 }
 
 body.staff-app .account-setting-option:hover,
 body.staff-app .account-setting-option:focus-visible {
-    background: var(--staff-surface-soft);
+    background: var(--staff-surface);
     outline: none;
 }
 
@@ -9639,12 +9609,13 @@ body.staff-app .account-setting-option-icon {
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    width: 38px;
-    height: 38px;
-    border-radius: 9px;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
     background: var(--staff-accent-soft);
     color: var(--staff-accent-strong);
-    font-size: 0.95rem;
+    font-size: 1rem;
+    box-shadow: inset 0 0 0 1px rgba(43, 174, 102, 0.18);
 }
 
 body.staff-app .account-setting-option-text {
@@ -9654,7 +9625,7 @@ body.staff-app .account-setting-option-text {
 
 body.staff-app .account-setting-option-text strong {
     display: block;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     font-weight: 700;
     color: var(--staff-text);
 }
@@ -9662,7 +9633,7 @@ body.staff-app .account-setting-option-text strong {
 body.staff-app .account-setting-option-text small {
     display: block;
     margin-top: 2px;
-    font-size: 0.8rem;
+    font-size: 0.76rem;
     line-height: 1.45;
     color: var(--staff-muted);
 }
@@ -9671,19 +9642,28 @@ body.staff-app .account-setting-option-chevron {
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
-    color: var(--staff-faint);
-    font-size: 0.72rem;
-    transition: color 0.15s ease;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--staff-surface);
+    border: 1px solid var(--staff-border-soft);
+    color: var(--staff-muted);
+    font-size: 0.7rem;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
 
 body.staff-app .account-setting-option:hover .account-setting-option-chevron,
 body.staff-app .account-setting-option:focus-visible .account-setting-option-chevron {
-    color: var(--staff-text);
+    background: var(--staff-accent-soft);
+    color: var(--staff-accent-strong);
+    transform: translateX(2px);
 }
 
 body.staff-app .account-setting-option-danger .account-setting-option-icon {
-    background: rgba(220, 38, 38, 0.1);
+    background: rgba(220, 38, 38, 0.12);
     color: var(--staff-danger);
+    box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.2);
 }
 
 body.staff-app .account-setting-option-danger .account-setting-option-text strong {
@@ -9692,13 +9672,13 @@ body.staff-app .account-setting-option-danger .account-setting-option-text stron
 
 body.staff-app .account-setting-option-danger:hover,
 body.staff-app .account-setting-option-danger:focus-visible {
-    background: rgba(220, 38, 38, 0.05);
+    background: rgba(220, 38, 38, 0.06);
 }
 
 body.staff-app .account-settings-message {
-    margin-top: 12px;
-    padding: 9px 14px;
-    border-radius: 8px;
+    margin-top: 14px;
+    padding: 10px 14px;
+    border-radius: 10px;
     background: var(--staff-surface-soft);
     border: 1px solid var(--staff-border);
     color: var(--staff-accent-strong);
@@ -9707,7 +9687,7 @@ body.staff-app .account-settings-message {
 }
 
 /* The "Add Staff Account" trigger and its card sit in the same flat system as
-   the FB-style list below them: solid button, thin-border card. */
+   the dashboard list below them: solid button, thin-border card. */
 body.staff-app #account-management .add-staff-btn {
     background: var(--staff-accent-strong);
     border-radius: 8px;
@@ -10075,16 +10055,10 @@ body.staff-app #account-management .add-staff-btn:active {
         font-size: 0.6rem;
     }
 
-    .account-settings-title,
-    .account-settings-head {
-        padding-left: 16px;
-        padding-right: 16px;
-    }
-
-    .account-settings-group-label,
+    .account-settings-head,
     .account-setting-option {
-        padding-left: 16px;
-        padding-right: 16px;
+        padding-left: 6px;
+        padding-right: 6px;
     }
 }
 

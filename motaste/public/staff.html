@@ -858,55 +858,59 @@
 
     <section id="account-settings" class="account-management account-settings" hidden>
         <button type="button" id="accountSettingsBackBtn" class="account-settings-back-btn">
-            <i class="fa-solid fa-chevron-left" aria-hidden="true"></i> Back to accounts
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to Account List
         </button>
 
-        <div class="account-settings-card">
-            <h3 class="account-settings-title" id="accountSettingsTitle">Account settings</h3>
+        <h2>Account Settings</h2>
+        <p>Manage the email, password, and access of the selected staff account. Every sensitive change requires a verification code sent to the admin email before it is applied.</p>
 
+        <div class="trusted-devices-card account-settings-card">
+            <div class="trusted-devices-header">
+                <h3>Selected Account</h3>
+                <p>You are managing this account's credentials and access.</p>
+            </div>
             <div class="account-settings-head">
                 <span id="accountSettingsAvatar" class="account-settings-avatar" aria-hidden="true"></span>
-                <div class="account-settings-identity">
+                <span class="account-settings-identity">
                     <strong id="accountSettingsName"></strong>
                     <small id="accountSettingsMeta"></small>
-                </div>
+                </span>
                 <span id="accountSettingsRoleBadge" class="account-settings-role-badge"></span>
             </div>
+        </div>
 
-            <div class="account-settings-group">
-                <span class="account-settings-group-label">Account</span>
-
-                <button type="button" id="changeEmailOptionBtn" class="account-setting-option">
-                    <span class="account-setting-option-icon" aria-hidden="true"><i class="fa-solid fa-envelope"></i></span>
-                    <span class="account-setting-option-text">
-                        <strong>Change Email</strong>
-                        <small>Update the Gmail address for this account.</small>
-                    </span>
-                    <span class="account-setting-option-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
-                </button>
-
-                <button type="button" id="changePasswordOptionBtn" class="account-setting-option">
-                    <span class="account-setting-option-icon" aria-hidden="true"><i class="fa-solid fa-key"></i></span>
-                    <span class="account-setting-option-text">
-                        <strong>Change Password</strong>
-                        <small>Set a new password for this account.</small>
-                    </span>
-                    <span class="account-setting-option-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
-                </button>
+        <div class="trusted-devices-card account-settings-actions-card">
+            <div class="trusted-devices-header">
+                <h3>Account Actions</h3>
+                <p>Update the Gmail address, set a new password, or permanently remove the account. Verify the code emailed to the admin address to continue.</p>
             </div>
 
-            <div class="account-settings-group account-settings-danger-zone">
-                <span class="account-settings-group-label">Danger zone</span>
+            <button type="button" id="changeEmailOptionBtn" class="account-setting-option">
+                <span class="account-setting-option-icon" aria-hidden="true"><i class="fa-solid fa-envelope"></i></span>
+                <span class="account-setting-option-text">
+                    <strong>Change Email</strong>
+                    <small>Update the Gmail address for this account.</small>
+                </span>
+                <span class="account-setting-option-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
+            </button>
 
-                <button type="button" id="removeAccountOptionBtn" class="account-setting-option account-setting-option-danger">
-                    <span class="account-setting-option-icon" aria-hidden="true"><i class="fa-solid fa-trash-can"></i></span>
-                    <span class="account-setting-option-text">
-                        <strong>Remove Account</strong>
-                        <small>Permanently delete this account and revoke its access.</small>
-                    </span>
-                    <span class="account-setting-option-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
-                </button>
-            </div>
+            <button type="button" id="changePasswordOptionBtn" class="account-setting-option">
+                <span class="account-setting-option-icon" aria-hidden="true"><i class="fa-solid fa-key"></i></span>
+                <span class="account-setting-option-text">
+                    <strong>Change Password</strong>
+                    <small>Set a new password for this account.</small>
+                </span>
+                <span class="account-setting-option-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
+            </button>
+
+            <button type="button" id="removeAccountOptionBtn" class="account-setting-option account-setting-option-danger">
+                <span class="account-setting-option-icon" aria-hidden="true"><i class="fa-solid fa-trash-can"></i></span>
+                <span class="account-setting-option-text">
+                    <strong>Remove Account</strong>
+                    <small>Permanently delete this account and revoke its access.</small>
+                </span>
+                <span class="account-setting-option-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
+            </button>
         </div>
 
         <p id="accountSettingsMessage" class="account-settings-message" aria-live="polite"></p>
