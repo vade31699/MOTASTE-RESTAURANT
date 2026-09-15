@@ -9324,14 +9324,24 @@ body.staff-app .order-log-card .review-log-comment .review-log-comment-text {
     color: var(--staff-text) !important;
 }
 
-/* ---------- Account management ---------- */
+/* ---------- Account management (Facebook-style flat cards) ---------- */
+#account-management,
+#account-settings {
+    max-width: 760px;
+}
+
+/* The account list reads as one white card; each account is a flat row with a
+   thin divider, exactly like a "Where you're logged in" list. */
 body.staff-app .account-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
     list-style: none;
     margin: 0;
     padding: 0;
+    background: var(--staff-surface);
+    border: 1px solid var(--staff-border);
+    border-radius: 10px;
+    overflow: hidden;
 }
 
 /* Account rows are pure navigation now: no inline edit/delete buttons, the
@@ -9342,25 +9352,24 @@ body.staff-app .account-list-item {
     align-items: center;
     gap: 14px;
     padding: 13px 16px;
-    background: var(--staff-surface-2);
-    border: 1px solid var(--staff-border);
-    border-radius: 14px;
-    box-shadow: var(--staff-shadow-sm);
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--staff-border-soft);
+    border-radius: 0;
+    box-shadow: none;
     color: var(--staff-text);
     cursor: pointer;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, transform 0.15s ease;
+    transition: background 0.15s ease;
+}
+
+body.staff-app .account-list-item:last-child {
+    border-bottom: none;
 }
 
 body.staff-app .account-list-item:hover,
 body.staff-app .account-list-item:focus-visible {
     background: var(--staff-surface-soft);
-    border-color: var(--staff-accent);
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
     outline: none;
-}
-
-body.staff-app .account-list-item:active {
-    transform: translateY(1px);
 }
 
 body.staff-app .account-list-avatar {
@@ -9368,19 +9377,19 @@ body.staff-app .account-list-avatar {
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    width: 42px;
-    height: 42px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     background: var(--staff-accent-soft);
     color: var(--staff-accent-strong);
-    font-size: 1.05rem;
+    font-size: 0.95rem;
     font-weight: 800;
     line-height: 1;
     user-select: none;
 }
 
 body.staff-app .account-list-avatar.is-admin {
-    background: var(--staff-accent);
+    background: var(--staff-accent-strong);
     color: #fff;
 }
 
@@ -9419,15 +9428,22 @@ body.staff-app .account-list-meta {
 body.staff-app .account-list .account-role-tag {
     display: inline-flex;
     align-items: center;
-    padding: 3px 9px;
-    background: var(--staff-accent);
-    color: #fff;
+    padding: 2px 8px;
+    background: var(--staff-surface-soft);
+    color: var(--staff-muted);
+    border: 1px solid var(--staff-border);
     border-radius: 6px;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     white-space: nowrap;
+}
+
+body.staff-app .account-list .account-role-tag.is-admin {
+    background: var(--staff-accent-strong);
+    color: #fff;
+    border-color: transparent;
 }
 
 body.staff-app .account-invite-status {
@@ -9445,73 +9461,69 @@ body.staff-app .account-invite-status.is-confirmed {
 
 body.staff-app .account-list-chevron {
     flex: 0 0 auto;
-    color: var(--staff-muted);
+    color: var(--staff-faint);
     font-size: 0.8rem;
-    transition: transform 0.2s ease, color 0.2s ease;
+    transition: color 0.15s ease;
 }
 
 body.staff-app .account-list-item:hover .account-list-chevron,
 body.staff-app .account-list-item:focus-visible .account-list-chevron {
-    color: var(--staff-accent);
-    transform: translateX(2px);
+    color: var(--staff-text);
 }
 
-/* The admin account lives in the same list; give its row a distinct tag and a
-   quiet highlight so it is identifiable without a separate section. */
+/* The admin account lives in the same list; a quiet tint keeps it identifiable
+   without the heavy inset bar. */
 body.staff-app .account-list-item.account-row-admin {
-    box-shadow: inset 3px 0 0 var(--staff-accent), var(--staff-shadow-sm);
+    background: rgba(43, 174, 102, 0.04);
 }
 
-/* ---------- Account settings (per-account navigation view) ---------- */
+/* ---------- Account settings (Facebook "Password and security" style) ---------- */
 body.staff-app .account-settings-back-btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 16px;
-    padding: 8px 14px;
-    border: 1px solid var(--staff-border);
-    background: var(--staff-surface);
+    gap: 6px;
+    margin-bottom: 12px;
+    padding: 6px 8px 6px 4px;
+    background: none;
+    border: none;
     color: var(--staff-muted);
-    border-radius: 999px;
-    font-size: 0.82rem;
+    font-size: 0.88rem;
     font-weight: 700;
-    box-shadow: var(--staff-shadow-sm);
-    transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
 }
 
 body.staff-app .account-settings-back-btn:hover,
 body.staff-app .account-settings-back-btn:focus-visible {
+    color: var(--staff-text);
     background: var(--staff-surface-soft);
-    border-color: var(--staff-accent);
-    color: var(--staff-accent-strong);
     outline: none;
 }
 
-body.staff-app .account-settings-back-btn:active {
-    transform: translateY(1px);
-}
-
-body.staff-app .account-settings-profile {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 22px 24px;
-    background: linear-gradient(135deg, #FFFFFF 0%, var(--staff-surface-soft) 100%);
+body.staff-app .account-settings-card {
+    background: var(--staff-surface);
     border: 1px solid var(--staff-border);
-    border-radius: 18px;
-    box-shadow: var(--staff-shadow-md);
-    position: relative;
+    border-radius: 10px;
     overflow: hidden;
 }
 
-body.staff-app .account-settings-profile::after {
-    content: '';
-    position: absolute;
-    inset: 0 0 auto auto;
-    width: 46%;
-    height: 100%;
-    background: radial-gradient(circle at 100% 0%, rgba(43, 174, 102, 0.14), transparent 60%);
-    pointer-events: none;
+body.staff-app .account-settings-title {
+    margin: 0;
+    padding: 18px 20px 12px;
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--staff-text);
+}
+
+/* Flat identity header row: avatar, name/email, role badge. */
+body.staff-app .account-settings-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 20px 16px;
+    border-bottom: 1px solid var(--staff-border-soft);
 }
 
 body.staff-app .account-settings-avatar {
@@ -9519,23 +9531,20 @@ body.staff-app .account-settings-avatar {
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    width: 62px;
-    height: 62px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     background: var(--staff-accent-soft);
     color: var(--staff-accent-strong);
-    border: 2px solid var(--staff-accent);
-    font-size: 1.6rem;
+    font-size: 1.15rem;
     font-weight: 800;
     line-height: 1;
     user-select: none;
-    box-shadow: 0 6px 18px rgba(43, 174, 102, 0.22);
 }
 
 body.staff-app .account-settings-avatar.is-admin {
-    background: linear-gradient(135deg, var(--staff-accent), var(--staff-accent-strong));
+    background: var(--staff-accent-strong);
     color: #fff;
-    border-color: #fff;
 }
 
 body.staff-app .account-settings-identity {
@@ -9545,16 +9554,15 @@ body.staff-app .account-settings-identity {
 
 body.staff-app .account-settings-identity strong {
     display: block;
-    font-size: 1.12rem;
-    font-weight: 800;
-    letter-spacing: -0.01em;
+    font-size: 0.98rem;
+    font-weight: 700;
     color: var(--staff-text);
 }
 
 body.staff-app .account-settings-identity small {
     display: block;
-    margin-top: 4px;
-    font-size: 0.84rem;
+    margin-top: 2px;
+    font-size: 0.82rem;
     color: var(--staff-muted);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -9565,19 +9573,19 @@ body.staff-app .account-settings-role-badge {
     display: inline-flex;
     align-items: center;
     flex: 0 0 auto;
-    padding: 5px 12px;
-    background: var(--staff-accent-soft);
-    color: var(--staff-accent-strong);
-    border: 1px solid rgba(43, 174, 102, 0.28);
-    border-radius: 999px;
-    font-size: 0.72rem;
+    padding: 3px 10px;
+    background: var(--staff-surface-soft);
+    color: var(--staff-muted);
+    border: 1px solid var(--staff-border);
+    border-radius: 6px;
+    font-size: 0.7rem;
     font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
 }
 
 body.staff-app .account-settings-role-badge.is-admin {
-    background: linear-gradient(135deg, var(--staff-accent), var(--staff-accent-strong));
+    background: var(--staff-accent-strong);
     border-color: transparent;
     color: #fff;
 }
@@ -9585,15 +9593,14 @@ body.staff-app .account-settings-role-badge.is-admin {
 body.staff-app .account-settings-group {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-top: 20px;
+}
+
+body.staff-app .account-settings-group + .account-settings-group {
+    border-top: 1px solid var(--staff-border-soft);
 }
 
 body.staff-app .account-settings-group-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 4px;
+    padding: 16px 20px 6px;
     font-size: 0.72rem;
     font-weight: 800;
     letter-spacing: 0.1em;
@@ -9601,40 +9608,30 @@ body.staff-app .account-settings-group-label {
     color: var(--staff-faint);
 }
 
-body.staff-app .account-settings-group-label::after {
-    content: '';
-    flex: 1 1 auto;
-    height: 1px;
-    background: var(--staff-border);
-}
-
+/* Flat option rows with thin dividers: title + short muted subtitle + chevron. */
 body.staff-app .account-setting-option {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
     width: 100%;
-    padding: 15px 18px;
+    padding: 13px 20px;
     text-align: left;
-    background: var(--staff-surface-2);
+    background: none;
     color: var(--staff-text);
-    border: 1px solid var(--staff-border);
-    border-radius: 14px;
-    box-shadow: var(--staff-shadow-sm);
+    border: none;
+    border-radius: 0;
     cursor: pointer;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, transform 0.15s ease;
+    transition: background 0.15s ease;
+}
+
+body.staff-app .account-setting-option + .account-setting-option {
+    border-top: 1px solid var(--staff-border-soft);
 }
 
 body.staff-app .account-setting-option:hover,
 body.staff-app .account-setting-option:focus-visible {
     background: var(--staff-surface-soft);
-    border-color: var(--staff-accent);
-    box-shadow: 0 10px 26px rgba(23, 87, 54, 0.1);
-    transform: translateX(3px);
     outline: none;
-}
-
-body.staff-app .account-setting-option:active {
-    transform: translateY(1px);
 }
 
 body.staff-app .account-setting-option-icon {
@@ -9642,13 +9639,12 @@ body.staff-app .account-setting-option-icon {
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
     background: var(--staff-accent-soft);
     color: var(--staff-accent-strong);
-    font-size: 1.05rem;
-    box-shadow: inset 0 0 0 1px rgba(43, 174, 102, 0.16);
+    font-size: 0.95rem;
 }
 
 body.staff-app .account-setting-option-text {
@@ -9658,15 +9654,15 @@ body.staff-app .account-setting-option-text {
 
 body.staff-app .account-setting-option-text strong {
     display: block;
-    font-size: 0.94rem;
-    font-weight: 750;
+    font-size: 0.95rem;
+    font-weight: 700;
     color: var(--staff-text);
 }
 
 body.staff-app .account-setting-option-text small {
     display: block;
-    margin-top: 3px;
-    font-size: 0.78rem;
+    margin-top: 2px;
+    font-size: 0.8rem;
     line-height: 1.45;
     color: var(--staff-muted);
 }
@@ -9675,46 +9671,34 @@ body.staff-app .account-setting-option-chevron {
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: var(--staff-surface);
-    border: 1px solid var(--staff-border);
-    color: var(--staff-muted);
+    color: var(--staff-faint);
     font-size: 0.72rem;
-    transition: transform 0.2s ease, color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    transition: color 0.15s ease;
 }
 
 body.staff-app .account-setting-option:hover .account-setting-option-chevron,
 body.staff-app .account-setting-option:focus-visible .account-setting-option-chevron {
-    color: var(--staff-accent-strong);
-    border-color: var(--staff-accent);
-    background: var(--staff-accent-soft);
-    transform: translateX(2px);
-}
-
-body.staff-app .account-settings-danger-zone .account-setting-option-danger {
-    border-color: rgba(220, 38, 38, 0.3);
-    box-shadow: inset 3px 0 0 var(--staff-danger), var(--staff-shadow-sm);
+    color: var(--staff-text);
 }
 
 body.staff-app .account-setting-option-danger .account-setting-option-icon {
     background: rgba(220, 38, 38, 0.1);
     color: var(--staff-danger);
-    box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.18);
+}
+
+body.staff-app .account-setting-option-danger .account-setting-option-text strong {
+    color: var(--staff-danger);
 }
 
 body.staff-app .account-setting-option-danger:hover,
 body.staff-app .account-setting-option-danger:focus-visible {
-    border-color: var(--staff-danger);
     background: rgba(220, 38, 38, 0.05);
 }
 
 body.staff-app .account-settings-message {
-    margin-top: 16px;
-    padding: 10px 14px;
-    border-radius: 10px;
+    margin-top: 12px;
+    padding: 9px 14px;
+    border-radius: 8px;
     background: var(--staff-surface-soft);
     border: 1px solid var(--staff-border);
     color: var(--staff-accent-strong);
@@ -9722,11 +9706,29 @@ body.staff-app .account-settings-message {
     font-weight: 600;
 }
 
-/* ---------- Account change wizard modal ---------- */
+/* The "Add Staff Account" trigger and its card sit in the same flat system as
+   the FB-style list below them: solid button, thin-border card. */
+body.staff-app #account-management .add-staff-btn {
+    background: var(--staff-accent-strong);
+    border-radius: 8px;
+    box-shadow: none;
+    font-weight: 800;
+}
+
+body.staff-app #account-management .add-staff-btn:hover {
+    background: var(--staff-accent);
+    transform: none;
+    box-shadow: none;
+    filter: none;
+}
+
+body.staff-app #account-management .add-staff-btn:active {
+    transform: none;
+}
+
+/* ---------- Account change wizard modal (Facebook flat style) ---------- */
 #accountChangeModal.account-change-modal {
-    background: rgba(15, 23, 42, 0.55);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    background: rgba(88, 101, 112, 0.6);
 }
 
 .account-change-modal-box {
@@ -9735,9 +9737,9 @@ body.staff-app .account-settings-message {
     max-width: 460px;
     background: var(--staff-surface);
     border: 1px solid var(--staff-border);
-    border-radius: 20px;
-    padding: 30px 30px 26px;
-    box-shadow: 0 36px 90px rgba(14, 42, 28, 0.22);
+    border-radius: 12px;
+    padding: 26px 28px 22px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
 }
 
 .account-change-modal-close {
@@ -9747,22 +9749,21 @@ body.staff-app .account-settings-message {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
-    border: 1px solid var(--staff-border);
-    background: var(--staff-surface);
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: none;
     border-radius: 50%;
     color: var(--staff-muted);
     font-size: 16px;
     line-height: 1;
     cursor: pointer;
-    transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    transition: color 0.15s ease, background 0.15s ease;
 }
 
 .account-change-modal-close:hover {
-    color: var(--staff-danger);
-    border-color: rgba(220, 38, 38, 0.4);
-    background: rgba(220, 38, 38, 0.06);
+    color: var(--staff-text);
+    background: var(--staff-surface-soft);
 }
 
 /* Stepper header */
@@ -9811,7 +9812,7 @@ body.staff-app .account-settings-message {
 
 .acm-progress-step.is-current .acm-progress-dot {
     border-color: var(--staff-accent);
-    box-shadow: 0 0 0 4px rgba(43, 174, 102, 0.14);
+    box-shadow: 0 0 0 4px rgba(43, 174, 102, 0.12);
 }
 
 .acm-progress-step.is-active .acm-progress-dot {
@@ -9821,7 +9822,7 @@ body.staff-app .account-settings-message {
 }
 
 .acm-progress-step.is-done .acm-progress-dot {
-    background: linear-gradient(135deg, var(--staff-accent), var(--staff-accent-strong));
+    background: var(--staff-accent-strong);
     border-color: transparent;
     color: #fff;
 }
@@ -9877,13 +9878,12 @@ body.staff-app .account-settings-message {
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, var(--staff-accent), var(--staff-accent-2));
-    color: #fff;
-    font-size: 1rem;
-    box-shadow: 0 8px 20px rgba(43, 174, 102, 0.32);
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: var(--staff-accent-soft);
+    color: var(--staff-accent-strong);
+    font-size: 0.9rem;
 }
 
 .acm-step-description {
@@ -9895,6 +9895,11 @@ body.staff-app .account-settings-message {
 
 .acm-field {
     margin-bottom: 4px;
+}
+
+.account-change-modal-box .floating-field input,
+.account-change-modal-box .floating-field select {
+    border-radius: 8px;
 }
 
 .acm-field-code input {
@@ -9953,15 +9958,15 @@ body.staff-app .account-settings-message {
 
 .account-change-modal-box .acm-btn-cancel {
     flex: 1;
-    padding: 12px 14px;
+    padding: 11px 14px;
     border: 1px solid var(--staff-border);
     background: var(--staff-surface-2);
     color: var(--staff-muted);
-    border-radius: 12px;
+    border-radius: 8px;
     font-size: 0.88rem;
     font-weight: 700;
     cursor: pointer;
-    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .account-change-modal-box .acm-btn-cancel:hover:not(:disabled) {
@@ -9972,34 +9977,26 @@ body.staff-app .account-settings-message {
 
 .account-change-modal-box .acm-btn-primary {
     flex: 2;
-    padding: 12px 14px;
+    padding: 11px 14px;
     border: none;
-    background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
+    background: var(--staff-accent-strong);
     color: #fff;
-    border-radius: 12px;
+    border-radius: 8px;
     font-size: 0.88rem;
     font-weight: 800;
     letter-spacing: 0.01em;
     cursor: pointer;
-    box-shadow: 0 10px 24px rgba(43, 174, 102, 0.35);
-    transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    transition: background 0.15s ease, filter 0.15s ease;
 }
 
 .account-change-modal-box .acm-btn-primary:hover:not(:disabled) {
-    transform: translateY(-2px);
-    filter: brightness(1.05);
-    box-shadow: 0 16px 34px rgba(43, 174, 102, 0.42);
-}
-
-.account-change-modal-box .acm-btn-primary:active:not(:disabled) {
-    transform: translateY(0);
+    background: var(--staff-accent);
 }
 
 .account-change-modal-box .acm-btn-cancel:disabled,
 .account-change-modal-box .acm-btn-primary:disabled {
     opacity: 0.55;
     cursor: not-allowed;
-    box-shadow: none;
     transform: none;
 }
 
@@ -10050,13 +10047,13 @@ body.staff-app .account-settings-message {
 }
 
 .account-change-modal-box .acm-success-icon {
-    width: 64px;
-    height: 64px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--staff-success), var(--staff-accent-2));
-    font-size: 1.9rem;
-    box-shadow: 0 14px 34px rgba(22, 163, 74, 0.35);
+    background: var(--staff-accent-strong);
+    font-size: 1.8rem;
     margin-bottom: 6px;
+    box-shadow: none;
 }
 
 .account-change-modal-box .acm-success-heading h3 {
@@ -10070,16 +10067,24 @@ body.staff-app .account-settings-message {
 
 @media (max-width: 560px) {
     .account-change-modal-box {
-        padding: 26px 20px 22px;
-        border-radius: 16px;
+        padding: 24px 18px 20px;
+        border-radius: 12px;
     }
 
     .acm-progress-label {
         font-size: 0.6rem;
     }
 
-    .account-settings-profile {
-        padding: 18px 16px;
+    .account-settings-title,
+    .account-settings-head {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .account-settings-group-label,
+    .account-setting-option {
+        padding-left: 16px;
+        padding-right: 16px;
     }
 }
 
@@ -10088,10 +10093,9 @@ body.staff-app .account-list li.is-skeleton {
     flex-direction: column;
     gap: 8px;
     padding: 15px 16px;
-    background: var(--staff-surface-2);
-    border: 1px solid var(--staff-border);
-    border-radius: 14px;
-    box-shadow: var(--staff-shadow-sm);
+    background: none;
+    border-bottom: 1px solid var(--staff-border-soft);
+    border-radius: 0;
 }
 
 @media (max-width: 900px) {
