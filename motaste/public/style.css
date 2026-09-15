@@ -10217,6 +10217,14 @@ body.staff-app .analytics-select {
     box-sizing: border-box;
 }
 
+/* Floating-label fields must keep their taller top padding: the shared rule
+   above has the same specificity but comes later, so without this it flattens
+   the padding and the floated label ends up drawn over a filled field's value. */
+body.staff-app .account-form .floating-field input,
+body.staff-app .account-form .floating-field select {
+    padding: 24px 14px 10px;
+}
+
 body.staff-app .account-form input:focus,
 body.staff-app .account-form select:focus,
 body.staff-app .inventory-search-field input:focus,

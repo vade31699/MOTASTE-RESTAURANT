@@ -16,14 +16,19 @@ Route::get('/', function () {
     return response()->file(public_path('home.html'));
 });
 
-Route::get('/staff', function () {
+// The portal is served as a static HTML file, so it needs an explicit no-store
+// header: without it browsers apply heuristic caching to the HTML and keep
+// showing an older dashboard/account-management markup after an update.
+$portalHeaders = ['Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0'];
+
+Route::get('/staff', function () use ($portalHeaders) {
     $staffPath = public_path('staff.html');
 
     if (!file_exists($staffPath)) {
         abort(404);
     }
 
-    return response()->file($staffPath);
+    return response()->file($staffPath, $portalHeaders);
 })->name('staff');
 
 Route::get('/staff.html', function () {
@@ -31,15 +36,16 @@ Route::get('/staff.html', function () {
 });
 
 // Same portal, admin entry point. script.js uses the URL to decide the login
-// surface: /admin offers password recovery, /staff never does.
-Route::get('/admin', function () {
+// surface: password recovery belongs to /staff only, so /admin never offers it
+// (the reset flow rejects the Admin account, which lives in the admins table).
+Route::get('/admin', function () use ($portalHeaders) {
     $adminPath = public_path('staff.html');
 
     if (!file_exists($adminPath)) {
         abort(404);
     }
 
-    return response()->file($adminPath);
+    return response()->file($adminPath, $portalHeaders);
 })->name('admin.login');
 
 Route::get('/admin.html', function () {
