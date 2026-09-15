@@ -24,6 +24,10 @@ try {
     $email = strtolower(trim((string)($input['email'] ?? '')));
     $password = (string)($input['password'] ?? '');
     $selectedRole = trim((string)($input['role'] ?? ''));
+    // Which portal the login came from: /admin accepts only the Admin account,
+    // /staff accepts both admin and staff. The client sends this explicitly;
+    // a missing value falls back to the (more permissive) staff surface.
+    $surface = strtolower(trim((string)($input['surface'] ?? 'staff')));
     $recaptchaToken = trim((string)($input['recaptcha-token'] ?? ''));
     $deviceToken = trim((string)($input['deviceToken'] ?? ''));
 
@@ -120,9 +124,12 @@ try {
         }
     }
 
-    // Resolve the account across the `staff` and `admins` tables — the Admin
-    // now has its own table, so a staff-only lookup would miss it.
-    $staffRow = findStaffAuthAccount($email);
+    // Resolve the account across the `staff` and `admins` tables, honoring the
+    // login surface: the admin portal never accepts a staff-table account, so
+    // only the Admin address can sign in there. Staff-table accounts that try
+    // /admin get the same generic invalid-credentials answer as any other
+    // miss — the portal boundary must not reveal whether an address exists.
+    $staffRow = findLoginAccountForSurface($email, $surface);
 
     if (!$staffRow || !isset($staffRow->password_hash) || !Hash::check($password, $staffRow->password_hash)) {
         recordLoginAttempt($email, false);

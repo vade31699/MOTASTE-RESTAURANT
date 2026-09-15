@@ -1040,6 +1040,34 @@ function findStaffAuthAccount(string $email): ?object
 }
 
 /**
+ * Resolve the account allowed to sign in for a given portal surface.
+ *
+ *   'admin' → the admin portal (/admin) only ever consults the Admin account:
+ *             the dedicated `admins` table, or the legacy admin-in-staff row.
+ *             A staff-table account is rejected, so staff cannot complete a
+ *             login from the admin portal.
+ *   'staff' → the staff portal (/staff) accepts both tables, so either the
+ *             Admin or a staff account may sign in.
+ *
+ * Anything other than an explicit 'admin' is treated as the staff surface, so
+ * a missing/unknown value keeps the historical (more permissive) behavior.
+ */
+function findLoginAccountForSurface(string $email, string $surface): ?object
+{
+    if (strtolower(trim($surface)) !== 'admin') {
+        return findStaffAuthAccount($email);
+    }
+
+    // Admin surface: the address must belong to the Admin account before we
+    // hand back a row the auth flow can compare a password against.
+    if (findAdminAccountRow($email) === null) {
+        return null;
+    }
+
+    return findStaffAuthAccount($email);
+}
+
+/**
  * The table that holds the account with this email ('staff' or 'admins'),
  * or null when neither has it.
  */

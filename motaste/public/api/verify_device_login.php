@@ -24,6 +24,10 @@ try {
     $code = trim((string)($input['code'] ?? ''));
     $totpCode = trim((string)($input['totpCode'] ?? ''));
     $deviceToken = trim((string)($input['deviceToken'] ?? ''));
+    // The same portal boundary the login step enforces: /admin only ever
+    // accepts the Admin account, /staff accepts both. Mirrors the surface
+    // the client sent to authenticate_staff.php.
+    $surface = strtolower(trim((string)($input['surface'] ?? 'staff')));
     // "Remember me" controls whether the session cookie survives a browser
     // restart, so the client passes it through.
     $remember = !empty($input['remember']);
@@ -68,9 +72,10 @@ try {
     }
 
     // Re-confirm the credentials on this step before trusting the device.
-    // Resolve the account across the staff and admins tables (the Admin now
-    // lives in its own table).
-    $staffRow = findStaffAuthAccount($email);
+    // Honoring the login surface here too means a staff account can never
+    // finish a login started from the admin portal, even if the second step
+    // is crafted by hand.
+    $staffRow = findLoginAccountForSurface($email, $surface);
 
     if (!$staffRow || !isset($staffRow->password_hash) || !password_verify($password, $staffRow->password_hash)) {
         // Count the failure so this endpoint feeds the same per-account and

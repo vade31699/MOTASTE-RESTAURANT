@@ -24,6 +24,10 @@ const staffLoginPage = document.querySelector('.staff-login-page');
 const isAdminLoginSurface = /\/admin\/?$/.test(window.location.pathname);
 const isStaffLoginSurface = /\/staff\/?$/.test(window.location.pathname);
 
+// Which portal the login came from, sent to the auth endpoints so the server
+// can apply the portal boundary (admin portal = Admin account only).
+const loginSurface = isAdminLoginSurface ? 'admin' : 'staff';
+
 // Password recovery belongs to the staff portal: staff accounts live in the
 // `staff` table, and the reset flow rejects the Admin's address (which lives in
 // the `admins` table). The link is therefore rendered into the DOM only on the
@@ -1642,7 +1646,7 @@ function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
 
 async function authenticateStaffAccount(email, password, role = '', deviceToken = '', silentRefresh = false, recaptchaToken = '') {
     try {
-        const body = { email, password, role, deviceToken };
+        const body = { email, password, role, deviceToken, surface: loginSurface };
         if (silentRefresh) body.silentRefresh = true;
         if (recaptchaToken) body['recaptcha-token'] = recaptchaToken;
         const response = await fetchWithTimeout(getApiUrl('api/authenticate_staff.php'), {
@@ -1688,7 +1692,7 @@ async function verifyDeviceLogin(email, password, code, deviceToken, remember = 
         const headers = await withCsrfHeaders({
             'Content-Type': 'application/json'
         });
-        const body = { email, password, deviceToken, remember: Boolean(remember) };
+        const body = { email, password, deviceToken, remember: Boolean(remember), surface: loginSurface };
         if (totp) {
             body.totpCode = code;
         } else {
