@@ -1283,23 +1283,14 @@ function readStaffSessionTokenCookie(): ?string
 
 /**
  * Resolve the staff session token for a request. The HttpOnly cookie is the
- * primary source; a request-body token is still accepted as a fallback for
- * clients built before the cookie switch.
+ * ONLY source: the legacy request-body fallback was removed so the auth token
+ * is never echoed in a visible payload (that re-exposed it to any XSS able to
+ * read the request body). The portal is the only client.
  */
-function resolveStaffSessionRequestToken(?string $bodyToken = null): ?string
+function resolveStaffSessionRequestToken(): ?string
 {
-    // Primary: HttpOnly cookie — not reachable by page script.
-    $cookieToken = readStaffSessionTokenCookie();
-    if ($cookieToken !== null) {
-        return $cookieToken;
-    }
-
-    // Legacy fallback: request body. Kept only for clients built before the
-    // cookie switch. Do NOT promote this path — it re-exposes the token to
-    // any XSS that can read the request payload the client sends.
-    $bodyToken = trim((string)$bodyToken);
-
-    return $bodyToken !== '' ? $bodyToken : null;
+    // Primary (and now only) source: HttpOnly cookie — not reachable by page script.
+    return readStaffSessionTokenCookie();
 }
 
 function ensureStaffSessionTokenTable(): void

@@ -26,9 +26,9 @@ $input = json_decode(file_get_contents('php://input'), true);
 
 validateCsrfOrExit();
 
-// The token lives in the HttpOnly cookie; the request body is a legacy
-// fallback for clients built before the cookie switch.
-$token = resolveStaffSessionRequestToken($input['sessionToken'] ?? '');
+// The token lives exclusively in the HttpOnly cookie; the legacy request-body
+// path was removed so the auth token is never carried in a visible payload.
+$token = resolveStaffSessionRequestToken();
 
 // Resolve the account BEFORE revoking. Both the "online now" list and the
 // audit entry below need the identity, and it has to survive a PHP session that

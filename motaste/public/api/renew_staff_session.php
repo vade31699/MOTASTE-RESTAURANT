@@ -14,10 +14,10 @@ use Illuminate\Support\Facades\DB;
 require_once __DIR__ . '/_staff_auth_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
 
-$input = json_decode(file_get_contents('php://input'), true);
-// The token normally arrives in the HttpOnly cookie the browser sends
-// automatically; the request body is a legacy fallback for older clients.
-$token = resolveStaffSessionRequestToken($input['sessionToken'] ?? '');
+// The token lives exclusively in the HttpOnly cookie the browser sends
+// automatically; the legacy request-body path was removed so the auth token is
+// never carried in a visible payload.
+$token = resolveStaffSessionRequestToken();
 
 // No bearer token at all: the client still believes it has a staff session,
 // but the HttpOnly token cookie is gone (expired, cleared, or the browser was
@@ -122,8 +122,7 @@ $response = [
 // holding a session-only one) so the session survives a browser restart.
 setStaffSessionTokenCookie($token, true);
 
-// Make the CURRENT request see the bearer token even when it only arrived in
-// the legacy request body rather than the cookie.
+// Make the CURRENT request see the bearer token too.
 $_COOKIE[STAFF_SESSION_COOKIE_NAME] = $token;
 
 echo json_encode($response);
