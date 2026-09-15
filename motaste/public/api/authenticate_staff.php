@@ -248,15 +248,12 @@ try {
         'deviceToken' => $deviceToken,
     ];
 
-    if (!empty($emailResult['warning'])) {
-        // SMTP is not configured; the message (including the code) was
-        // written to the server log as a fallback.
-        $response['warning'] = $emailResult['warning']
-            . ' The verification code was written to the server log.';
-    } elseif (!$emailResult['success']) {
-        $response['warning'] = 'Verification email could not be delivered: '
-            . ($emailResult['error'] ?? 'unknown mail error')
-            . ' Check the server logs for the code.';
+    if (empty($emailResult['success'])) {
+        // SMTP may be misconfigured or the provider may have rejected the
+        // message; the code itself was already written to the server log as a
+        // fallback. Supersede the provider's error detail with a generic
+        // message so the failure reason is not exposed to the browser.
+        $response['warning'] = 'The verification code could not be delivered to your email. Check the server logs for the code.';
     }
     // NOTE: when SMTP fails, sendSystemEmail() already falls back to
     // writing the code to the server log — never log the raw code again.

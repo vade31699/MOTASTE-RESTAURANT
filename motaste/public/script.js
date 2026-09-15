@@ -1009,8 +1009,7 @@ async function sendStaffInviteEmail(account) {
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || !payload.success) {
-        const detail = payload.details ? ` (${payload.details})` : '';
-        throw new Error((payload.error || `Unable to send invite email (HTTP ${response.status})`) + detail);
+        throw new Error(payload.error || `Unable to send invite email (HTTP ${response.status})`);
     }
 
     return payload;
@@ -6361,11 +6360,10 @@ if (accountForm) {
 
         account.inviteConfirmed = false;
 
-        let invitePayload = null;
         const accountSubmitBtn = accountForm.querySelector('button[type="submit"]');
         setButtonLoading(accountSubmitBtn, true, 'Saving…');
         try {
-            invitePayload = await sendStaffInviteEmail(account);
+            await sendStaffInviteEmail(account);
         } catch (error) {
             await showStaffNotice(error.message || 'Unable to send invite email.', true);
             setButtonLoading(accountSubmitBtn, false);
@@ -6390,11 +6388,7 @@ if (accountForm) {
 
         renderAccounts();
         toggleAccountForm(false);
-        if (invitePayload && invitePayload.delivered === false) {
-            await showStaffNotice(invitePayload.error || 'Invite email was not delivered. Check Laravel SMTP settings and try again.', true);
-        } else {
-            await showStaffNotice('Invite email sent. The staff account can login after confirming the email verification code.');
-        }
+        await showStaffNotice('Invite email sent. The staff account can login after confirming the email verification code.');
         setButtonLoading(accountSubmitBtn, false);
     });
 }
