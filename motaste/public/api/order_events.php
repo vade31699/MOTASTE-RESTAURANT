@@ -21,6 +21,13 @@ if (!requireStaffAuth()) {
     abortStaffAuthRequired();
 }
 
+// Free the PHP session lock before streaming. SESSION_DRIVER=file holds an
+// exclusive flock for the whole request, so without this the stream keeps the
+// lock for all of its ~6s cycle (and it reconnects every ~4s) — every other
+// authenticated request from the same browser then sits in session_start()
+// until the stream ends. Same fix trusted_devices_stream.php already applies.
+session_write_close();
+
 use Illuminate\Support\Facades\DB;
 
 // Per-IP abuse protection: each connection is a long-lived SSE stream, so the

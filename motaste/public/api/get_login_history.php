@@ -13,6 +13,10 @@ if (!requireAdminAuth()) {
     abortStaffAuthRequired();
 }
 
+// The session was only needed to authenticate. Release its lock now
+// (SESSION_DRIVER=file holds an exclusive flock for the whole request) so this
+// read does not queue the browser's other staff requests behind it.
+session_write_close();
 
 require_once __DIR__ . '/_helpers.php';
 
@@ -32,7 +36,12 @@ try {
 
     $query = DB::table('staff_login_history');
     if ($dateFilter !== '') {
-        $query->whereDate('logged_in_at', $dateFilter);
+        // Half-open range instead of whereDate(): DATE(logged_in_at) = ? cannot
+        // use the logged_in_at index, so the filtered view fell back to a full
+        // table scan plus filesort on a table that grows with every login.
+        $dayStart = $dateFilter . ' 00:00:00';
+        $dayEnd = (new DateTimeImmutable($dateFilter))->modify('+1 day')->format('Y-m-d 00:00:00');
+        $query->where('logged_in_at', '>=', $dayStart)->where('logged_in_at', '<', $dayEnd);
     }
     $rows = $query->orderByDesc('logged_in_at')->limit(100)->get();
 

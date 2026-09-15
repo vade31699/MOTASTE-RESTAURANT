@@ -626,9 +626,13 @@ async function loadStaffAccountsFromServer(forceRefresh = false) {
         // shown an empty (or stale) staff account list.
         const payload = await fetchStaffGatedJson(`api/get_staff_accounts.php?_=${Date.now()}`);
         console.debug('loadStaffAccountsFromServer: response', { payload });
-        if (!payload || payload.success !== true) return false;
+        if (!payload || payload.success !== true) {
+            renderAccountsPlaceholderNote('Unable to load staff accounts. It will retry automatically.');
+            return false;
+        }
 
         if (Array.isArray(payload.accounts)) {
+            staffAccountsLoadedOnce = true;
             const changed = applyStaffAccountsSnapshot(payload.accounts);
             if (changed) {
                 renderAccounts();
@@ -641,6 +645,7 @@ async function loadStaffAccountsFromServer(forceRefresh = false) {
         return false;
     } catch (error) {
         console.error('Unable to load staff accounts from server', error);
+        renderAccountsPlaceholderNote('Unable to load staff accounts. It will retry automatically.');
         return false;
     } finally {
         staffAccountsSyncInFlight = false;
@@ -2588,12 +2593,43 @@ document.addEventListener('keydown', (event) => {
 const trustedDevicesList = document.getElementById('trustedDevicesList');
 const trustedDevicesMessage = document.getElementById('trustedDevicesMessage');
 
+// Placeholder rows for the first paint of the Login Logs section: the device
+// list is only fetched once the section opens, so without these the card sits
+// empty until the response arrives. The flag keeps later polls (and the SSE
+// push) from flashing a skeleton over rows the user is reading.
+let trustedDevicesLoadedOnce = false;
+
+function renderTrustedDevicesSkeleton() {
+    if (!trustedDevicesList) return;
+
+    trustedDevicesList.innerHTML = `
+        <div class="trusted-devices-group" aria-hidden="true">
+            ${Array.from({ length: 3 }, () => `
+                <div class="trusted-device-row is-skeleton">
+                    <span class="skeleton-line is-avatar"></span>
+                    <div class="trusted-device-meta">
+                        <span class="skeleton-line is-medium"></span>
+                        <span class="skeleton-line is-long"></span>
+                    </div>
+                    <span class="skeleton-line is-pill"></span>
+                </div>
+            `).join('')}
+        </div>
+        <p class="trusted-devices-loading-note" role="status">Loading trusted devices…</p>
+    `;
+}
+
 async function loadTrustedDevices(options = {}) {
     if (!trustedDevicesList) return;
     const { silent = false } = options;
     if (trustedDevicesInFlight) return;
     const actor = getCurrentStaffActor();
     if (!actor.email) return;
+
+    // Show placeholders instead of an empty card on the first load.
+    if (!trustedDevicesLoadedOnce) {
+        renderTrustedDevicesSkeleton();
+    }
 
     trustedDevicesInFlight = true;
     try {
@@ -2613,6 +2649,7 @@ async function loadTrustedDevices(options = {}) {
             throw new Error(payload.error || 'Unable to load trusted devices');
         }
         const devices = Array.isArray(payload.devices) ? payload.devices : [];
+        trustedDevicesLoadedOnce = true;
         // Polling calls skip re-rendering when nothing changed so an admin
         // using another part of the section is not disturbed, and per-row UI
         // state (e.g. the Revoking… spinner) is not reset mid-request.
@@ -2626,6 +2663,10 @@ async function loadTrustedDevices(options = {}) {
         if (!silent) {
             console.error('Unable to load trusted devices', error);
             if (trustedDevicesMessage) trustedDevicesMessage.textContent = error.message || 'Unable to load trusted devices.';
+            // Never leave the placeholders shimmering after a failed load.
+            if (trustedDevicesList.querySelector('.is-skeleton')) {
+                trustedDevicesList.innerHTML = '<p class="trusted-devices-empty">Unable to load trusted devices.</p>';
+            }
         }
     } finally {
         trustedDevicesInFlight = false;
@@ -2656,6 +2697,7 @@ function startTrustedDevicesRefresh() {
                 const payload = JSON.parse(event.data);
                 if (payload && payload.success) {
                     const devices = Array.isArray(payload.devices) ? payload.devices : [];
+                    trustedDevicesLoadedOnce = true;
                     const snapshot = JSON.stringify(devices);
                     if (snapshot !== lastTrustedDevicesSnapshot) {
                         renderTrustedDevices(devices);
@@ -2903,8 +2945,48 @@ function syncLoginHistoryDateToToday() {
     }
 }
 
+// Same placeholder treatment for the history table: it is fetched when the
+// section opens, so the card shows shimmering rows instead of an empty box.
+let loginHistoryLoadedOnce = false;
+
+function renderLoginHistorySkeleton() {
+    if (!loginHistoryList) return;
+
+    loginHistoryList.innerHTML = `
+        <div class="login-history-table-wrap">
+            <table class="login-history-table is-skeleton" aria-hidden="true">
+                <thead>
+                    <tr>
+                        <th>Date &amp; Time</th>
+                        <th>Role</th>
+                        <th>Email</th>
+                        <th>Device</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${Array.from({ length: 5 }, () => `
+                        <tr>
+                            <td><span class="skeleton-line is-medium"></span></td>
+                            <td><span class="skeleton-line is-short"></span></td>
+                            <td><span class="skeleton-line is-long"></span></td>
+                            <td><span class="skeleton-line is-medium"></span></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        <p class="login-history-loading-note" role="status">Loading login history…</p>
+    `;
+}
+
 async function loadLoginHistory() {
     if (!loginHistoryList) return;
+
+    // Show placeholders instead of an empty card on the first load. Later polls
+    // (every 30s) and the date filter update the rendered table in place.
+    if (!loginHistoryLoadedOnce) {
+        renderLoginHistorySkeleton();
+    }
 
     const dateValue = loginHistoryDateInput ? loginHistoryDateInput.value : '';
     const query = new URLSearchParams();
@@ -2921,6 +3003,7 @@ async function loadLoginHistory() {
         }
         renderLoginOnline(Array.isArray(payload.online) ? payload.online : []);
         renderLoginHistory(Array.isArray(payload.history) ? payload.history : [], dateValue);
+        loginHistoryLoadedOnce = true;
     } catch (error) {
         console.error('Unable to load login history', error);
         if (loginHistoryList) {
@@ -3430,10 +3513,49 @@ const closeStaffEditPanelBtn = document.getElementById('closeStaffEditPanelBtn')
 let accountEditIndex = null;
 let staffEditIndex = null;
 
+// The account list is fetched from the server (page load + 10s refresh), so it
+// stays empty for the first request. Placeholder rows stand in until the first
+// snapshot lands; the flag keeps later refreshes from flashing a skeleton over
+// rows the admin is reading.
+let staffAccountsLoadedOnce = false;
+
+function renderAccountsSkeletonMarkup() {
+    return Array.from({ length: 3 }, () => `
+            <li class="is-skeleton" aria-hidden="true">
+                <span class="skeleton-line is-long"></span>
+                <span class="skeleton-line is-pill"></span>
+            </li>
+        `).join('');
+}
+
+function renderAccountsSkeleton() {
+    if (!accountList) return;
+
+    accountList.setAttribute('aria-busy', 'true');
+    accountList.innerHTML = `${renderAccountsSkeletonMarkup()}
+        <li class="account-list-note" role="status">Loading staff accounts…</li>`;
+}
+
+// Replaces the placeholders when the first load fails so the rows never shimmer
+// forever; the 10s refresh renders the real list as soon as it succeeds.
+function renderAccountsPlaceholderNote(message) {
+    if (!accountList || staffAccountsLoadedOnce || accounts.length) return;
+
+    accountList.removeAttribute('aria-busy');
+    accountList.innerHTML = `<li class="account-list-note" role="status">${escapeHtml(message)}</li>`;
+}
+
 function renderAccounts() {
     if (!accountList) return;
 
     accountList.innerHTML = '';
+
+    if (!staffAccountsLoadedOnce && !accounts.length) {
+        renderAccountsSkeleton();
+        return;
+    }
+
+    accountList.removeAttribute('aria-busy');
 
     accounts.forEach((account, index) => {
         const item = document.createElement('li');
@@ -7559,6 +7681,7 @@ async function loadPendingOrdersFromServer() {
         if (!payload) return;
 
         const serverOrders = Array.isArray(payload.orders) ? payload.orders : [];
+        pendingOrdersLoadedOnce = true;
 
         pendingOrders = serverOrders.map((order) => {
             const items = Array.isArray(order.items) ? order.items : [];
@@ -7606,6 +7729,12 @@ async function loadPendingOrdersFromServer() {
     }
     } catch (error) {
         console.error('Unable to load pending orders from the server', error);
+        // Never leave the placeholders shimmering after a failed first load:
+        // the 10s refresh replaces this note as soon as it succeeds.
+        if (pendingOrdersList && !pendingOrders.length && !pendingOrdersLoadedOnce) {
+            pendingOrdersList.removeAttribute('aria-busy');
+            pendingOrdersList.innerHTML = '<p class="menu-cart-empty">Unable to load pending orders. It will retry automatically.</p>';
+        }
     }
 }
 
@@ -11982,12 +12111,59 @@ function clearCart() {
     updateCartDisplay();
 }
 
+// Pending orders arrive from the server, so the first paint of the section used
+// to show "no pending orders" before the request came back. Placeholder cards
+// stand in until the first successful load; cached orders skip it entirely.
+let pendingOrdersLoadedOnce = false;
+
+function renderPendingOrdersSkeletonMarkup() {
+    return `${Array.from({ length: 2 }, () => `
+            <article class="pending-order-card is-skeleton" aria-hidden="true">
+                <div class="pending-order-top">
+                    <span class="skeleton-line is-medium"></span>
+                    <span class="skeleton-line is-pill"></span>
+                </div>
+                <span class="skeleton-line is-long"></span>
+                <span class="skeleton-line is-short"></span>
+                <div class="skeleton-order-items">
+                    <span class="skeleton-line is-long"></span>
+                    <span class="skeleton-line is-medium"></span>
+                    <span class="skeleton-line is-long"></span>
+                </div>
+                <div class="pending-order-actions">
+                    <span class="skeleton-line is-medium"></span>
+                    <span class="skeleton-line is-long"></span>
+                    <div class="skeleton-action-row">
+                        <span class="skeleton-line is-button"></span>
+                        <span class="skeleton-line is-button"></span>
+                        <span class="skeleton-line is-button"></span>
+                    </div>
+                </div>
+            </article>
+        `).join('')}
+        <p class="pending-orders-loading-note" role="status">Loading pending orders…</p>`;
+}
+
+function renderPendingOrdersSkeleton() {
+    if (!pendingOrdersList) return;
+
+    pendingOrdersList.setAttribute('aria-busy', 'true');
+    pendingOrdersList.innerHTML = renderPendingOrdersSkeletonMarkup();
+}
+
 function renderPendingOrders() {
     if (!pendingOrdersList) return;
     if (!pendingOrders.length) {
+        if (!pendingOrdersLoadedOnce) {
+            renderPendingOrdersSkeleton();
+            return;
+        }
+        pendingOrdersList.removeAttribute('aria-busy');
         pendingOrdersList.innerHTML = '<p class="menu-cart-empty">There are no pending orders at the moment.</p>';
         return;
     }
+
+    pendingOrdersList.removeAttribute('aria-busy');
 
     const canCompleteOrders = canManageOrders();
 
