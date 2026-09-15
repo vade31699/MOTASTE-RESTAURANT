@@ -16,6 +16,7 @@ require_once __DIR__ . '/_device_auth_helpers.php';
 require_once __DIR__ . '/_email_auth_helpers.php';
 require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/_staff_auth_helpers.php';
+require_once __DIR__ . '/_totp_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
 
 try {
@@ -141,6 +142,23 @@ try {
     if ($selectedRole !== '' && $selectedRole !== $role) {
         http_response_code(403);
         echo json_encode(['success' => false, 'error' => 'Invalid role for this account']);
+        exit;
+    }
+
+    // ---- Authenticator-app (TOTP) factor --------------------------------
+    // Accounts with 2FA enabled skip the emailed code entirely: the only
+    // allowed second factor is a live code from the authenticator app. This
+    // early exit also keeps the emailed-code issuance below (rate limits,
+    // cooloffs, inbox flooding) irrelevant for those accounts.
+    if (totpEnabledFor($email)) {
+        echo json_encode([
+            'success' => false,
+            'needsTotp' => true,
+            'email' => $email,
+            'role' => $role,
+            'message' => 'Enter the 6-digit code from your authenticator app.',
+            'deviceToken' => $deviceToken,
+        ]);
         exit;
     }
 

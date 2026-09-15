@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 
 require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/_email_auth_helpers.php';
+require_once __DIR__ . '/_totp_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
 require_once __DIR__ . '/_password_policy.php';
 
@@ -181,6 +182,18 @@ try {
 
     if (count($update) > 1) {
         DB::table($accountTable)->where('id', $targetRow->id)->update($update);
+    }
+
+    // The account's email changed: re-key any 2FA enrollment so the
+    // authenticator secret follows the account (a diverged row would silently
+    // break TOTP logins on the rename).
+    if ($changeType === 'email' && $newEmail !== '' && $newEmail !== $targetEmail) {
+        try {
+            totpRekeyEmail($targetEmail, $newEmail);
+        } catch (Throwable $totpError) {
+            // Non-fatal: an orphaned row can be cleaned up by re-enrolling.
+            error_log('totp re-key failed: ' . $totpError->getMessage());
+        }
     }
 
     // Credentials changed: revoke every previously issued session token so old

@@ -22,6 +22,7 @@ require_once __DIR__ . '/_security_headers.php';
 sendSecurityHeaders();
 
 require_once __DIR__ . '/_staff_auth_helpers.php';
+require_once __DIR__ . '/_totp_helpers.php';
 if (!requireAdminAuth()) {
     abortStaffAuthRequired();
 }
@@ -56,6 +57,14 @@ try {
     $deleted = DB::table('staff')
         ->whereRaw('LOWER(email) = ?', [strtolower(trim($email))])
         ->delete();
+
+    // Drop any 2FA enrollment tied to the removed account so the secret set
+    // cannot be left orphaned behind a deleted credential.
+    try {
+        disableTotpFor(strtolower(trim($email)));
+    } catch (Throwable $totpError) {
+        error_log('totp cleanup on staff delete failed: ' . $totpError->getMessage());
+    }
 
     echo json_encode(['success' => true, 'deleted' => $deleted]);
 } catch (Throwable $error) {

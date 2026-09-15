@@ -9704,6 +9704,95 @@ body.staff-app .account-settings-message {
     font-weight: 600;
 }
 
+/* ---------- Two-factor (TOTP) status card ---------- */
+body.staff-app .totp-status-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 6px 4px;
+    border-bottom: 1px solid var(--staff-border-soft);
+}
+
+body.staff-app .totp-status-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--staff-accent-soft);
+    color: var(--staff-accent-strong);
+    font-size: 1rem;
+    box-shadow: inset 0 0 0 1px rgba(43, 174, 102, 0.18);
+}
+
+body.staff-app .totp-status-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--staff-muted);
+}
+
+/* ---------- Two-factor (TOTP) setup modal ---------- */
+body.staff-app .totp-scan-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+body.staff-app .totp-qr-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px;
+    margin: 4px 0 6px;
+    background: #fff;
+    border: 1px solid var(--staff-border);
+    border-radius: 12px;
+    min-height: 120px;
+}
+
+body.staff-app .totp-qr-container img {
+    display: block;
+    width: 180px;
+    height: 180px;
+    image-rendering: pixelated;
+}
+
+body.staff-app .totp-qr-fallback {
+    font-size: 0.8rem;
+    text-align: center;
+    color: var(--staff-muted);
+    margin: 0;
+}
+
+body.staff-app .totp-scan-body label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--staff-muted);
+}
+
+body.staff-app .totp-manual-key {
+    width: 100%;
+    padding: 10px 12px;
+    font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.12em;
+    text-align: center;
+    color: var(--staff-accent-strong);
+    background: var(--staff-surface-soft);
+    border: 1px solid var(--staff-border);
+    border-radius: 8px;
+    cursor: text;
+    user-select: all;
+}
+
+body.staff-app .totp-modal-steps h3 {
+    margin-bottom: 4px;
+}
+
 /* The "Add Staff Account" trigger and its card sit in the same flat system as
    the dashboard list below them: solid button, thin-border card. */
 body.staff-app #account-management .add-staff-btn {

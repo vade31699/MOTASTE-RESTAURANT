@@ -913,6 +913,25 @@
             </button>
         </div>
 
+        <div class="trusted-devices-card account-settings-actions-card">
+            <div class="trusted-devices-header">
+                <h3>Two-Factor Authentication</h3>
+                <p>Require an authenticator app code in addition to the password for this account.</p>
+            </div>
+            <div class="totp-status-row">
+                <span class="totp-status-icon" aria-hidden="true"><i class="fa-solid fa-shield-halved"></i></span>
+                <span class="totp-status-text" id="totpStatusText">Loading&hellip;</span>
+            </div>
+            <button type="button" id="totpOptionBtn" class="account-setting-option">
+                <span class="account-setting-option-icon" aria-hidden="true"><i class="fa-solid fa-mobile-screen-button"></i></span>
+                <span class="account-setting-option-text">
+                    <strong id="totpOptionLabel">Set Up Authenticator</strong>
+                    <small id="totpOptionDesc">Link this account to an authenticator app.</small>
+                </span>
+                <span class="account-setting-option-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
+            </button>
+        </div>
+
         <p id="accountSettingsMessage" class="account-settings-message" aria-live="polite"></p>
     </section>
 
@@ -1127,6 +1146,96 @@
         </div>
     </div>
 
+    <!-- Two-factor setup wizard (admin-initiated) -->
+    <div id="totpSetupModal" class="forgot-password-modal" hidden aria-hidden="true">
+        <div class="forgot-password-modal-box" role="dialog" aria-modal="true" aria-labelledby="totpSetupTitle">
+            <button type="button" class="modal-close" id="totpSetupCloseBtn" aria-label="Close two-factor setup">&times;</button>
+
+            <div class="acm-progress" aria-hidden="true">
+                <div class="acm-progress-step" id="totpProgressItem1">
+                    <span class="acm-progress-dot"><i class="fa-solid fa-check"></i></span>
+                    <span class="acm-progress-label">Authorize</span>
+                </div>
+                <span class="acm-progress-connector"></span>
+                <div class="acm-progress-step" id="totpProgressItem2">
+                    <span class="acm-progress-dot"><i class="fa-solid fa-check"></i></span>
+                    <span class="acm-progress-label">Scan &amp; Activate</span>
+                </div>
+            </div>
+
+            <div class="acm-step" id="totpStepAuth">
+                <div class="acm-step-heading">
+                    <span class="acm-step-icon" aria-hidden="true"><i class="fa-solid fa-shield-halved"></i></span>
+                    <h3 id="totpSetupTitle">Set Up Two-Factor Authentication</h3>
+                </div>
+                <p class="acm-step-description">Enter the current admin password to begin setting up an authenticator app for this account.</p>
+                <div class="floating-field acm-field">
+                    <input type="password" id="totpAdminPasswordInput" placeholder="Current admin password" autocomplete="current-password" required>
+                    <label for="totpAdminPasswordInput">Current admin password</label>
+                </div>
+                <p class="acm-error" id="totpAuthError" hidden></p>
+                <div class="acm-actions">
+                    <button type="button" class="btn-cancel acm-btn-cancel" id="totpAuthCancelBtn">Cancel</button>
+                    <button type="button" class="btn-send acm-btn-primary" id="totpAuthBtn">Generate QR Code</button>
+                </div>
+            </div>
+
+            <div class="acm-step" id="totpStepScan" hidden>
+                <div class="acm-step-heading">
+                    <span class="acm-step-icon" aria-hidden="true"><i class="fa-solid fa-mobile-screen-button"></i></span>
+                    <h3>Scan Authenticator QR Code</h3>
+                </div>
+                <p class="acm-step-description">Scan this QR code with your authenticator app, or copy the secret key below it manually. Then enter the 6-digit code shown in the app to activate 2FA.</p>
+                <div class="totp-scan-body">
+                    <div id="totpQrContainer" class="totp-qr-container"></div>
+                    <label for="totpManualKeyInput" class="totp-manual-key-label">Manual secret key</label>
+                    <input type="text" id="totpManualKeyInput" class="totp-manual-key" readonly autocomplete="off">
+                    <label for="totpCodeInput">Enter 6-digit code from authenticator</label>
+                    <input type="text" id="totpCodeInput" inputmode="numeric" maxlength="8" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="one-time-code" required>
+                    <p class="acm-error" id="totpScanError" hidden></p>
+                    <div class="acm-actions">
+                        <button type="button" class="btn-cancel acm-btn-cancel" id="totpScanCancelBtn">Cancel</button>
+                        <button type="button" class="btn-send acm-btn-primary" id="totpActivateBtn">Activate</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="acm-step" id="totpSetupSuccess" hidden>
+                <div class="acm-step-heading acm-success-heading">
+                    <span class="acm-step-icon acm-success-icon" aria-hidden="true"><i class="fa-solid fa-circle-check"></i></span>
+                    <h3>Two-Factor Authentication Enabled</h3>
+                </div>
+                <p class="acm-step-description">Authenticator 2FA is now active for this account. The staff member will be asked for an app code on every login.</p>
+                <div class="acm-actions acm-actions-single">
+                    <button type="button" class="btn-send acm-btn-primary" id="totpSetupDoneBtn">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Two-factor disable confirmation -->
+    <div id="totpDisableModal" class="forgot-password-modal" hidden aria-hidden="true">
+        <div class="forgot-password-modal-box" role="dialog" aria-modal="true" aria-labelledby="totpDisableTitle">
+            <button type="button" class="modal-close" id="totpDisableCloseBtn" aria-label="Close two-factor disable">&times;</button>
+            <div class="acm-step">
+                <div class="acm-step-heading">
+                    <span class="acm-step-icon" aria-hidden="true"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                    <h3 id="totpDisableTitle">Disable Two-Factor Authentication</h3>
+                </div>
+                <p class="acm-step-description">This will turn off authenticator 2FA for this account. Enter the current admin password to confirm.</p>
+                <div class="floating-field acm-field">
+                    <input type="password" id="totpDisablePasswordInput" placeholder="Current admin password" autocomplete="current-password" required>
+                    <label for="totpDisablePasswordInput">Current admin password</label>
+                </div>
+                <p class="acm-error" id="totpDisableError" hidden></p>
+                <div class="acm-actions">
+                    <button type="button" class="btn-cancel acm-btn-cancel" id="totpDisableCancelBtn">Cancel</button>
+                    <button type="button" class="btn-send" id="totpDisableConfirmBtn">Disable 2FA</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Staff password recovery — shown inline on the login page via a modal;
          the whole email -> code -> new password flow never navigates away. -->
     <div id="forgotPasswordModal" class="forgot-password-modal" hidden aria-hidden="true">
@@ -1233,6 +1342,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
     <script src="./script.js?v=20260915t" defer></script>
 </body>
 </html>

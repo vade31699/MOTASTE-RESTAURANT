@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 require_once __DIR__ . '/_device_auth_helpers.php';
 require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/_staff_auth_helpers.php';
+require_once __DIR__ . '/_totp_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
 
 try {
@@ -21,6 +22,7 @@ try {
     $email = strtolower(trim((string)($input['email'] ?? '')));
     $password = (string)($input['password'] ?? '');
     $code = trim((string)($input['code'] ?? ''));
+    $totpCode = trim((string)($input['totpCode'] ?? ''));
     $deviceToken = trim((string)($input['deviceToken'] ?? ''));
     // "Remember me" controls whether the session cookie survives a browser
     // restart, so the client passes it through.
@@ -34,9 +36,9 @@ try {
     // script.js).
     validateCsrfOrExit();
 
-    if ($email === '' || $password === '' || $code === '') {
+    if ($email === '' || $password === '') {
         http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'Email, password, and verification code are required.']);
+        echo json_encode(['success' => false, 'error' => 'Email and password are required.']);
         exit;
     }
 
@@ -83,19 +85,40 @@ try {
     $role = trim((string)($staffRow->role ?? ''));
     $fingerprint = computeDeviceFingerprint($email, $deviceToken);
 
-    if (!verifyDeviceLoginCode($email, $fingerprint, $code)) {
-        // A wrong code is a brute-force attempt against the emailed 6-digit
-        // challenge: count it toward lockout too (the token row itself also
-        // self-destructs after 5 failed attempts via verifyDeviceLoginCode()).
+    // Factor selection: accounts with 2FA use a live authenticator code in
+    // place of the emailed challenge; everyone else uses the emailed code.
+    $factor = totpEnabledFor($email) ? 'totp' : 'email';
+    $factorOk = false;
+
+    if ($factor === 'totp') {
+        if ($totpCode === '') {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Authenticator verification code required.']);
+            exit;
+        }
+        $factorOk = verifyTotpCode($email, $totpCode);
+    } else {
+        if ($code === '') {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Verification code required.']);
+            exit;
+        }
+        $factorOk = verifyDeviceLoginCode($email, $fingerprint, $code);
+    }
+
+    if (!$factorOk) {
+        // A wrong code is a brute-force attempt against the second factor:
+        // count it toward lockout (the emailed-code token row also self-
+        // destructs after 5 failed attempts via verifyDeviceLoginCode()).
         recordLoginAttempt($email, false);
         http_response_code(403);
         echo json_encode(['success' => false, 'error' => 'Invalid or expired verification code']);
         exit;
     }
 
-    // Code confirmed: clear the failure counters, record this device as a
+    // Factor confirmed: clear the failure counters, record this device as a
     // verified login (informational only — every login still requires a fresh
-    // emailed code), and grant the session.
+    // code), and grant the session.
     recordLoginAttempt($email, true);
     markTrustedDeviceSeen($email, $fingerprint);
 
@@ -136,12 +159,15 @@ try {
             'action' => 'device_login_verified',
             'actor_role' => $role,
             'actor_email' => strtolower(trim((string)($staffRow->email ?? ''))),
-            'summary' => 'Staff login verified with emailed code',
+            'summary' => $factor === 'totp'
+                ? 'Staff login verified with authenticator app'
+                : 'Staff login verified with emailed code',
             'details' => json_encode([
                 'device_label' => resolveDeviceLabel(),
                 'device_token' => $deviceToken,
                 'ip_address' => resolveClientIpAddress(),
                 'verified_at' => now()->toDateTimeString(),
+                'factor' => $factor,
             ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             'created_at' => now(),
             'updated_at' => now(),

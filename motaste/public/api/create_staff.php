@@ -67,7 +67,7 @@ if ($password !== $passwordConfirmation) {
 
 // Only Cashier / Inventory Manager accounts may be created through this
 // endpoint. The Admin account is managed exclusively through the
-// email-verified credentials flow (request/confirm_admin_credentials_change).
+// email-verified account change flow (request/verify/confirm_account_change).
 if (!in_array($role, ['Cashier', 'Inventory Manager'], true)) {
     http_response_code(422);
     echo json_encode(['error' => 'Only Cashier and Inventory Manager accounts can be created here']);

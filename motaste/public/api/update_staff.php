@@ -68,7 +68,7 @@ if ($password !== $passwordConfirmation) {
 
 // The Admin account cannot be created, edited, or promoted through this
 // generic endpoint. Admin credentials are managed exclusively through the
-// email-verified credentials flow (request/confirm_admin_credentials_change).
+// email-verified account change flow (request/verify/confirm_account_change).
 $allowedRoles = ['Cashier', 'Inventory Manager'];
 if (!in_array($role, $allowedRoles, true)) {
     http_response_code(422);

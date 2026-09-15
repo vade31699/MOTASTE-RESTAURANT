@@ -1681,17 +1681,23 @@ async function authenticateStaffAccount(email, password, role = '', deviceToken 
     }
 }
 
-async function verifyDeviceLogin(email, password, code, deviceToken, remember = false) {
+async function verifyDeviceLogin(email, password, code, deviceToken, remember = false, totp = false) {
     try {
         // This endpoint establishes the session, so it is CSRF-protected: send
         // the stateless signed token in the X-CSRF-TOKEN header.
         const headers = await withCsrfHeaders({
             'Content-Type': 'application/json'
         });
+        const body = { email, password, deviceToken, remember: Boolean(remember) };
+        if (totp) {
+            body.totpCode = code;
+        } else {
+            body.code = code;
+        }
         const response = await fetchWithTimeout(getApiUrl('api/verify_device_login.php'), {
             method: 'POST',
             headers,
-            body: JSON.stringify({ email, password, code, deviceToken, remember: Boolean(remember) }),
+            body: JSON.stringify(body),
             cache: 'no-store'
         });
 
@@ -1928,6 +1934,8 @@ const deviceVerifySubmitBtn = document.getElementById('deviceVerifySubmitBtn');
 const deviceVerifyCloseBtn = document.getElementById('deviceVerifyCloseBtn');
 const deviceVerifyCodeInput = document.getElementById('deviceVerifyCodeInput');
 const deviceVerifyMessage = document.getElementById('deviceVerifyMessage');
+const deviceVerifyTitle = document.getElementById('deviceVerifyTitle');
+const deviceVerifyText = document.getElementById('deviceVerifyText');
 
 let deviceVerifyResolver = null;
 
@@ -1947,7 +1955,12 @@ function closeDeviceVerifyModal() {
 
 function resetDeviceVerifyModal() {
     if (deviceVerifyCodeStep) deviceVerifyCodeStep.hidden = false;
-    if (deviceVerifyCodeInput) deviceVerifyCodeInput.value = '';
+    if (deviceVerifyCodeInput) {
+        deviceVerifyCodeInput.value = '';
+        deviceVerifyCodeInput.placeholder = '6-digit code';
+    }
+    if (deviceVerifyTitle) deviceVerifyTitle.textContent = 'Login verification required';
+    if (deviceVerifyText) deviceVerifyText.textContent = 'For security, a 6-digit verification code was sent to your email. Enter it below to continue.';
     if (deviceVerifyMessage) deviceVerifyMessage.textContent = '';
 }
 
@@ -1957,11 +1970,14 @@ function resetDeviceVerifyModal() {
  * When the verification email could not be delivered, warningMessage is shown
  * so staff know the code was written to the server log instead.
  */
-function requestDeviceVerificationCode(warningMessage) {
+function requestDeviceVerificationCode(warningMessage, overrides = {}) {
     if (!deviceVerifyModal) return Promise.resolve(null);
     return new Promise((resolve) => {
         deviceVerifyResolver = resolve;
         resetDeviceVerifyModal();
+        if (overrides.title && deviceVerifyTitle) deviceVerifyTitle.textContent = overrides.title;
+        if (overrides.text && deviceVerifyText) deviceVerifyText.textContent = overrides.text;
+        if (overrides.placeholder && deviceVerifyCodeInput) deviceVerifyCodeInput.placeholder = overrides.placeholder;
         if (warningMessage && deviceVerifyMessage) {
             deviceVerifyMessage.textContent = warningMessage;
         }
@@ -1990,7 +2006,7 @@ if (deviceVerifySubmitBtn) {
     deviceVerifySubmitBtn.addEventListener('click', () => {
         const code = deviceVerifyCodeInput ? deviceVerifyCodeInput.value.trim() : '';
         if (!code) {
-            if (deviceVerifyMessage) deviceVerifyMessage.textContent = 'Enter the 6-digit code sent to your email.';
+            if (deviceVerifyMessage) deviceVerifyMessage.textContent = 'Enter the 6-digit verification code.';
             return;
         }
         resolveDeviceVerify(code);
@@ -3182,7 +3198,7 @@ async function handleStaffLogin(email, password, role, remember) {
             return;
         }
         // Handle rate-limit or generic failure after CAPTCHA retry.
-        if (authResult.rateLimited || (!authResult.success && !authResult.needsDeviceVerification)) {
+        if (authResult.rateLimited || (!authResult.success && !authResult.needsDeviceVerification && !authResult.needsTotp)) {
             setAuthButtonsVisible(false);
             if (modalTitle) {
                 modalTitle.textContent = authResult.error || 'Invalid username or Password.';
@@ -3193,7 +3209,7 @@ async function handleStaffLogin(email, password, role, remember) {
 
     // Invalid credentials: the server intentionally returns a generic message
     // (no attempt count, no account-existence hints).
-    if (!authResult.success && !authResult.needsCaptcha && !authResult.needsDeviceVerification) {
+    if (!authResult.success && !authResult.needsCaptcha && !authResult.needsDeviceVerification && !authResult.needsTotp) {
         setAuthButtonsVisible(false);
         if (modalTitle) {
             modalTitle.textContent = authResult.error || 'Invalid username or Password.';
@@ -3212,6 +3228,31 @@ async function handleStaffLogin(email, password, role, remember) {
         }
 
         authResult = await verifyDeviceLogin(email, password, code, deviceToken, remember);
+        if (!authResult) {
+            if (modalTitle) {
+                modalTitle.textContent = 'Invalid or expired verification code';
+            }
+            return;
+        }
+    }
+
+    // The account has authenticator-app 2FA: the second factor is a live TOTP
+    // code instead of an email. authResult from the PASSED factor (below)
+    // carries the same shape as a device-verified response.
+    if (authResult.needsTotp) {
+        const code = await requestDeviceVerificationCode(authResult.warning || '', {
+            title: 'Two-factor authentication required',
+            text: 'Enter the 6-digit code from your authenticator app to continue.',
+            placeholder: '6-digit app code'
+        });
+        if (!code) {
+            if (modalTitle) {
+                modalTitle.textContent = 'Two-factor authentication required';
+            }
+            return;
+        }
+
+        authResult = await verifyDeviceLogin(email, password, code, deviceToken, remember, true);
         if (!authResult) {
             if (modalTitle) {
                 modalTitle.textContent = 'Invalid or expired verification code';
@@ -3542,6 +3583,39 @@ const acmNewPasswordConfirmField = document.getElementById('acmNewPasswordConfir
 let accountSettingsIndex = null;
 let accountChangeState = { type: null, targetEmail: '', targetName: '', targetRole: '', code: '' };
 
+/* ---- Two-factor (TOTP) refs & state ------------------------------------ */
+const totpOptionBtn = document.getElementById('totpOptionBtn');
+const totpStatusText = document.getElementById('totpStatusText');
+const totpOptionLabel = document.getElementById('totpOptionLabel');
+const totpOptionDesc = document.getElementById('totpOptionDesc');
+const totpSetupModal = document.getElementById('totpSetupModal');
+const totpSetupCloseBtn = document.getElementById('totpSetupCloseBtn');
+const totpStepAuth = document.getElementById('totpStepAuth');
+const totpStepScan = document.getElementById('totpStepScan');
+const totpSetupSuccess = document.getElementById('totpSetupSuccess');
+const totpAdminPasswordInput = document.getElementById('totpAdminPasswordInput');
+const totpAuthError = document.getElementById('totpAuthError');
+const totpAuthCancelBtn = document.getElementById('totpAuthCancelBtn');
+const totpAuthBtn = document.getElementById('totpAuthBtn');
+const totpQrContainer = document.getElementById('totpQrContainer');
+const totpManualKeyInput = document.getElementById('totpManualKeyInput');
+const totpCodeInput = document.getElementById('totpCodeInput');
+const totpScanError = document.getElementById('totpScanError');
+const totpScanCancelBtn = document.getElementById('totpScanCancelBtn');
+const totpActivateBtn = document.getElementById('totpActivateBtn');
+const totpSetupDoneBtn = document.getElementById('totpSetupDoneBtn');
+const totpProgressItem1 = document.getElementById('totpProgressItem1');
+const totpProgressItem2 = document.getElementById('totpProgressItem2');
+const totpDisableModal = document.getElementById('totpDisableModal');
+const totpDisableCloseBtn = document.getElementById('totpDisableCloseBtn');
+const totpDisablePasswordInput = document.getElementById('totpDisablePasswordInput');
+const totpDisableError = document.getElementById('totpDisableError');
+const totpDisableCancelBtn = document.getElementById('totpDisableCancelBtn');
+const totpDisableConfirmBtn = document.getElementById('totpDisableConfirmBtn');
+
+let totpSetupState = { pendingSecret: '', otpauthUri: '' };
+let totpUiEnabled = false;
+
 // The account list is fetched from the server (page load + 10s refresh), so it
 // stays empty for the first request. Placeholder rows stand in until the first
 // snapshot lands; the flag keeps later refreshes from flashing a skeleton over
@@ -3671,6 +3745,9 @@ function openAccountSettings(index) {
     }
 
     setAccountSettingsMessage('');
+
+    // Load the two-factor status for the selected account asynchronously.
+    void refreshTotpStatus();
 
     // Leave the add form and the account list behind.
     if (accountForm) accountForm.hidden = true;
@@ -4157,6 +4234,368 @@ if (removeAccountOptionBtn) {
         void removeSelectedAccount();
     });
 }
+
+/* ---- Two-factor (TOTP) wiring ------------------------------------------ */
+
+function totpTargetEmail() {
+    const account = accounts[accountSettingsIndex];
+    return account && account.email ? account.email.trim().toLowerCase() : '';
+}
+
+function renderTotpStatus(enabled, pending) {
+    totpUiEnabled = Boolean(enabled);
+    if (totpStatusText) {
+        if (enabled) {
+            totpStatusText.textContent = 'Enabled — this account requires an authenticator code at login.';
+        } else if (pending) {
+            totpStatusText.textContent = 'Setup in progress — activate the pending code to finish.';
+        } else {
+            totpStatusText.textContent = 'Not set up — this account uses only the emailed verification code.';
+        }
+    }
+    if (totpOptionLabel && totpOptionDesc) {
+        if (enabled) {
+            totpOptionLabel.textContent = 'Disable Two-Factor';
+            totpOptionDesc.textContent = 'Turn off the authenticator requirement for this account.';
+            totpOptionBtn.classList.remove('account-setting-option-danger');
+        } else {
+            totpOptionLabel.textContent = 'Set Up Authenticator';
+            totpOptionDesc.textContent = 'Link this account to an authenticator app.';
+            if (pending) totpOptionDesc.textContent = 'Finish the pending authenticator setup for this account.';
+            totpOptionBtn.classList.remove('account-setting-option-danger');
+        }
+    }
+}
+
+async function refreshTotpStatus() {
+    const targetEmail = totpTargetEmail();
+    if (!targetEmail || !totpStatusText) return;
+
+    // Unknown until confirmed: treat the card as "not set up" while loading so
+    // a stale flag from the previous account cannot trigger a wrong action.
+    totpUiEnabled = false;
+    totpStatusText.textContent = 'Loading…';
+    try {
+        const response = await fetchWithTimeout(getApiUrl('api/totp_status.php'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ targetEmail }),
+            cache: 'no-store'
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+            totpStatusText.textContent = 'Two-factor status unavailable.';
+            return;
+        }
+        renderTotpStatus(Boolean(payload.enabled), Boolean(payload.pending));
+    } catch (error) {
+        totpStatusText.textContent = 'Two-factor status unavailable.';
+    }
+}
+
+function totpShowStep(stepName) {
+    const steps = { auth: totpStepAuth, scan: totpStepScan, success: totpSetupSuccess };
+    Object.keys(steps).forEach((key) => {
+        if (steps[key]) steps[key].hidden = key !== stepName;
+    });
+    const isSuccess = stepName === 'success';
+    if (totpProgressItem1) {
+        totpProgressItem1.classList.toggle('is-active', true);
+        totpProgressItem1.classList.toggle('is-done', isSuccess);
+        totpProgressItem1.classList.toggle('is-current', stepName === 'auth');
+    }
+    if (totpProgressItem2) {
+        const scanActive = stepName === 'scan';
+        totpProgressItem2.classList.toggle('is-active', scanActive || isSuccess);
+        totpProgressItem2.classList.toggle('is-current', scanActive || isSuccess);
+        totpProgressItem2.classList.toggle('is-done', isSuccess);
+    }
+}
+
+function totpModalOpen(modal) {
+    if (!modal) return;
+    modal.hidden = false;
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+}
+
+function totpModalClose(modal) {
+    if (!modal) return;
+    modal.hidden = true;
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+}
+
+function openTotpSetupModal() {
+    if (!totpSetupModal || !canManageAccounts()) return;
+    if (!totpTargetEmail()) return;
+
+    totpSetupState = { pendingSecret: '', otpauthUri: '' };
+    totpShowStep('auth');
+    if (totpAdminPasswordInput) totpAdminPasswordInput.value = '';
+    if (totpAuthError) { totpAuthError.textContent = ''; totpAuthError.hidden = true; }
+    if (totpScanError) { totpScanError.textContent = ''; totpScanError.hidden = true; }
+    if (totpCodeInput) totpCodeInput.value = '';
+    if (totpQrContainer) totpQrContainer.innerHTML = '';
+    if (totpManualKeyInput) totpManualKeyInput.value = '';
+    totpModalOpen(totpSetupModal);
+    window.setTimeout(() => {
+        if (totpAdminPasswordInput) totpAdminPasswordInput.focus();
+    }, 50);
+}
+
+function closeTotpSetupModal() {
+    totpModalClose(totpSetupModal);
+    totpSetupState = { pendingSecret: '', otpauthUri: '' };
+}
+
+function renderTotpQr(otpauthUri) {
+    if (!totpQrContainer) return;
+    if (typeof window.qrcode === 'function') {
+        try {
+            const qr = window.qrcode(0, 'M');
+            qr.addData(otpauthUri);
+            qr.make();
+            totpQrContainer.innerHTML = qr.createImgTag(4, 5);
+            return;
+        } catch (error) {
+            // Fall through to manual-only instructions.
+        }
+    }
+    totpQrContainer.innerHTML = '<p class="totp-qr-fallback">QR code unavailable — copy the manual secret key below into your authenticator app.</p>';
+}
+
+async function totpGenerateSecret() {
+    const targetEmail = totpTargetEmail();
+    if (!targetEmail) return;
+
+    const adminPassword = totpAdminPasswordInput ? totpAdminPasswordInput.value : '';
+    if (!adminPassword) {
+        if (totpAuthError) {
+            totpAuthError.textContent = 'Enter the current admin password.';
+            totpAuthError.hidden = false;
+        }
+        if (totpAdminPasswordInput) totpAdminPasswordInput.focus();
+        return;
+    }
+
+    if (totpAuthError) { totpAuthError.textContent = ''; totpAuthError.hidden = true; }
+    acmSetBusy(totpAuthBtn, true, 'Generating…');
+    try {
+        const headers = await withCsrfHeaders({ 'Content-Type': 'application/json' });
+        const response = await fetchWithTimeout(getApiUrl('api/totp_setup.php'), {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ targetEmail, adminPassword }),
+            cache: 'no-store'
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || `Unable to generate the QR code (HTTP ${response.status})`);
+        }
+
+        totpSetupState.pendingSecret = payload.secret || '';
+        totpSetupState.otpauthUri = payload.otpauth || '';
+        if (totpManualKeyInput) totpManualKeyInput.value = totpSetupState.pendingSecret;
+        renderTotpQr(totpSetupState.otpauthUri);
+        if (totpCodeInput) totpCodeInput.value = '';
+        if (totpScanError) { totpScanError.textContent = ''; totpScanError.hidden = true; }
+        totpShowStep('scan');
+        window.setTimeout(() => {
+            if (totpCodeInput) totpCodeInput.focus();
+        }, 50);
+    } catch (error) {
+        if (totpAuthError) {
+            totpAuthError.textContent = error.message || 'Unable to generate the QR code.';
+            totpAuthError.hidden = false;
+        }
+    } finally {
+        acmSetBusy(totpAuthBtn, false);
+    }
+}
+
+async function totpActivate() {
+    const targetEmail = totpTargetEmail();
+    if (!targetEmail || !totpSetupState.pendingSecret) return;
+
+    const code = totpCodeInput ? totpCodeInput.value.trim() : '';
+    if (!code) {
+        if (totpScanError) {
+            totpScanError.textContent = 'Enter the 6-digit code from your authenticator app.';
+            totpScanError.hidden = false;
+        }
+        if (totpCodeInput) totpCodeInput.focus();
+        return;
+    }
+
+    const adminPassword = totpAdminPasswordInput ? totpAdminPasswordInput.value : '';
+    if (totpScanError) { totpScanError.textContent = ''; totpScanError.hidden = true; }
+    acmSetBusy(totpActivateBtn, true, 'Activating…');
+    try {
+        const headers = await withCsrfHeaders({ 'Content-Type': 'application/json' });
+        const response = await fetchWithTimeout(getApiUrl('api/totp_confirm.php'), {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ targetEmail, adminPassword, code }),
+            cache: 'no-store'
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || `Unable to activate two-factor (HTTP ${response.status})`);
+        }
+
+        totpShowStep('success');
+        void refreshTotpStatus();
+    } catch (error) {
+        if (totpScanError) {
+            totpScanError.textContent = error.message || 'Unable to activate two-factor authentication.';
+            totpScanError.hidden = false;
+        }
+    } finally {
+        acmSetBusy(totpActivateBtn, false);
+    }
+}
+
+function openTotpDisableModal() {
+    if (!totpDisableModal || !canManageAccounts()) return;
+    if (!totpTargetEmail()) return;
+
+    if (totpDisablePasswordInput) totpDisablePasswordInput.value = '';
+    if (totpDisableError) { totpDisableError.textContent = ''; totpDisableError.hidden = true; }
+    totpModalOpen(totpDisableModal);
+    window.setTimeout(() => {
+        if (totpDisablePasswordInput) totpDisablePasswordInput.focus();
+    }, 50);
+}
+
+async function totpDisable() {
+    const targetEmail = totpTargetEmail();
+    if (!targetEmail) return;
+
+    const adminPassword = totpDisablePasswordInput ? totpDisablePasswordInput.value : '';
+    if (!adminPassword) {
+        if (totpDisableError) {
+            totpDisableError.textContent = 'Enter the current admin password.';
+            totpDisableError.hidden = false;
+        }
+        if (totpDisablePasswordInput) totpDisablePasswordInput.focus();
+        return;
+    }
+
+    if (totpDisableError) { totpDisableError.textContent = ''; totpDisableError.hidden = true; }
+    acmSetBusy(totpDisableConfirmBtn, true, 'Disabling…');
+    try {
+        const headers = await withCsrfHeaders({ 'Content-Type': 'application/json' });
+        const response = await fetchWithTimeout(getApiUrl('api/totp_disable.php'), {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ targetEmail, adminPassword }),
+            cache: 'no-store'
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || `Unable to disable two-factor (HTTP ${response.status})`);
+        }
+
+        totpModalClose(totpDisableModal);
+        setAccountSettingsMessage('Two-factor authentication disabled.');
+        void refreshTotpStatus();
+        void logStaffActivity('totp_disabled', 'Two-factor disabled for account', { email: targetEmail, role: 'Admin' });
+    } catch (error) {
+        if (totpDisableError) {
+            totpDisableError.textContent = error.message || 'Unable to disable two-factor.';
+            totpDisableError.hidden = false;
+        }
+    } finally {
+        acmSetBusy(totpDisableConfirmBtn, false);
+    }
+}
+
+if (totpOptionBtn) {
+    totpOptionBtn.addEventListener('click', () => {
+        if (!canManageAccounts()) {
+            showStaffNotice('Only the admin can manage accounts.', true);
+            return;
+        }
+        if (totpUiEnabled) {
+            openTotpDisableModal();
+        } else {
+            openTotpSetupModal();
+        }
+    });
+}
+
+if (totpAuthBtn) {
+    totpAuthBtn.addEventListener('click', () => {
+        void totpGenerateSecret();
+    });
+}
+
+if (totpAdminPasswordInput) {
+    totpAdminPasswordInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            if (totpAuthBtn) totpAuthBtn.click();
+        }
+    });
+}
+
+if (totpActivateBtn) {
+    totpActivateBtn.addEventListener('click', () => {
+        void totpActivate();
+    });
+}
+
+if (totpCodeInput) {
+    totpCodeInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            if (totpActivateBtn) totpActivateBtn.click();
+        }
+    });
+}
+
+if (totpDisableConfirmBtn) {
+    totpDisableConfirmBtn.addEventListener('click', () => {
+        void totpDisable();
+    });
+}
+
+if (totpDisablePasswordInput) {
+    totpDisablePasswordInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            if (totpDisableConfirmBtn) totpDisableConfirmBtn.click();
+        }
+    });
+}
+
+[['totpSetupCloseBtn', totpSetupCloseBtn, closeTotpSetupModal],
+ ['totpAuthCancelBtn', totpAuthCancelBtn, closeTotpSetupModal],
+ ['totpScanCancelBtn', totpScanCancelBtn, closeTotpSetupModal],
+ ['totpSetupDoneBtn', totpSetupDoneBtn, closeTotpSetupModal],
+ ['totpDisableCloseBtn', totpDisableCloseBtn, () => totpModalClose(totpDisableModal)],
+ ['totpDisableCancelBtn', totpDisableCancelBtn, () => totpModalClose(totpDisableModal)]].forEach(([id, el, handler]) => {
+    if (el) el.addEventListener('click', handler);
+});
+
+if (totpSetupModal) {
+    totpSetupModal.addEventListener('click', (event) => {
+        if (event.target === totpSetupModal) closeTotpSetupModal();
+    });
+}
+
+if (totpDisableModal) {
+    totpDisableModal.addEventListener('click', (event) => {
+        if (event.target === totpDisableModal) totpModalClose(totpDisableModal);
+    });
+}
+
+document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (totpSetupModal && !totpSetupModal.hidden) closeTotpSetupModal();
+    else if (totpDisableModal && !totpDisableModal.hidden) totpModalClose(totpDisableModal);
+});
 
 /* ---- Account change wizard events ------------------------------------- */
 
@@ -5920,7 +6359,7 @@ function renderSpecialCustomizeControls() {
         specialCustomizeItemSelect.disabled = false;
         specialCustomizeItemSelect.innerHTML = addOnItems.map((item) => {
             const stock = Math.max(0, Number(item.stock) || 0);
-            return `<option value="${item.name}">${item.name} (stock ${stock})</option>`;
+            return `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)} (stock ${stock})</option>`;
         }).join('');
 
         const stillExists = addOnItems.some((item) => item.name === currentValue);
@@ -7411,10 +7850,10 @@ function showCustomerOrderCompletedPopup(orderNumber) {
 
     if (orderSummary) {
         summary.innerHTML = `
-            <div><strong>Summary:</strong> ${orderSummary.itemsSummary}</div>
+            <div><strong>Summary:</strong> ${escapeHtml(orderSummary.itemsSummary)}</div>
             <div><strong>Total:</strong> ${formatCurrency(orderSummary.total)}</div>
-            <div><strong>Payment:</strong> ${orderSummary.paymentMethod}</div>
-            <div><strong>Order Type:</strong> ${orderSummary.orderType}</div>
+            <div><strong>Payment:</strong> ${escapeHtml(orderSummary.paymentMethod)}</div>
+            <div><strong>Order Type:</strong> ${escapeHtml(orderSummary.orderType)}</div>
         `;
     } else {
         summary.textContent = 'Order summary is not available.';
@@ -8576,7 +9015,7 @@ function printOrderReceipt(orderIndex) {
         const components = (Array.isArray(item.components) ? item.components : [])
             .map((component) => `  ↳ ${escapeHtml(component.name)} × ${Number(component.quantity) || 0}`)
             .join('\n');
-        return `  ${item.name} × ${item.quantity} — ${formatCurrency(Number(item.price) * Number(item.quantity))}${components ? `\n${components}` : ''}`;
+        return `  ${escapeHtml(item.name)} × ${item.quantity} — ${formatCurrency(Number(item.price) * Number(item.quantity))}${components ? `\n${components}` : ''}`;
     }).join('\n');
 
     const customerName = String(order.customerName || order.customer_name || '').trim();
@@ -10073,15 +10512,15 @@ function updateCartDisplay() {
                 <div class="menu-cart-item-details">
                     <div>
                         <div class="menu-cart-item-title-row">
-                            <strong>${item.name}</strong>
+                            <strong>${escapeHtml(item.name)}</strong>
                             ${hasCustomizeOptions ? `<button type="button" class="menu-cart-components-toggle" data-index="${index}" aria-expanded="${customizeExpanded ? 'true' : 'false'}" aria-label="Toggle customize options">${customizeExpanded ? 'Hide ▾' : 'Customize ▸'}</button>` : ''}
                         </div>
                         <div class="menu-cart-item-qty-controls">
-                            <button type="button" class="menu-cart-item-quantity-btn" data-action="decrease" data-index="${index}" aria-label="Decrease ${item.name} quantity"${item.quantity === 1 ? ' disabled' : ''}>
+                            <button type="button" class="menu-cart-item-quantity-btn" data-action="decrease" data-index="${index}" aria-label="Decrease ${escapeHtml(item.name)} quantity"${item.quantity === 1 ? ' disabled' : ''}>
                                 <i class="fa-solid fa-minus" aria-hidden="true"></i>
                             </button>
                             <span class="menu-cart-item-qty">${item.quantity}</span>
-                            <button type="button" class="menu-cart-item-quantity-btn" data-action="increase" data-index="${index}" aria-label="Increase ${item.name} quantity"${canIncreaseCartItemQuantity(index) ? '' : ' disabled'}>
+                            <button type="button" class="menu-cart-item-quantity-btn" data-action="increase" data-index="${index}" aria-label="Increase ${escapeHtml(item.name)} quantity"${canIncreaseCartItemQuantity(index) ? '' : ' disabled'}>
                                 <i class="fa-solid fa-plus" aria-hidden="true"></i>
                             </button>
                         </div>
@@ -11266,7 +11705,7 @@ function renderInventoryManagement() {
             return `
                 <article class="inventory-item-card${isHidden ? ' is-hidden' : ''}">
                     <div class="inventory-item-main">
-                        <strong>${item.name}</strong>
+                        <strong>${escapeHtml(item.name)}</strong>
                         <p><span class="inventory-item-category">${categoryLabel}</span></p>
                         <p>Price: ${formatCurrency(item.price)}</p>
                         <p class="inventory-stock-line">
@@ -11278,19 +11717,19 @@ function renderInventoryManagement() {
                         <p class="inventory-item-description">${escapeHtml(description || 'No description yet.')}</p>
                     </div>
                     <div class="inventory-item-actions">
-                        <button type="button" class="inventory-edit-btn" data-item-name="${item.name}">Edit</button>
-                        <button type="button" class="inventory-inline-delete inventory-card-delete-btn" data-item-name="${item.name}">Delete</button>
+                        <button type="button" class="inventory-edit-btn" data-item-name="${escapeHtml(item.name)}">Edit</button>
+                        <button type="button" class="inventory-inline-delete inventory-card-delete-btn" data-item-name="${escapeHtml(item.name)}">Delete</button>
                     </div>
                 </article>
             `;
         }
 
         return `
-            <article class="inventory-item-card is-editing" data-item-name="${item.name}">
+            <article class="inventory-item-card is-editing" data-item-name="${escapeHtml(item.name)}">
                 <div class="inventory-inline-editor">
                     <label>
                         Item Name
-                        <input type="text" data-field="name" value="${item.name}">
+                        <input type="text" data-field="name" value="${escapeHtml(item.name)}">
                     </label>
                     <label>
                         Category
@@ -11337,8 +11776,8 @@ function renderInventoryManagement() {
                     </label>
                 </div>
                 <div class="inventory-item-actions inline-actions">
-                    <button type="button" class="inventory-inline-save" data-item-name="${item.name}">Save</button>
-                    <button type="button" class="inventory-inline-cancel" data-item-name="${item.name}">Cancel</button>
+                    <button type="button" class="inventory-inline-save" data-item-name="${escapeHtml(item.name)}">Save</button>
+                    <button type="button" class="inventory-inline-cancel" data-item-name="${escapeHtml(item.name)}">Cancel</button>
                 </div>
             </article>
         `;
@@ -12061,11 +12500,11 @@ function renderSpecialFoods() {
         const description = getInventoryDescription(item.name, item.description || 'Tap the image to view full details.');
         const isOutOfStock = isItemOutOfStock(item.name);
         return `
-        <article class="special-food-card${isOutOfStock ? ' is-out-of-stock' : ''}" data-name="${item.name}"${isOutOfStock ? ' aria-disabled="true"' : ''}>
-            <button type="button" class="special-food-view-btn" data-name="${item.name}" aria-label="View ${item.name} details"${isOutOfStock ? ' disabled' : ''}>
-                <img src="${imageSrc}" alt="${item.name}" loading="lazy" decoding="async">
+        <article class="special-food-card${isOutOfStock ? ' is-out-of-stock' : ''}" data-name="${escapeHtml(item.name)}"${isOutOfStock ? ' aria-disabled="true"' : ''}>
+            <button type="button" class="special-food-view-btn" data-name="${escapeHtml(item.name)}" aria-label="View ${escapeHtml(item.name)} details"${isOutOfStock ? ' disabled' : ''}>
+                <img src="${imageSrc}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async">
                 <div class="special-food-image-meta">
-                    <span class="special-food-image-name">${item.name}</span>
+                    <span class="special-food-image-name">${escapeHtml(item.name)}</span>
                 </div>
             </button>
             ${isOutOfStock ? `<div class="stock-status-overlay"><img src="outofstock1.png" alt="Out of stock"><span>Out of stock</span></div>` : ''}
@@ -12347,7 +12786,7 @@ function renderPendingOrders() {
             return `
                 <li>
                     <div class="pending-item-row">
-                        <span>${item.name} — ${formatCurrency(item.price * item.quantity)}</span>
+                        <span>${escapeHtml(item.name)} — ${formatCurrency(item.price * item.quantity)}</span>
                         <div class="pending-item-qty-controls">
                             <button type="button" class="pending-item-qty-btn" data-action="decrease" data-order-index="${index}" data-item-id="${item.id}"${canDecrease ? '' : ' disabled'}>−</button>
                             <span>${item.quantity}</span>
@@ -12595,7 +13034,7 @@ function renderWalkInOrderBuilder() {
                 return `
                     <article class="walkin-draft-item-card">
                         <div>
-                            <strong>${item.name}</strong>
+                            <strong>${escapeHtml(item.name)}</strong>
                             <p>${formatCurrency(item.price)} each</p>
                         </div>
                         <div class="walkin-draft-actions">
@@ -13346,7 +13785,7 @@ function renderCheckoutSummary() {
     orderCheckoutItems.innerHTML = payableItems.map((item) => `
         <div class="order-checkout-item">
             <div>
-                <strong>${item.name}</strong>
+                <strong>${escapeHtml(item.name)}</strong>
                 <span>Qty: ${item.quantity}</span>
             </div>
             <div>${formatCurrency(getCartItemLineTotal(item))}</div>
@@ -13705,16 +14144,16 @@ function showMenuCategory(categoryId) {
         return `
         <article class="menu-item-card${isOutOfStock ? ' is-out-of-stock' : ''}">
             <div class="menu-item-main">
-                <h4>${item.name}</h4>
+                <h4>${escapeHtml(item.name)}</h4>
                 <p>${escapeHtml(description)}</p>
                 <p class="menu-item-price">${item.price}</p>
             </div>
             ${isOutOfStock ? `<div class="stock-status-overlay"><img src="outofstock1.png" alt="Out of stock"><span>Out of stock</span></div>` : ''}
             <div class="menu-item-controls">
                 <div class="menu-item-qty-controls">
-                    <button type="button" class="menu-item-qty-btn" data-action="decrease" data-name="${item.name}" data-price="${parsePrice(item.price)}" aria-label="Decrease ${item.name} quantity"${selectedQty <= 0 ? ' disabled' : ''}>−</button>
+                    <button type="button" class="menu-item-qty-btn" data-action="decrease" data-name="${escapeHtml(item.name)}" data-price="${parsePrice(item.price)}" aria-label="Decrease ${escapeHtml(item.name)} quantity"${selectedQty <= 0 ? ' disabled' : ''}>−</button>
                     <span class="menu-item-qty">${selectedQty}</span>
-                    <button type="button" class="menu-item-qty-btn" data-action="increase" data-name="${item.name}" data-price="${parsePrice(item.price)}" aria-label="Increase ${item.name} quantity"${availableStock <= 0 ? ' disabled' : ''}>+</button>
+                    <button type="button" class="menu-item-qty-btn" data-action="increase" data-name="${escapeHtml(item.name)}" data-price="${parsePrice(item.price)}" aria-label="Increase ${escapeHtml(item.name)} quantity"${availableStock <= 0 ? ' disabled' : ''}>+</button>
                 </div>
                 <span class="menu-item-confirmation" aria-live="polite"></span>
             </div>
