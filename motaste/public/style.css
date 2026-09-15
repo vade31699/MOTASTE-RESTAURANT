@@ -5742,10 +5742,17 @@ body.staff-app .retention-clear-btn {
     }
 
     #adminCredentialSettings .account-form button,
-    #passwordCredentialsForm button,
-    #togglePasswordFormBtn,
-    #toggleCredentialsFormBtn {
+    #passwordCredentialsForm button {
         width: 100%;
+    }
+
+    .admin-edit-mode-switch {
+        display: flex;
+        width: 100%;
+    }
+
+    .admin-edit-mode-switch .admin-edit-mode-btn {
+        flex: 1 1 0;
     }
 
     .staff-login-page {
@@ -10075,8 +10082,9 @@ body.staff-app .secondary-btn:hover {
     border-color: var(--staff-accent);
 }
 
-/* The section's trigger buttons (Add Staff Account, Change Admin Email/Password)
-   match the action-row buttons so every control in the section is one size. */
+/* The section's trigger button (Add Staff Account) matches the action-row buttons
+   so every control in the section is one size. The admin panel's two credential
+   flows are switched with .admin-edit-mode-btn instead. */
 body.staff-app .add-staff-btn {
     padding: 11px 18px;
     border-radius: 12px;
@@ -10138,13 +10146,52 @@ body.staff-app .account-form-actions .secondary-btn:hover {
     transform: translateY(-2px);
 }
 
-body.staff-app #togglePasswordFormBtn {
+/* ---------- Admin credential panel ----------
+   The admin edit panel mirrors the staff edit panel: one card, one heading, and
+   one form per mode. The mode switch reuses the portal's segmented-tab look
+   (see .export-mode-tabs) so it reads as a control instead of two stray
+   buttons, and each mode renders through the same .account-form markup. */
+body.staff-app .admin-edit-mode-switch {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 2px 0 16px;
+    padding: 4px;
+    background: var(--staff-accent-soft);
+    border-radius: 12px;
+}
+
+body.staff-app .admin-edit-mode-btn {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    border-radius: 9px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--staff-muted);
+    transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+body.staff-app .admin-edit-mode-btn:hover {
+    color: var(--staff-accent-2);
+}
+
+body.staff-app .admin-edit-mode-btn.active {
+    background: #ffffff;
+    color: var(--staff-accent-strong);
+    box-shadow: 0 4px 12px rgba(43, 174, 102, 0.18);
+}
+
+/* Panel-level Cancel row sits below the active mode's form. Keep it compact
+   rather than stretching it to the width of the primary actions. */
+body.staff-app #adminCredentialSettings > .account-form-actions {
     margin-top: 12px;
 }
 
-/* Panel-level Cancel row sits below both admin forms and their toggle buttons. */
-body.staff-app #adminCredentialSettings > .account-form-actions {
-    margin-top: 12px;
+body.staff-app #adminCredentialSettings > .account-form-actions button {
+    flex: 0 1 auto;
+    min-width: 150px;
 }
 
 body.staff-app .account-form {

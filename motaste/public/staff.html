@@ -860,9 +860,15 @@
             <h3>Edit Admin Account</h3>
             <p>Changing the admin Gmail or password requires a verification code sent to the current admin email.</p>
 
-            <button type="button" id="toggleCredentialsFormBtn" class="add-staff-btn">Change Admin Email</button>
+            <!-- Same segmented switch the portal uses elsewhere (see the Orders
+                 and Export tabs). It replaces the two loose buttons that used to
+                 sit between the heading and the forms. -->
+            <div class="admin-edit-mode-switch" aria-label="Admin credential change type">
+                <button type="button" id="toggleCredentialsFormBtn" class="admin-edit-mode-btn active" aria-pressed="true">Email &amp; Password</button>
+                <button type="button" id="togglePasswordFormBtn" class="admin-edit-mode-btn" aria-pressed="false">Password Only</button>
+            </div>
 
-            <form id="credentialsForm" class="account-form" hidden>
+            <form id="credentialsForm" class="account-form">
                 <p class="account-form-note">Enter the current admin credentials, then the new Gmail. We email a verification code to the current admin address and apply the change once it is entered.</p>
                 <div class="floating-field">
                     <input type="email" id="adminCurrentEmail" placeholder=" " readonly autocomplete="off">
@@ -881,19 +887,16 @@
                     <label for="adminNewPassword">New admin password</label>
                     <small class="field-helper">Use at least 12 characters with uppercase, lowercase, and a number. Common passwords are rejected.</small>
                 </div>
-                <div class="account-form-actions">
-                    <button type="button" id="requestCredentialsChangeBtn">Send Verification Code</button>
-                </div>
                 <div class="floating-field">
                     <input type="text" id="adminChangeCode" placeholder=" " maxlength="8" inputmode="numeric" autocomplete="one-time-code">
                     <label for="adminChangeCode">Verification code</label>
+                    <small class="field-helper">Sent to the current admin email after you request a code.</small>
                 </div>
                 <div class="account-form-actions">
+                    <button type="button" id="requestCredentialsChangeBtn" class="secondary-btn">Send Verification Code</button>
                     <button type="submit" id="confirmCredentialsChangeBtn">Verify and Apply</button>
                 </div>
             </form>
-
-            <button type="button" id="togglePasswordFormBtn" class="add-staff-btn">Change Admin Password</button>
 
             <form id="passwordCredentialsForm" class="account-form" hidden>
                 <p class="account-form-note">Confirm the current admin password, choose the new one, then enter the verification code we email to the current admin address.</p>
@@ -910,14 +913,13 @@
                     <label for="adminPasswordNewPassword">New admin password</label>
                     <small class="field-helper">Use at least 12 characters with uppercase, lowercase, and a number. Common passwords are rejected.</small>
                 </div>
-                <div class="account-form-actions">
-                    <button type="button" id="requestPasswordChangeBtn">Send Verification Code</button>
-                </div>
                 <div class="floating-field">
                     <input type="text" id="adminPasswordChangeCode" placeholder=" " maxlength="8" inputmode="numeric" autocomplete="one-time-code">
                     <label for="adminPasswordChangeCode">Verification code</label>
+                    <small class="field-helper">Sent to the current admin email after you request a code.</small>
                 </div>
                 <div class="account-form-actions">
+                    <button type="button" id="requestPasswordChangeBtn" class="secondary-btn">Send Verification Code</button>
                     <button type="submit" id="confirmPasswordChangeBtn">Verify and Apply</button>
                 </div>
             </form>

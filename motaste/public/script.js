@@ -3606,6 +3606,25 @@ function closeAdminEditPanel() {
     staffEditIndex = null;
 }
 
+// The admin edit panel has two credential flows (email + password, or password
+// only). Swapping between them now works like the portal's other segmented
+// tabs: the switch keeps the active state and exactly one form stays visible.
+function setAdminCredentialMode(mode) {
+    const showPasswordOnly = mode === 'password';
+
+    if (credentialsForm) credentialsForm.hidden = showPasswordOnly;
+    if (passwordCredentialsForm) passwordCredentialsForm.hidden = !showPasswordOnly;
+
+    if (toggleCredentialsFormBtn) {
+        toggleCredentialsFormBtn.classList.toggle('active', !showPasswordOnly);
+        toggleCredentialsFormBtn.setAttribute('aria-pressed', String(!showPasswordOnly));
+    }
+    if (togglePasswordFormBtn) {
+        togglePasswordFormBtn.classList.toggle('active', showPasswordOnly);
+        togglePasswordFormBtn.setAttribute('aria-pressed', String(showPasswordOnly));
+    }
+}
+
 function setCredentialsMessage(message, isError = false) {
     if (!credentialsMessage) return;
     credentialsMessage.textContent = message || '';
@@ -6034,8 +6053,7 @@ if (accountList) {
             if (staffEditPanel) staffEditPanel.hidden = true;
 
             if (selectedAccount.role === 'Admin') {
-                if (credentialsForm) credentialsForm.hidden = true;
-                if (passwordCredentialsForm) passwordCredentialsForm.hidden = true;
+                setAdminCredentialMode('email');
                 if (adminPanel) adminPanel.hidden = false;
                 void loadAdminCredentials();
                 window.setTimeout(() => {
@@ -6164,15 +6182,7 @@ if (toggleCredentialsFormBtn) {
             setCredentialsMessage('Only admin can change credentials.', true);
             return;
         }
-        if (passwordCredentialsForm) {
-            passwordCredentialsForm.hidden = true;
-        }
-        if (credentialsForm) {
-            credentialsForm.hidden = !credentialsForm.hidden;
-            if (!credentialsForm.hidden) {
-                if (adminCurrentPasswordInput) adminCurrentPasswordInput.focus();
-            }
-        }
+        setAdminCredentialMode('email');
     });
 }
 
@@ -6182,15 +6192,7 @@ if (togglePasswordFormBtn) {
             setCredentialsMessage('Only admin can change credentials.', true);
             return;
         }
-        if (credentialsForm) {
-            credentialsForm.hidden = true;
-        }
-        if (passwordCredentialsForm) {
-            passwordCredentialsForm.hidden = !passwordCredentialsForm.hidden;
-            if (!passwordCredentialsForm.hidden) {
-                if (adminPasswordCurrentPasswordInput) adminPasswordCurrentPasswordInput.focus();
-            }
-        }
+        setAdminCredentialMode('password');
     });
 }
 
@@ -6276,6 +6278,7 @@ if (passwordCredentialsForm) {
 
 renderAccounts();
 toggleAccountForm(false);
+setAdminCredentialMode('email');
 if (isStaffPage) {
     scrubLegacyStaffSessionStorage();
     void ensureCsrfToken();
