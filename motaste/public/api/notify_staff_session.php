@@ -73,7 +73,7 @@ try {
     $emailResult = sendSystemEmail((string)$admin['email'], $subject, $body);
     if (!$emailResult['success']) {
         http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Unable to send notification email', 'details' => $emailResult['error'] ?? 'Unknown mail error']);
+        echo json_encode(['success' => false, 'error' => 'Unable to send notification email']);
         exit;
     }
 

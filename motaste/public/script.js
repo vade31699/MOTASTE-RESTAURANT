@@ -3843,12 +3843,7 @@ async function acmRequestCode() {
 
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload.success) {
-            const detail = payload.details ? ` (${payload.details})` : '';
-            throw new Error((payload.error || `Unable to request verification code (HTTP ${response.status})`) + detail);
-        }
-
-        if (payload.delivered === false) {
-            throw new Error(payload.warning || payload.error || 'Email was not delivered. Check Laravel SMTP settings and try again.');
+            throw new Error(payload.error || `Unable to request verification code (HTTP ${response.status})`);
         }
 
         if (acmSentToText) {
