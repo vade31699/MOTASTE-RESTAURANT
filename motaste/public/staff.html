@@ -857,29 +857,29 @@
     </section>
 
     <section id="account-settings" class="account-management account-settings" hidden>
-        <button type="button" id="accountSettingsBackBtn" class="secondary-btn account-settings-back-btn">
+        <button type="button" id="accountSettingsBackBtn" class="account-settings-back-btn">
             <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to Accounts
         </button>
 
-        <h2>Account Settings</h2>
-        <p>Choose what to change for this account. Email and password changes require a verification code sent to the admin email before they are applied.</p>
-
-        <div id="accountSettingsSummary" class="account-settings-summary">
+        <div class="account-settings-profile">
             <span id="accountSettingsAvatar" class="account-settings-avatar" aria-hidden="true"></span>
             <div class="account-settings-identity">
                 <strong id="accountSettingsName"></strong>
                 <small id="accountSettingsMeta"></small>
             </div>
+            <span id="accountSettingsRoleBadge" class="account-settings-role-badge"></span>
         </div>
 
-        <div class="account-settings-options">
+        <div class="account-settings-group">
+            <span class="account-settings-group-label">Account details</span>
+
             <button type="button" id="changeEmailOptionBtn" class="account-setting-option">
                 <span class="account-setting-option-icon" aria-hidden="true"><i class="fa-solid fa-envelope"></i></span>
                 <span class="account-setting-option-text">
                     <strong>Change Email</strong>
                     <small>Update this account's Gmail address. A verification code is sent to the admin email first.</small>
                 </span>
-                <i class="fa-solid fa-chevron-right account-setting-option-chevron" aria-hidden="true"></i>
+                <span class="account-setting-option-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
             </button>
 
             <button type="button" id="changePasswordOptionBtn" class="account-setting-option">
@@ -888,8 +888,12 @@
                     <strong>Change Password</strong>
                     <small>Set a new password for this account. A verification code is sent to the admin email first.</small>
                 </span>
-                <i class="fa-solid fa-chevron-right account-setting-option-chevron" aria-hidden="true"></i>
+                <span class="account-setting-option-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
             </button>
+        </div>
+
+        <div class="account-settings-group account-settings-danger-zone">
+            <span class="account-settings-group-label">Danger zone</span>
 
             <button type="button" id="removeAccountOptionBtn" class="account-setting-option account-setting-option-danger">
                 <span class="account-setting-option-icon" aria-hidden="true"><i class="fa-solid fa-trash-can"></i></span>
@@ -897,11 +901,11 @@
                     <strong>Remove Account</strong>
                     <small>Permanently delete this account and revoke its access. A confirmation step is required.</small>
                 </span>
-                <i class="fa-solid fa-chevron-right account-setting-option-chevron" aria-hidden="true"></i>
+                <span class="account-setting-option-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
             </button>
         </div>
 
-        <p id="accountSettingsMessage" class="menu-order-message" aria-live="polite"></p>
+        <p id="accountSettingsMessage" class="account-settings-message" aria-live="polite"></p>
     </section>
 
     <section id="login-logs" class="account-management" hidden>
@@ -1013,56 +1017,103 @@
     <!-- Admin-authorized account change (email / password). A verification code
          is emailed to the admin address and must be entered before the new
          value can be applied. Steps mirror the forgot-password wizard. -->
-    <div id="accountChangeModal" class="forgot-password-modal" hidden aria-hidden="true">
-        <div class="forgot-password-modal-box" role="dialog" aria-modal="true" aria-labelledby="accountChangeTitle">
-            <button type="button" class="modal-close" id="accountChangeCloseBtn" aria-label="Close account change">&times;</button>
+    <div id="accountChangeModal" class="forgot-password-modal account-change-modal" hidden aria-hidden="true">
+        <div class="account-change-modal-box" role="dialog" aria-modal="true" aria-labelledby="accountChangeTitle">
+            <button type="button" class="modal-close account-change-modal-close" id="accountChangeCloseBtn" aria-label="Close account change">&times;</button>
+
+            <div class="acm-progress" aria-hidden="true">
+                <div class="acm-progress-step" id="acmProgressItem1">
+                    <span class="acm-progress-dot"><i class="fa-solid fa-check"></i></span>
+                    <span class="acm-progress-label">Authorize</span>
+                </div>
+                <span class="acm-progress-connector"></span>
+                <div class="acm-progress-step" id="acmProgressItem2">
+                    <span class="acm-progress-dot"><i class="fa-solid fa-check"></i></span>
+                    <span class="acm-progress-label">Verify</span>
+                </div>
+                <span class="acm-progress-connector"></span>
+                <div class="acm-progress-step" id="acmProgressItem3">
+                    <span class="acm-progress-dot"><i class="fa-solid fa-check"></i></span>
+                    <span class="acm-progress-label">Update</span>
+                </div>
+            </div>
 
             <!-- Step 1: authorize with the current admin password -->
-            <div class="forgot-password-step" id="acmStepRequest">
-                <h3 id="accountChangeTitle">Confirm Identity</h3>
-                <p class="forgot-password-description" id="acmRequestDescription">Enter the current admin password to start. We will email a 6-digit verification code to the admin address before the change is applied.</p>
-                <input type="password" id="acmAdminPasswordInput" placeholder="Current admin password" autocomplete="current-password" required>
-                <p class="forgot-password-error" id="acmRequestError" hidden></p>
-                <div class="forgot-actions">
-                    <button type="button" class="btn-cancel" id="acmRequestCancelBtn">Cancel</button>
-                    <button type="button" class="btn-send" id="acmRequestBtn">Send Code</button>
+            <div class="acm-step" id="acmStepRequest">
+                <div class="acm-step-heading">
+                    <span class="acm-step-icon" id="acmHeaderIcon" aria-hidden="true"><i class="fa-solid fa-envelope"></i></span>
+                    <h3 id="accountChangeTitle">Confirm Identity</h3>
+                </div>
+                <p class="acm-step-description" id="acmRequestDescription">Enter the current admin password to authorize the change. We will email a 6-digit verification code to the admin address before anything is applied.</p>
+                <div class="floating-field acm-field">
+                    <input type="password" id="acmAdminPasswordInput" placeholder="Current admin password" autocomplete="current-password" required>
+                    <label for="acmAdminPasswordInput">Current admin password</label>
+                </div>
+                <p class="acm-error" id="acmRequestError" hidden></p>
+                <div class="acm-actions">
+                    <button type="button" class="btn-cancel acm-btn-cancel" id="acmRequestCancelBtn">Cancel</button>
+                    <button type="button" class="btn-send acm-btn-primary" id="acmRequestBtn">Send Code</button>
                 </div>
             </div>
 
             <!-- Step 2: enter the emailed code -->
-            <div class="forgot-password-step" id="acmStepCode" hidden>
-                <h3>Enter Verification Code</h3>
-                <p class="forgot-password-description">We emailed a 6-digit verification code to <strong id="acmSentToText"></strong>. Enter it below.</p>
-                <input type="text" id="acmCodeInput" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" required>
-                <p class="forgot-password-status" id="acmCodeStatus" hidden></p>
-                <p class="forgot-password-error" id="acmCodeError" hidden></p>
-                <div class="forgot-actions">
-                    <button type="button" class="btn-cancel" id="acmCodeBackBtn">Back</button>
-                    <button type="button" class="btn-send" id="acmCodeBtn">Verify Code</button>
+            <div class="acm-step" id="acmStepCode" hidden>
+                <div class="acm-step-heading">
+                    <span class="acm-step-icon" aria-hidden="true"><i class="fa-solid fa-shield-halved"></i></span>
+                    <h3>Enter Verification Code</h3>
                 </div>
-                <button type="button" class="forgot-resend-btn" id="acmResendBtn">Resend Code</button>
+                <p class="acm-step-description">We emailed a 6-digit verification code to <strong id="acmSentToText"></strong>. Enter it below to continue.</p>
+                <div class="floating-field acm-field acm-field-code">
+                    <input type="text" id="acmCodeInput" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="••••••" autocomplete="one-time-code" required>
+                    <label for="acmCodeInput">Verification code</label>
+                </div>
+                <p class="acm-status" id="acmCodeStatus" hidden></p>
+                <p class="acm-error" id="acmCodeError" hidden></p>
+                <div class="acm-actions">
+                    <button type="button" class="btn-cancel acm-btn-cancel" id="acmCodeBackBtn">Back</button>
+                    <button type="button" class="btn-send acm-btn-primary" id="acmCodeBtn">Verify Code</button>
+                </div>
+                <div class="acm-resend-row">
+                    <span class="acm-resend-hint">Didn't get the code?</span>
+                    <button type="button" class="forgot-resend-btn acm-resend-btn" id="acmResendBtn">Send it again</button>
+                </div>
             </div>
 
             <!-- Step 3: set the new email or password -->
-            <div class="forgot-password-step" id="acmStepNewValue" hidden>
-                <h3 id="acmNewValueTitle">Set New Email</h3>
-                <p class="forgot-password-description" id="acmNewValueDescription"></p>
-                <input type="email" id="acmNewEmailInput" placeholder="New Gmail address" autocomplete="email" required>
-                <input type="password" id="acmNewPasswordInput" placeholder="New password" autocomplete="new-password" minlength="8" required>
-                <input type="password" id="acmNewPasswordConfirmInput" placeholder="Confirm new password" autocomplete="new-password" minlength="8" required>
-                <p class="forgot-password-error" id="acmNewValueError" hidden></p>
-                <div class="forgot-actions">
-                    <button type="button" class="btn-cancel" id="acmNewValueBackBtn">Back</button>
-                    <button type="button" class="btn-send" id="acmNewValueBtn">Apply Changes</button>
+            <div class="acm-step" id="acmStepNewValue" hidden>
+                <div class="acm-step-heading">
+                    <span class="acm-step-icon" aria-hidden="true"><i class="fa-solid fa-pen-to-square"></i></span>
+                    <h3 id="acmNewValueTitle">Set New Email</h3>
+                </div>
+                <p class="acm-step-description" id="acmNewValueDescription"></p>
+                <div class="floating-field acm-field" id="acmNewEmailField">
+                    <input type="email" id="acmNewEmailInput" placeholder="New Gmail address" autocomplete="email" required>
+                    <label for="acmNewEmailInput">New Gmail address</label>
+                </div>
+                <div class="floating-field acm-field" id="acmNewPasswordField">
+                    <input type="password" id="acmNewPasswordInput" placeholder="New password" autocomplete="new-password" minlength="8" required>
+                    <label for="acmNewPasswordInput">New password</label>
+                </div>
+                <div class="floating-field acm-field" id="acmNewPasswordConfirmField">
+                    <input type="password" id="acmNewPasswordConfirmInput" placeholder="Confirm new password" autocomplete="new-password" minlength="8" required>
+                    <label for="acmNewPasswordConfirmInput">Confirm new password</label>
+                </div>
+                <p class="acm-error" id="acmNewValueError" hidden></p>
+                <div class="acm-actions">
+                    <button type="button" class="btn-cancel acm-btn-cancel" id="acmNewValueBackBtn">Back</button>
+                    <button type="button" class="btn-send acm-btn-primary" id="acmNewValueBtn">Apply Changes</button>
                 </div>
             </div>
 
             <!-- Step 4: success -->
-            <div class="forgot-password-step" id="acmStepSuccess" hidden>
-                <h3 id="acmSuccessTitle">Email Updated</h3>
-                <p class="forgot-password-description" id="acmSuccessText"></p>
-                <div class="forgot-actions">
-                    <button type="button" class="btn-send" id="acmSuccessBtn">Done</button>
+            <div class="acm-step" id="acmStepSuccess" hidden>
+                <div class="acm-step-heading acm-success-heading">
+                    <span class="acm-step-icon acm-success-icon" aria-hidden="true"><i class="fa-solid fa-circle-check"></i></span>
+                    <h3 id="acmSuccessTitle">Email Updated</h3>
+                </div>
+                <p class="acm-step-description" id="acmSuccessText"></p>
+                <div class="acm-actions acm-actions-single">
+                    <button type="button" class="btn-send acm-btn-primary" id="acmSuccessBtn">Done</button>
                 </div>
             </div>
         </div>

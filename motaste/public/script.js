@@ -3531,6 +3531,14 @@ const acmNewValueBtn = document.getElementById('acmNewValueBtn');
 const acmSuccessTitle = document.getElementById('acmSuccessTitle');
 const acmSuccessText = document.getElementById('acmSuccessText');
 const acmSuccessBtn = document.getElementById('acmSuccessBtn');
+const accountSettingsRoleBadge = document.getElementById('accountSettingsRoleBadge');
+const acmHeaderIcon = document.getElementById('acmHeaderIcon');
+const acmProgressItem1 = document.getElementById('acmProgressItem1');
+const acmProgressItem2 = document.getElementById('acmProgressItem2');
+const acmProgressItem3 = document.getElementById('acmProgressItem3');
+const acmNewEmailField = document.getElementById('acmNewEmailField');
+const acmNewPasswordField = document.getElementById('acmNewPasswordField');
+const acmNewPasswordConfirmField = document.getElementById('acmNewPasswordConfirmField');
 
 let accountSettingsIndex = null;
 let accountChangeState = { type: null, targetEmail: '', targetName: '', targetRole: '', code: '' };
@@ -3658,6 +3666,10 @@ function openAccountSettings(index) {
     if (accountSettingsMeta) {
         accountSettingsMeta.textContent = `${account.role || 'Staff'} &middot; ${account.email || ''}`.replace(/&middot;/g, '·');
     }
+    if (accountSettingsRoleBadge) {
+        accountSettingsRoleBadge.textContent = account.role === 'Admin' ? 'Admin' : (account.role || 'Staff');
+        accountSettingsRoleBadge.classList.toggle('is-admin', account.role === 'Admin');
+    }
 
     setAccountSettingsMessage('');
 
@@ -3685,6 +3697,25 @@ function acmShowStep(stepName) {
     Object.keys(steps).forEach((key) => {
         if (steps[key]) steps[key].hidden = key !== stepName;
     });
+    updateAccountChangeProgress(stepName);
+}
+
+function updateAccountChangeProgress(stepName) {
+    const stageByStep = { request: 1, code: 2, newValue: 3, success: 3 };
+    const stage = stageByStep[stepName] || 1;
+    const isDone = stepName === 'success';
+    [acmProgressItem1, acmProgressItem2, acmProgressItem3].forEach((item, index) => {
+        if (!item) return;
+        const itemStage = index + 1;
+        item.classList.toggle('is-active', itemStage <= stage);
+        item.classList.toggle('is-current', itemStage === stage);
+        item.classList.toggle('is-done', isDone && itemStage <= stage);
+    });
+}
+
+function acmSetFieldVisible(wrapper, input, visible) {
+    if (wrapper) wrapper.hidden = !visible;
+    if (input) input.required = visible;
 }
 
 function acmShowError(el, message) {
@@ -3742,6 +3773,10 @@ function openAccountChangeModal(type) {
 
     if (acmTitle) {
         acmTitle.textContent = type === 'password' ? 'Change Password' : 'Change Email';
+    }
+    if (acmHeaderIcon) {
+        const iconEl = acmHeaderIcon.querySelector('i');
+        if (iconEl) iconEl.className = type === 'password' ? 'fa-solid fa-key' : 'fa-solid fa-envelope';
     }
     if (acmRequestDescription) {
         acmRequestDescription.textContent = `Enter the current admin password to authorize the change for ${account.name || 'this account'} (${account.email || ''}). We will email a 6-digit verification code to the admin address before the change is applied.`;
@@ -3872,41 +3907,23 @@ async function acmVerifyCode() {
             if (acmNewValueDescription) {
                 acmNewValueDescription.textContent = `Choose the new Gmail address for ${accountChangeState.targetName} (${accountChangeState.targetEmail}).`;
             }
-            if (acmNewEmailInput) {
-                acmNewEmailInput.hidden = false;
-                acmNewEmailInput.required = true;
-            }
-            if (acmNewPasswordInput) {
-                acmNewPasswordInput.hidden = true;
-                acmNewPasswordInput.required = false;
-                acmNewPasswordInput.value = '';
-            }
-            if (acmNewPasswordConfirmInput) {
-                acmNewPasswordConfirmInput.hidden = true;
-                acmNewPasswordConfirmInput.required = false;
-                acmNewPasswordConfirmInput.value = '';
-            }
+            acmSetFieldVisible(acmNewEmailField, acmNewEmailInput, true);
+            acmSetFieldVisible(acmNewPasswordField, acmNewPasswordInput, false);
+            acmSetFieldVisible(acmNewPasswordConfirmField, acmNewPasswordConfirmInput, false);
+            if (acmNewPasswordInput) acmNewPasswordInput.value = '';
+            if (acmNewPasswordConfirmInput) acmNewPasswordConfirmInput.value = '';
         } else {
             if (acmNewValueTitle) acmNewValueTitle.textContent = 'Set New Password';
             if (acmNewValueDescription) {
                 const minLength = accountChangeState.targetRole === 'Admin' ? 'at least 12' : 'at least 8';
                 acmNewValueDescription.textContent = `Choose a new password for ${accountChangeState.targetName} (${accountChangeState.targetEmail}). It must be ${minLength} characters and include uppercase, lowercase, and a number.`;
             }
-            if (acmNewEmailInput) {
-                acmNewEmailInput.hidden = true;
-                acmNewEmailInput.required = false;
-                acmNewEmailInput.value = '';
-            }
-            if (acmNewPasswordInput) {
-                acmNewPasswordInput.hidden = false;
-                acmNewPasswordInput.required = true;
-                acmNewPasswordInput.minLength = accountChangeState.targetRole === 'Admin' ? 12 : 8;
-            }
-            if (acmNewPasswordConfirmInput) {
-                acmNewPasswordConfirmInput.hidden = false;
-                acmNewPasswordConfirmInput.required = true;
-                acmNewPasswordConfirmInput.minLength = accountChangeState.targetRole === 'Admin' ? 12 : 8;
-            }
+            acmSetFieldVisible(acmNewEmailField, acmNewEmailInput, false);
+            acmSetFieldVisible(acmNewPasswordField, acmNewPasswordInput, true);
+            acmSetFieldVisible(acmNewPasswordConfirmField, acmNewPasswordConfirmInput, true);
+            if (acmNewEmailInput) acmNewEmailInput.value = '';
+            if (acmNewPasswordInput) acmNewPasswordInput.minLength = accountChangeState.targetRole === 'Admin' ? 12 : 8;
+            if (acmNewPasswordConfirmInput) acmNewPasswordConfirmInput.minLength = accountChangeState.targetRole === 'Admin' ? 12 : 8;
         }
 
         acmShowError(acmNewValueError, '');
