@@ -11033,7 +11033,7 @@ function renderOrderNotifications() {
         }
 
         return `
-            <article class="order-notification-card ${isCompleted ? 'completed' : ''}">
+            <article class="order-notification-card status-${escapeHtml(status)} ${isCompleted ? 'completed' : ''}">
                 <div class="order-notif-top">
                     <h4>Order #${escapeHtml(displayNumber)}</h4>
                     <span class="order-notif-badge ${badge.className}">${badge.label}</span>

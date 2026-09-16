@@ -733,18 +733,23 @@
 
         <div id="orderHistoryPanel" class="order-history-panel" role="tabpanel" aria-labelledby="orderHistoryTabBtn" hidden>
             <div class="order-history-controls">
-                <label class="order-history-field" for="orderHistoryMonthSelect">
-                    <span>Month</span>
-                    <select id="orderHistoryMonthSelect"></select>
-                </label>
-                <label class="order-history-field" for="orderHistoryDaySelect">
-                    <span>Day</span>
-                    <select id="orderHistoryDaySelect"></select>
-                </label>
-                <button type="button" id="orderHistoryLoadBtn" class="menu-place-order-btn">
-                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> View Orders
-                </button>
-                <p class="order-history-limit">Order history is kept for 3 months; records older than that are automatically deleted.</p>
+                <div class="order-history-controls-head">
+                    <h4>Retrieve a past day</h4>
+                    <span class="order-history-limit">Kept for 3 months — older records are automatically deleted.</span>
+                </div>
+                <div class="order-history-controls-row">
+                    <label class="order-history-field" for="orderHistoryMonthSelect">
+                        <span>Month</span>
+                        <select id="orderHistoryMonthSelect"></select>
+                    </label>
+                    <label class="order-history-field" for="orderHistoryDaySelect">
+                        <span>Day</span>
+                        <select id="orderHistoryDaySelect"></select>
+                    </label>
+                    <button type="button" id="orderHistoryLoadBtn" class="menu-place-order-btn">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> View Orders
+                    </button>
+                </div>
             </div>
             <p id="orderHistoryMessage" class="menu-order-message" aria-live="polite"></p>
             <div id="orderHistoryList" class="order-history-list"></div>

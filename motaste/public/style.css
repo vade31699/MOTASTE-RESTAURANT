@@ -8586,13 +8586,37 @@ body.staff-app .order-notification-footer strong {
 body.staff-app .order-notification-card {
     background: #ffffff;
     border: 1px solid var(--staff-border);
-    border-radius: 14px;
+    border-left: 5px solid var(--staff-accent);
+    border-radius: 16px;
     box-shadow: var(--staff-shadow-sm);
     color: var(--staff-text);
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+body.staff-app .order-notification-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--staff-shadow-md);
+    border-color: var(--staff-accent);
+}
+
+body.staff-app .order-notification-card.status-completed {
+    border-left-color: #15803d;
+}
+
+body.staff-app .order-notification-card.status-expired {
+    border-left-color: #c2410c;
+}
+
+body.staff-app .order-notification-card.status-cancelled {
+    border-left-color: #64748b;
+}
+
+body.staff-app .order-notification-card.status-refunded {
+    border-left-color: #b91c1c;
 }
 
 body.staff-app .order-notification-card.completed {
-    background: #F7FAF8;
+    background: linear-gradient(180deg, #F7FAF8 0%, #ffffff 100%);
     opacity: 1;
 }
 
@@ -8602,6 +8626,57 @@ body.staff-app .order-notification-card li,
 body.staff-app .order-notification-card span,
 body.staff-app .order-notification-card strong {
     color: var(--staff-text);
+}
+
+body.staff-app .order-notification-card .order-notif-top h4 {
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+body.staff-app .order-notif-badge {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    padding: 5px 11px;
+    border: 1px solid transparent;
+}
+
+body.staff-app .order-notif-badge.is-new {
+    background: #FEF3C7;
+    border-color: #FDE68A;
+    color: #B45309;
+}
+
+body.staff-app .order-notif-badge.is-preparing {
+    background: #E0E7FF;
+    border-color: #C7D2FE;
+    color: #4338CA;
+}
+
+body.staff-app .order-notif-badge.is-completed {
+    background: #DCFCE7;
+    border-color: #BBF7D0;
+    color: #15803D;
+}
+
+body.staff-app .order-notif-badge.is-expired {
+    background: #FFEDD5;
+    border-color: #FED7AA;
+    color: #C2410C;
+}
+
+body.staff-app .order-notif-badge.is-cancelled {
+    background: #F1F5F9;
+    border-color: #E2E8F0;
+    color: #475569;
+}
+
+body.staff-app .order-notif-badge.is-refunded {
+    background: #FEE2E2;
+    border-color: #FECACA;
+    color: #B91C1C;
 }
 
 body.staff-app .order-notif-customer strong {
@@ -8633,6 +8708,55 @@ body.staff-app .order-notif-components {
     border: 1px solid #E0E9E3;
     border-radius: 8px;
     padding: 6px 8px;
+}
+
+body.staff-app .order-notif-footer {
+    border-top-color: #E8F0EA;
+}
+
+body.staff-app .order-notif-footer strong {
+    color: var(--staff-accent-2);
+    font-size: 0.95rem;
+    letter-spacing: -0.01em;
+}
+
+body.staff-app .order-notif-print-btn,
+body.staff-app .order-notif-go-link,
+body.staff-app .order-refund-btn {
+    border-radius: 10px;
+    font-size: 0.78rem;
+    padding: 8px 12px;
+}
+
+body.staff-app .order-notification-list {
+    scrollbar-width: thin;
+    scrollbar-color: #CFE3D5 transparent;
+}
+
+body.staff-app .order-notification-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+body.staff-app .order-notification-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+body.staff-app .order-notification-list::-webkit-scrollbar-thumb {
+    background: #CFE3D5;
+    border-radius: 999px;
+}
+
+body.staff-app .order-notification-list::-webkit-scrollbar-thumb:hover {
+    background: var(--staff-accent);
+}
+
+body.staff-app .order-notif-print-btn:focus-visible,
+body.staff-app .order-notif-go-link:focus-visible,
+body.staff-app .order-refund-btn:focus-visible,
+body.staff-app .order-history-print-btn:focus-visible,
+body.staff-app .order-history-field select:focus-visible {
+    outline: 2px solid var(--staff-accent);
+    outline-offset: 2px;
 }
 
 /* ---------- Sales tab container ---------- */
@@ -11813,6 +11937,31 @@ body.staff-app .staff-login-page::after {
 }
 
 .order-history-controls {
+    display: grid;
+    gap: 12px;
+    background: var(--staff-surface-2, #ffffff);
+    border: 1px solid var(--staff-border, #e3ede6);
+    border-radius: 16px;
+    box-shadow: var(--staff-shadow-sm, none);
+    padding: 16px 18px;
+}
+
+.order-history-controls-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.order-history-controls-head h4 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--staff-text, #1F2A24);
+}
+
+.order-history-controls-row {
     display: flex;
     align-items: flex-end;
     gap: 12px;
@@ -11823,21 +11972,29 @@ body.staff-app .staff-login-page::after {
     display: grid;
     gap: 6px;
     font-weight: 700;
-    color: #222;
+    color: var(--staff-text, #1F2A24);
+    font-size: 0.82rem;
 }
 
 .order-history-field select {
-    border: 1px solid #d4d4d4;
+    border: 1px solid var(--staff-border, #d4d4d4);
     border-radius: 10px;
     padding: 9px 12px;
     font-size: 0.95rem;
-    min-width: 140px;
+    min-width: 150px;
+    color: var(--staff-text, #1F2A24);
+    background: #ffffff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.order-history-field select:hover {
+    border-color: var(--staff-accent);
 }
 
 .order-history-limit {
-    margin: 0 0 2px;
-    font-size: 0.82rem;
-    color: #64748b;
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--staff-muted, #64748b);
 }
 
 .order-history-list {
@@ -11848,17 +12005,30 @@ body.staff-app .staff-login-page::after {
 .order-history-card {
     background: var(--staff-surface-2, #fff);
     border: 1px solid var(--staff-border, #dfe6e2);
-    border-radius: 14px;
+    border-left: 4px solid var(--staff-accent);
+    border-radius: 16px;
     padding: 16px;
     display: grid;
     gap: 8px;
     color: var(--staff-text, #1F2A24);
     box-shadow: var(--staff-shadow-sm, none);
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.order-history-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--staff-shadow-md, none);
+    border-color: var(--staff-accent);
 }
 
 .order-history-card h4,
 .order-history-card p {
     margin: 0;
+}
+
+.order-history-card .pending-order-top h4 {
+    font-weight: 800;
+    letter-spacing: -0.01em;
 }
 
 .order-history-item-list {
@@ -11920,16 +12090,17 @@ body.staff-app .staff-login-page::after {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    transition: background 0.15s ease, transform 0.15s ease;
+    transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .order-history-print-btn:hover {
     background: rgba(2, 132, 199, 0.16);
     transform: translateY(-1px);
+    box-shadow: var(--staff-shadow-sm, none);
 }
 
 @media (max-width: 640px) {
-    .order-history-controls {
+    .order-history-controls-row {
         align-items: stretch;
         flex-direction: column;
     }
