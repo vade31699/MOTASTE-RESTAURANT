@@ -2287,6 +2287,38 @@ body.modal-open {
     white-space: nowrap;
     align-self: start;
 }
+.special-food-details-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+}
+.special-food-stock-left,
+.menu-item-stock-left {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+}
+.special-food-stock-left.is-low,
+.menu-item-stock-left.is-low {
+    background: #fff7ed;
+    color: #c2410c;
+    border-color: #fed7aa;
+}
+.menu-item-stock-left {
+    align-self: flex-start;
+}
 .special-food-cart-action,
 .special-food-added-message,
 .special-food-add {

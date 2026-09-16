@@ -10899,6 +10899,18 @@ function syncVisibleMenuItemQuantities() {
             if (decreaseButton) {
                 decreaseButton.disabled = selectedQty <= 0;
             }
+
+            const stockLabel = card.querySelector('.menu-item-stock-left');
+            if (stockLabel) {
+                const quantityLeft = getDisplayQuantityLeft(name);
+                if (quantityLeft === null) {
+                    stockLabel.hidden = true;
+                } else {
+                    stockLabel.hidden = false;
+                    stockLabel.textContent = quantityLeft > 0 ? `${quantityLeft} left` : 'Sold out';
+                    stockLabel.classList.toggle('is-low', quantityLeft > 0 && quantityLeft <= 5);
+                }
+            }
         });
     }
 
@@ -10907,6 +10919,19 @@ function syncVisibleMenuItemQuantities() {
             const name = button.dataset.name;
             if (!name) return;
             button.disabled = getAvailableStockForItem(name) <= 0;
+        });
+
+        specialFoodsList.querySelectorAll('.special-food-stock-left').forEach((label) => {
+            const name = label.dataset.name;
+            if (!name) return;
+            const quantityLeft = getDisplayQuantityLeft(name);
+            if (quantityLeft === null) {
+                label.hidden = true;
+            } else {
+                label.hidden = false;
+                label.textContent = quantityLeft > 0 ? `${quantityLeft} left` : 'Sold out';
+                label.classList.toggle('is-low', quantityLeft > 0 && quantityLeft <= 5);
+            }
         });
     }
 }
@@ -12637,6 +12662,16 @@ function isItemOutOfStock(itemName) {
     return Number(inventoryItem.stock) <= 0;
 }
 
+// Quantity left a customer can still add. Returns null when the dish has no
+// tracked inventory row so we simply don't show a "left" badge for it.
+function getDisplayQuantityLeft(itemName) {
+    const inventoryItem = getInventoryItem(itemName);
+    if (!inventoryItem) return null;
+    if (inventoryItem.isAvailable === false) return 0;
+    const available = getAvailableStockForItem(itemName);
+    return Number.isFinite(available) ? available : null;
+}
+
 let _lastSpecialFoodsHash = '';
 
 function renderSpecialFoods() {
@@ -12656,6 +12691,9 @@ function renderSpecialFoods() {
         const imageSrc = normalizeImageUrl(item.image || 'img1.jpg');
         const description = getInventoryDescription(item.name, item.description || 'Tap the image to view full details.');
         const isOutOfStock = isItemOutOfStock(item.name);
+        const quantityLeft = getDisplayQuantityLeft(item.name);
+        const stockLabel = quantityLeft === null ? '' : `
+            <span class="special-food-stock-left${quantityLeft > 0 && quantityLeft <= 5 ? ' is-low' : ''}" data-name="${escapeHtml(item.name)}">${quantityLeft > 0 ? `${quantityLeft} left` : 'Sold out'}</span>`;
         return `
         <article class="special-food-card${isOutOfStock ? ' is-out-of-stock' : ''}" data-name="${escapeHtml(item.name)}"${isOutOfStock ? ' aria-disabled="true"' : ''}>
             <button type="button" class="special-food-view-btn" data-name="${escapeHtml(item.name)}" aria-label="View ${escapeHtml(item.name)} details"${isOutOfStock ? ' disabled' : ''}>
@@ -12667,7 +12705,10 @@ function renderSpecialFoods() {
             ${isOutOfStock ? `<div class="stock-status-overlay"><img src="outofstock1.png" alt="Out of stock"><span>Out of stock</span></div>` : ''}
             <div class="special-food-details">
                 <p class="special-food-description">${escapeHtml(description)}</p>
-                <strong class="special-food-details-price">${formatCurrency(item.price)}</strong>
+                <div class="special-food-details-foot">
+                    <strong class="special-food-details-price">${formatCurrency(item.price)}</strong>
+                    ${stockLabel}
+                </div>
             </div>
         </article>
     `;
@@ -14501,12 +14542,16 @@ function showMenuCategory(categoryId) {
         const selectedQty = menuSelectionQuantities[item.name] || 0;
         const availableStock = getAvailableStockForItem(item.name);
         const description = getInventoryDescription(item.name, item.description || 'Tap the image to view full details.');
+        const quantityLeft = getDisplayQuantityLeft(item.name);
+        const stockLabel = quantityLeft === null ? '' : `
+            <span class="menu-item-stock-left${quantityLeft > 0 && quantityLeft <= 5 ? ' is-low' : ''}" data-name="${escapeHtml(item.name)}">${quantityLeft > 0 ? `${quantityLeft} left` : 'Sold out'}</span>`;
         return `
         <article class="menu-item-card${isOutOfStock ? ' is-out-of-stock' : ''}">
             <div class="menu-item-main">
                 <h4>${escapeHtml(item.name)}</h4>
                 <p>${escapeHtml(description)}</p>
                 <p class="menu-item-price">${escapeHtml(item.price)}</p>
+                ${stockLabel}
             </div>
             ${isOutOfStock ? `<div class="stock-status-overlay"><img src="outofstock1.png" alt="Out of stock"><span>Out of stock</span></div>` : ''}
             <div class="menu-item-controls">
