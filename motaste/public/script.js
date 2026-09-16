@@ -10481,9 +10481,24 @@ function getLiveQuantityFieldMessage(input, { max = Infinity, allowZero = false,
     return getQuantityEntryMessage(reason, overStockMessage);
 }
 
+// Both cart line quantities and per-dish customize quantities live in the cart
+// list, and a re-render has to protect whichever one is being typed in.
+const CART_QUANTITY_FIELD_SELECTOR = '.menu-cart-item-qty-input, .menu-cart-component-qty-input';
+
 // Background inventory refreshes rebuild these lists, which would otherwise
 // throw away a quantity the customer is still typing. Remember the focused
-// field (and its caret) so the entry survives the rebuild.
+// field (and its caret) so the entry survives the rebuild. Each field carries
+// its row identity in data attributes (index/name or index/component-name), so
+// the rebuilt markup can be matched back up.
+function getQuantityFieldIdentity(input) {
+    if (!input || !input.dataset) return '';
+
+    return Object.keys(input.dataset)
+        .sort()
+        .map((key) => `${key}=${input.dataset[key]}`)
+        .join('|');
+}
+
 function captureFocusedQuantityField(container, selector) {
     if (!container) return null;
 
@@ -10492,8 +10507,7 @@ function captureFocusedQuantityField(container, selector) {
     if (!active.matches(selector)) return null;
 
     return {
-        index: active.dataset.index,
-        name: active.dataset.name || '',
+        identity: getQuantityFieldIdentity(active),
         value: active.value,
         caret: typeof active.selectionStart === 'number' ? active.selectionStart : null
     };
@@ -10502,10 +10516,8 @@ function captureFocusedQuantityField(container, selector) {
 function restoreFocusedQuantityField(container, selector, snapshot) {
     if (!container || !snapshot) return;
 
-    const match = Array.from(container.querySelectorAll(selector)).find((input) => (
-        String(input.dataset.index) === String(snapshot.index)
-        && String(input.dataset.name || '') === snapshot.name
-    ));
+    const match = Array.from(container.querySelectorAll(selector))
+        .find((input) => getQuantityFieldIdentity(input) === snapshot.identity);
     if (!match) return;
 
     match.value = snapshot.value;
@@ -10722,6 +10734,155 @@ function commitCartItemQuantityInput(input) {
     cartItem.quantity = value;
     saveCart();
     updateCartDisplay();
+}
+
+// ---------------------------------------------------------------------------
+// Customize quantities inside a cart line
+// ---------------------------------------------------------------------------
+
+// Highest quantity this customize row may hold: what the line already reserves
+// for the component plus whatever stock the other lines have left free.
+function getMaxCartComponentQuantity(index, componentName) {
+    if (index < 0 || index >= cartItems.length) return 0;
+
+    const currentQuantity = getCartItemComponentQuantity(cartItems[index], componentName);
+    const availableStock = getAvailableStockForCartComponent(componentName);
+
+    return currentQuantity + (Number.isFinite(availableStock) ? Math.max(0, availableStock) : Infinity);
+}
+
+function getCartComponentOverStockMessage(index, componentName) {
+    return `Only ${getMaxCartComponentQuantity(index, componentName)} ${componentName} allowed — that is beyond the available quantity.`;
+}
+
+function setCartComponentQuantityError(input, message) {
+    const wrap = input && input.closest ? input.closest('.menu-cart-component-qty-wrap') : null;
+    const errorElement = wrap ? wrap.querySelector('.menu-cart-component-qty-error') : null;
+    const text = String(message || '').trim();
+
+    if (errorElement) {
+        errorElement.textContent = text;
+        errorElement.hidden = !text;
+    }
+
+    setQuantityFieldInvalid(input, Boolean(text));
+}
+
+function getCartComponentInputTarget(input) {
+    if (!input) return null;
+
+    const index = Number(input.dataset.index);
+    const componentName = String(input.dataset.componentName || '').trim();
+    if (Number.isNaN(index) || index < 0 || index >= cartItems.length || !componentName) return null;
+
+    return { index, componentName };
+}
+
+function handleCartComponentQuantityInput(input) {
+    const target = getCartComponentInputTarget(input);
+    if (!target) return;
+
+    setCartComponentQuantityError(input, getLiveQuantityFieldMessage(input, {
+        max: getMaxCartComponentQuantity(target.index, target.componentName),
+        // 0 clears the add on, exactly like stepping down or pressing Remove.
+        allowZero: true,
+        overStockMessage: getCartComponentOverStockMessage(target.index, target.componentName)
+    }));
+}
+
+function commitCartComponentQuantityInput(input) {
+    const target = getCartComponentInputTarget(input);
+    if (!target) return;
+
+    const { index, componentName } = target;
+    const currentQuantity = getCartItemComponentQuantity(cartItems[index], componentName);
+    const { value, reason } = evaluateQuantityEntry(input.value, {
+        max: getMaxCartComponentQuantity(index, componentName),
+        allowZero: true
+    });
+
+    if (value === null) {
+        input.value = String(currentQuantity);
+        setCartComponentQuantityError(input, getQuantityEntryMessage(
+            reason,
+            getCartComponentOverStockMessage(index, componentName)
+        ));
+        return;
+    }
+
+    setCartComponentQuantityError(input, '');
+    input.value = String(value);
+
+    // adjustCartItemComponentQuantity re-checks stock, saves and re-renders;
+    // the delta is already validated, so it never trips its per-step guard.
+    adjustCartItemComponentQuantity(index, componentName, value - currentQuantity);
+}
+
+// ---------------------------------------------------------------------------
+// ADD ON screen
+// ---------------------------------------------------------------------------
+
+// The add on list marks each row's stock limit on its own controls row.
+function getCartAddOnRowLimit(controls) {
+    return Math.max(0, Number(controls && controls.dataset ? controls.dataset.max : 0) || 0);
+}
+
+function getCartAddOnOverStockMessage(controls) {
+    return `Only ${getCartAddOnRowLimit(controls)} left — that is beyond the available quantity.`;
+}
+
+function setCartAddOnItemError(input, message) {
+    const row = input && input.closest ? input.closest('.cart-addon-item') : null;
+    const errorElement = row ? row.querySelector('.cart-addon-item-qty-error') : null;
+    const text = String(message || '').trim();
+
+    if (errorElement) {
+        errorElement.textContent = text;
+        errorElement.hidden = !text;
+    }
+
+    setQuantityFieldInvalid(input, Boolean(text));
+}
+
+function handleCartAddOnQuantityInput(input) {
+    if (!input) return;
+
+    const controls = input.closest ? input.closest('.cart-addon-item-controls') : null;
+    setCartAddOnItemError(input, getLiveQuantityFieldMessage(input, {
+        max: getCartAddOnRowLimit(controls),
+        // 0 means "not selected" — add ons are only drafted here, not in the cart yet.
+        allowZero: true,
+        overStockMessage: getCartAddOnOverStockMessage(controls)
+    }));
+}
+
+function commitCartAddOnQuantityInput(input) {
+    if (!input) return;
+
+    const controls = input.closest ? input.closest('.cart-addon-item-controls') : null;
+    const normalizedName = normalizeInventoryName(controls && controls.dataset ? controls.dataset.name : '');
+    if (!normalizedName) return;
+
+    const { value, reason } = evaluateQuantityEntry(input.value, {
+        max: getCartAddOnRowLimit(controls),
+        allowZero: true
+    });
+
+    if (value === null) {
+        input.value = String(cartAddOnDraftQuantities[normalizedName] || 0);
+        setCartAddOnItemError(input, getQuantityEntryMessage(reason, getCartAddOnOverStockMessage(controls)));
+        return;
+    }
+
+    if (value > 0) {
+        cartAddOnDraftQuantities[normalizedName] = value;
+    } else {
+        delete cartAddOnDraftQuantities[normalizedName];
+    }
+
+    input.value = String(value);
+    setCartAddOnItemError(input, '');
+    renderCartAddOnScreen();
 }
 
 function syncProductDetailStockLeft(itemName) {
@@ -11114,7 +11275,7 @@ function updateCartDisplay() {
     syncVisibleMenuItemQuantities();
     if (!menuCartList || !menuCartCount || !menuCartTotal || !menuPlaceOrderBtn) return;
 
-    const focusedQuantityField = captureFocusedQuantityField(menuCartList, '.menu-cart-item-qty-input');
+    const focusedQuantityField = captureFocusedQuantityField(menuCartList, CART_QUANTITY_FIELD_SELECTOR);
 
     if (!cartItems.length) {
         menuCartList.innerHTML = '<p class="menu-cart-empty">Your cart is empty.</p>';
@@ -11138,11 +11299,25 @@ function updateCartDisplay() {
                 return `
                     <li class="menu-cart-component-item">
                         <span class="menu-cart-component-name">${escapeHtml(componentName)}</span>
-                        <div class="menu-cart-component-controls">
-                            <button type="button" class="menu-cart-component-btn" data-action="component-decrease" data-index="${index}" data-component-name="${escapeHtml(componentName)}" aria-label="Decrease ${escapeHtml(componentName)} quantity"${quantity <= 0 ? ' disabled' : ''}>−</button>
-                            <span class="menu-cart-component-qty">${quantity}</span>
-                            <button type="button" class="menu-cart-component-btn" data-action="component-increase" data-index="${index}" data-component-name="${escapeHtml(componentName)}" aria-label="Increase ${escapeHtml(componentName)} quantity"${canIncrease ? '' : ' disabled'}>+</button>
-                            <button type="button" class="menu-cart-component-remove" data-index="${index}" data-component-name="${escapeHtml(componentName)}" aria-label="Remove ${escapeHtml(componentName)}"${quantity <= 0 ? ' disabled' : ''}>Remove</button>
+                        <div class="menu-cart-component-qty-wrap">
+                            <div class="menu-cart-component-controls">
+                                <button type="button" class="menu-cart-component-btn" data-action="component-decrease" data-index="${index}" data-component-name="${escapeHtml(componentName)}" aria-label="Decrease ${escapeHtml(componentName)} quantity"${quantity <= 0 ? ' disabled' : ''}>−</button>
+                                <input
+                                    type="text"
+                                    class="menu-cart-component-qty-input"
+                                    data-index="${index}"
+                                    data-component-name="${escapeHtml(componentName)}"
+                                    value="${quantity}"
+                                    inputmode="numeric"
+                                    autocomplete="off"
+                                    pattern="[0-9]*"
+                                    maxlength="4"
+                                    aria-label="${escapeHtml(componentName)} quantity"
+                                >
+                                <button type="button" class="menu-cart-component-btn" data-action="component-increase" data-index="${index}" data-component-name="${escapeHtml(componentName)}" aria-label="Increase ${escapeHtml(componentName)} quantity"${canIncrease ? '' : ' disabled'}>+</button>
+                                <button type="button" class="menu-cart-component-remove" data-index="${index}" data-component-name="${escapeHtml(componentName)}" aria-label="Remove ${escapeHtml(componentName)}"${quantity <= 0 ? ' disabled' : ''}>Remove</button>
+                            </div>
+                            <small class="menu-cart-component-qty-error" role="alert" aria-live="polite" hidden></small>
                         </div>
                     </li>
                 `;
@@ -11188,7 +11363,7 @@ function updateCartDisplay() {
         `;
     }).join('');
 
-    restoreFocusedQuantityField(menuCartList, '.menu-cart-item-qty-input', focusedQuantityField);
+    restoreFocusedQuantityField(menuCartList, CART_QUANTITY_FIELD_SELECTOR, focusedQuantityField);
 
     menuCartCount.textContent = `${totalItems} items`;
     menuCartTotal.textContent = formatCurrency(total);
@@ -14511,6 +14686,8 @@ function closeCartAddOnScreen() {
 function renderCartAddOnScreen() {
     if (!cartAddOnList) return;
 
+    const focusedQuantityField = captureFocusedQuantityField(cartAddOnList, '.cart-addon-item-qty-input');
+
     const query = String(cartAddOnSearchQuery || '').trim().toLowerCase();
 
     const allAddOnItems = getAddOnInventoryItems()
@@ -14559,13 +14736,27 @@ function renderCartAddOnScreen() {
                 </div>
                 <div class="cart-addon-item-controls" data-name="${escapeHtml(item.name)}" data-max="${maxAddable}">
                     <button type="button" class="menu-item-qty-btn" data-action="decrease" ${selectedQty <= 0 ? 'disabled' : ''}>−</button>
-                    <span class="menu-item-qty">${selectedQty}</span>
+                    <input
+                        type="text"
+                        class="cart-addon-item-qty-input"
+                        data-name="${escapeHtml(item.name)}"
+                        value="${selectedQty}"
+                        inputmode="numeric"
+                        autocomplete="off"
+                        pattern="[0-9]*"
+                        maxlength="4"
+                        aria-label="${escapeHtml(item.name)} quantity"
+                    >
                     <button type="button" class="menu-item-qty-btn" data-action="increase" ${selectedQty >= maxAddable ? 'disabled' : ''}>+</button>
                 </div>
+                <small class="cart-addon-item-qty-error" role="alert" aria-live="polite" hidden></small>
                 <div class="cart-addon-item-stock">Available: ${availableStock}</div>
             </article>
         `;
     }).join('');
+
+    // A stepper click or background refresh must not wipe a quantity being typed.
+    restoreFocusedQuantityField(cartAddOnList, '.cart-addon-item-qty-input', focusedQuantityField);
 
     if (cartAddOnApplyBtn) {
         const hasSelected = Object.values(cartAddOnDraftQuantities).some((qty) => (Number(qty) || 0) > 0);
@@ -15563,6 +15754,29 @@ if (menuCartList) {
         // A rejected entry keeps focus so the reminder stays readable.
         if (!input.classList.contains('is-invalid')) input.blur();
     });
+
+    // Same treatment for the customize rows inside each cart line.
+    menuCartList.addEventListener('input', (event) => {
+        const input = event.target.closest('.menu-cart-component-qty-input');
+        if (input) handleCartComponentQuantityInput(input);
+    });
+
+    menuCartList.addEventListener('change', (event) => {
+        const input = event.target.closest('.menu-cart-component-qty-input');
+        if (input) commitCartComponentQuantityInput(input);
+    });
+
+    menuCartList.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+
+        const input = event.target.closest('.menu-cart-component-qty-input');
+        if (!input) return;
+
+        event.preventDefault();
+        commitCartComponentQuantityInput(input);
+
+        if (!input.classList.contains('is-invalid')) input.blur();
+    });
 }
 
 if (cartAddOnBtn) {
@@ -15602,6 +15816,29 @@ if (cartAddOnList) {
         }
     });
 
+    // Typeable add on quantities: reminders while typing, commit on blur/Enter.
+    cartAddOnList.addEventListener('input', (event) => {
+        const input = event.target.closest('.cart-addon-item-qty-input');
+        if (input) handleCartAddOnQuantityInput(input);
+    });
+
+    cartAddOnList.addEventListener('change', (event) => {
+        const input = event.target.closest('.cart-addon-item-qty-input');
+        if (input) commitCartAddOnQuantityInput(input);
+    });
+
+    cartAddOnList.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+
+        const input = event.target.closest('.cart-addon-item-qty-input');
+        if (!input) return;
+
+        event.preventDefault();
+        commitCartAddOnQuantityInput(input);
+
+        // A rejected entry keeps focus so the reminder stays readable.
+        if (!input.classList.contains('is-invalid')) input.blur();
+    });
 }
 
 if (cartAddOnApplyBtn) {
