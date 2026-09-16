@@ -17,6 +17,11 @@ require_once __DIR__ . '/_email_auth_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
+if (!is_array($input)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
+    exit;
+}
 $targetEmail = strtolower(trim((string)($input['targetEmail'] ?? '')));
 $changeType = strtolower(trim((string)($input['changeType'] ?? '')));
 $adminPassword = (string)($input['adminPassword'] ?? '');
@@ -26,6 +31,12 @@ validateCsrfOrExit();
 if ($targetEmail === '' || $adminPassword === '') {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Target account and current admin password are required']);
+    exit;
+}
+
+if (!filter_var($targetEmail, FILTER_VALIDATE_EMAIL) || mb_strlen($targetEmail) > 191) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Target account email address is invalid']);
     exit;
 }
 

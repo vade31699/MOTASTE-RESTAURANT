@@ -41,7 +41,10 @@ if (!is_array($orderNumbers)) {
 $normalizedOrderNumbers = array_values(array_filter(array_map(static function ($value) {
     return trim((string)$value);
 }, $orderNumbers), static function ($value) {
-    return $value !== '';
+    // Order numbers are digit-only strings (created with the /^\d{4,20}$/
+    // rule); a crafted non-digit or oversized value can never match a row and
+    // only bloats the query, so it is dropped.
+    return $value !== '' && strlen($value) <= 191 && preg_match('/^\d{4,20}$/', $value) === 1;
 }));
 
 if (empty($normalizedOrderNumbers)) {

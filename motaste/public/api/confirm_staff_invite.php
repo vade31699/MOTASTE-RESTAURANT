@@ -19,6 +19,11 @@ require_once __DIR__ . '/_email_auth_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
+if (!is_array($input)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
+    exit;
+}
 $email = strtolower(trim((string)($input['email'] ?? '')));
 $role = trim((string)($input['role'] ?? ''));
 $code = trim((string)($input['code'] ?? ''));
@@ -28,6 +33,24 @@ validateCsrfOrExit();
 if ($email === '' || $role === '' || $code === '') {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Email, role, and code are required']);
+    exit;
+}
+
+if (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 191) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Email address is invalid']);
+    exit;
+}
+
+if (!in_array($role, ['Cashier', 'Inventory Manager'], true)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Unrecognized role']);
+    exit;
+}
+
+if (!preg_match('/^\d{6}$/', $code)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Verification code must be 6 digits']);
     exit;
 }
 

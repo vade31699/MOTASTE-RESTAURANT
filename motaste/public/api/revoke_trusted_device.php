@@ -24,9 +24,23 @@ try {
 
     $input = json_decode(file_get_contents('php://input'), true);
     $body = is_array($input) ? $input : [];
-    $deviceId = (int)($body['id'] ?? 0);
+    $deviceIdRaw = $body['id'] ?? 0;
+    if ($deviceIdRaw !== 0 && !(is_int($deviceIdRaw) || (is_string($deviceIdRaw) && ctype_digit($deviceIdRaw)))) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Device id must be a whole number.']);
+        exit;
+    }
+    $deviceId = (int)$deviceIdRaw;
     $fingerprint = trim((string)($body['fingerprint'] ?? ''));
     $deviceToken = trim((string)($body['deviceToken'] ?? ''));
+
+    // Bounds for the lookups (fingerprint is hashed at rest; these are caps
+    // on what a request may send).
+    if (mb_strlen($fingerprint) > 512 || mb_strlen($deviceToken) > 256) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Device details are too long.']);
+        exit;
+    }
 
     if ($deviceId === 0 && $fingerprint === '') {
         http_response_code(400);

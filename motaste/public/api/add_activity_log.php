@@ -48,6 +48,37 @@ try {
     // Stored-XSS guard: audit entries are rendered on the staff dashboard.
     rejectUnsafeInputOrExit($action, $summary, $details, $actorRole, $actorEmail, $orderNumber);
 
+    // Length/format caps matching the order_activity_logs column widths, and a
+    // bound on the details payload so a huge body cannot fill the details text.
+    if (mb_strlen($action) > 100) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Action is too long']);
+        exit;
+    }
+    if (mb_strlen($summary) > 1000) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Summary is too long']);
+        exit;
+    }
+    if ($orderId !== null && $orderId <= 0) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Order ID is invalid']);
+        exit;
+    }
+    if ($orderNumber !== '' && !preg_match('/^\d{4,20}$/', $orderNumber)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Order number is invalid']);
+        exit;
+    }
+    $detailsJson = $details !== null
+        ? json_encode($details, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        : '';
+    if ($detailsJson !== '' && strlen($detailsJson) > 10000) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Details are too large']);
+        exit;
+    }
+
     // Route review-specific events to their dedicated container.
     $isReviewAction = strpos($action, 'review_') === 0;
 

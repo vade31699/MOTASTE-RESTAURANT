@@ -29,11 +29,16 @@ function ensureOrderLogsTable(): void
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
+if (!is_array($input)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
+    exit;
+}
 $orderId = isset($input['orderId']) ? (int) $input['orderId'] : 0;
 $itemId = isset($input['itemId']) ? (int) $input['itemId'] : 0;
-$quantity = isset($input['quantity']) ? (int) $input['quantity'] : null;
+$quantity = array_key_exists('quantity', $input) ? $input['quantity'] : null;
 $componentName = trim((string)($input['componentName'] ?? ''));
-$componentQuantity = array_key_exists('componentQuantity', $input) ? (int)$input['componentQuantity'] : null;
+$componentQuantity = array_key_exists('componentQuantity', $input) ? $input['componentQuantity'] : null;
 $componentsPayload = is_array($input['components'] ?? null) ? array_values($input['components']) : null;
 $actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
 $actorEmail = trim((string)($input['actorEmail'] ?? ''));
@@ -43,9 +48,68 @@ $hasComponentsPayload = is_array($componentsPayload);
 // Stored-XSS guard: reject HTML/script content in free-text fields.
 rejectUnsafeInputOrExit($componentName, $componentsPayload, $actorRole, $actorEmail);
 
-if ($orderId <= 0 || $itemId <= 0 || ($quantity === null && !$hasComponentUpdate && !$hasComponentsPayload) || ($quantity !== null && $quantity < 0) || ($hasComponentUpdate && $componentQuantity < 0)) {
+// Strict numeric validation: a non-numeric quantity must not be silently
+// coerced to 0 (which would delete a line item) or to an unbounded value.
+foreach ([['quantity', $quantity, 0, 999], ['componentQuantity', $componentQuantity, 0, 999]] as [$field, $value, $min, $max]) {
+    if ($value !== null && (!is_numeric($value) || (float)$value < $min || (float)$value > $max)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => $field . ' must be between ' . $min . ' and ' . $max]);
+        exit;
+    }
+}
+$quantity = $quantity !== null ? (int)$quantity : null;
+$componentQuantity = $componentQuantity !== null ? (int)$componentQuantity : null;
+
+if ($orderId <= 0 || $itemId <= 0 || ($quantity === null && !$hasComponentUpdate && !$hasComponentsPayload)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'orderId, itemId, and quantity or component update are required']);
+    exit;
+}
+
+if ($hasComponentUpdate) {
+    if ($componentName === '' || mb_strlen($componentName) > 191) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Component name is invalid']);
+        exit;
+    }
+}
+
+if ($hasComponentsPayload) {
+    foreach ($componentsPayload as $entry) {
+        if (!is_array($entry)) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'error' => 'Invalid component entry']);
+            exit;
+        }
+        $entryName = trim((string)($entry['name'] ?? ''));
+        $entryQty = $entry['quantity'] ?? null;
+        if ($entryName === '' || mb_strlen($entryName) > 191) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'error' => 'Component entry name is invalid']);
+            exit;
+        }
+        if (!is_numeric($entryQty) || (float)$entryQty < 1 || (float)$entryQty > 999) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'error' => 'Component entry quantity must be between 1 and 999']);
+            exit;
+        }
+    }
+}
+
+// Actor identity bounds matching the order_activity_logs column widths.
+if (mb_strlen($actorRole) > 100 || mb_strlen($actorEmail) > 191) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Actor details are too long']);
+    exit;
+}
+if ($actorRole !== '' && $actorRole !== 'Staff' && !in_array($actorRole, ['Admin', 'Cashier', 'Inventory Manager'], true)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Invalid actor role']);
+    exit;
+}
+if ($actorEmail !== '' && !filter_var($actorEmail, FILTER_VALIDATE_EMAIL)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Invalid actor email']);
     exit;
 }
 

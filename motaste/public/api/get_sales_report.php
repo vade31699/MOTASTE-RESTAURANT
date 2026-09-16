@@ -28,6 +28,26 @@ try {
         exit;
     }
 
+    // Reject impossible calendar dates (e.g. 2026-13-99) so Carbon::parse below
+    // can never throw and turn the request into a 500.
+    $fromParts = array_map('intval', explode('-', $from));
+    $toParts = array_map('intval', explode('-', $to));
+    if (!checkdate($fromParts[1], $fromParts[2], $fromParts[0])) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'from must be a real date in YYYY-MM-DD format']);
+        exit;
+    }
+    if (!checkdate($toParts[1], $toParts[2], $toParts[0])) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'to must be a real date in YYYY-MM-DD format']);
+        exit;
+    }
+    if ($from > $to) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'from must not be after to']);
+        exit;
+    }
+
     // The report dates are chosen in the viewer's local timezone. Convert the
     // selected local day into UTC instants so orders (stored in UTC via now())
     // are attributed to the correct calendar day for the user.
@@ -44,6 +64,7 @@ try {
         ->where('status', 'completed')
         ->whereBetween('order_date', [$fromDate, $toDate])
         ->orderBy('order_date')
+        ->limit(5000)
         ->get();
 
     // Load every line item in a single query instead of one query per order.

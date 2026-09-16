@@ -93,15 +93,32 @@ try {
     $fromParam = isset($_GET['from']) && $_GET['from'] !== '' ? trim($_GET['from']) : null;
     $toParam = isset($_GET['to']) && $_GET['to'] !== '' ? trim($_GET['to']) : null;
 
-    $isDateFiltered = $fromParam !== null || $toParam !== null;
-    if ($isDateFiltered) {
-        $validFrom = validDateParam($fromParam);
-        $validTo = validDateParam($toParam);
-        // Fall back to the unfiltered path if a date param is unparsable.
-        $isDateFiltered = $validFrom !== null || $validTo !== null;
-        $fromParam = $validFrom;
-        $toParam = $validTo;
+    // A present but unparsable date is rejected rather than silently dropping
+    // the filter (which used to return an unfiltered list the client thought
+    // was filtered); from must also not come after to.
+    if ($fromParam !== null && validDateParam($fromParam) === null) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'from must be a valid date']);
+        exit;
     }
+    if ($toParam !== null && validDateParam($toParam) === null) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'to must be a valid date']);
+        exit;
+    }
+
+    $isDateFiltered = $fromParam !== null || $toParam !== null;
+    if ($isDateFiltered && $fromParam !== null && $toParam !== null && strtotime($fromParam) > strtotime($toParam)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'from must not be after to']);
+        exit;
+    }
+
+    $validFrom = validDateParam($fromParam);
+    $validTo = validDateParam($toParam);
+    $isDateFiltered = $validFrom !== null || $validTo !== null;
+    $fromParam = $validFrom;
+    $toParam = $validTo;
 
     $query = DB::table('orders')->where('status', 'completed');
     if ($fromParam !== null) {
@@ -110,9 +127,9 @@ try {
     if ($toParam !== null) {
         $query->where('order_date', '<', $toParam);
     }
-    if (!$isDateFiltered) {
-        $query->limit(500);
-    }
+    // The filtered path keeps a finite cap so a very wide range cannot build an
+    // unbounded result set in one request.
+    $query->limit($isDateFiltered ? 5000 : 500);
 
     $orders = $query
         ->orderByDesc('order_date')

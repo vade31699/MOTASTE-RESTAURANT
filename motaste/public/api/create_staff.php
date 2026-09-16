@@ -80,6 +80,12 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL) || !preg_match('/@gmail\.com$/', 
     exit;
 }
 
+if (mb_strlen($email) > 191) {
+    http_response_code(422);
+    echo json_encode(['error' => 'Email address is too long']);
+    exit;
+}
+
 // Strong password policy: length, complexity, and common-password rejection.
 enforce_password_policy($password);
 

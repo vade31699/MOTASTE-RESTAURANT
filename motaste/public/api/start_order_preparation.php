@@ -24,6 +24,11 @@ use Illuminate\Database\Schema\Blueprint;
 validateCsrfOrExit();
 
 $input = json_decode(file_get_contents('php://input'), true);
+if (!is_array($input)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
+    exit;
+}
 $orderId = isset($input['orderId']) ? (int)$input['orderId'] : 0;
 $minutes = isset($input['minutes']) ? (int)$input['minutes'] : 0;
 $actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
@@ -38,6 +43,25 @@ if ($orderId <= 0) {
 if ($minutes < 1 || $minutes > 180) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Estimated preparation minutes must be between 1 and 180.']);
+    exit;
+}
+
+// Actor identity is stored into the audit logs; reject HTML, cap the length,
+// and keep the role to the known set.
+rejectUnsafeInputOrExit($actorRole, $actorEmail);
+if (mb_strlen($actorRole) > 100 || mb_strlen($actorEmail) > 191) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Actor details are too long']);
+    exit;
+}
+if ($actorRole !== '' && $actorRole !== 'Staff' && !in_array($actorRole, ['Admin', 'Cashier', 'Inventory Manager'], true)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Invalid actor role']);
+    exit;
+}
+if ($actorEmail !== '' && !filter_var($actorEmail, FILTER_VALIDATE_EMAIL)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Invalid actor email']);
     exit;
 }
 

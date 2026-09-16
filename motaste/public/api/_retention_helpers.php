@@ -78,6 +78,12 @@ function retentionCsvEscape($value): string
 {
     $value = (string)($value ?? '');
     $value = str_replace(["\r", "\n"], ' ', $value);
+    // Neutralize spreadsheet formula injection: a cell beginning with = + - @
+    // (or a tab) can be executed as a formula when the CSV is opened in Excel.
+    // Prefix such cells with a single quote, which Excel treats as literal text.
+    if (preg_match('/^[=+\-@\t]/', $value)) {
+        $value = "'" . $value;
+    }
     if (strpbrk($value, ",\"\n") !== false || strpos($value, '"') !== false) {
         return '"' . str_replace('"', '""', $value) . '"';
     }

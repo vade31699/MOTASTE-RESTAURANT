@@ -20,6 +20,11 @@ require_once __DIR__ . '/_helpers.php';
 use Illuminate\Support\Facades\DB;
 
 $input = json_decode(file_get_contents('php://input'), true);
+if (!is_array($input)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
+    exit;
+}
 $orderId = isset($input['orderId']) ? (int)$input['orderId'] : 0;
 $actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
 $actorEmail = trim((string)($input['actorEmail'] ?? ''));
@@ -27,6 +32,25 @@ $actorEmail = trim((string)($input['actorEmail'] ?? ''));
 if ($orderId <= 0) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'orderId is required']);
+    exit;
+}
+
+// Actor identity is stored into the audit logs; reject HTML, cap the length,
+// and keep the role to the known set.
+rejectUnsafeInputOrExit($actorRole, $actorEmail);
+if (mb_strlen($actorRole) > 100 || mb_strlen($actorEmail) > 191) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Actor details are too long']);
+    exit;
+}
+if ($actorRole !== '' && $actorRole !== 'Staff' && !in_array($actorRole, ['Admin', 'Cashier', 'Inventory Manager'], true)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Invalid actor role']);
+    exit;
+}
+if ($actorEmail !== '' && !filter_var($actorEmail, FILTER_VALIDATE_EMAIL)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Invalid actor email']);
     exit;
 }
 

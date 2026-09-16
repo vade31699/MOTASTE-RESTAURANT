@@ -32,6 +32,41 @@ if (!is_array($input)) {
 }
 
 try {
+    // Every entry must be a well-formed account object. Rejecting malformed
+    // entries here (rather than silently skipping them in the snapshot
+    // normalizer) prevents an empty or junk payload from wiping the account
+    // list on save.
+    if (count($input) === 0) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'At least one account is required']);
+        exit;
+    }
+    foreach ($input as $index => $account) {
+        if (!is_array($account)) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'error' => 'Account entry at position ' . $index . ' is invalid']);
+            exit;
+        }
+        $accountName = isset($account['name']) && is_string($account['name']) ? trim($account['name']) : '';
+        $accountRole = isset($account['role']) && is_string($account['role']) ? trim($account['role']) : '';
+        $accountEmail = isset($account['email']) && is_string($account['email']) ? strtolower(trim($account['email'])) : '';
+        if ($accountName === '' || $accountRole === '' || $accountEmail === '') {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'error' => 'Every account needs a name, role, and email']);
+            exit;
+        }
+        if (!in_array($accountRole, ['Admin', 'Cashier', 'Inventory Manager'], true)) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'error' => 'Unrecognized role: ' . $accountRole]);
+            exit;
+        }
+        if (!filter_var($accountEmail, FILTER_VALIDATE_EMAIL) || mb_strlen($accountEmail) > 191) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'error' => 'Invalid email address for ' . $accountEmail]);
+            exit;
+        }
+    }
+
     // Stored-XSS guard: names/emails must be plain text (passwords are hashed
     // and never rendered, so they are intentionally not checked here).
     foreach ($input as $account) {

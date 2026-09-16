@@ -20,7 +20,18 @@ require_once __DIR__ . '/_retention_helpers.php';
 use Illuminate\Support\Facades\DB;
 
 $input = json_decode(file_get_contents('php://input'), true);
-$batchId = isset($input['batchId']) ? (int)$input['batchId'] : 0;
+if (!is_array($input)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
+    exit;
+}
+$batchIdRaw = $input['batchId'] ?? null;
+if (!(is_int($batchIdRaw) || (is_string($batchIdRaw) && ctype_digit($batchIdRaw)))) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'batchId must be a whole number']);
+    exit;
+}
+$batchId = (int)$batchIdRaw;
 $confirmed = !empty($input['confirmed']);
 
 if ($batchId <= 0) {

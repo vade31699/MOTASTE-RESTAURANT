@@ -36,6 +36,13 @@ try {
         exit;
     }
 
+    // Cap the upload size (bytes) before inspecting content.
+    if ((int)($file['size'] ?? 0) <= 0 || (int)$file['size'] > 5 * 1024 * 1024) {
+        http_response_code(413);
+        echo json_encode(['success' => false, 'error' => 'Image must be between 1 byte and 5MB']);
+        exit;
+    }
+
     // Validate the file is a real image and derive the extension from its
     // actual content (never from the client-supplied filename), so a file
     // disguised as an image is rejected before it is stored.

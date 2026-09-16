@@ -40,6 +40,16 @@ try {
         echo json_encode(['success' => false, 'error' => 'Email is required.']);
         exit;
     }
+    if (mb_strlen($email) > 191 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid email address.']);
+        exit;
+    }
+    if (mb_strlen($deviceToken) > 256) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Device token is too long.']);
+        exit;
+    }
 
     $currentFingerprint = $deviceToken !== '' ? computeDeviceFingerprint($email, $deviceToken) : '';
 

@@ -72,8 +72,93 @@ $discountAmount = 0;
 // catalog is unavailable (fresh deployment), fall back to submitted prices.
 require_once __DIR__ . '/_helpers.php';
 
+// Enum allowlists: order/payment kinds are fixed options in the UI, so a
+// crafted value cannot smuggle markup or an arbitrary label into the dashboard.
+$validPaymentMethods = ['Cash', 'GCash', 'Cash On Delivery'];
+$validOrderTypes = ['Dine In', 'Take Out', 'SakayKo Rider Pick-up', 'Walk-in Dine In', 'Walk-in Take Out'];
+if (!in_array($paymentMethod, $validPaymentMethods, true)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Invalid payment method']);
+    exit;
+}
+if (!in_array($orderType, $validOrderTypes, true)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Invalid order type']);
+    exit;
+}
+
 // Stored-XSS guard: reject HTML/script content in customer/item free text.
-rejectUnsafeInputOrExit($customerName, $deliveryAddress, $customerEmail, $customerPhone, $items);
+rejectUnsafeInputOrExit($customerName, $deliveryAddress, $customerEmail, $customerPhone, $orderType, $paymentMethod, $items);
+
+// Customer detail bounds, matching the orders schema column widths.
+if (mb_strlen($customerName) > 191 || mb_strlen($customerEmail) > 191 || mb_strlen($customerPhone) > 40) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Customer details are too long']);
+    exit;
+}
+if (mb_strlen($deliveryAddress) > 500) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Delivery address is too long']);
+    exit;
+}
+if ($customerEmail !== '' && !filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Customer email address is invalid']);
+    exit;
+}
+if ($customerPhone !== '' && !preg_match('/^[0-9+\-\s()]{7,40}$/', $customerPhone)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Customer phone number is invalid']);
+    exit;
+}
+
+// Item-level bounds: bounded count, bounded quantity, and no negative/oversized
+// prices even when the catalog has no entry for the item.
+if (count($items) > 50) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Too many items in one order']);
+    exit;
+}
+foreach ($items as $it) {
+    if (!is_array($it)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Invalid order item']);
+        exit;
+    }
+    $itemQuantity = $it['quantity'] ?? null;
+    if (!is_numeric($itemQuantity) || (int)$itemQuantity < 1 || (int)$itemQuantity > 999) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Order item quantity must be between 1 and 999']);
+        exit;
+    }
+    $itemPrice = $it['price'] ?? 0;
+    if (!is_numeric($itemPrice) || (float)$itemPrice < 0 || (float)$itemPrice > 9999999.99) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Order item price is invalid']);
+        exit;
+    }
+    if (is_array($it['components'] ?? null)) {
+        foreach ($it['components'] as $component) {
+            if (!is_array($component)) {
+                http_response_code(422);
+                echo json_encode(['success' => false, 'error' => 'Invalid order item component']);
+                exit;
+            }
+            $componentName = trim((string)($component['name'] ?? ''));
+            $componentQty = $component['quantity'] ?? null;
+            if ($componentName === '' || mb_strlen($componentName) > 191) {
+                http_response_code(422);
+                echo json_encode(['success' => false, 'error' => 'Invalid order item component name']);
+                exit;
+            }
+            if (!is_numeric($componentQty) || (int)$componentQty < 0 || (int)$componentQty > 999) {
+                http_response_code(422);
+                echo json_encode(['success' => false, 'error' => 'Invalid order item component quantity']);
+                exit;
+            }
+        }
+    }
+}
 
 $inventoryPriceMap = [];
 try {

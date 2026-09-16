@@ -15606,10 +15606,13 @@ function downloadRetentionCsv(batch, headers, rows) {
     const csvRows = rows.map((row) => headers.map((header) => {
         const value = row && Object.prototype.hasOwnProperty.call(row, header) ? row[header] : '';
         const text = String(value === null || value === undefined ? '' : value);
-        if (/[,"\n]/.test(text)) {
-            return `"${text.replace(/"/g, '""')}"`;
+        // Neutralize spreadsheet formula injection: cells starting with = + - @
+        // would otherwise execute as a formula when the CSV opens in Excel.
+        const guarded = /^[=+\-@]/.test(text) ? `'${text}` : text;
+        if (/[,"\n]/.test(guarded)) {
+            return `"${guarded.replace(/"/g, '""')}"`;
         }
-        return text;
+        return guarded;
     }));
     const csv = '\uFEFF' + [headers].concat(csvRows)
         .map((line) => line.join(',')).join('\r\n');

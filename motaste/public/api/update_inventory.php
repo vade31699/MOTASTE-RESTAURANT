@@ -52,13 +52,13 @@ function findInventoryItemIdsByNormalizedNames(array $normalizedNames): array
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
-$name = isset($input['name']) ? trim($input['name']) : '';
-$previousName = isset($input['previousName']) ? trim((string)$input['previousName']) : '';
+$name = is_string($input['name'] ?? null) ? trim($input['name']) : null;
+$previousName = is_string($input['previousName'] ?? null) ? trim($input['previousName']) : '';
 $price = isset($input['price']) ? (float)$input['price'] : 0;
 $stock = isset($input['stock']) ? (int)$input['stock'] : 0;
-$category = isset($input['category']) ? trim($input['category']) : 'specials';
-$description = isset($input['description']) ? trim((string)$input['description']) : '';
-$status = isset($input['status']) ? trim($input['status']) : ($stock > 0 ? 'In stock' : 'Out of stock');
+$category = is_string($input['category'] ?? null) ? trim($input['category']) : 'specials';
+$description = is_string($input['description'] ?? null) ? trim($input['description']) : '';
+$status = is_string($input['status'] ?? null) ? trim($input['status']) : ($stock > 0 ? 'In stock' : 'Out of stock');
 $unitCost = isset($input['unitCost']) ? (float)$input['unitCost'] : 0;
 $reorderLevel = isset($input['reorderLevel']) ? (int)$input['reorderLevel'] : 0;
 $isAvailable = isset($input['isAvailable']) ? (($input['isAvailable'] === true || $input['isAvailable'] === 'true' || $input['isAvailable'] === 1 || $input['isAvailable'] === '1') ? 1 : 0) : 1;
@@ -66,7 +66,93 @@ $actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
 $actorEmail = trim((string)($input['actorEmail'] ?? ''));
 
 // Stored-XSS guard: reject HTML/script content in free-text fields.
-rejectUnsafeInputOrExit($name, $category, $description, $input['image'] ?? null);
+rejectUnsafeInputOrExit($name, $previousName, $category, $description, $status, $input['image'] ?? null, $actorRole, $actorEmail);
+
+$image = null;
+if (array_key_exists('image', $input)) {
+    if ($input['image'] !== null && !is_string($input['image'])) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Image must be a string']);
+        exit;
+    }
+    $image = trim((string)$input['image']);
+    if ($image !== '' && !preg_match('#^https?://[^\s"]+$#', $image)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Image must be a valid http(s) URL']);
+        exit;
+    }
+}
+
+// Data-type checks: these fields are always sent by the client as booleans/
+// numbers; a crafted string here previously fell through the (float)/(int)
+// casts silently.
+if ($name === null) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'name must be a string']);
+    exit;
+}
+if (!is_numeric($input['price'] ?? null) || (float)$input['price'] < 0 || (float)$input['price'] > 9999999.99) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'price must be between 0 and 9999999.99']);
+    exit;
+}
+if (!is_numeric($input['stock'] ?? null) || (int)$input['stock'] < 0 || (int)$input['stock'] > 999999) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'stock must be between 0 and 999999']);
+    exit;
+}
+
+// Length caps matching the inventory_items column widths.
+if (mb_strlen($name) > 191 || mb_strlen($previousName) > 191) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Item name is too long']);
+    exit;
+}
+if (mb_strlen($category) > 255) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Category is too long']);
+    exit;
+}
+if (mb_strlen($description) > 5000) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Description is too long']);
+    exit;
+}
+
+// Enumerated category/status values (mirrors the staff.html selects); any
+// other value would only ever come from a hand-crafted request.
+if (!in_array($category, ['batchoy', 'silog', 'friedChicken', 'breakfast', 'drinks', 'addons', 'specials'], true)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Invalid category']);
+    exit;
+}
+if (!in_array($status, ['In stock', 'Out of stock'], true)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Invalid status']);
+    exit;
+}
+if ($unitCost < 0 || $unitCost > 9999999.99 || $reorderLevel < 0 || $reorderLevel > 999999) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Unit cost or reorder level is out of range']);
+    exit;
+}
+
+// Actor identity bounds matching the order_activity_logs column widths.
+if (mb_strlen($actorRole) > 100 || mb_strlen($actorEmail) > 191) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Actor details are too long']);
+    exit;
+}
+if ($actorRole !== '' && $actorRole !== 'Staff' && !in_array($actorRole, ['Admin', 'Cashier', 'Inventory Manager'], true)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Invalid actor role']);
+    exit;
+}
+if ($actorEmail !== '' && !filter_var($actorEmail, FILTER_VALIDATE_EMAIL)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Invalid actor email']);
+    exit;
+}
 
 $canonicalName = preg_replace('/\s+/', ' ', $name);
 $canonicalName = trim((string)$canonicalName);
@@ -100,8 +186,6 @@ try {
     if (!$existingBefore) {
         $existingBefore = findInventoryItemByNormalizedName($normalizedLookup);
     }
-
-    $image = isset($input['image']) ? trim((string)$input['image']) : null;
 
     $itemId = null;
     DB::transaction(function () use ($normalizedLookup, $normalizedPrevious, $canonicalName, $price, $stock, $normalizedStatus, $category, $description, $image, $unitCost, $reorderLevel, $isAvailable, &$itemId) {

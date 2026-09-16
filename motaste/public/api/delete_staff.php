@@ -29,10 +29,17 @@ if (!requireAdminAuth()) {
 
 require_once __DIR__ . '/csrf_guard.php';
 
-$email = isset($input['email']) ? trim($input['email']) : '';
+$rawEmail = $input['email'] ?? null;
+$email = is_string($rawEmail) ? trim($rawEmail) : '';
 if (!$email) {
     http_response_code(400);
     echo json_encode(['error' => 'Missing email']);
+    exit;
+}
+
+if (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 191) {
+    http_response_code(422);
+    echo json_encode(['error' => 'Email address is invalid']);
     exit;
 }
 

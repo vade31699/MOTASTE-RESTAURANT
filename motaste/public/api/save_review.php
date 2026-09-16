@@ -29,6 +29,11 @@ function ensureReviewTables(): void
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
+if (!is_array($input)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
+    exit;
+}
 $rating = isset($input['rating']) ? (int)$input['rating'] : 0;
 $reviewText = trim((string)($input['reviewText'] ?? ''));
 $reviewerToken = trim((string)($input['reviewerToken'] ?? ''));
@@ -50,6 +55,13 @@ rejectUnsafeInputOrExit($reviewText);
 $reviewText = strip_tags($reviewText);
 $reviewText = preg_replace('/\s+/u', ' ', $reviewText);
 $reviewText = trim((string)$reviewText);
+
+// Bound the reviewer token (best-effort; the key is hashed before storage).
+if (mb_strlen($reviewerToken) > 128) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Reviewer token is too long']);
+    exit;
+}
 
 if ($rating < 1 || $rating > 5 || $reviewText === '') {
     http_response_code(400);

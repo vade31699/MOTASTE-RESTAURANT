@@ -21,14 +21,20 @@ require_once __DIR__ . '/_email_auth_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
 
 $input = json_decode(file_get_contents('php://input'), true);
+if (!is_array($input)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
+    exit;
+}
 $name = trim((string)($input['name'] ?? ''));
 $role = trim((string)($input['role'] ?? ''));
 $email = strtolower(trim((string)($input['email'] ?? '')));
 
 validateCsrfOrExit();
 
-// Stored-XSS guard: the name is included in the invite email and audit trail.
-rejectUnsafeInputOrExit($name);
+// Stored-XSS guard: the name and email are included in the invite email and
+// audit trail.
+rejectUnsafeInputOrExit($name, $email);
 
 if ($name === '' || $role === '' || $email === '') {
     http_response_code(400);
@@ -52,9 +58,15 @@ if (!in_array($role, ['Cashier', 'Inventory Manager'], true)) {
     exit;
 }
 
-if (!preg_match('/@gmail\.com$/', $email)) {
+if (!filter_var($email, FILTER_VALIDATE_EMAIL) || !preg_match('/@gmail\.com$/', $email)) {
     http_response_code(422);
     echo json_encode(['success' => false, 'error' => 'Only Gmail addresses are allowed']);
+    exit;
+}
+
+if (mb_strlen($email) > 191) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Email address is too long']);
     exit;
 }
 

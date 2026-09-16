@@ -33,6 +33,16 @@ try {
         echo json_encode(['success' => false, 'error' => 'Invalid date. Use YYYY-MM-DD.']);
         exit;
     }
+    if ($dateFilter !== '') {
+        $dateParts = array_map('intval', explode('-', $dateFilter));
+        // Reject impossible calendar dates (e.g. 2026-02-31) so
+        // DateTimeImmutable below cannot throw.
+        if (!checkdate($dateParts[1], $dateParts[2], $dateParts[0])) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Invalid date. Use YYYY-MM-DD.']);
+            exit;
+        }
+    }
 
     $query = DB::table('staff_login_history');
     if ($dateFilter !== '') {

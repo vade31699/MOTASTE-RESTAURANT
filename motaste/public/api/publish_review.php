@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 
 require_once __DIR__ . '/csrf_guard.php';
 require_once __DIR__ . '/_review_log_helpers.php';
+require_once __DIR__ . '/_helpers.php';
 
 function ensureReviewTables(): void
 {
@@ -28,13 +29,43 @@ function ensureReviewTables(): void
 validateCsrfOrExit();
 
 $input = json_decode(file_get_contents('php://input'), true);
-$reviewId = isset($input['reviewId']) ? (int)$input['reviewId'] : 0;
+if (!is_array($input)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
+    exit;
+}
+
+$reviewIdRaw = $input['reviewId'] ?? null;
+if (!(is_int($reviewIdRaw) || (is_string($reviewIdRaw) && ctype_digit($reviewIdRaw)))) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'reviewId must be a whole number']);
+    exit;
+}
+$reviewId = (int)$reviewIdRaw;
 $actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
 $actorEmail = trim((string)($input['actorEmail'] ?? ''));
+
+// Stored-XSS guard + bounds for the actor identity echoed into the log.
+rejectUnsafeInputOrExit($actorRole, $actorEmail);
 
 if ($reviewId <= 0) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'reviewId is required']);
+    exit;
+}
+if (mb_strlen($actorRole) > 100 || mb_strlen($actorEmail) > 191) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Actor details are too long']);
+    exit;
+}
+if ($actorRole !== '' && $actorRole !== 'Staff' && !in_array($actorRole, ['Admin', 'Cashier', 'Inventory Manager'], true)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Invalid actor role']);
+    exit;
+}
+if ($actorEmail !== '' && !filter_var($actorEmail, FILTER_VALIDATE_EMAIL)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'Invalid actor email']);
     exit;
 }
 

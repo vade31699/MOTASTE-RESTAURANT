@@ -34,12 +34,20 @@ if (!is_array($input)) {
 rejectUnsafeInputOrExit($input);
 
 try {
-    
+    // Bound the snapshot size so one request cannot bloat the storage row or
+    // force a huge JSON round-trip on every subsequent menu load.
+    $snapshotJson = json_encode($input, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($snapshotJson === false || strlen($snapshotJson) > 200000) {
+        http_response_code(413);
+        echo json_encode(['success' => false, 'error' => 'Menu snapshot is too large']);
+        exit;
+    }
+
     $now = now();
     DB::table('custom_menu_snapshots')->updateOrInsert(
         ['snapshot_key' => 'motaste-menu'],
         [
-            'snapshot_payload' => json_encode($input, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'snapshot_payload' => $snapshotJson,
             'created_at' => $now,
             'updated_at' => $now,
         ]

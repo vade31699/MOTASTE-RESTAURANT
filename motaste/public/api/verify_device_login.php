@@ -19,6 +19,11 @@ require_once __DIR__ . '/csrf_guard.php';
 
 try {
     $input = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
+        exit;
+    }
     $email = strtolower(trim((string)($input['email'] ?? '')));
     $password = (string)($input['password'] ?? '');
     $code = trim((string)($input['code'] ?? ''));
@@ -32,6 +37,34 @@ try {
     // restart, so the client passes it through.
     $remember = !empty($input['remember']);
 
+    // Input-shape checks: the email/password/surface/deviceToken fields are
+    // all strings in the UI; anything else means a crafted request.
+    if ($email === '' || $password === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Email and password are required.']);
+        exit;
+    }
+    if (mb_strlen($email) > 191 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid email address.']);
+        exit;
+    }
+    if (mb_strlen($password) > 128) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Password is too long.']);
+        exit;
+    }
+    if (mb_strlen($deviceToken) > 256) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Device token is too long.']);
+        exit;
+    }
+    if (!in_array($surface, ['staff', 'admin'], true)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Invalid surface.']);
+        exit;
+    }
+
     // CSRF: this endpoint establishes a session (it is the second step of
     // login), so it is a login-CSRF target — without this check an attacker
     // could force a victim's browser into a session the attacker controls.
@@ -39,12 +72,6 @@ try {
     // client sends it in the X-CSRF-TOKEN header (see verifyDeviceLogin() in
     // script.js).
     validateCsrfOrExit();
-
-    if ($email === '' || $password === '') {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'Email and password are required.']);
-        exit;
-    }
 
     // Brute-force protection: apply the same per-account lockout as the
     // login endpoint so verification codes cannot be mass-guessed.

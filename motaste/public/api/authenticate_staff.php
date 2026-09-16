@@ -21,19 +21,36 @@ require_once __DIR__ . '/csrf_guard.php';
 
 try {
     $input = json_decode(file_get_contents('php://input'), true);
-    $email = strtolower(trim((string)($input['email'] ?? '')));
-    $password = (string)($input['password'] ?? '');
-    $selectedRole = trim((string)($input['role'] ?? ''));
+    if (!is_array($input)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
+        exit;
+    }
+    $email = is_string($input['email'] ?? null) ? strtolower(trim($input['email'])) : '';
+    $password = is_string($input['password'] ?? null) ? $input['password'] : '';
+    $selectedRole = is_string($input['role'] ?? null) ? trim($input['role']) : '';
     // Which portal the login came from: /admin accepts only the Admin account,
     // /staff accepts both admin and staff. The client sends this explicitly;
     // a missing value falls back to the (more permissive) staff surface.
-    $surface = strtolower(trim((string)($input['surface'] ?? 'staff')));
-    $recaptchaToken = trim((string)($input['recaptcha-token'] ?? ''));
-    $deviceToken = trim((string)($input['deviceToken'] ?? ''));
+    $surface = is_string($input['surface'] ?? null) ? strtolower(trim($input['surface'])) : 'staff';
+    $recaptchaToken = is_string($input['recaptcha-token'] ?? null) ? trim($input['recaptcha-token']) : '';
+    $deviceToken = is_string($input['deviceToken'] ?? null) ? trim($input['deviceToken']) : '';
 
     if ($email === '' || $password === '') {
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'Email and password are required.']);
+        exit;
+    }
+
+    // Format/length guards before the email touches any lookup or audit table.
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 191) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'The email address is invalid.']);
+        exit;
+    }
+    if (mb_strlen($deviceToken) > 256) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'The device token is invalid.']);
         exit;
     }
 
