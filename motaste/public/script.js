@@ -11096,6 +11096,10 @@ function syncVisibleMenuItemQuantities() {
             }
         });
     }
+
+    if (activeProductDetailItem && productDetailStockLeft) {
+        syncProductDetailStockLeft(activeProductDetailItem.name);
+    }
 }
 
 function decrementInventory(items) {
