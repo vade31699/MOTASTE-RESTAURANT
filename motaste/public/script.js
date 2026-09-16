@@ -6030,6 +6030,7 @@ const productDetailQtyDecrease = document.getElementById('productDetailQtyDecrea
 const productDetailQtyIncrease = document.getElementById('productDetailQtyIncrease');
 const productDetailQtyValue = document.getElementById('productDetailQtyValue');
 const productDetailAddBtn = document.getElementById('productDetailAddBtn');
+const productDetailStockLeft = document.getElementById('productDetailStockLeft');
 const productDetailPurchaseBtn = document.getElementById('productDetailPurchaseBtn');
 const inventorySaveBtn = document.getElementById('inventorySaveBtn');
 const inventoryItemsWrapper = document.getElementById('inventoryItemsWrapper');
@@ -10344,6 +10345,7 @@ function openProductDetailModal(item) {
     }
     productDetailQuantity = 1;
     syncProductDetailQuantityControls();
+    syncProductDetailStockLeft(item.name);
 
     productDetailModal.classList.remove('hidden');
     productDetailModal.hidden = false;
@@ -10387,6 +10389,22 @@ function syncProductDetailQuantityControls() {
     const qtyLabel = productDetailQuantity === 1 ? '1 item' : `${productDetailQuantity} items`;
     productDetailAddBtn.textContent = `Add ${qtyLabel} to cart`;
     productDetailAddBtn.disabled = availableStock <= 0 || productDetailQuantity <= 0;
+
+    syncProductDetailStockLeft(activeProductDetailItem ? activeProductDetailItem.name : '');
+}
+
+function syncProductDetailStockLeft(itemName) {
+    if (!productDetailStockLeft) return;
+    if (!itemName) { productDetailStockLeft.hidden = true; return; }
+
+    const quantityLeft = getDisplayQuantityLeft(itemName);
+    if (quantityLeft === null) {
+        productDetailStockLeft.hidden = true;
+        return;
+    }
+    productDetailStockLeft.hidden = false;
+    productDetailStockLeft.textContent = quantityLeft > 0 ? `${quantityLeft} left` : 'Sold out';
+    productDetailStockLeft.classList.toggle('is-low', quantityLeft > 0 && quantityLeft <= 5);
 }
 
 function closeProductDetailModal() {
