@@ -10,6 +10,7 @@ $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 require_once __DIR__ . '/_staff_auth_helpers.php';
+require_once __DIR__ . '/_helpers.php';
 
 // NOTE: logout deliberately does NOT require an active staff session. The
 // PHP-native session can expire (or be garbage-collected) long before the user
@@ -25,6 +26,13 @@ require_once __DIR__ . '/csrf_guard.php';
 $input = json_decode(file_get_contents('php://input'), true);
 
 validateCsrfOrExit();
+
+// Audit metadata is free text written into order_activity_logs.details; cap it
+// and reject HTML/script so a crafted body cannot poison the audit trail
+// (client-supplied user agent string + timestamp are purely informational).
+$occurredAt = mb_substr(trim((string)($input['occurredAt'] ?? '')), 0, 100);
+$userAgent = mb_substr(trim((string)($input['userAgent'] ?? '')), 0, 500);
+rejectUnsafeInputOrExit($occurredAt, $userAgent);
 
 // The token lives exclusively in the HttpOnly cookie; the legacy request-body
 // path was removed so the auth token is never carried in a visible payload.
@@ -55,7 +63,7 @@ if ($token !== null && ($email === '' || $role === '')) {
 // would silently vanish from Logs > Account. The identity captured above (from
 // the session, or the session token once the session is gone) is what makes
 // this reliable.
-recordStaffAccountActivity('logout', $role, $email, $input['occurredAt'] ?? null, $input['userAgent'] ?? null);
+recordStaffAccountActivity('logout', $role, $email, $occurredAt !== '' ? $occurredAt : null, $userAgent !== '' ? $userAgent : null);
 
 if ($token !== null) {
     revokeStaffSessionToken($token);

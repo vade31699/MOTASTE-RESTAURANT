@@ -16,6 +16,11 @@ try {
     $admin = requireAdminAuthOrExit();
 
     $input = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
+        exit;
+    }
     $targetEmail = strtolower(trim((string)($input['targetEmail'] ?? '')));
     $adminPassword = (string)($input['adminPassword'] ?? '');
     $code = trim((string)($input['code'] ?? ''));
@@ -25,6 +30,16 @@ try {
     if ($targetEmail === '' || $adminPassword === '' || $code === '') {
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'Target account, admin password, and verification code are required']);
+        exit;
+    }
+    if (!filter_var($targetEmail, FILTER_VALIDATE_EMAIL) || mb_strlen($targetEmail) > 191) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Target account email is invalid']);
+        exit;
+    }
+    if (preg_match('/^\d{6}$/', $code) !== 1) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Verification code must be 6 digits']);
         exit;
     }
 

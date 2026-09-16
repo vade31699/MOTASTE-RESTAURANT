@@ -75,7 +75,9 @@ function requireHighlightsIndex(array $input, string $failureMessage): int
 
 /**
  * Validate incoming slides against the XSS guard and (for new uploads) the
- * per-image size cap. Returns the cleaned, reindexed list.
+ * per-image size cap. Every slide must also be a real JPEG/PNG/WebP data URI
+ * or a plain image http(s) URL, so SVG/polyglot/non-image payloads are never
+ * stored. Returns the cleaned, reindexed list.
  */
 function requireValidHighlightSlides($value, bool $enforceSizeCap = true): array
 {
@@ -84,6 +86,15 @@ function requireValidHighlightSlides($value, bool $enforceSizeCap = true): array
     // Stored-XSS guard: reject anything that is not a plain image URL/data URI
     // (e.g. javascript: URLs or HTML payloads).
     rejectUnsafeInputOrExit($slides);
+
+    foreach ($slides as $slide) {
+        $imageError = strpos($slide, 'data:image/') === 0
+            ? storedImageDataUriValidationError($slide)
+            : storedImageUrlValidationError($slide);
+        if ($imageError !== null) {
+            failHighlightsRequest(422, $imageError);
+        }
+    }
 
     if ($enforceSizeCap && findOversizedHighlightSlide($slides) !== null) {
         failHighlightsRequest(422, 'Each highlight image must be smaller than about 1.5 MB. Please upload a smaller image.');

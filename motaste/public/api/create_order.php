@@ -106,6 +106,7 @@ if ($customerEmail !== '' && !filter_var($customerEmail, FILTER_VALIDATE_EMAIL))
     echo json_encode(['success' => false, 'error' => 'Customer email address is invalid']);
     exit;
 }
+$customerEmail = strtolower($customerEmail);
 if ($customerPhone !== '' && !preg_match('/^[0-9+\-\s()]{7,40}$/', $customerPhone)) {
     http_response_code(422);
     echo json_encode(['success' => false, 'error' => 'Customer phone number is invalid']);
@@ -123,6 +124,12 @@ foreach ($items as $it) {
     if (!is_array($it)) {
         http_response_code(422);
         echo json_encode(['success' => false, 'error' => 'Invalid order item']);
+        exit;
+    }
+    $itemName = trim((string)($it['name'] ?? ''));
+    if ($itemName !== '' && mb_strlen($itemName) > 191) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Order item name is too long']);
         exit;
     }
     $itemQuantity = $it['quantity'] ?? null;

@@ -52,6 +52,11 @@ function findInventoryItemIdsByNormalizedNames(array $normalizedNames): array
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
+if (!is_array($input)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
+    exit;
+}
 $name = is_string($input['name'] ?? null) ? trim($input['name']) : null;
 $previousName = is_string($input['previousName'] ?? null) ? trim($input['previousName']) : '';
 $price = isset($input['price']) ? (float)$input['price'] : 0;
@@ -76,10 +81,13 @@ if (array_key_exists('image', $input)) {
         exit;
     }
     $image = trim((string)$input['image']);
-    if ($image !== '' && !preg_match('#^https?://[^\s"]+$#', $image)) {
-        http_response_code(422);
-        echo json_encode(['success' => false, 'error' => 'Image must be a valid http(s) URL']);
-        exit;
+    if ($image !== '') {
+        $imageError = storedImageUrlValidationError($image);
+        if ($imageError !== null) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'error' => $imageError]);
+            exit;
+        }
     }
 }
 
@@ -99,6 +107,19 @@ if (!is_numeric($input['price'] ?? null) || (float)$input['price'] < 0 || (float
 if (!is_numeric($input['stock'] ?? null) || (int)$input['stock'] < 0 || (int)$input['stock'] > 999999) {
     http_response_code(422);
     echo json_encode(['success' => false, 'error' => 'stock must be between 0 and 999999']);
+    exit;
+}
+// unitCost/reorderLevel were previously cast with (float)/(int) only, so a
+// non-numeric string silently coerced to 0 and passed the range check. Only
+// validate when the client actually sends them (older callers omit them).
+if (array_key_exists('unitCost', $input) && (!is_numeric($input['unitCost']) || (float)$input['unitCost'] < 0 || (float)$input['unitCost'] > 9999999.99)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'unitCost must be between 0 and 9999999.99']);
+    exit;
+}
+if (array_key_exists('reorderLevel', $input) && (!is_numeric($input['reorderLevel']) || (int)$input['reorderLevel'] < 0 || (int)$input['reorderLevel'] > 999999)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'reorderLevel must be between 0 and 999999']);
     exit;
 }
 

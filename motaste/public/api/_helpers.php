@@ -494,3 +494,77 @@ function buildOrderSummary($orderItems): string
 
     return implode(', ', $parts);
 }
+
+/** Image MIME types accepted for stored image data URIs (matches the upload endpoint). */
+const STORED_IMAGE_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+/**
+ * Validate an image stored as a base64 data URI. Only real JPEG/PNG/WebP
+ * payloads are accepted: the declared MIME must be an allowlisted format and
+ * the decoded bytes must actually be an image (sniffed via getimagesize), so
+ * an SVG, a polyglot, or arbitrary "data:image/*" text can never be stored as
+ * a highlight/menu image.
+ *
+ * @return string|null A human-readable error, or null when the data URI is a
+ *                     valid image payload.
+ */
+function storedImageDataUriValidationError(string $dataUri): ?string
+{
+    if (preg_match('#^data:image/([a-z0-9.+-]+);base64,#i', $dataUri, $m) !== 1) {
+        return 'Image data URI is malformed.';
+    }
+
+    $type = strtolower($m[1]);
+    if (!in_array($type, ['jpeg', 'png', 'webp'], true)) {
+        return 'Only JPEG, PNG, or WebP images are supported.';
+    }
+
+    $commaPos = strpos($dataUri, ',');
+    if ($commaPos === false) {
+        return 'Image data URI is malformed.';
+    }
+
+    $bytes = base64_decode(substr($dataUri, $commaPos + 1), true);
+    if ($bytes === false || $bytes === '') {
+        return 'Image data could not be decoded.';
+    }
+
+    $info = @getimagesizefromstring($bytes);
+    if ($info === false) {
+        return 'Uploaded file is not a valid image.';
+    }
+
+    $mime = strtolower((string)($info['mime'] ?? ''));
+    if (!in_array($mime, STORED_IMAGE_ALLOWED_TYPES, true)) {
+        return 'Only JPEG, PNG, or WebP images are supported.';
+    }
+
+    return null;
+}
+
+/**
+ * Validate an image http(s) URL: scheme, length cap, and a blocklist of
+ * clearly non-image path extensions (.svg, .html, .php, etc.).
+ */
+function storedImageUrlValidationError(string $url): ?string
+{
+    $url = trim($url);
+    if ($url === '') {
+        return null;
+    }
+
+    if (mb_strlen($url) > 500) {
+        return 'Image URL is too long.';
+    }
+
+    if (preg_match('#^https?://#i', $url) !== 1 || filter_var($url, FILTER_VALIDATE_URL) === false) {
+        return 'Image must be a valid http(s) URL.';
+    }
+
+    $path = (string)parse_url($url, PHP_URL_PATH);
+    if (preg_match('#\.(svg|html?|php\d*|js|css|txt|xml|json)$#i', $path) === 1) {
+        return 'Only image URLs are allowed.';
+    }
+
+    return null;
+}

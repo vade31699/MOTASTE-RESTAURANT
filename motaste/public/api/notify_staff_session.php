@@ -10,6 +10,7 @@ $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 require_once __DIR__ . '/_staff_auth_helpers.php';
+require_once __DIR__ . '/_helpers.php';
 if (!requireStaffAuth()) {
     abortStaffAuthRequired();
 }
@@ -30,6 +31,13 @@ $occurredAt = trim((string)($input['occurredAt'] ?? ''));
 $userAgent = trim((string)($input['userAgent'] ?? ''));
 
 validateCsrfOrExit();
+
+// These two are client-supplied free text echoed into the admin email and the
+// audit trail; cap lengths and reject HTML/script so a crafted body can never
+// inject content into either.
+$occurredAt = mb_substr($occurredAt, 0, 100);
+$userAgent = mb_substr($userAgent, 0, 500);
+rejectUnsafeInputOrExit($occurredAt, $userAgent);
 
 if (!in_array($event, ['login', 'logout'], true) || $role === '' || $email === '') {
     http_response_code(400);

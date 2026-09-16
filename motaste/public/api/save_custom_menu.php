@@ -33,6 +33,57 @@ if (!is_array($input)) {
 // (dish names, descriptions, etc.).
 rejectUnsafeInputOrExit($input);
 
+/**
+ * Validate every item's `image` field in a menu snapshot: empty values are
+ * fine, but a data URI must be real JPEG/PNG/WebP bytes and an http(s) URL
+ * must pass the image-URL checks (length cap, scheme, extension blocklist).
+ */
+function validateMenuSnapshotImages(array $menu): ?string
+{
+    foreach ($menu as $categoryValue) {
+        if (!is_array($categoryValue)) {
+            continue;
+        }
+
+        $items = isset($categoryValue['items']) && is_array($categoryValue['items'])
+            ? $categoryValue['items']
+            : $categoryValue;
+
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $image = $item['image'] ?? null;
+            if ($image === null || $image === '' || !is_string($image)) {
+                continue;
+            }
+
+            $image = trim($image);
+            if ($image === '') {
+                continue;
+            }
+
+            $error = strpos($image, 'data:image/') === 0
+                ? storedImageDataUriValidationError($image)
+                : storedImageUrlValidationError($image);
+
+            if ($error !== null) {
+                return $error;
+            }
+        }
+    }
+
+    return null;
+}
+
+$imageError = validateMenuSnapshotImages($input);
+if ($imageError !== null) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => $imageError]);
+    exit;
+}
+
 try {
     // Bound the snapshot size so one request cannot bloat the storage row or
     // force a huge JSON round-trip on every subsequent menu load.
