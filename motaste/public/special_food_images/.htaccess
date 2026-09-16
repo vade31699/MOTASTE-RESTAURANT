@@ -1,0 +1,16 @@
+# Upload directory: serve images only. Never allow script execution
+# or directory browsing from content uploaded through the staff panel.
+Options -Indexes
+
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .phps .cgi .pl
+RemoveType .php .phtml .php3 .php4 .php5 .php7 .phps
+
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>

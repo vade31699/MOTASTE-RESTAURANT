@@ -45,7 +45,7 @@ self.addEventListener('fetch', (event) => {
 
     // Network-first for the app script and stylesheet so fixes deploy to every
     // reload immediately (cache is only a fallback); cache-first for images.
-    if (requestUrl.pathname === '/script.js' || requestUrl.pathname === '/style.css') {
+    if (requestUrl.pathname === '/script.js' || requestUrl.pathname === '/style.css' || requestUrl.pathname === '/staff-first-paint.js') {
         event.respondWith(
             fetch(event.request)
                 .then((response) => {

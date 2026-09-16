@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://www.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' data: https://www.gstatic.com https://www.google.com; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; frame-src https://www.google.com https://www.gstatic.com; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'self'">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -96,46 +97,7 @@
             transform: translateX(-50%) translateY(-2px);
         }
     </style>
-    <script>
-        /* Decide the first paint before the deferred dashboard script runs.
-         *
-         * The login form is the default painted state of this page and is only
-         * hidden by restoreStaffSession() inside script.js. Until that ~13k-line
-         * deferred file has been fetched, parsed and executed, a page refresh
-         * with a live staff session therefore showed the login form for as long
-         * as the script took to arrive (1-2s), then jumped to the dashboard.
-         *
-         * This runs synchronously in <head>, so the correct surface is chosen
-         * before anything is painted. script.js clears the class as soon as it
-         * has made the same decision for real.
-         *
-         * The storage key must match staffSessionStorageKey in script.js, and
-         * only the NON-SECRET role/email hints are read (the session token
-         * itself is an HttpOnly cookie this script cannot and must not see).
-         */
-        (function () {
-            try {
-                var raw = sessionStorage.getItem('motasteStaffSession')
-                    || localStorage.getItem('motasteStaffSession');
-                if (!raw) return;
-
-                var session = JSON.parse(raw);
-                if (!session || !session.role || !session.email) return;
-
-                document.documentElement.classList.add('staff-auth-pending');
-
-                // Safety net: if script.js never runs (offline, blocked CDN,
-                // JS error), fall back to the login form rather than leaving a
-                // spinner up forever.
-                window.setTimeout(function () {
-                    document.documentElement.classList.remove('staff-auth-pending');
-                }, 8000);
-            } catch (error) {
-                // Storage unavailable (private mode, cookies disabled) or the
-                // hint is corrupt: show the login form, which is the safe state.
-            }
-        })();
-    </script>
+    <script src="./staff-first-paint.js?v=20260916a"></script>
 </head>
 <body class="staff-app">
     <div id="staffLoadingOverlay" class="staff-loading-overlay" hidden aria-live="polite">

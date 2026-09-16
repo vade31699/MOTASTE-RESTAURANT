@@ -6990,7 +6990,7 @@ function renderHighlightsSlideshow() {
     }
 
     slidesContainer.innerHTML = highlightsSlides.map((src, index) => `
-        <img src="${src}" alt="Highlight ${index + 1}"${index === 0 ? ' class="active"' : ''}>
+        <img src="${escapeHtml(src)}" alt="Highlight ${index + 1}"${index === 0 ? ' class="active"' : ''}>
     `).join('');
     slideDots.innerHTML = '';
 
@@ -7044,7 +7044,7 @@ function renderHighlightsManagement() {
     } else {
         highlightsList.innerHTML = highlightsSlides.map((src, index) => `
             <article class="highlight-item-card">
-                <img src="${src}" alt="Highlight ${index + 1}">
+                <img src="${escapeHtml(src)}" alt="Highlight ${index + 1}">
                 <button type="button" class="highlight-remove-btn" data-index="${index}">Remove</button>
             </article>
         `).join('');
@@ -9533,8 +9533,8 @@ function renderStaffReviews() {
                 <p><strong class="review-stars">${renderStarRating(review.rating)}</strong></p>
                 <p class="review-comment">${safeReviewText}</p>
                 <div class="staff-review-actions">
-                    ${status !== 'published' ? `<button type="button" class="staff-review-publish-btn" data-review-id="${review.id}">Publish</button>` : ''}
-                    <button type="button" class="staff-review-delete-btn" data-review-id="${review.id}">Delete Review</button>
+                    ${status !== 'published' ? `<button type="button" class="staff-review-publish-btn" data-review-id="${escapeHtml(review.id)}">Publish</button>` : ''}
+                    <button type="button" class="staff-review-delete-btn" data-review-id="${escapeHtml(review.id)}">Delete Review</button>
                 </div>
             </article>
         `;
@@ -10909,8 +10909,8 @@ function renderOrderNotifications() {
                 <div class="order-notif-footer">
                     <strong>Total: ${formatCurrency(order.total)}</strong>
                     ${isCompleted
-                        ? `<button type="button" class="order-refund-btn" data-order-id="${order.id}"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Refund</button>`
-                        : `<button type="button" class="order-notif-go-link" data-order-id="${order.id}"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i> Orders → Pending Orders</button>`}
+                        ? `<button type="button" class="order-refund-btn" data-order-id="${escapeHtml(order.id)}"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Refund</button>`
+                        : `<button type="button" class="order-notif-go-link" data-order-id="${escapeHtml(order.id)}"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i> Orders → Pending Orders</button>`}
                 </div>
             </article>
         `;
@@ -11721,7 +11721,7 @@ function renderInventoryManagement() {
                             <span>Stock: ${item.stock}</span>
                             ${item.stock <= 0 ? `<img src="../../outofstock1.png" alt="Out of stock" class="inventory-out-of-stock-image">` : ''}
                         </p>
-                        <p>Status: ${item.status}</p>
+                        <p>Status: ${escapeHtml(item.status)}</p>
                         ${badgeHtml ? `<p class="inventory-badges">${badgeHtml}</p>` : ''}
                         <p class="inventory-item-description">${escapeHtml(description || 'No description yet.')}</p>
                     </div>
@@ -11754,11 +11754,11 @@ function renderInventoryManagement() {
                     </label>
                     <label>
                         Price
-                        <input type="number" min="0" step="0.01" data-field="price" value="${item.price}">
+                        <input type="number" min="0" step="0.01" data-field="price" value="${escapeHtml(item.price)}">
                     </label>
                     <label>
                         Stock
-                        <input type="number" min="0" step="1" data-field="stock" value="${item.stock}">
+                        <input type="number" min="0" step="1" data-field="stock" value="${escapeHtml(item.stock)}">
                     </label>
                     <label>
                         Unit Cost (₱)
@@ -12513,7 +12513,7 @@ function renderSpecialFoods() {
         return `
         <article class="special-food-card${isOutOfStock ? ' is-out-of-stock' : ''}" data-name="${escapeHtml(item.name)}"${isOutOfStock ? ' aria-disabled="true"' : ''}>
             <button type="button" class="special-food-view-btn" data-name="${escapeHtml(item.name)}" aria-label="View ${escapeHtml(item.name)} details"${isOutOfStock ? ' disabled' : ''}>
-                <img src="${imageSrc}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async">
+                <img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async">
                 <div class="special-food-image-meta">
                     <span class="special-food-image-name">${escapeHtml(item.name)}</span>
                 </div>
@@ -12783,9 +12783,9 @@ function renderPendingOrders() {
                                 <span>${compName}</span>
                                 ${canCompleteOrders ? `
                                     <div class="pending-item-component-controls">
-                                        <button type="button" class="pending-item-component-btn" data-action="decrease" data-order-index="${index}" data-item-id="${item.id}" data-component-name="${escapeHtml(component.name)}"${!canCompDecrease ? ' disabled' : ''}>−</button>
+                                        <button type="button" class="pending-item-component-btn" data-action="decrease" data-order-index="${index}" data-item-id="${escapeHtml(item.id)}" data-component-name="${escapeHtml(component.name)}"${!canCompDecrease ? ' disabled' : ''}>−</button>
                                         <span class="pending-item-component-qty">${compQty}</span>
-                                        <button type="button" class="pending-item-component-btn" data-action="increase" data-order-index="${index}" data-item-id="${item.id}" data-component-name="${escapeHtml(component.name)}"${!canCompIncrease ? ' disabled' : ''}>+</button>
+                                        <button type="button" class="pending-item-component-btn" data-action="increase" data-order-index="${index}" data-item-id="${escapeHtml(item.id)}" data-component-name="${escapeHtml(component.name)}"${!canCompIncrease ? ' disabled' : ''}>+</button>
                                     </div>
                                 ` : `<span>× ${compQty}</span>`}
                             </li>
@@ -12799,9 +12799,9 @@ function renderPendingOrders() {
                     <div class="pending-item-row">
                         <span>${escapeHtml(item.name)} — ${formatCurrency(item.price * item.quantity)}</span>
                         <div class="pending-item-qty-controls">
-                            <button type="button" class="pending-item-qty-btn" data-action="decrease" data-order-index="${index}" data-item-id="${item.id}"${canDecrease ? '' : ' disabled'}>−</button>
+                            <button type="button" class="pending-item-qty-btn" data-action="decrease" data-order-index="${index}" data-item-id="${escapeHtml(item.id)}"${canDecrease ? '' : ' disabled'}>−</button>
                             <span>${item.quantity}</span>
-                            <button type="button" class="pending-item-qty-btn" data-action="increase" data-order-index="${index}" data-item-id="${item.id}"${canIncrease ? '' : ' disabled'}>+</button>
+                            <button type="button" class="pending-item-qty-btn" data-action="increase" data-order-index="${index}" data-item-id="${escapeHtml(item.id)}"${canIncrease ? '' : ' disabled'}>+</button>
                         </div>
                     </div>
                     ${componentsHtml}
@@ -12846,7 +12846,7 @@ function renderPendingOrders() {
             `
             : `<strong>Total: ${formatCurrency(order.total)}</strong>`;
         return `
-            <article class="pending-order-card${isPreparing ? ' is-preparing' : ''}${overdueOrderIds.has(String(order.id)) ? ' is-overdue' : ''}" data-order-id="${order.id}">
+            <article class="pending-order-card${isPreparing ? ' is-preparing' : ''}${overdueOrderIds.has(String(order.id)) ? ' is-overdue' : ''}" data-order-id="${escapeHtml(order.id)}">
                 <div class="pending-order-top">
                     <h4>Order #${escapeHtml(displayNumber)}</h4>
                     <span class="pending-order-type">${escapeHtml(order.orderType || 'Dine In')}</span>
@@ -14157,7 +14157,7 @@ function showMenuCategory(categoryId) {
             <div class="menu-item-main">
                 <h4>${escapeHtml(item.name)}</h4>
                 <p>${escapeHtml(description)}</p>
-                <p class="menu-item-price">${item.price}</p>
+                <p class="menu-item-price">${escapeHtml(item.price)}</p>
             </div>
             ${isOutOfStock ? `<div class="stock-status-overlay"><img src="outofstock1.png" alt="Out of stock"><span>Out of stock</span></div>` : ''}
             <div class="menu-item-controls">
@@ -14192,7 +14192,7 @@ function renderMenuOverlayCategories(activeCategoryId = '') {
         const isActive = categoryKey === activeCategoryId;
         return `
             <button type="button" class="menu-category-btn${isActive ? ' active' : ''}" data-category="${categoryKey}">
-                ${category.title}
+                ${escapeHtml(category.title)}
             </button>
         `;
     }).join('');
