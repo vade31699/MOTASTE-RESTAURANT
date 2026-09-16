@@ -163,13 +163,6 @@ if ($canonicalName === '') {
     exit;
 }
 
-$blockedNames = ['softdrinks'];
-if (in_array(strtolower($canonicalName), $blockedNames, true)) {
-    http_response_code(409);
-    echo json_encode(['success' => false, 'error' => 'Softdrinks is no longer allowed in inventory']);
-    exit;
-}
-
 $normalizedStatus = $stock > 0 ? ($status === 'Out of stock' ? 'In stock' : $status) : 'Out of stock';
 
 try {

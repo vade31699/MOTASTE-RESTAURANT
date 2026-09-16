@@ -36,7 +36,7 @@ try {
     $recaptchaToken = is_string($input['recaptcha-token'] ?? null) ? trim($input['recaptcha-token']) : '';
     $deviceToken = is_string($input['deviceToken'] ?? null) ? trim($input['deviceToken']) : '';
 
-    if ($email === '' || $password === '') {
+    if ($email === '' || $password === '' || trim($password) === '') {
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'Email and password are required.']);
         exit;

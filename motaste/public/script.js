@@ -320,7 +320,7 @@ async function fpResetPassword() {
     if (fpSubmitting) return;
     const password = fpNewPasswordInput ? fpNewPasswordInput.value : '';
     const confirmation = fpConfirmPasswordInput ? fpConfirmPasswordInput.value : '';
-    if (!password) {
+    if (!password || !password.trim()) {
         showFpError(fpResetError, 'Please choose a new password.');
         if (fpNewPasswordInput) fpNewPasswordInput.focus();
         return;
@@ -485,7 +485,6 @@ let trustedDevicesInFlight = false;
 let lastTrustedDevicesSnapshot = '';
 const staffOrderTimerCacheKey = 'motasteStaffOrderTimerCache';
 let staffOrderTimerCache = new Map();
-const blockedProductNames = new Set(['softdrinks']);
 const isStaffPage = Boolean(document.getElementById('accountList') || document.getElementById('staffLoginForm'));
 
 const adminDefaultEmail = '';
@@ -3144,6 +3143,16 @@ function attachStaffLoginHandler() {
         const remember = rememberCheckbox ? rememberCheckbox.checked : false;
         const submitBtn = staffForm.querySelector('button[type="submit"]');
 
+        // Reject empty or whitespace-only credentials: HTML5 `required` treats a
+        // string of spaces as filled, so the browser check alone does not do it.
+        if (!email || !password.trim()) {
+            if (modalTitle) {
+                modalTitle.textContent = 'Please enter your email and password.';
+            }
+            if (emailInput) emailInput.focus();
+            return;
+        }
+
         const setLoading = (loading) => {
             if (!submitBtn) return;
             submitBtn.disabled = loading;
@@ -3900,7 +3909,7 @@ function showAccountChangeSuccess(title, text) {
 async function acmRequestCode() {
     if (!accountChangeState.targetEmail) return;
     const adminPassword = acmAdminPasswordInput ? acmAdminPasswordInput.value : '';
-    if (!adminPassword) {
+    if (!adminPassword || !adminPassword.trim()) {
         acmShowError(acmRequestError, 'Enter the current admin password.');
         if (acmAdminPasswordInput) acmAdminPasswordInput.focus();
         return;
@@ -4042,7 +4051,7 @@ async function acmApplyChange() {
     } else {
         newPassword = acmNewPasswordInput ? acmNewPasswordInput.value : '';
         newPasswordConfirmation = acmNewPasswordConfirmInput ? acmNewPasswordConfirmInput.value : '';
-        if (!newPassword) {
+        if (!newPassword || !newPassword.trim()) {
             acmShowError(acmNewValueError, 'Enter a new password.');
             if (acmNewPasswordInput) acmNewPasswordInput.focus();
             return;
@@ -6274,7 +6283,6 @@ function getAddOnInventoryItems() {
 
             const normalizedName = normalizeInventoryName(name);
             if (!normalizedName) return;
-            if (blockedProductNames.has(normalizedName)) return;
             if (coreMenuItemNames.has(normalizedName)) return;
             if (specialFoodNames.has(normalizedName)) return;
 
@@ -6763,7 +6771,7 @@ if (accountForm) {
             inviteConfirmed: false
         };
 
-        if (!account.name || !account.role || !account.email || !account.password) {
+        if (!account.name || !account.role || !account.email || !account.password || !account.password.trim()) {
             await showStaffNotice('Please complete all account fields.', true);
             return;
         }
@@ -9851,7 +9859,6 @@ function buildDefaultInventoryFromMenu() {
 
     Object.entries(menuData).forEach(([categoryKey, category]) => {
         category.items.forEach((item) => {
-            if (blockedProductNames.has(normalizeInventoryName(item.name))) return;
             if (seen.has(item.name)) return;
             seen.add(item.name);
             const price = parsePrice(item.price);
@@ -9868,7 +9875,6 @@ function buildDefaultInventoryFromMenu() {
     });
 
     specialFoods.forEach((food) => {
-        if (blockedProductNames.has(normalizeInventoryName(food.name))) return;
         if (seen.has(food.name)) return;
         seen.add(food.name);
         items.push({
@@ -9938,10 +9944,10 @@ async function initializeInventoryData(forceRefresh = false) {
                 reorderLevel: item.reorder_level != null ? Number(item.reorder_level) || 0 : (localMatch?.reorderLevel || 0),
                 isAvailable: item.is_available !== false && item.is_available !== 'false' && item.is_available !== 0 && item.is_available !== '0'
             };
-        }).filter((item) => !blockedProductNames.has(normalizeInventoryName(item.name))
+        }).filter((item) =>
             // Hide rows whose deletion this tab has applied but not yet had
             // confirmed, so a refresh racing the request cannot resurrect them.
-            && !pendingInventoryDeletions.has(normalizeInventoryName(item.name)));
+            !pendingInventoryDeletions.has(normalizeInventoryName(item.name)));
 
         // On success, trust the server exclusively — do NOT merge defaults
         // back in. Defaults are only used when the server fetch fails (see
@@ -11598,7 +11604,6 @@ function syncMenuPricesWithInventory() {
     (inventoryData || []).forEach((inventoryItem) => {
         const categoryKey = normalizeMenuCategoryKey(inventoryItem.category || resolveInventoryCategory(inventoryItem.name));
         if (!categoryKey || categoryKey === 'specials') return;
-        if (blockedProductNames.has(normalizeInventoryName(inventoryItem.name))) return;
 
         if (!menuData[categoryKey]) {
             menuData[categoryKey] = {
@@ -12199,13 +12204,14 @@ async function saveInventoryItem(event) {
         });
 
         if (!response.ok) {
-            throw new Error(`Inventory sync failed: HTTP ${response.status}`);
+            const failurePayload = await response.json().catch(() => null);
+            throw new Error((failurePayload && failurePayload.error) || `HTTP ${response.status}`);
         }
 
         const payload = await response.json();
         if (!payload || payload.success !== true) {
             const details = payload?.details ? ` (${payload.details})` : '';
-            throw new Error(`Inventory sync failed: ${payload?.error || 'Unknown server response'}${details}`);
+            throw new Error(`${payload?.error || 'Unknown server response'}${details}`);
         }
         syncSucceeded = true;
     } catch (error) {
@@ -12330,13 +12336,14 @@ async function commitInlineInventoryEdit(card) {
         });
 
         if (!response.ok) {
-            throw new Error(`Inventory sync failed: HTTP ${response.status}`);
+            const failurePayload = await response.json().catch(() => null);
+            throw new Error((failurePayload && failurePayload.error) || `HTTP ${response.status}`);
         }
 
         const payload = await response.json();
         if (!payload || payload.success !== true) {
             const details = payload?.details ? ` (${payload.details})` : '';
-            throw new Error(`Inventory sync failed: ${payload?.error || 'Unknown server response'}${details}`);
+            throw new Error(`${payload?.error || 'Unknown server response'}${details}`);
         }
         syncSucceeded = true;
     } catch (error) {
