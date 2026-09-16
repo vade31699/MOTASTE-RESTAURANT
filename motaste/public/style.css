@@ -314,16 +314,6 @@ body.dashboard-panel-open .menu-btn {
     gap: 12px;
 }
 
-.account-management {
-    background: #fff;
-    margin: 24px auto;
-    padding: 24px;
-    border-radius: 12px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-    max-width: 900px;
-    width: calc(100% - 48px);
-}
-
 .account-form {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -343,7 +333,6 @@ body.dashboard-panel-open .menu-btn {
 }
 
 .add-staff-btn,
-.account-form button,
 .secondary-btn {
     padding: 10px 14px;
     border-radius: 8px;
@@ -351,8 +340,7 @@ body.dashboard-panel-open .menu-btn {
     cursor: pointer;
 }
 
-.add-staff-btn,
-.account-form button {
+.add-staff-btn {
     background: #111;
     color: #fff;
 }
@@ -360,46 +348,6 @@ body.dashboard-panel-open .menu-btn {
 .secondary-btn {
     background: #f3f3f3;
     color: #111;
-}
-
-.account-list {
-    list-style: none;
-    padding: 0;
-    display: grid;
-    gap: 10px;
-    color: #111;
-}
-
-.account-list li {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 14px;
-    background: #f7f7f7;
-    border-radius: 8px;
-    color: #111;
-}
-
-.account-list span {
-    color: #111;
-}
-
-.account-list button {
-    margin-left: 8px;
-    padding: 6px 10px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-.account-list .edit-btn {
-    background: #ff9800;
-    color: #fff;
-}
-
-.account-list .delete-btn {
-    background: #d32f2f;
-    color: #fff;
 }
 
 .sales-section {
@@ -5786,7 +5734,6 @@ body.staff-app .retention-clear-btn {
         grid-template-columns: 1fr;
     }
 
-    .account-list li,
     .inventory-item-card,
     .order-notification-card {
         flex-direction: column;
@@ -5843,11 +5790,6 @@ body.staff-app .retention-clear-btn {
         width: calc(100% - 24px);
         padding: 16px;
         border-radius: 10px;
-    }
-
-    .account-list button {
-        margin-left: 0;
-        margin-top: 8px;
     }
 
     .sales-analytics-chart {
