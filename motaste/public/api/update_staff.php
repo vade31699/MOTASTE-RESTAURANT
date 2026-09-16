@@ -26,7 +26,7 @@ require_once __DIR__ . '/_password_policy.php';
 $input = json_decode(file_get_contents('php://input'), true);
 if (!is_array($input)) {
     http_response_code(400);
-    echo json_encode(['error' => 'Invalid JSON']);
+    echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
     exit;
 }
 
@@ -38,11 +38,17 @@ $email = isset($input['email']) ? strtolower(trim($input['email'])) : '';
 $password = isset($input['password']) ? (string)$input['password'] : '';
 $passwordConfirmation = isset($input['password_confirmation']) ? (string)$input['password_confirmation'] : '';
 $currentEmail = isset($input['currentEmail']) ? strtolower(trim($input['currentEmail'])) : '';
-$id = isset($input['id']) ? (int) $input['id'] : 0;
+$idRaw = $input['id'] ?? null;
+if (!isWholeNumberId($idRaw)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'id must be a whole number']);
+    exit;
+}
+$id = (int)$idRaw;
 
 if (!$name || !$role || !$email || !$password) {
     http_response_code(400);
-    echo json_encode(['error' => 'Missing fields']);
+    echo json_encode(['success' => false, 'error' => 'Missing fields']);
     exit;
 }
 

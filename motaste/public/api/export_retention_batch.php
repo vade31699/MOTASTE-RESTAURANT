@@ -9,6 +9,7 @@ require __DIR__ . '/../../vendor/autoload.php';
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_staff_auth_helpers.php';
+require_once __DIR__ . '/_helpers.php';
 if (!requireAdminAuth()) {
     abortStaffAuthRequired();
 }
@@ -18,7 +19,7 @@ require_once __DIR__ . '/_retention_helpers.php';
 use Illuminate\Support\Facades\DB;
 
 $idRaw = $_GET['id'] ?? null;
-if (!(is_int($idRaw) || (is_string($idRaw) && ctype_digit($idRaw)))) {
+if (!isWholeNumberId($idRaw)) {
     http_response_code(422);
     echo json_encode(['success' => false, 'error' => 'batch id must be a whole number']);
     exit;

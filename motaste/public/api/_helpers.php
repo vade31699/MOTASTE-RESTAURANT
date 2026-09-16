@@ -568,3 +568,13 @@ function storedImageUrlValidationError(string $url): ?string
 
     return null;
 }
+
+/**
+ * Strict whole-number ID check. Accepts an int or a digit-only string so a
+ * request-supplied id like "1" passes but "1 OR 1=1" or "1abc" is rejected
+ * before it ever reaches a WHERE clause.
+ */
+function isWholeNumberId($value): bool
+{
+    return is_int($value) || (is_string($value) && ctype_digit($value));
+}

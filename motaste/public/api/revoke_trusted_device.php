@@ -9,6 +9,7 @@ require __DIR__ . '/../../vendor/autoload.php';
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_staff_auth_helpers.php';
+require_once __DIR__ . '/_helpers.php';
 $actor = requireStaffAuth();
 if (!$actor) {
     abortStaffAuthRequired();
@@ -25,7 +26,7 @@ try {
     $input = json_decode(file_get_contents('php://input'), true);
     $body = is_array($input) ? $input : [];
     $deviceIdRaw = $body['id'] ?? 0;
-    if ($deviceIdRaw !== 0 && !(is_int($deviceIdRaw) || (is_string($deviceIdRaw) && ctype_digit($deviceIdRaw)))) {
+    if ($deviceIdRaw !== 0 && !isWholeNumberId($deviceIdRaw)) {
         http_response_code(422);
         echo json_encode(['success' => false, 'error' => 'Device id must be a whole number.']);
         exit;

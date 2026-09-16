@@ -29,7 +29,13 @@ if (!is_array($input)) {
     echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
     exit;
 }
-$orderId = isset($input['orderId']) ? (int)$input['orderId'] : 0;
+$orderIdRaw = $input['orderId'] ?? null;
+if (!isWholeNumberId($orderIdRaw)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'orderId must be a whole number']);
+    exit;
+}
+$orderId = (int)$orderIdRaw;
 $minutes = isset($input['minutes']) ? (int)$input['minutes'] : 0;
 $actorRole = trim((string)($input['actorRole'] ?? 'Staff'));
 $actorEmail = trim((string)($input['actorEmail'] ?? ''));

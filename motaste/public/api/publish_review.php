@@ -36,7 +36,7 @@ if (!is_array($input)) {
 }
 
 $reviewIdRaw = $input['reviewId'] ?? null;
-if (!(is_int($reviewIdRaw) || (is_string($reviewIdRaw) && ctype_digit($reviewIdRaw)))) {
+if (!isWholeNumberId($reviewIdRaw)) {
     http_response_code(422);
     echo json_encode(['success' => false, 'error' => 'reviewId must be a whole number']);
     exit;

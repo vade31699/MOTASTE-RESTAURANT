@@ -34,8 +34,20 @@ if (!is_array($input)) {
     echo json_encode(['success' => false, 'error' => 'Invalid JSON']);
     exit;
 }
-$orderId = isset($input['orderId']) ? (int) $input['orderId'] : 0;
-$itemId = isset($input['itemId']) ? (int) $input['itemId'] : 0;
+$orderIdRaw = $input['orderId'] ?? null;
+if (!isWholeNumberId($orderIdRaw)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'orderId must be a whole number']);
+    exit;
+}
+$orderId = (int)$orderIdRaw;
+$itemIdRaw = $input['itemId'] ?? null;
+if (!isWholeNumberId($itemIdRaw)) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'itemId must be a whole number']);
+    exit;
+}
+$itemId = (int)$itemIdRaw;
 $quantity = array_key_exists('quantity', $input) ? $input['quantity'] : null;
 $componentName = trim((string)($input['componentName'] ?? ''));
 $componentQuantity = array_key_exists('componentQuantity', $input) ? $input['componentQuantity'] : null;

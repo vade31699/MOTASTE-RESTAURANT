@@ -40,10 +40,20 @@ if (isOrderApiRateLimited('order_events', 60, 60)) {
 }
 
 $lastId = 0;
-if (!empty($_SERVER['HTTP_LAST_EVENT_ID'])) {
+if (isset($_SERVER['HTTP_LAST_EVENT_ID']) && $_SERVER['HTTP_LAST_EVENT_ID'] !== '') {
+    if (!ctype_digit((string)$_SERVER['HTTP_LAST_EVENT_ID'])) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid Last-Event-ID']);
+        exit;
+    }
     $lastId = (int) $_SERVER['HTTP_LAST_EVENT_ID'];
 }
 if (isset($_GET['lastId'])) {
+    if (!ctype_digit((string)$_GET['lastId'])) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid lastId']);
+        exit;
+    }
     $lastId = max($lastId, (int) $_GET['lastId']);
 }
 
