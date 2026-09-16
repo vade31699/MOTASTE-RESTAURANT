@@ -31,7 +31,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260916g">
+    <link rel="stylesheet" href="style.css?v=20260917a">
     <title>Motaste Restaurant — Crafted Silog</title>
     <script type="application/ld+json">
     {
@@ -223,10 +223,26 @@
                 <p id="productDetailDescription" class="product-detail-description">Description coming soon.</p>
                 <div class="product-detail-footer">
                     <strong id="productDetailPrice">₱0</strong>
-                    <div class="product-detail-qty-controls" id="productDetailQtyControls" aria-label="Select quantity">
-                        <button type="button" id="productDetailQtyDecrease" class="product-detail-qty-btn" aria-label="Decrease quantity">−</button>
-                        <span id="productDetailQtyValue">1</span>
-                        <button type="button" id="productDetailQtyIncrease" class="product-detail-qty-btn" aria-label="Increase quantity">+</button>
+                    <div class="product-detail-qty-wrap">
+                        <div class="product-detail-qty-controls" id="productDetailQtyControls" aria-label="Select quantity">
+                            <button type="button" id="productDetailQtyDecrease" class="product-detail-qty-btn" aria-label="Decrease quantity">−</button>
+                            <!-- Quantity is typeable: script.js accepts digits only and reminds the
+                                 customer when the number goes beyond the item's remaining stock. -->
+                            <input
+                                type="text"
+                                id="productDetailQtyValue"
+                                class="product-detail-qty-input"
+                                value="1"
+                                inputmode="numeric"
+                                autocomplete="off"
+                                pattern="[0-9]*"
+                                maxlength="4"
+                                aria-label="Quantity"
+                                aria-describedby="productDetailQtyError"
+                            >
+                            <button type="button" id="productDetailQtyIncrease" class="product-detail-qty-btn" aria-label="Increase quantity">+</button>
+                        </div>
+                        <small class="product-detail-qty-error" id="productDetailQtyError" role="alert" aria-live="polite" hidden></small>
                     </div>
                     <span id="productDetailStockLeft" class="product-detail-stock-left" hidden aria-live="polite"></span>
                     <div class="product-detail-actions">
@@ -639,6 +655,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260916g" defer></script>
+    <script src="script.js?v=20260917a" defer></script>
 </body>
 </html>

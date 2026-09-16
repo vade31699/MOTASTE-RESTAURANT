@@ -6029,6 +6029,7 @@ const productDetailQtyControls = document.getElementById('productDetailQtyContro
 const productDetailQtyDecrease = document.getElementById('productDetailQtyDecrease');
 const productDetailQtyIncrease = document.getElementById('productDetailQtyIncrease');
 const productDetailQtyValue = document.getElementById('productDetailQtyValue');
+const productDetailQtyError = document.getElementById('productDetailQtyError');
 const productDetailAddBtn = document.getElementById('productDetailAddBtn');
 const productDetailStockLeft = document.getElementById('productDetailStockLeft');
 const productDetailPurchaseBtn = document.getElementById('productDetailPurchaseBtn');
@@ -10345,6 +10346,7 @@ function openProductDetailModal(item) {
     }
     productDetailQuantity = 1;
     syncProductDetailQuantityControls();
+    showProductDetailQtyError('');
     syncProductDetailStockLeft(item.name);
 
     productDetailModal.classList.remove('hidden');
@@ -10356,9 +10358,7 @@ function openProductDetailModal(item) {
 function syncProductDetailQuantityControls() {
     if (!productDetailQtyValue || !productDetailAddBtn) return;
 
-    const availableStock = activeProductDetailItem
-        ? getAvailableStockForItem(activeProductDetailItem.name)
-        : 0;
+    const availableStock = getAvailableStockForItem(activeProductDetailItem ? activeProductDetailItem.name : '');
 
     if (availableStock <= 0) {
         productDetailQuantity = 0;
@@ -10371,7 +10371,11 @@ function syncProductDetailQuantityControls() {
         }
     }
 
-    productDetailQtyValue.textContent = String(productDetailQuantity);
+    // Don't fight the customer mid-entry: a background inventory refresh must
+    // never rewrite the number they are still typing.
+    if (document.activeElement !== productDetailQtyValue) {
+        setProductDetailQuantityFieldValue(String(productDetailQuantity));
+    }
 
     if (productDetailQtyDecrease) {
         productDetailQtyDecrease.disabled = availableStock <= 0 || productDetailQuantity <= 1;
@@ -10386,11 +10390,120 @@ function syncProductDetailQuantityControls() {
         return;
     }
 
+    syncProductDetailAddButtonLabel();
+
+    syncProductDetailStockLeft(activeProductDetailItem ? activeProductDetailItem.name : '');
+}
+
+function setProductDetailQuantityFieldValue(value) {
+    if (!productDetailQtyValue) return;
+    const nextValue = String(value == null ? '' : value);
+    if (productDetailQtyValue.value !== nextValue) {
+        productDetailQtyValue.value = nextValue;
+    }
+}
+
+function syncProductDetailAddButtonLabel() {
+    if (!productDetailAddBtn || !activeProductDetailItem) return;
+
+    const availableStock = getAvailableStockForItem(activeProductDetailItem.name);
     const qtyLabel = productDetailQuantity === 1 ? '1 item' : `${productDetailQuantity} items`;
     productDetailAddBtn.textContent = `Add ${qtyLabel} to cart`;
     productDetailAddBtn.disabled = availableStock <= 0 || productDetailQuantity <= 0;
+}
 
-    syncProductDetailStockLeft(activeProductDetailItem ? activeProductDetailItem.name : '');
+function showProductDetailQtyError(message) {
+    if (!productDetailQtyError) return;
+
+    const text = String(message || '').trim();
+    productDetailQtyError.textContent = text;
+    productDetailQtyError.hidden = !text;
+
+    if (productDetailQtyValue) {
+        productDetailQtyValue.classList.toggle('is-invalid', Boolean(text));
+        productDetailQtyValue.setAttribute('aria-invalid', text ? 'true' : 'false');
+    }
+}
+
+// Reads the typed quantity and reports why an entry cannot be used.
+// `value` is null whenever the entry is rejected.
+function parseProductDetailQuantityInput(raw) {
+    const trimmed = String(raw == null ? '' : raw).trim();
+
+    if (!trimmed) {
+        return { value: null, message: 'Enter a quantity.' };
+    }
+    if (!/^\d+$/.test(trimmed)) {
+        return { value: null, message: 'Numbers only — letters and symbols are not allowed.' };
+    }
+
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed) || parsed < 1) {
+        return { value: null, message: 'Enter a quantity of 1 or more.' };
+    }
+
+    const availableStock = getAvailableStockForItem(activeProductDetailItem ? activeProductDetailItem.name : '');
+    if (availableStock <= 0) {
+        return { value: null, message: 'This item is out of stock.' };
+    }
+    if (Number.isFinite(availableStock) && parsed > availableStock) {
+        return { value: null, message: `Only ${availableStock} left — that is beyond the available quantity.` };
+    }
+
+    return { value: parsed, message: '' };
+}
+
+// Live feedback while typing: strip rejected characters and warn about numbers
+// that go past the remaining stock, without committing or clamping the entry.
+function handleProductDetailQuantityInput() {
+    if (!productDetailQtyValue || !activeProductDetailItem) return;
+
+    const raw = String(productDetailQtyValue.value || '');
+
+    if (/[^\d]/.test(raw)) {
+        setProductDetailQuantityFieldValue(raw.replace(/[^\d]/g, '').slice(0, 4));
+        showProductDetailQtyError('Numbers only — letters and symbols are not allowed.');
+        return;
+    }
+
+    const result = parseProductDetailQuantityInput(raw);
+
+    if (result.value === null) {
+        // Stay quiet on an empty field so clearing the box to retype is not an error.
+        showProductDetailQtyError(raw.trim() ? result.message : '');
+        return;
+    }
+
+    productDetailQuantity = result.value;
+    syncProductDetailAddButtonLabel();
+    showProductDetailQtyError('');
+}
+
+// Committed on blur/Enter: an invalid entry is explained and the field reverts
+// to the last accepted quantity.
+function commitProductDetailQuantityInput() {
+    if (!productDetailQtyValue) return;
+
+    if (!activeProductDetailItem) {
+        setProductDetailQuantityFieldValue(String(productDetailQuantity));
+        showProductDetailQtyError('');
+        return;
+    }
+
+    const raw = String(productDetailQtyValue.value || '');
+    const result = parseProductDetailQuantityInput(raw);
+
+    if (result.value === null) {
+        syncProductDetailQuantityControls();
+        setProductDetailQuantityFieldValue(String(productDetailQuantity));
+        showProductDetailQtyError(result.message);
+        return;
+    }
+
+    productDetailQuantity = result.value;
+    syncProductDetailQuantityControls();
+    setProductDetailQuantityFieldValue(String(productDetailQuantity));
+    showProductDetailQtyError('');
 }
 
 function syncProductDetailStockLeft(itemName) {
@@ -10458,6 +10571,7 @@ if (productDetailQtyDecrease) {
         if (!activeProductDetailItem) return;
         productDetailQuantity = Math.max(1, productDetailQuantity - 1);
         syncProductDetailQuantityControls();
+        showProductDetailQtyError('');
     });
 }
 
@@ -10467,6 +10581,27 @@ if (productDetailQtyIncrease) {
         const availableStock = getAvailableStockForItem(activeProductDetailItem.name);
         productDetailQuantity = Math.min(availableStock, productDetailQuantity + 1);
         syncProductDetailQuantityControls();
+        showProductDetailQtyError('');
+    });
+}
+
+if (productDetailQtyValue) {
+    productDetailQtyValue.addEventListener('input', handleProductDetailQuantityInput);
+
+    // Text inputs only fire `change` once the customer leaves the field, so an
+    // invalid entry is reverted there rather than mid-keystroke.
+    productDetailQtyValue.addEventListener('change', commitProductDetailQuantityInput);
+
+    productDetailQtyValue.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        commitProductDetailQuantityInput();
+
+        // A rejected entry keeps focus so the reminder stays readable and the
+        // customer can fix it without reopening the popup.
+        if (!productDetailQtyError || productDetailQtyError.hidden) {
+            productDetailQtyValue.blur();
+        }
     });
 }
 
