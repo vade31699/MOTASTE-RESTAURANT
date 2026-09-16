@@ -5,6 +5,11 @@ Options -Indexes
 RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .phps .cgi .pl
 RemoveType .php .phtml .php3 .php4 .php5 .php7 .phps
 
+# Never let a browser sniff an uploaded file into a script/inline context.
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>
+
 <IfModule mod_php.c>
     php_flag engine off
 </IfModule>

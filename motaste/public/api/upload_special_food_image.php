@@ -9,6 +9,7 @@ require __DIR__ . '/../../vendor/autoload.php';
 $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_staff_auth_helpers.php';
+require_once __DIR__ . '/_helpers.php';
 if (!requireInventoryAuth()) {
     abortStaffAuthRequired();
 }
@@ -65,6 +66,26 @@ try {
         exit;
     }
 
+    // Bounds: reject images beyond the edge limit before any decode, so a
+    // single upload cannot exhaust the worker's memory even with a small file.
+    if ((int) ($imageInfo[0] ?? 0) > MAX_UPLOADED_IMAGE_DIMENSION
+        || (int) ($imageInfo[1] ?? 0) > MAX_UPLOADED_IMAGE_DIMENSION) {
+        http_response_code(413);
+        echo json_encode(['success' => false, 'error' => 'Image dimensions are too large']);
+        exit;
+    }
+
+    // Re-encode with GD to strip any polyglot/executable payload riding a valid
+    // image header. null means the payload is not actually decodable as a real
+    // image of the reported type — reject it rather than store it.
+    $rawBytes = (string) file_get_contents($file['tmp_name']);
+    $sanitized = @sanitizeStoredImageBytes($rawBytes, (int) $imageInfo[2]);
+    if ($sanitized === null) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Uploaded image could not be decoded safely']);
+        exit;
+    }
+
     $fileName = 'special-food-' . time() . '-' . bin2hex(random_bytes(6)) . '.' . $extension;
     $publicDirectory = realpath(dirname(__DIR__)) . DIRECTORY_SEPARATOR . 'special_food_images';
     if (!is_dir($publicDirectory) && !mkdir($publicDirectory, 0755, true) && !is_dir($publicDirectory)) {
@@ -72,7 +93,8 @@ try {
     }
 
     $destination = $publicDirectory . DIRECTORY_SEPARATOR . $fileName;
-    if (!move_uploaded_file($file['tmp_name'], $destination)) {
+    $written = @file_put_contents($destination, $sanitized, LOCK_EX);
+    if ($written === false || $written < 1) {
         throw new RuntimeException('Unable to save uploaded file to public folder');
     }
 

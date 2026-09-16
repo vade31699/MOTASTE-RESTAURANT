@@ -605,6 +605,63 @@ function storedImageValidationError($image): ?string
 }
 
 /**
+ * Largest allowed edge (px) for an uploaded image. Bounds the memory a single
+ * decode can allocate, so a gigantic image cannot exhaust the PHP worker even
+ * when its file is small.
+ */
+const MAX_UPLOADED_IMAGE_DIMENSION = 10000;
+
+/**
+ * Sanitize already-validated image bytes by decoding and re-encoding them
+ * with GD — the "scan for malware where appropriate" step for image uploads.
+ * Any polyglot/executable payload trailing a valid JPEG/PNG/WebP/GIF is
+ * discarded, and every stored byte is provably a clean image of the declared
+ * type. When GD is unavailable for the type the validated original bytes are
+ * returned unchanged; when a whitelisted type cannot be decoded (a suspicious
+ * payload that nevertheless passed getimagesize) null is returned so the
+ * caller rejects the upload.
+ *
+ * @return string|null Sanitized image bytes, the validated original, or null
+ *                     when the payload is not a decodable image.
+ */
+function sanitizeStoredImageBytes(string $bytes, int $imageType): ?string
+{
+    $encoders = [
+        IMAGETYPE_JPEG => 'imagejpeg',
+        IMAGETYPE_PNG => 'imagepng',
+        IMAGETYPE_GIF => 'imagegif',
+        IMAGETYPE_WEBP => 'imagewebp',
+    ];
+    $encoder = $encoders[$imageType] ?? null;
+    if ($encoder === null || !function_exists('imagecreatefromstring')) {
+        return $bytes;
+    }
+
+    $image = @imagecreatefromstring($bytes);
+    if ($image === false) {
+        return null;
+    }
+
+    $quality = $imageType === IMAGETYPE_JPEG ? 88 : ($imageType === IMAGETYPE_PNG ? 6 : 85);
+    ob_start();
+    $ok = @$encoder($image, null, $quality);
+    $out = ob_get_clean();
+    imagedestroy($image);
+
+    if ($ok === false || !is_string($out) || $out === '') {
+        return null;
+    }
+
+    // The re-encoded output must still be a real image of the SAME type.
+    $reInfo = @getimagesizefromstring($out);
+    if ($reInfo === false || (int) ($reInfo[2] ?? -1) !== $imageType) {
+        return null;
+    }
+
+    return $out;
+}
+
+/**
  * Strict whole-number ID check. Accepts an int or a digit-only string so a
  * request-supplied id like "1" passes but "1 OR 1=1" or "1abc" is rejected
  * before it ever reaches a WHERE clause.
