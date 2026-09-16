@@ -10412,75 +10412,139 @@ function syncProductDetailAddButtonLabel() {
     productDetailAddBtn.disabled = availableStock <= 0 || productDetailQuantity <= 0;
 }
 
+// ---------------------------------------------------------------------------
+// Typeable quantity fields (dish popup, menu item cards, cart lines)
+// ---------------------------------------------------------------------------
+
+const QUANTITY_FIELD_MESSAGES = {
+    empty: 'Enter a quantity.',
+    'not-number': 'Numbers only — letters and symbols are not allowed.',
+    'below-min': 'Enter a quantity of 1 or more.',
+    'sold-out': 'This item is out of stock.'
+};
+
+// `over-stock` wording is surface specific (the menu card and cart limits read
+// differently), so those callers pass their own sentence.
+function getQuantityEntryMessage(reason, overStockMessage) {
+    if (reason === 'over-stock') return overStockMessage;
+    return QUANTITY_FIELD_MESSAGES[reason] || '';
+}
+
+// Reads what the customer typed into a quantity field. `max` is the highest
+// quantity the remaining stock allows (Infinity when the dish has no tracked
+// inventory row) and `allowZero` marks fields where 0 means "not selected".
+// `value` stays null on a rejected entry, with `reason` explaining why.
+function evaluateQuantityEntry(raw, { max = Infinity, allowZero = false } = {}) {
+    const trimmed = String(raw == null ? '' : raw).trim();
+
+    if (!trimmed) return { value: null, reason: 'empty' };
+    if (!/^\d+$/.test(trimmed)) return { value: null, reason: 'not-number' };
+
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed)) return { value: null, reason: 'not-number' };
+    if (allowZero && parsed === 0) return { value: 0, reason: '' };
+    if (parsed < 1) return { value: null, reason: 'below-min' };
+    if (max <= 0) return { value: null, reason: 'sold-out' };
+    if (Number.isFinite(max) && parsed > max) return { value: null, reason: 'over-stock' };
+
+    return { value: parsed, reason: '' };
+}
+
+// Digits only. Entry stops at the first character that is not a digit, so a
+// mistyped "1.5" settles on "1" instead of jumping to "15".
+function keepLeadingDigits(raw, maxLength = 4) {
+    const match = String(raw == null ? '' : raw).match(/^\d*/);
+    return (match ? match[0] : '').slice(0, maxLength);
+}
+
+function setQuantityFieldInvalid(input, invalid) {
+    if (!input) return;
+    input.classList.toggle('is-invalid', Boolean(invalid));
+    input.setAttribute('aria-invalid', invalid ? 'true' : 'false');
+}
+
+// Live feedback while typing: drops rejected characters and returns the
+// reminder to display ('' while the entry looks fine). Nothing is committed
+// here — each surface decides what committing means.
+function getLiveQuantityFieldMessage(input, { max = Infinity, allowZero = false, overStockMessage = '' } = {}) {
+    const raw = String(input && input.value != null ? input.value : '');
+
+    if (/[^\d]/.test(raw)) {
+        if (input) input.value = keepLeadingDigits(raw);
+        return getQuantityEntryMessage('not-number');
+    }
+
+    // Stay quiet on an empty field so clearing the box to retype is not an error.
+    if (!raw.trim()) return '';
+
+    const { reason } = evaluateQuantityEntry(raw, { max, allowZero });
+    return getQuantityEntryMessage(reason, overStockMessage);
+}
+
+// Background inventory refreshes rebuild these lists, which would otherwise
+// throw away a quantity the customer is still typing. Remember the focused
+// field (and its caret) so the entry survives the rebuild.
+function captureFocusedQuantityField(container, selector) {
+    if (!container) return null;
+
+    const active = document.activeElement;
+    if (!active || typeof active.matches !== 'function' || !container.contains(active)) return null;
+    if (!active.matches(selector)) return null;
+
+    return {
+        index: active.dataset.index,
+        name: active.dataset.name || '',
+        value: active.value,
+        caret: typeof active.selectionStart === 'number' ? active.selectionStart : null
+    };
+}
+
+function restoreFocusedQuantityField(container, selector, snapshot) {
+    if (!container || !snapshot) return;
+
+    const match = Array.from(container.querySelectorAll(selector)).find((input) => (
+        String(input.dataset.index) === String(snapshot.index)
+        && String(input.dataset.name || '') === snapshot.name
+    ));
+    if (!match) return;
+
+    match.value = snapshot.value;
+    match.focus();
+
+    if (snapshot.caret !== null && typeof match.setSelectionRange === 'function') {
+        try {
+            match.setSelectionRange(snapshot.caret, snapshot.caret);
+        } catch (error) {
+            // Some input types reject selection ranges; focus is enough.
+        }
+    }
+}
+
 function showProductDetailQtyError(message) {
     if (!productDetailQtyError) return;
 
     const text = String(message || '').trim();
     productDetailQtyError.textContent = text;
     productDetailQtyError.hidden = !text;
-
-    if (productDetailQtyValue) {
-        productDetailQtyValue.classList.toggle('is-invalid', Boolean(text));
-        productDetailQtyValue.setAttribute('aria-invalid', text ? 'true' : 'false');
-    }
+    setQuantityFieldInvalid(productDetailQtyValue, Boolean(text));
 }
 
-// Reads the typed quantity and reports why an entry cannot be used.
-// `value` is null whenever the entry is rejected.
-function parseProductDetailQuantityInput(raw) {
-    const trimmed = String(raw == null ? '' : raw).trim();
-
-    if (!trimmed) {
-        return { value: null, message: 'Enter a quantity.' };
-    }
-    if (!/^\d+$/.test(trimmed)) {
-        return { value: null, message: 'Numbers only — letters and symbols are not allowed.' };
-    }
-
-    const parsed = Number(trimmed);
-    if (!Number.isFinite(parsed) || parsed < 1) {
-        return { value: null, message: 'Enter a quantity of 1 or more.' };
-    }
-
-    const availableStock = getAvailableStockForItem(activeProductDetailItem ? activeProductDetailItem.name : '');
-    if (availableStock <= 0) {
-        return { value: null, message: 'This item is out of stock.' };
-    }
-    if (Number.isFinite(availableStock) && parsed > availableStock) {
-        return { value: null, message: `Only ${availableStock} left — that is beyond the available quantity.` };
-    }
-
-    return { value: parsed, message: '' };
+function getProductDetailLiveStockLimit() {
+    return getAvailableStockForItem(activeProductDetailItem ? activeProductDetailItem.name : '');
 }
 
-// Live feedback while typing: strip rejected characters and warn about numbers
-// that go past the remaining stock, without committing or clamping the entry.
 function handleProductDetailQuantityInput() {
     if (!productDetailQtyValue || !activeProductDetailItem) return;
 
-    const raw = String(productDetailQtyValue.value || '');
-
-    if (/[^\d]/.test(raw)) {
-        setProductDetailQuantityFieldValue(raw.replace(/[^\d]/g, '').slice(0, 4));
-        showProductDetailQtyError('Numbers only — letters and symbols are not allowed.');
-        return;
-    }
-
-    const result = parseProductDetailQuantityInput(raw);
-
-    if (result.value === null) {
-        // Stay quiet on an empty field so clearing the box to retype is not an error.
-        showProductDetailQtyError(raw.trim() ? result.message : '');
-        return;
-    }
-
-    productDetailQuantity = result.value;
-    syncProductDetailAddButtonLabel();
-    showProductDetailQtyError('');
+    const max = getProductDetailLiveStockLimit();
+    showProductDetailQtyError(getLiveQuantityFieldMessage(productDetailQtyValue, {
+        max,
+        overStockMessage: `Only ${max} left — that is beyond the available quantity.`
+    }));
 }
 
-// Committed on blur/Enter: an invalid entry is explained and the field reverts
-// to the last accepted quantity.
+// Committed on blur/Enter: a valid number is applied, an invalid one is
+// explained and the field reverts to the last accepted quantity.
 function commitProductDetailQuantityInput() {
     if (!productDetailQtyValue) return;
 
@@ -10490,20 +10554,174 @@ function commitProductDetailQuantityInput() {
         return;
     }
 
-    const raw = String(productDetailQtyValue.value || '');
-    const result = parseProductDetailQuantityInput(raw);
+    const max = getProductDetailLiveStockLimit();
+    const { value, reason } = evaluateQuantityEntry(productDetailQtyValue.value, { max });
 
-    if (result.value === null) {
-        syncProductDetailQuantityControls();
+    if (value === null) {
+        if (reason === 'sold-out') {
+            // Stock vanished while the popup was open: re-sync so the field and
+            // the action buttons reflect that the dish can no longer be ordered.
+            syncProductDetailQuantityControls();
+        }
         setProductDetailQuantityFieldValue(String(productDetailQuantity));
-        showProductDetailQtyError(result.message);
+        showProductDetailQtyError(getQuantityEntryMessage(
+            reason,
+            `Only ${max} left — that is beyond the available quantity.`
+        ));
         return;
     }
 
-    productDetailQuantity = result.value;
+    productDetailQuantity = value;
     syncProductDetailQuantityControls();
     setProductDetailQuantityFieldValue(String(productDetailQuantity));
     showProductDetailQtyError('');
+}
+
+// ---------------------------------------------------------------------------
+// Menu item cards — the quantity the customer is about to add to the cart
+// ---------------------------------------------------------------------------
+
+// The confirmation line under the stepper doubles as the reminder area, so a
+// rejected entry turns it red instead of adding another element to the card.
+function setMenuItemCardConfirmation(input, message, isError) {
+    const card = input && input.closest ? input.closest('.menu-item-card') : null;
+    const confirmation = card ? card.querySelector('.menu-item-confirmation') : null;
+    const text = String(message || '').trim();
+    const isErrorText = Boolean(text) && Boolean(isError);
+
+    if (confirmation) {
+        confirmation.textContent = text;
+        confirmation.classList.toggle('is-error', isErrorText);
+    }
+
+    setQuantityFieldInvalid(input, isErrorText);
+}
+
+function getMenuItemOverStockMessage(name) {
+    return `Only ${getAvailableStockForItem(name)} left — that is beyond the available quantity.`;
+}
+
+function handleMenuItemQuantityInput(input) {
+    if (!input) return;
+
+    const name = String(input.dataset.name || '').trim();
+    setMenuItemCardConfirmation(input, getLiveQuantityFieldMessage(input, {
+        max: getAvailableStockForItem(name),
+        // 0 means "not selected" on a menu card, exactly like stepping down.
+        allowZero: true,
+        overStockMessage: getMenuItemOverStockMessage(name)
+    }), true);
+}
+
+// Menu card quantities sit in menuSelectionQuantities until the customer adds
+// them, so a rejected entry is simply dropped and the field restored.
+function commitMenuItemQuantityInput(input) {
+    if (!input) return;
+
+    const name = String(input.dataset.name || '').trim();
+    if (!name) return;
+
+    const { value, reason } = evaluateQuantityEntry(input.value, {
+        max: getAvailableStockForItem(name),
+        allowZero: true
+    });
+
+    if (value === null) {
+        input.value = String(menuSelectionQuantities[name] || 0);
+        setMenuItemCardConfirmation(input, getQuantityEntryMessage(reason, getMenuItemOverStockMessage(name)), true);
+        return;
+    }
+
+    if (value > 0) {
+        menuSelectionQuantities[name] = value;
+    } else {
+        delete menuSelectionQuantities[name];
+    }
+
+    syncVisibleMenuItemQuantities();
+    input.value = String(value);
+    setMenuItemCardConfirmation(input, value > 0 ? `${value} selected` : '', false);
+}
+
+// ---------------------------------------------------------------------------
+// Cart lines
+// ---------------------------------------------------------------------------
+
+// Highest quantity this line may hold: what it already has plus whatever the
+// remaining dish stock (and the add ons attached per dish) still allows.
+function getMaxCartItemQuantity(index) {
+    if (index < 0 || index >= cartItems.length) return 0;
+
+    const cartItem = cartItems[index];
+    const dishStock = getAvailableStockForItem(cartItem.name);
+    let additional = Number.isFinite(dishStock) ? Math.max(0, dishStock) : Infinity;
+
+    getCartItemBaseComponents(cartItem).forEach((component) => {
+        const perDishQty = Math.max(0, Number(component.quantity) || 0);
+        if (perDishQty <= 0) return;
+
+        const componentStock = getAvailableStockForCartComponent(component.name);
+        additional = Math.min(additional, Math.floor(componentStock / perDishQty));
+    });
+
+    const currentQuantity = Math.max(0, Number(cartItem.quantity) || 0);
+    return currentQuantity + Math.max(0, additional);
+}
+
+function setCartItemQuantityError(input, message) {
+    const wrap = input && input.closest ? input.closest('.menu-cart-item-qty-wrap') : null;
+    const errorElement = wrap ? wrap.querySelector('.menu-cart-item-qty-error') : null;
+    const text = String(message || '').trim();
+
+    if (errorElement) {
+        errorElement.textContent = text;
+        errorElement.hidden = !text;
+    }
+
+    setQuantityFieldInvalid(input, Boolean(text));
+}
+
+function getCartItemOverStockMessage(index) {
+    return `Only ${getMaxCartItemQuantity(index)} allowed in your cart — that is beyond the available quantity.`;
+}
+
+function handleCartItemQuantityInput(input) {
+    if (!input) return;
+
+    const index = Number(input.dataset.index);
+    setCartItemQuantityError(input, getLiveQuantityFieldMessage(input, {
+        max: getMaxCartItemQuantity(index),
+        overStockMessage: getCartItemOverStockMessage(index)
+    }));
+}
+
+function commitCartItemQuantityInput(input) {
+    if (!input) return;
+
+    const index = Number(input.dataset.index);
+    const cartItem = cartItems[index];
+    if (!cartItem) return;
+
+    const { value, reason } = evaluateQuantityEntry(input.value, { max: getMaxCartItemQuantity(index) });
+
+    if (value === null) {
+        input.value = String(cartItem.quantity);
+        setCartItemQuantityError(input, getQuantityEntryMessage(reason, getCartItemOverStockMessage(index)));
+        return;
+    }
+
+    setCartItemQuantityError(input, '');
+
+    if (value === cartItem.quantity) {
+        input.value = String(cartItem.quantity);
+        return;
+    }
+
+    // Move the per-dish add ons with the new quantity, then re-render the cart.
+    applyBaseComponentsDeltaToCartItem(cartItem, value - cartItem.quantity);
+    cartItem.quantity = value;
+    saveCart();
+    updateCartDisplay();
 }
 
 function syncProductDetailStockLeft(itemName) {
@@ -10896,6 +11114,8 @@ function updateCartDisplay() {
     syncVisibleMenuItemQuantities();
     if (!menuCartList || !menuCartCount || !menuCartTotal || !menuPlaceOrderBtn) return;
 
+    const focusedQuantityField = captureFocusedQuantityField(menuCartList, '.menu-cart-item-qty-input');
+
     if (!cartItems.length) {
         menuCartList.innerHTML = '<p class="menu-cart-empty">Your cart is empty.</p>';
         menuCartCount.textContent = '0 items';
@@ -10936,14 +11156,28 @@ function updateCartDisplay() {
                             <strong>${escapeHtml(item.name)}</strong>
                             ${hasCustomizeOptions ? `<button type="button" class="menu-cart-components-toggle" data-index="${index}" aria-expanded="${customizeExpanded ? 'true' : 'false'}" aria-label="Toggle customize options">${customizeExpanded ? 'Hide ▾' : 'Customize ▸'}</button>` : ''}
                         </div>
-                        <div class="menu-cart-item-qty-controls">
-                            <button type="button" class="menu-cart-item-quantity-btn" data-action="decrease" data-index="${index}" aria-label="Decrease ${escapeHtml(item.name)} quantity"${item.quantity === 1 ? ' disabled' : ''}>
-                                <i class="fa-solid fa-minus" aria-hidden="true"></i>
-                            </button>
-                            <span class="menu-cart-item-qty">${item.quantity}</span>
-                            <button type="button" class="menu-cart-item-quantity-btn" data-action="increase" data-index="${index}" aria-label="Increase ${escapeHtml(item.name)} quantity"${canIncreaseCartItemQuantity(index) ? '' : ' disabled'}>
-                                <i class="fa-solid fa-plus" aria-hidden="true"></i>
-                            </button>
+                        <div class="menu-cart-item-qty-wrap">
+                            <div class="menu-cart-item-qty-controls">
+                                <button type="button" class="menu-cart-item-quantity-btn" data-action="decrease" data-index="${index}" aria-label="Decrease ${escapeHtml(item.name)} quantity"${item.quantity === 1 ? ' disabled' : ''}>
+                                    <i class="fa-solid fa-minus" aria-hidden="true"></i>
+                                </button>
+                                <input
+                                    type="text"
+                                    class="menu-cart-item-qty-input"
+                                    data-index="${index}"
+                                    data-name="${escapeHtml(item.name)}"
+                                    value="${item.quantity}"
+                                    inputmode="numeric"
+                                    autocomplete="off"
+                                    pattern="[0-9]*"
+                                    maxlength="4"
+                                    aria-label="${escapeHtml(item.name)} quantity"
+                                >
+                                <button type="button" class="menu-cart-item-quantity-btn" data-action="increase" data-index="${index}" aria-label="Increase ${escapeHtml(item.name)} quantity"${canIncreaseCartItemQuantity(index) ? '' : ' disabled'}>
+                                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                            <small class="menu-cart-item-qty-error" role="alert" aria-live="polite" hidden></small>
                         </div>
                     </div>
                     <button type="button" class="menu-cart-item-remove" data-index="${index}">Remove</button>
@@ -10953,6 +11187,8 @@ function updateCartDisplay() {
             </div>
         `;
     }).join('');
+
+    restoreFocusedQuantityField(menuCartList, '.menu-cart-item-qty-input', focusedQuantityField);
 
     menuCartCount.textContent = `${totalItems} items`;
     menuCartTotal.textContent = formatCurrency(total);
@@ -11181,14 +11417,15 @@ function syncVisibleMenuItemQuantities() {
             const name = card.querySelector('.menu-item-qty-btn[data-action="increase"]')?.dataset.name;
             if (!name) return;
 
-            const quantityElement = card.querySelector('.menu-item-qty');
+            const quantityElement = card.querySelector('.menu-item-qty-input');
             const increaseButton = card.querySelector('.menu-item-qty-btn[data-action="increase"]');
             const decreaseButton = card.querySelector('.menu-item-qty-btn[data-action="decrease"]');
             const selectedQty = menuSelectionQuantities[name] || 0;
             const availableStock = getAvailableStockForItem(name);
 
-            if (quantityElement) {
-                quantityElement.textContent = String(selectedQty);
+            // Never overwrite the field the customer is typing in.
+            if (quantityElement && document.activeElement !== quantityElement) {
+                quantityElement.value = String(selectedQty);
             }
             if (increaseButton) {
                 increaseButton.disabled = availableStock <= 0 || selectedQty >= availableStock;
@@ -14842,6 +15079,8 @@ function showMenuCategory(categoryId) {
         menuOverlayCategories.hidden = false;
         renderMenuOverlayCategories(resolvedCategoryId);
     }
+    const focusedQuantityField = captureFocusedQuantityField(menuItemsList, '.menu-item-qty-input');
+
     menuItemsList.innerHTML = category.items.map((item) => {
         const isOutOfStock = isItemOutOfStock(item.name);
         const selectedQty = menuSelectionQuantities[item.name] || 0;
@@ -14862,7 +15101,18 @@ function showMenuCategory(categoryId) {
             <div class="menu-item-controls">
                 <div class="menu-item-qty-controls">
                     <button type="button" class="menu-item-qty-btn" data-action="decrease" data-name="${escapeHtml(item.name)}" data-price="${parsePrice(item.price)}" aria-label="Decrease ${escapeHtml(item.name)} quantity"${selectedQty <= 0 ? ' disabled' : ''}>−</button>
-                    <span class="menu-item-qty">${selectedQty}</span>
+                    <input
+                        type="text"
+                        class="menu-item-qty-input"
+                        data-name="${escapeHtml(item.name)}"
+                        data-price="${parsePrice(item.price)}"
+                        value="${selectedQty}"
+                        inputmode="numeric"
+                        autocomplete="off"
+                        pattern="[0-9]*"
+                        maxlength="4"
+                        aria-label="${escapeHtml(item.name)} quantity"
+                    >
                     <button type="button" class="menu-item-qty-btn" data-action="increase" data-name="${escapeHtml(item.name)}" data-price="${parsePrice(item.price)}" aria-label="Increase ${escapeHtml(item.name)} quantity"${availableStock <= 0 ? ' disabled' : ''}>+</button>
                 </div>
                 <span class="menu-item-confirmation" aria-live="polite"></span>
@@ -14874,6 +15124,9 @@ function showMenuCategory(categoryId) {
     if (!category.items || !category.items.length) {
         menuItemsList.innerHTML = '<div class="menu-empty-message">No products available in this category.</div>';
     }
+
+    // A background refresh must not wipe a quantity the customer is typing.
+    restoreFocusedQuantityField(menuItemsList, '.menu-item-qty-input', focusedQuantityField);
 
     menuCategories.hidden = false;
     menuCategoryScreen.classList.remove('hidden');
@@ -15215,9 +15468,35 @@ if (menuCategoryScreen) {
         const confirmation = card?.querySelector('.menu-item-confirmation');
         if (confirmation) {
             confirmation.textContent = nextQty > 0 ? `${nextQty} selected` : '';
+            confirmation.classList.remove('is-error');
         }
+        setQuantityFieldInvalid(card?.querySelector('.menu-item-qty-input'), false);
 
         syncVisibleMenuItemQuantities();
+    });
+
+    // Typeable quantities on the cards: reminders while typing, commit on blur/Enter.
+    menuCategoryScreen.addEventListener('input', (event) => {
+        const input = event.target.closest('.menu-item-qty-input');
+        if (input) handleMenuItemQuantityInput(input);
+    });
+
+    menuCategoryScreen.addEventListener('change', (event) => {
+        const input = event.target.closest('.menu-item-qty-input');
+        if (input) commitMenuItemQuantityInput(input);
+    });
+
+    menuCategoryScreen.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+
+        const input = event.target.closest('.menu-item-qty-input');
+        if (!input) return;
+
+        event.preventDefault();
+        commitMenuItemQuantityInput(input);
+
+        // A rejected entry keeps focus so the reminder stays readable.
+        if (!input.classList.contains('is-invalid')) input.blur();
     });
 }
 
@@ -15258,6 +15537,31 @@ if (menuCartList) {
         if (!button) return;
         const index = Number(button.dataset.index);
         removeCartItem(index);
+    });
+
+    // Typeable cart quantities: reminders while typing, commit on blur/Enter
+    // (nothing is committed per keystroke — the cart list is rebuilt on commit).
+    menuCartList.addEventListener('input', (event) => {
+        const input = event.target.closest('.menu-cart-item-qty-input');
+        if (input) handleCartItemQuantityInput(input);
+    });
+
+    menuCartList.addEventListener('change', (event) => {
+        const input = event.target.closest('.menu-cart-item-qty-input');
+        if (input) commitCartItemQuantityInput(input);
+    });
+
+    menuCartList.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+
+        const input = event.target.closest('.menu-cart-item-qty-input');
+        if (!input) return;
+
+        event.preventDefault();
+        commitCartItemQuantityInput(input);
+
+        // A rejected entry keeps focus so the reminder stays readable.
+        if (!input.classList.contains('is-invalid')) input.blur();
     });
 }
 
