@@ -1648,11 +1648,12 @@ async function authenticateStaffAccount(email, password, role = '', deviceToken 
         const body = { email, password, role, deviceToken, surface: loginSurface };
         if (silentRefresh) body.silentRefresh = true;
         if (recaptchaToken) body['recaptcha-token'] = recaptchaToken;
+        const headers = await withCsrfHeaders({
+            'Content-Type': 'application/json'
+        });
         const response = await fetchWithTimeout(getApiUrl('api/authenticate_staff.php'), {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers,
             body: JSON.stringify(body),
             cache: 'no-store'
         });
@@ -1757,11 +1758,12 @@ function ensureStaffServerSession() {
 
     const renewal = (async () => {
         try {
+            const headers = await withCsrfHeaders({
+                'Content-Type': 'application/json'
+            });
             const response = await fetchWithTimeout(getApiUrl('api/renew_staff_session.php'), {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers,
                 // The session token travels in the HttpOnly cookie, so the
                 // request body carries no secret.
                 body: JSON.stringify({}),
@@ -8642,11 +8644,12 @@ function loadStaffOrderTimerCache() {
 
 async function submitOrderToServer(order) {
     try {
+        const headers = await withCsrfHeaders({
+            'Content-Type': 'application/json'
+        });
         const response = await fetch(getApiUrl('api/create_order.php'), {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers,
             body: JSON.stringify({
                 orderNumber: order.orderNumber,
                 items: order.items,
@@ -15639,9 +15642,15 @@ async function exportRetentionBatch() {
     setRetentionMessage('Exporting...');
     setButtonLoading(retentionExportBtn, true);
     try {
-        const response = await fetch(getApiUrl(`api/export_retention_batch.php?id=${retentionSelectedBatch.id}&_=${Date.now()}`), {
+        const headers = await withCsrfHeaders({
+            'Content-Type': 'application/json'
+        });
+        const response = await fetch(getApiUrl('api/export_retention_batch.php'), {
+            method: 'POST',
+            headers,
+            credentials: 'same-origin',
             cache: 'no-store',
-            credentials: 'same-origin'
+            body: JSON.stringify({ id: retentionSelectedBatch.id })
         });
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);

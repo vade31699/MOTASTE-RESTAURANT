@@ -10,15 +10,28 @@ $app = require_once __DIR__ . '/../../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 require_once __DIR__ . '/_staff_auth_helpers.php';
 require_once __DIR__ . '/_helpers.php';
+require_once __DIR__ . '/csrf_guard.php';
 if (!requireAdminAuth()) {
     abortStaffAuthRequired();
 }
+
+// CSRF: exporting marks the batch as 'exported' (a state change), so it is
+// protected like every other gated POST instead of being a CSRF-writable GET.
+validateCsrfOrExit();
 
 require_once __DIR__ . '/_retention_helpers.php';
 
 use Illuminate\Support\Facades\DB;
 
-$idRaw = $_GET['id'] ?? null;
+$idRaw = null;
+if (isset($_POST['id'])) {
+    $idRaw = $_POST['id'];
+} elseif (!empty($_SERVER['CONTENT_TYPE']) && strpos((string) $_SERVER['CONTENT_TYPE'], 'application/json') !== false) {
+    $bodyDecoded = json_decode(file_get_contents('php://input'), true);
+    if (is_array($bodyDecoded)) {
+        $idRaw = $bodyDecoded['id'] ?? null;
+    }
+}
 if (!isWholeNumberId($idRaw)) {
     http_response_code(422);
     echo json_encode(['success' => false, 'error' => 'batch id must be a whole number']);

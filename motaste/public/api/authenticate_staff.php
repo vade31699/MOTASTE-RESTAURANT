@@ -19,6 +19,12 @@ require_once __DIR__ . '/_staff_auth_helpers.php';
 require_once __DIR__ . '/_totp_helpers.php';
 require_once __DIR__ . '/csrf_guard.php';
 
+// CSRF: login issues verification codes / TOTP challenges (login-CSRF vector)
+// and writes login_attempts + login_verification_tokens. The client attaches
+// the signed token via withCsrfHeaders(); a missing/invalid token is rejected
+// here, before any rate-limit counter, comparison, or email is touched.
+validateCsrfOrExit();
+
 try {
     $input = json_decode(file_get_contents('php://input'), true);
     if (!is_array($input)) {

@@ -35,6 +35,11 @@ if ($token === null) {
     exit;
 }
 
+// CSRF: renewal regenerates the PHP session and re-issues the bearer cookie
+// (state-changing), so it is protected like every other staff POST. The client
+// sends its signed token via withCsrfHeaders() (ensureStaffServerSession).
+validateCsrfOrExit();
+
 // resolveStaffSessionToken() also enforces the inactivity window: a token that
 // has not been used for STAFF_SESSION_IDLE_TIMEOUT_SECONDS (30 minutes by
 // default) is deleted here, which is what signs an account out after the

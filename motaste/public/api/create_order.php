@@ -19,6 +19,13 @@ use Illuminate\Database\Schema\Blueprint;
 // Provides IP-based rate limiting (recordOrderApiRequest / isOrderApiRateLimited).
 require_once __DIR__ . '/_staff_auth_helpers.php';
 
+// CSRF: order creation is a state-changing (CREATE) endpoint. The browser
+// sends its signed token in the X-CSRF-TOKEN header (withCsrfHeaders in
+// script.js); without a valid token the request is rejected before any row is
+// written or any rate-limit/audit state is touched.
+require_once __DIR__ . '/csrf_guard.php';
+validateCsrfOrExit();
+
 $input = json_decode(file_get_contents('php://input'), true);
 if (!$input || !is_array($input['items'] ?? null) || count($input['items']) === 0) {
     http_response_code(400);
