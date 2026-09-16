@@ -12831,7 +12831,7 @@ function renderSpecialFoods() {
     if (section) section.hidden = specialFoods.length === 0;
 
     // Build a lightweight signature so we skip the DOM wipe when nothing changed
-    const signature = specialFoods.map((s) => `${s.name}|${s.price}|${s.image || ''}|${s.description || ''}`).join('\n');
+    const signature = specialFoods.map((s) => `${s.name}|${s.price}|${s.image || ''}|${s.description || ''}|${getAvailableStockForItem(s.name)}`).join('\n');
     if (signature === _lastSpecialFoodsHash) return;
     _lastSpecialFoodsHash = signature;
 
