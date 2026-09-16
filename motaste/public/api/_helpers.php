@@ -570,6 +570,41 @@ function storedImageUrlValidationError(string $url): ?string
 }
 
 /**
+ * Largest base64 data-URI we will store for an inventory/menu image. The
+ * client produces 720x720 JPEG data URIs (a few hundred KB worst case), so
+ * this is generous for legitimate uploads while still bounding a single DB
+ * write.
+ */
+const MAX_STORED_IMAGE_DATA_URI_LENGTH = 1500000;
+
+/**
+ * Unified image validation for values that may be either a base64 data URI
+ * (length-capped and byte-sniffed as real JPEG/PNG/WebP) or an http(s) URL
+ * (length-capped, scheme and extension checked). Empty values are allowed.
+ * Returns an error message, or null when the value is acceptable.
+ */
+function storedImageValidationError($image): ?string
+{
+    if (!is_string($image)) {
+        return 'Image must be a string';
+    }
+
+    $image = trim($image);
+    if ($image === '') {
+        return null;
+    }
+
+    if (strpos($image, 'data:image/') === 0) {
+        if (strlen($image) > MAX_STORED_IMAGE_DATA_URI_LENGTH) {
+            return 'Image data URI is too large.';
+        }
+        return storedImageDataUriValidationError($image);
+    }
+
+    return storedImageUrlValidationError($image);
+}
+
+/**
  * Strict whole-number ID check. Accepts an int or a digit-only string so a
  * request-supplied id like "1" passes but "1 OR 1=1" or "1abc" is rejected
  * before it ever reaches a WHERE clause.

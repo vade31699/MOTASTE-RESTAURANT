@@ -64,9 +64,7 @@ function validateMenuSnapshotImages(array $menu): ?string
                 continue;
             }
 
-            $error = strpos($image, 'data:image/') === 0
-                ? storedImageDataUriValidationError($image)
-                : storedImageUrlValidationError($image);
+            $error = storedImageValidationError($image);
 
             if ($error !== null) {
                 return $error;
@@ -86,9 +84,12 @@ if ($imageError !== null) {
 
 try {
     // Bound the snapshot size so one request cannot bloat the storage row or
-    // force a huge JSON round-trip on every subsequent menu load.
+    // force a huge JSON round-trip on every subsequent menu load. The bound
+    // matches the app's existing per-image document cap (HIGHLIGHTS_MAX_SLIDE_LENGTH)
+    // so a special food's 720x720 data-URI image — several hundred KB alone —
+    // fits together with the rest of the menu.
     $snapshotJson = json_encode($input, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    if ($snapshotJson === false || strlen($snapshotJson) > 200000) {
+    if ($snapshotJson === false || strlen($snapshotJson) > HIGHLIGHTS_MAX_SLIDE_LENGTH) {
         http_response_code(413);
         echo json_encode(['success' => false, 'error' => 'Menu snapshot is too large']);
         exit;

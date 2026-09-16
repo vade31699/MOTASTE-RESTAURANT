@@ -240,3 +240,29 @@ test('id-based queries treat non-numeric strings as non-matches, never SQL', fun
     $rows = DB::table('sqli_staff')->where('id', $id)->get();
     expect($rows)->toHaveCount(1);
 });
+
+test('stored image validation accepts data-URI special-food images', function () {
+    bootSqlInjectionTestApp();
+
+    // Minimal valid 1x1 transparent PNG (known-good bytes used across browsers).
+    $tinyPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    $tinyPng = 'data:image/png;base64,' . $tinyPngBase64;
+
+    // The special-foods flow sends a base64 data URI (720x720 canvas JPEG).
+    // It must pass — before the fix it was rejected with "Image URL is too long".
+    expect(storedImageValidationError($tinyPng))->toBeNull();
+    expect(storedImageValidationError('data:image/jpeg;base64,' . $tinyPngBase64))->toBeNull();
+
+    // http(s) image URLs still pass.
+    expect(storedImageValidationError('https://example.com/img/photo.jpg'))->toBeNull();
+
+    // Non-image URLs, SVGs, garbage data URIs, non-string and overlong values
+    // are rejected.
+    expect(storedImageValidationError('https://example.com/evil.php'))->not->toBeNull();
+    expect(storedImageValidationError('data:image/svg+xml;base64,PHN2Zz48L3N2Zz4='))->not->toBeNull();
+    expect(storedImageValidationError('data:image/png;base64,' . base64_encode('not an image')))->not->toBeNull();
+    expect(storedImageValidationError(12345))->not->toBeNull();
+    expect(storedImageValidationError(str_repeat('a', MAX_STORED_IMAGE_DATA_URI_LENGTH + 1)))->not->toBeNull();
+    expect(storedImageValidationError('   '))->toBeNull();
+    expect(storedImageValidationError(''))->toBeNull();
+});

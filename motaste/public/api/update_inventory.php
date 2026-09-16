@@ -82,7 +82,7 @@ if (array_key_exists('image', $input)) {
     }
     $image = trim((string)$input['image']);
     if ($image !== '') {
-        $imageError = storedImageUrlValidationError($image);
+        $imageError = storedImageValidationError($image);
         if ($imageError !== null) {
             http_response_code(422);
             echo json_encode(['success' => false, 'error' => $imageError]);
