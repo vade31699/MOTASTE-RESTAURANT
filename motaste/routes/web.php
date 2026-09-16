@@ -13,7 +13,13 @@ Route::get('/', function () {
     // Served via PHP (public/home.html) rather than the platform's static-file
     // layer so the SecurityHeaders middleware applies CSP/HSTS to the homepage
     // like every other routed page.
-    return response()->file(public_path('home.html'));
+    //
+    // The homepage must also be sent with an explicit no-store header: without
+    // it browsers apply heuristic caching to the HTML and keep serving the
+    // older markup — including stale ?v= URLs for script.js/style.css — after
+    // an update, so customers don't see new content until a hard refresh.
+    $homeHeaders = ['Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0'];
+    return response()->file(public_path('home.html'), $homeHeaders);
 });
 
 // The portal is served as a static HTML file, so it needs an explicit no-store
