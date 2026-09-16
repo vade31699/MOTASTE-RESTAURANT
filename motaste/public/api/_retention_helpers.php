@@ -4,7 +4,8 @@
  * Retention/archiving helpers for the staff dashboard.
  *
  * Used by the scheduled tasks in routes/console.php (monthly log + login-history
- * staging, six-month order staging) and by the admin retention API endpoints.
+ * staging, three-month order staging + auto-purge) and by the admin retention
+ * API endpoints.
  *
  * Every "batch" is a row in data_retention_batches that pins a window of
  * records — [period_start, period_end) — plus a record count. Staging only
@@ -296,26 +297,39 @@ function stageMonthlyRetentionBatches(): array
 }
 
 /**
- * Semi-annual staging for completed sales/order history older than 6 months.
+ * Three-month staging + automatic deletion for completed sales/order history.
+ *
+ * Order-history records are only kept for 3 months: anything strictly older
+ * than the cutoff is staged into a retention batch, the admin is emailed a CSV
+ * archive, and the rows are then automatically deleted from the system so the
+ * "3 months only" track-record policy is enforced without manual action.
+ *
  * Uses a rolling window: the start of the window is the previous orders batch's
- * end (or the 6-month cutoff itself on the first run), so no order is ever
- * staged twice.
+ * end (or the 3-month cutoff minus three months on the first run), so no order
+ * is ever staged twice.
  */
-function stageSixMonthOrderBatches(): array
+function stageThreeMonthOrderBatches(): array
 {
     require_once __DIR__ . '/_email_auth_helpers.php';
 
     ensureRetentionBatchesTable();
 
-    $cutoff = now()->subMonths(6); // records strictly older than 6 months
+    $cutoff = now()->subMonths(3); // records strictly older than 3 months
 
     // Rolling start: reuse the end of the most recent orders batch so the same
-    // orders are never staged again after a clear.
+    // orders are never staged again after a clear. On the first run the window
+    // reaches back to the very first recorded order so no older record can
+    // linger beyond the cutoff.
     $lastEnd = DB::table('data_retention_batches')
         ->where('batch_type', 'orders')
         ->orderByDesc('period_end')
         ->value('period_end');
-    $periodStart = $lastEnd ?: $cutoff->copy()->subMonths(6);
+    if ($lastEnd) {
+        $periodStart = $lastEnd;
+    } else {
+        $earliest = DB::table('orders')->orderBy('order_date')->value('order_date');
+        $periodStart = $earliest ?: $cutoff->copy()->subYears(2);
+    }
 
     $batch = stageRetentionBatch('orders', $cutoff->format('Y-m'), $periodStart, $cutoff);
     if (!$batch) {
@@ -323,6 +337,16 @@ function stageSixMonthOrderBatches(): array
     }
 
     notifyAdminRetentionBatch($batch);
+
+    // Enforce the 3-month policy: automatically purge the staged window from
+    // the system right after staging/notifying (the CSV archive email is the
+    // permanent copy).
+    try {
+        clearRetentionBatch((int)$batch['id']);
+    } catch (Throwable $error) {
+        error_log('Auto-clear of 3-month order batch failed: ' . $error->getMessage());
+    }
+
     return ['orders' => $batch];
 }
 
@@ -340,7 +364,7 @@ function notifyAdminRetentionBatch(array $batch): void
         $labels = [
             'logs' => 'System Logs',
             'login_history' => 'Staff Login History',
-            'orders' => 'Sales & Order History (6-month retention)',
+            'orders' => 'Sales & Order History (3-month retention)',
         ];
         $typeLabel = $labels[$batch['batch_type']] ?? $batch['batch_type'];
         $start = (string)($batch['period_start'] ?? '');

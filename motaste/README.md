@@ -143,7 +143,7 @@ Personal information handled by the system, per the Privacy Notice (`/privacy`):
 
 Known logging exception: when SMTP is not configured, `sendSystemEmail()` falls back to writing the email body — **including device-verification codes — to the server log** so logins remain possible. This is an availability trade-off; configure `MAIL_*` in production so it never triggers.
 
-Retention: order/sales data is archived into 6-month batches (admin export → permanent delete); login/security logs are staged monthly. See `routes/console.php` and the retention banner in the staff dashboard.
+Retention: order/sales history is kept for only 3 months and is archived + automatically deleted after that (the administered CSV archive email is the permanent copy); login/security logs are staged monthly. See `routes/console.php` and the retention banner in the staff dashboard.
 
 ## Maintenance
 

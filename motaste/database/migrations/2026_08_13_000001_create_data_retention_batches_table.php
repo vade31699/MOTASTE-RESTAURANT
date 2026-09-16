@@ -14,7 +14,7 @@ return new class extends Migration
                 // Which archive stream this batch covers: logs | login_history | orders
                 $table->string('batch_type', 40);
                 // Human-readable period label, e.g. "2026-07" for a monthly window
-                // or "2026-01" for the six-month order cutoff.
+                // or the month of the three-month order cutoff.
                 $table->string('period_label', 20);
                 // Records inside [period_start, period_end) belong to this batch.
                 $table->timestamp('period_start')->nullable();

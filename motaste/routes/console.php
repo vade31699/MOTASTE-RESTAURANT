@@ -20,9 +20,10 @@ Schedule::call(function () {
     stageMonthlyRetentionBatches();
 })->name('retention.monthly')->monthlyOn(1, '00:30');
 
-// Semi-annual: stage sales/order history older than 6 months and notify the
-// admin so they can export or purge the records.
+// Three-month order retention: stage + auto-purge completed sales/order history
+// older than 3 months every month. The admin still gets the CSV archive email
+// from the staging step before the records are automatically deleted.
 Schedule::call(function () {
     require_once __DIR__ . '/../public/api/_retention_helpers.php';
-    stageSixMonthOrderBatches();
-})->name('retention.six-month')->cron('0 2 1 */6 *');
+    stageThreeMonthOrderBatches();
+})->name('retention.orders-3-month')->monthlyOn(1, '02:30');

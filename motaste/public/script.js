@@ -5948,8 +5948,17 @@ const pendingOrdersList = document.getElementById('pendingOrdersList');
 const pendingOrdersSection = document.getElementById('pending-orders');
 const walkInOrdersTabBtn = document.getElementById('walkInOrdersTabBtn');
 const pendingOrdersTabBtn = document.getElementById('pendingOrdersTabBtn');
+const orderHistoryTabBtn = document.getElementById('orderHistoryTabBtn');
 const walkInOrderPanel = document.getElementById('walkInOrderPanel');
 const pendingOrdersPanel = document.getElementById('pendingOrdersPanel');
+const orderHistoryPanel = document.getElementById('orderHistoryPanel');
+const orderHistoryMonthSelect = document.getElementById('orderHistoryMonthSelect');
+const orderHistoryDaySelect = document.getElementById('orderHistoryDaySelect');
+const orderHistoryLoadBtn = document.getElementById('orderHistoryLoadBtn');
+const orderHistoryMessage = document.getElementById('orderHistoryMessage');
+const orderHistoryList = document.getElementById('orderHistoryList');
+const ORDER_HISTORY_MONTHS = 3;
+let orderHistoryOrders = [];
 const walkInItemInput = document.getElementById('walkInItemInput');
 const walkInItemDropdown = document.getElementById('walkInItemDropdown');
 let walkInAvailableItems = [];
@@ -7449,6 +7458,11 @@ let cartItems = [];
 let menuSelectionQuantities = {};
 let pendingOrders = [];
 let completedOrders = [];
+// Completed orders placed on the *current calendar day*. Refreshed separately
+// (lightweight from/to fetch) so the Overview order-notification feed keeps
+// every order of the day visible even after completion or a page reload.
+let todayCompletedOrders = [];
+let todayCompletedOrdersSyncInFlight = false;
 let completedOrdersSyncInFlight = false;
 let inventoryData = [];
 // Deletions applied optimistically but not yet confirmed by the server, keyed by
@@ -8339,6 +8353,9 @@ function startPendingOrdersRefresh() {
 
     pendingOrdersRefreshTimer = window.setInterval(() => {
         void loadPendingOrdersFromServer();
+        // Keep today's completed orders in the Overview feed current so orders
+        // finished earlier in the day never vanish from the notification list.
+        void loadTodayCompletedOrdersFromServer();
     }, 10000);
 }
 
@@ -9005,6 +9022,10 @@ async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
     overdueNotifiedOrderIds.delete(String(completedOrder.id));
     overdueAlertQueue = overdueAlertQueue.filter((key) => key !== String(completedOrder.id));
     completedOrders.unshift(completedOrder);
+    if (isTodayLocalTimestamp(completedOrder.timestamp)) {
+        todayCompletedOrders.unshift(completedOrder);
+        todayCompletedOrders.sort((a, b) => b.timestamp - a.timestamp);
+    }
     recalculateSalesAnalytics();
     recalculateProfitAnalytics();
     savePendingOrders();
@@ -9025,16 +9046,31 @@ function printOrderReceipt(orderIndex) {
     if (orderIndex < 0 || orderIndex >= pendingOrders.length) return;
     const order = pendingOrders[orderIndex];
     if (!order) return;
+    printOrderReceiptForOrder(order);
+}
+
+/**
+ * Open a printable receipt window for any order object (pending, completed, or
+ * loaded from order history). Used by the pending-orders list and by the
+ * Receipt buttons on the Overview feed and the Orders → Order History tab.
+ */
+function printOrderReceiptForOrder(order) {
+    if (!order) return;
 
     const items = (Array.isArray(order.items) ? order.items : []).map((item) => {
         const components = (Array.isArray(item.components) ? item.components : [])
             .map((component) => `  ↳ ${escapeHtml(component.name)} × ${Number(component.quantity) || 0}`)
             .join('\n');
-        return `  ${escapeHtml(item.name)} × ${item.quantity} — ${formatCurrency(Number(item.price) * Number(item.quantity))}${components ? `\n${components}` : ''}`;
+        const itemName = item.name || item.notes || 'Menu item';
+        return `  ${escapeHtml(itemName)} × ${item.quantity} — ${formatCurrency(Number(item.price) * Number(item.quantity))}${components ? `\n${components}` : ''}`;
     }).join('\n');
 
+    const orderNumber = String(order.orderNumber || order.order_number || order.id || '');
     const customerName = String(order.customerName || order.customer_name || '').trim();
     const address = String(order.deliveryAddress || order.delivery_address || '').trim();
+    const orderType = String(order.orderType || order.order_type || 'Dine In');
+    const paymentMethod = String(order.paymentMethod || order.payment_method || '—');
+    const timestamp = Number(order.timestamp) || Date.now();
     const printWindow = window.open('', '_blank', 'width=400,height=600');
     if (!printWindow) {
         showStaffNotice('Please allow pop-ups to print the receipt.', true);
@@ -9046,7 +9082,7 @@ function printOrderReceipt(orderIndex) {
         <html lang="en">
         <head>
             <meta charset="UTF-8">
-            <title>Receipt #${escapeHtml(String(order.orderNumber || order.order_number || order.id || ''))}</title>
+            <title>Receipt #${escapeHtml(orderNumber)}</title>
             <style>
                 body { font-family: 'Courier New', monospace; font-size: 12px; margin: 0; padding: 24px; color: #111; }
                 h1 { font-size: 16px; text-align: center; margin: 0 0 4px; }
@@ -9063,10 +9099,10 @@ function printOrderReceipt(orderIndex) {
             <h1>MOTASTE</h1>
             <p class="sub">Crafted Silog • Restaurant</p>
             <hr>
-            <p class="meta"><strong>Order #:</strong> ${escapeHtml(String(order.orderNumber || order.order_number || order.id || ''))}</p>
-            <p class="meta"><strong>Date:</strong> ${new Date(order.timestamp || Date.now()).toLocaleString()}</p>
-            <p class="meta"><strong>Type:</strong> ${escapeHtml(order.orderType || 'Dine In')}</p>
-            <p class="meta"><strong>Payment:</strong> ${escapeHtml(order.paymentMethod || '—')}</p>
+            <p class="meta"><strong>Order #:</strong> ${escapeHtml(orderNumber)}</p>
+            <p class="meta"><strong>Date:</strong> ${new Date(timestamp).toLocaleString()}</p>
+            <p class="meta"><strong>Type:</strong> ${escapeHtml(orderType)}</p>
+            <p class="meta"><strong>Payment:</strong> ${escapeHtml(paymentMethod)}</p>
             ${customerName ? `<p class="meta"><strong>Customer:</strong> ${escapeHtml(customerName)}</p>` : ''}
             ${address ? `<p class="meta"><strong>Address:</strong> ${escapeHtml(address)}</p>` : ''}
             <hr>
@@ -9123,6 +9159,13 @@ async function cancelPendingOrder(orderIndex) {
     overdueOrderIds.delete(String(cancelledOrder.id));
     overdueNotifiedOrderIds.delete(String(cancelledOrder.id));
     overdueAlertQueue = overdueAlertQueue.filter((key) => key !== String(cancelledOrder.id));
+    // Keep the cancelled order visible in today's Overview feed (with a
+    // Cancelled badge) instead of dropping it until the next refresh.
+    if (isTodayLocalTimestamp(cancelledOrder.timestamp)) {
+        cancelledOrder.status = 'cancelled';
+        todayCompletedOrders.unshift(cancelledOrder);
+        todayCompletedOrders.sort((a, b) => b.timestamp - a.timestamp);
+    }
     savePendingOrders();
     renderPendingOrders();
     renderWalkInOrderBuilder();
@@ -9171,6 +9214,12 @@ async function refundCompletedOrder(orderId) {
     const completedIndex = completedOrders.findIndex((order) => Number(order.id) === Number(orderId));
     if (completedIndex >= 0) {
         completedOrders.splice(completedIndex, 1)[0];
+    }
+    // The refunded order stays in today's Overview feed but flips to a
+    // Refunded badge instead of vanishing.
+    const todayOrder = todayCompletedOrders.find((order) => Number(order.id) === Number(orderId));
+    if (todayOrder) {
+        todayOrder.status = 'refunded';
     }
     recalculateSalesAnalytics();
     recalculateProfitAnalytics();
@@ -9737,15 +9786,34 @@ function saveCompletedOrders() {
 }
 
 function normalizeCompletedOrder(order) {
+    const orderDateIso = order.order_date_iso || order.orderDateIso || null;
+    const rawOrderDate = order.order_date || order.orderDate || null;
+
     return {
         ...order,
         // Normalize the order number so the notifications feed never renders
         // "Order #undefined" for completed orders after a page refresh.
         orderNumber: order.order_number || order.orderNumber || String(order.id),
         total: Number(order.total_amount ?? order.total ?? 0),
-        timestamp: order.order_date ? Date.parse(order.order_date) || Date.now() : Date.now(),
+        // Use the ISO date (carries the +00:00 timezone) so the timestamp is
+        // the real absolute moment. Parsing the raw "Y-m-d H:i:s" string as a
+        // local time shifted completed orders by the store's UTC offset and
+        // bumped early-morning orders to the previous day (making them vanish
+        // from the "today" overview feed).
+        timestamp: orderDateIso
+            ? (Date.parse(orderDateIso) || Date.now())
+            : (rawOrderDate ? parseServerDateToMs(rawOrderDate) : Date.now()),
+        // Map snake_case server fields to the same camelCase shape the pending
+        // feed uses so the notification cards always render them.
+        paymentMethod: order.payment_method || order.paymentMethod || 'Cash',
+        orderType: order.order_type || order.orderType || 'Dine In',
+        customerName: order.customer_name || order.customerName || '',
+        deliveryAddress: order.delivery_address || order.deliveryAddress || '',
         items: Array.isArray(order.items) ? order.items.map((item) => ({
             ...item,
+            name: item.notes || item.name || 'Menu item',
+            notes: item.notes || item.name || 'Menu item',
+            price: Number(item.unit_price ?? item.price ?? 0),
             components: Array.isArray(item.components) ? item.components : []
         })) : []
     };
@@ -9791,6 +9859,49 @@ async function loadCompletedOrdersFromServer(forceRefresh = false) {
         return false;
     } finally {
         completedOrdersSyncInFlight = false;
+    }
+}
+
+/**
+ * Fetch only today's completed orders (local calendar day). Kept as a separate
+ * lightweight list so the Overview order-notification feed can keep every order
+ * of the day visible — even ones completed earlier and now past the 500-row cap
+ * of the full completed-orders fetch — without refreshing the heavy list used
+ * by the analytics charts.
+ */
+async function loadTodayCompletedOrdersFromServer() {
+    if (!isStaffPage) return false;
+    if (todayCompletedOrdersSyncInFlight) return false;
+
+    todayCompletedOrdersSyncInFlight = true;
+    try {
+        await ensureStaffServerSession();
+
+        // Local day bounds expressed as absolute UTC instants; the server stores
+        // order_date in UTC and compares against these directly.
+        const localStart = new Date();
+        localStart.setHours(0, 0, 0, 0);
+        const localEnd = new Date(localStart.getTime() + 86400000);
+
+        // Everything except still-pending orders: those are already tracked live
+        // in pendingOrders, so this keeps the day's finished/timed-out/cancelled
+        // orders in the feed instead of letting them vanish.
+        const payload = await fetchStaffGatedJson(
+            `api/order_history.php?from=${encodeURIComponent(localStart.toISOString())}`
+            + `&to=${encodeURIComponent(localEnd.toISOString())}`
+            + `&statuses=completed,cancelled,refunded,expired&_=${Date.now()}`
+        );
+        if (!payload || payload.success !== true || !Array.isArray(payload.orders)) return false;
+
+        todayCompletedOrders = payload.orders.map(normalizeCompletedOrder);
+        todayCompletedOrders.sort((a, b) => b.timestamp - a.timestamp);
+        renderOrderNotifications();
+        return true;
+    } catch (error) {
+        console.error('Unable to load today completed orders', error);
+        return false;
+    } finally {
+        todayCompletedOrdersSyncInFlight = false;
     }
 }
 
@@ -10846,16 +10957,28 @@ function isTodayLocalTimestamp(timestamp) {
 function renderOrderNotifications() {
     if (!overviewOrderNotificationList || !overviewOrderRevenue) return;
 
-    // The Overview feed only shows orders created on the current calendar day,
-    // so historical orders never stack up in this view.
+    // The Overview feed only shows orders created on the current calendar day.
+    // Completed orders come from todayCompletedOrders (a lightweight from/to
+    // fetch refreshed on a timer) so orders completed earlier in the day stay
+    // visible instead of vanishing once they leave the pending queue.
     const sortedPendingOrders = [...pendingOrders]
         .filter((order) => isTodayLocalTimestamp(order.timestamp))
         .sort((a, b) => b.timestamp - a.timestamp);
-    const sortedCompletedOrders = [...completedOrders]
-        .filter((order) => isTodayLocalTimestamp(order.timestamp))
-        .sort((a, b) => b.timestamp - a.timestamp);
+    let sortedCompletedOrders = todayCompletedOrders.length
+        ? [...todayCompletedOrders]
+        : [...completedOrders].filter((order) => isTodayLocalTimestamp(order.timestamp));
+    sortedCompletedOrders.sort((a, b) => b.timestamp - a.timestamp);
+    const statusById = new Map(sortedCompletedOrders.map((order) => [String(order.id), String(order.status || 'completed')]));
     const allOrders = [...sortedPendingOrders, ...sortedCompletedOrders];
-    const totalRevenue = allOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+    // "Total revenue" only counts revenue-bearing orders: pending (current
+    // confirmed totals) and completed. Cancelled/expired/refunded stay visible
+    // in the feed but never inflate the revenue figure.
+    const totalRevenue = allOrders.reduce((sum, order) => {
+        if (statusById.has(String(order.id))) {
+            return sum + (String(order.status) === 'completed' ? (Number(order.total) || 0) : 0);
+        }
+        return sum + (Number(order.total) || 0);
+    }, 0);
     overviewOrderRevenue.textContent = formatCurrency(totalRevenue);
 
     if (!allOrders.length) {
@@ -10864,13 +10987,15 @@ function renderOrderNotifications() {
     }
 
     overviewOrderNotificationList.innerHTML = allOrders.map((order) => {
-        const isCompleted = completedOrders.some((completed) => completed.id === order.id);
+        const status = statusById.get(String(order.id)) || 'pending';
+        const isCompleted = status === 'completed';
+        const isPending = status === 'pending';
         const items = Array.isArray(order.items) ? order.items : [];
         const customerName = String(order.customerName || order.customer_name || '').trim();
         const deliveryAddress = String(order.deliveryAddress || order.delivery_address || '').trim();
         const isSakayKo = isSakayKoOrderType(order.orderType);
         const displayNumber = String(order.orderNumber || order.order_number || order.id || '');
-        const isPreparing = !isCompleted && (order.prepStartedAt != null && order.prepMinutes != null);
+        const isPreparing = isPending && (order.prepStartedAt != null && order.prepMinutes != null);
         const orderItems = items.map((item) => {
             const componentLines = Array.isArray(item.components) && item.components.length
                 ? item.components.map((component) =>
@@ -10885,16 +11010,33 @@ function renderOrderNotifications() {
                 </li>
             `;
         }).join('');
-        const badgeLabel = isCompleted ? 'Completed' : (isPreparing ? 'Preparing' : 'New');
-        const badgeClass = isCompleted ? 'is-completed' : (isPreparing ? 'is-preparing' : 'is-new');
+
+        const badgeMap = {
+            completed: { label: 'Completed', className: 'is-completed' },
+            preparing: { label: 'Preparing', className: 'is-preparing' },
+            pending: { label: 'New', className: 'is-new' },
+            expired: { label: 'Expired', className: 'is-expired' },
+            cancelled: { label: 'Cancelled', className: 'is-cancelled' },
+            refunded: { label: 'Refunded', className: 'is-refunded' }
+        };
+        const badgeKey = isCompleted ? 'completed' : (isPending ? (isPreparing ? 'preparing' : 'pending') : status);
+        const badge = badgeMap[badgeKey] || badgeMap.pending;
         const prepLine = isPreparing
             ? `<p class="order-notif-prep"><strong>Prep:</strong> ~${Number(order.prepMinutes) || 0} min</p>`
             : '';
+
+        let secondaryAction = '';
+        if (isCompleted) {
+            secondaryAction = `<button type="button" class="order-refund-btn" data-order-id="${escapeHtml(order.id)}"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Refund</button>`;
+        } else if (isPending) {
+            secondaryAction = `<button type="button" class="order-notif-go-link" data-order-id="${escapeHtml(order.id)}"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i> Orders → Pending Orders</button>`;
+        }
+
         return `
             <article class="order-notification-card ${isCompleted ? 'completed' : ''}">
                 <div class="order-notif-top">
                     <h4>Order #${escapeHtml(displayNumber)}</h4>
-                    <span class="order-notif-badge ${badgeClass}">${badgeLabel}</span>
+                    <span class="order-notif-badge ${badge.className}">${badge.label}</span>
                 </div>
                 <div class="order-notif-body">
                     <div class="order-notif-customer">
@@ -10911,9 +11053,10 @@ function renderOrderNotifications() {
                 </div>
                 <div class="order-notif-footer">
                     <strong>Total: ${formatCurrency(order.total)}</strong>
-                    ${isCompleted
-                        ? `<button type="button" class="order-refund-btn" data-order-id="${escapeHtml(order.id)}"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Refund</button>`
-                        : `<button type="button" class="order-notif-go-link" data-order-id="${escapeHtml(order.id)}"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i> Orders → Pending Orders</button>`}
+                    <span class="order-notif-actions">
+                        <button type="button" class="order-notif-print-btn" data-print-order-id="${escapeHtml(order.id)}" data-print-status="${escapeHtml(status)}"><i class="fa-solid fa-print" aria-hidden="true"></i> Receipt</button>
+                        ${secondaryAction}
+                    </span>
                 </div>
             </article>
         `;
@@ -12866,7 +13009,7 @@ function renderPendingOrders() {
 }
 
 function setOrdersTab(tabName) {
-    activeOrdersTab = tabName === 'pending' ? 'pending' : 'walk-in';
+    activeOrdersTab = tabName === 'pending' ? 'pending' : (tabName === 'history' ? 'history' : 'walk-in');
 
     if (walkInOrdersTabBtn) {
         const isActive = activeOrdersTab === 'walk-in';
@@ -12880,12 +13023,215 @@ function setOrdersTab(tabName) {
         pendingOrdersTabBtn.setAttribute('aria-selected', String(isActive));
     }
 
+    if (orderHistoryTabBtn) {
+        const isActive = activeOrdersTab === 'history';
+        orderHistoryTabBtn.classList.toggle('active', isActive);
+        orderHistoryTabBtn.setAttribute('aria-selected', String(isActive));
+    }
+
     if (walkInOrderPanel) {
         walkInOrderPanel.hidden = activeOrdersTab !== 'walk-in';
     }
 
     if (pendingOrdersPanel) {
         pendingOrdersPanel.hidden = activeOrdersTab !== 'pending';
+    }
+
+    if (orderHistoryPanel) {
+        orderHistoryPanel.hidden = activeOrdersTab !== 'history';
+    }
+}
+
+/* ================= Order History (3-month track record) ================= */
+
+function orderHistoryCutoffDate() {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() - ORDER_HISTORY_MONTHS, now.getDate());
+}
+
+function orderHistoryButLastDayOfMonth(year, monthIndex) {
+    return new Date(year, monthIndex + 1, 0).getDate();
+}
+
+function setOrderHistoryMessage(message, isError = false) {
+    if (!orderHistoryMessage) return;
+    orderHistoryMessage.textContent = message || '';
+    orderHistoryMessage.style.color = isError ? '#b00020' : '#0b6b2f';
+}
+
+/**
+ * Populate the month/day pickers. Only dates inside the 3-month retention
+ * window are offered — everything older is already purged by the system.
+ */
+function populateOrderHistorySelects() {
+    if (!orderHistoryMonthSelect || !orderHistoryDaySelect) return;
+
+    const now = new Date();
+    const cutoff = orderHistoryCutoffDate();
+
+    // Months: current month plus the 3 previous months (covers the window).
+    const monthOptions = [];
+    for (let offset = 0; offset <= ORDER_HISTORY_MONTHS; offset += 1) {
+        const monthStart = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+        const monthIndex = monthStart.getMonth();
+        const year = monthStart.getFullYear();
+        const monthLabel = new Date(year, monthIndex, 1).toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
+        monthOptions.unshift({ value: `${year}-${String(monthIndex + 1).padStart(2, '0')}`, label: monthLabel });
+    }
+
+    orderHistoryMonthSelect.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+    monthOptions.forEach((option, index) => {
+        const el = document.createElement('option');
+        el.value = option.value;
+        el.textContent = option.label;
+        // Default to the current month.
+        el.selected = index === monthOptions.length - 1;
+        fragment.appendChild(el);
+    });
+    orderHistoryMonthSelect.appendChild(fragment);
+
+    updateOrderHistoryDayOptions();
+
+    if (orderHistoryDaySelect) {
+        // Default to today when it is a selectable day within the window.
+        const todayValue = String(now.getDate()).padStart(2, '0');
+        const todayOption = Array.from(orderHistoryDaySelect.options)
+            .find((option) => option.value === todayValue && !option.disabled);
+        if (todayOption) {
+            orderHistoryDaySelect.value = todayValue;
+        }
+    }
+}
+
+function updateOrderHistoryDayOptions() {
+    if (!orderHistoryMonthSelect || !orderHistoryDaySelect) return;
+
+    const monthValue = orderHistoryMonthSelect.value;
+    if (!monthValue) return;
+    const [year, month] = monthValue.split('-').map(Number);
+    const monthIndex = month - 1;
+    const lastDay = orderHistoryButLastDayOfMonth(year, monthIndex);
+
+    const now = new Date();
+    const cutoff = orderHistoryCutoffDate();
+
+    orderHistoryDaySelect.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+    let firstEnabledDay = null;
+    for (let day = 1; day <= lastDay; day += 1) {
+        const el = document.createElement('option');
+        el.value = String(day).padStart(2, '0');
+        el.textContent = String(day);
+
+        const date = new Date(year, monthIndex, day);
+        // Restrict to the 3-month retention window (auto-deleted beyond it).
+        if (date < cutoff || date > now) {
+            el.disabled = true;
+            el.textContent = `${day} (unavailable)`;
+        } else if (firstEnabledDay === null) {
+            firstEnabledDay = el;
+        }
+        fragment.appendChild(el);
+    }
+    orderHistoryDaySelect.appendChild(fragment);
+
+    // Default to the first selectable day so a month switch never leaves the
+    // day picker empty.
+    if (firstEnabledDay) {
+        orderHistoryDaySelect.value = firstEnabledDay.value;
+    }
+}
+
+function renderOrderHistory() {
+    if (!orderHistoryList) return;
+
+    if (!orderHistoryOrders.length) {
+        orderHistoryList.innerHTML = '<p class="menu-cart-empty">No completed orders on this day.</p>';
+        return;
+    }
+
+    orderHistoryList.innerHTML = orderHistoryOrders.map((order) => {
+        const items = Array.isArray(order.items) ? order.items : [];
+        const customerName = String(order.customerName || order.customer_name || '').trim();
+        const displayNumber = String(order.orderNumber || order.order_number || order.id || '');
+        const itemsHtml = items.map((item) => {
+            const componentLines = Array.isArray(item.components) && item.components.length
+                ? item.components.map((component) =>
+                    `<li class="order-history-component">↳ ${escapeHtml(component.name)} × ${Number(component.quantity) || 0}</li>`
+                ).join('')
+                : '';
+            return `
+                <li class="order-history-item">
+                    <span>${escapeHtml(item.name || item.notes || 'Menu item')} x${item.quantity}</span>
+                    <strong>${formatCurrency(Number(item.price) * Number(item.quantity))}</strong>
+                    ${componentLines ? `<ul class="order-history-components">${componentLines}</ul>` : ''}
+                </li>
+            `;
+        }).join('');
+
+        return `
+            <article class="order-history-card" data-order-id="${escapeHtml(order.id)}">
+                <div class="pending-order-top">
+                    <h4>Order #${escapeHtml(displayNumber)}</h4>
+                    <span class="pending-order-type">${escapeHtml(order.orderType || 'Dine In')}</span>
+                </div>
+                <p><strong>Date:</strong> ${formatRealtimeDate(order.timestamp)}</p>
+                <p><strong>Payment:</strong> ${escapeHtml(order.paymentMethod)}</p>
+                ${customerName ? `<p><strong>Customer:</strong> ${escapeHtml(customerName)}</p>` : ''}
+                <p><strong>Total:</strong> ${formatCurrency(order.total)}</p>
+                <ul class="order-history-item-list">${itemsHtml}</ul>
+                <div class="order-history-actions">
+                    <button type="button" class="order-history-print-btn" data-print-order-id="${escapeHtml(order.id)}"><i class="fa-solid fa-print" aria-hidden="true"></i> Print Receipt</button>
+                </div>
+            </article>
+        `;
+    }).join('');
+}
+
+async function loadOrderHistory() {
+    if (!isStaffPage) return;
+    if (!orderHistoryMonthSelect || !orderHistoryDaySelect) return;
+
+    const monthValue = orderHistoryMonthSelect.value;
+    const dayValue = orderHistoryDaySelect.value;
+    if (!monthValue || !dayValue) {
+        setOrderHistoryMessage('Please choose a month and a day.', true);
+        return;
+    }
+    const [year, month] = monthValue.split('-').map(Number);
+    const day = Number(dayValue);
+
+    const localStart = new Date(year, month - 1, day);
+    const localEnd = new Date(localStart.getTime() + 86400000);
+
+    setOrderHistoryMessage('Loading order history…');
+    setButtonLoading(orderHistoryLoadBtn, true);
+
+    try {
+        const payload = await fetchStaffGatedJson(
+            `api/order_history.php?from=${encodeURIComponent(localStart.toISOString())}`
+            + `&to=${encodeURIComponent(localEnd.toISOString())}&_=${Date.now()}`
+        );
+        if (!payload || payload.success !== true || !Array.isArray(payload.orders)) {
+            throw new Error((payload && payload.error) || 'Unable to load order history');
+        }
+
+        orderHistoryOrders = payload.orders.map(normalizeCompletedOrder);
+        orderHistoryOrders.sort((a, b) => b.timestamp - a.timestamp);
+        renderOrderHistory();
+
+        const total = orderHistoryOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+        setOrderHistoryMessage(orderHistoryOrders.length
+            ? `${orderHistoryOrders.length} order(s) • Total ${formatCurrency(total)}`
+            : 'No completed orders on this day.');
+    } catch (error) {
+        console.error('Unable to load order history', error);
+        setOrderHistoryMessage((error && error.payload && error.payload.error) || error.message || 'Unable to load order history.', true);
+        orderHistoryOrders = [];
+        renderOrderHistory();
+    } finally {
+        setButtonLoading(orderHistoryLoadBtn, false);
     }
 }
 
@@ -15059,6 +15405,19 @@ if (overviewOrderNotificationList) {
         unseenPendingCount = 0;
         updateOverviewBadge();
 
+        const printBtn = event.target.closest('.order-notif-print-btn');
+        if (printBtn) {
+            const orderId = Number(printBtn.dataset.printOrderId || 0);
+            if (!orderId) return;
+            const order = pendingOrders.find((o) => Number(o.id) === Number(orderId))
+                || todayCompletedOrders.find((o) => Number(o.id) === Number(orderId))
+                || completedOrders.find((o) => Number(o.id) === Number(orderId));
+            if (order) {
+                printOrderReceiptForOrder(order);
+            }
+            return;
+        }
+
         const refundBtn = event.target.closest('.order-refund-btn');
         if (refundBtn) {
             if (!canManageOrders()) return;
@@ -15188,6 +15547,35 @@ if (pendingOrdersTabBtn) {
     });
 }
 
+if (orderHistoryTabBtn) {
+    orderHistoryTabBtn.addEventListener('click', () => {
+        setOrdersTab('history');
+        populateOrderHistorySelects();
+        void loadOrderHistory();
+    });
+}
+
+if (orderHistoryMonthSelect) {
+    orderHistoryMonthSelect.addEventListener('change', updateOrderHistoryDayOptions);
+}
+
+if (orderHistoryLoadBtn) {
+    orderHistoryLoadBtn.addEventListener('click', () => void loadOrderHistory());
+}
+
+if (orderHistoryList) {
+    orderHistoryList.addEventListener('click', (event) => {
+        if (!canManageOrders()) return;
+        const printBtn = event.target.closest('.order-history-print-btn');
+        if (!printBtn) return;
+        const orderId = Number(printBtn.dataset.printOrderId || 0);
+        const order = orderHistoryOrders.find((o) => Number(o.id) === Number(orderId));
+        if (order) {
+            printOrderReceiptForOrder(order);
+        }
+    });
+}
+
 if (walkInAddItemBtn) {
     walkInAddItemBtn.addEventListener('click', addWalkInDraftItem);
 }
@@ -15297,6 +15685,7 @@ function initOrders() {
     setInterval(updateLiveClock, 1000);
     const pendingPromise = loadPendingOrdersFromServer();
     const completedPromise = loadCompletedOrdersFromServer();
+    const todayCompletedPromise = loadTodayCompletedOrdersFromServer();
     const reviewsPromise = loadReviewsFromServer();
     startReviewRefresh();
     loadStaffOrderTimerCache();
@@ -15310,6 +15699,7 @@ function initOrders() {
         inventoryPromise,
         pendingPromise,
         completedPromise,
+        todayCompletedPromise,
         reviewsPromise
     });
 
@@ -15416,10 +15806,10 @@ function initOrderEvents() {
                 const now = Date.now();
                 if (now - lastOrderSyncAt > ORDER_SYNC_DEBOUNCE_MS) {
                     lastOrderSyncAt = now;
-                    void Promise.all([loadPendingOrdersFromServer(), loadCompletedOrdersFromServer()]);
+                    void Promise.all([loadPendingOrdersFromServer(), loadCompletedOrdersFromServer(), loadTodayCompletedOrdersFromServer()]);
                     void fetchOverviewMetrics();
                 } else {
-                    window.setTimeout(() => void Promise.all([loadPendingOrdersFromServer(), loadCompletedOrdersFromServer()]), ORDER_SYNC_DEBOUNCE_MS);
+                    window.setTimeout(() => void Promise.all([loadPendingOrdersFromServer(), loadCompletedOrdersFromServer(), loadTodayCompletedOrdersFromServer()]), ORDER_SYNC_DEBOUNCE_MS);
                 }
             } catch (e) { console.debug('order_completed handler error', e); }
         });
@@ -15555,7 +15945,7 @@ function setRetentionMessage(text, isError = false) {
 const RETENTION_TYPE_LABELS = {
     logs: 'System Logs',
     login_history: 'Staff Login History',
-    orders: 'Sales & Order History (6-month retention)'
+    orders: 'Sales & Order History (3-month retention)'
 };
 
 function retentionTypeLabel(type) {

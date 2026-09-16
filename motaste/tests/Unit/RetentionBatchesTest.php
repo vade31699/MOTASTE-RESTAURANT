@@ -5,7 +5,8 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Tests for the data-retention archiving flow (Phase 3 of the retention plan):
- * monthly logs + login history staging, six-month order staging, CSV export,
+ * monthly logs + login history staging, three-month order staging + auto-purge,
+ * CSV export,
  * and permanent clearing. Boots the app on in-memory SQLite like the other
  * helper tests, so production data is never touched.
  */
@@ -247,11 +248,11 @@ test('clear permanently deletes the batch window records', function () {
     expect(DB::table('data_retention_batches')->where('id', $loginBatchId)->value('status'))->toBe('pending');
 });
 
-test('six-month order staging picks orders older than 6 months', function () {
+test('three-month order staging picks orders older than 3 months', function () {
     bootRetentionTestApp();
     resetRetentionTestData();
 
-    $oldDate = now()->subMonths(7);
+    $oldDate = now()->subMonths(4);
     $recentDate = now()->subMonth();
 
     $oldOrderId = DB::table('orders')->insertGetId([
@@ -278,19 +279,16 @@ test('six-month order staging picks orders older than 6 months', function () {
         'updated_at' => $oldDate,
     ]);
 
-    $results = stageSixMonthOrderBatches();
+    $results = stageThreeMonthOrderBatches();
     expect(isset($results['orders']))->toBeTrue();
 
     $batch = $results['orders'];
-    $rows = fetchRetentionBatchRows('orders', $batch['period_start'], $batch['period_end']);
 
-    expect(count($rows))->toBe(1);
-    expect($rows[0]['order_number'])->toBe('1111');
-    expect(str_contains($rows[0]['items'], 'Silog x2'))->toBeTrue();
+    // The batch recorded the single old order in its window.
+    expect((int)$batch['record_count'])->toBe(1);
 
-    // Clearing removes the order and its items, not the recent order.
-    $cleared = clearRetentionBatch((int)$batch['id']);
-    expect((int)$cleared['deleted'])->toBe(1);
+    // Automatic purge: staging immediately clears the window, so the old order
+    // and its items are gone while the recent order survives.
     expect(DB::table('orders')->where('order_number', '2222')->exists())->toBeTrue();
     expect(DB::table('orders')->where('order_number', '1111')->exists())->toBeFalse();
     expect(DB::table('order_items')->count())->toBe(0);
