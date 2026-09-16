@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./style.css?v=20260916b">
+    <link rel="stylesheet" href="./style.css?v=20260916e">
     <title>Login - MOTASTE</title>
     <style>
         html,
@@ -1013,6 +1013,36 @@
         </div>
     </div>
 
+    <!-- Cash collection prompt shown when an order is marked complete. Staff
+         records how much the customer handed over; the change (sukli) is
+         computed live and is written back into the order record, the export
+         and the printed receipt. Confirmation stays disabled until the amount
+         fully covers the order total. -->
+    <div id="paymentModal" class="modal-overlay" hidden aria-hidden="true">
+        <div class="modal-box payment-modal" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle" aria-describedby="paymentModalHint">
+            <button type="button" class="modal-close" id="paymentModalCloseBtn" aria-label="Close payment prompt">×</button>
+            <h2 id="paymentModalTitle">Collect Payment</h2>
+            <p class="payment-modal-hint" id="paymentModalHint">Enter the amount the customer paid to complete this order.</p>
+            <div class="payment-modal-total">
+                <span>Order Total</span>
+                <strong id="paymentModalTotal">₱0.00</strong>
+            </div>
+            <label class="payment-modal-field" for="paymentModalAmountInput">
+                <span>Amount Paid</span>
+                <input type="number" id="paymentModalAmountInput" min="0" step="0.01" inputmode="decimal" placeholder="0.00" autocomplete="off" />
+            </label>
+            <p class="payment-modal-error" id="paymentModalError" aria-live="polite" hidden></p>
+            <div class="payment-modal-change" id="paymentModalChangeRow" hidden>
+                <span>Change</span>
+                <strong id="paymentModalChangeValue">₱0.00</strong>
+            </div>
+            <div class="device-verify-actions">
+                <button type="button" id="paymentModalCancelBtn" class="secondary-btn">Cancel</button>
+                <button type="button" id="paymentModalConfirmBtn" class="menu-place-order-btn" disabled>Confirm &amp; Complete</button>
+            </div>
+        </div>
+    </div>
+
     <div id="confirmModal" class="modal-overlay" hidden aria-hidden="true">
         <div class="modal-box notice-modal confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirmModalTitle" aria-describedby="confirmModalText">
             <button type="button" class="modal-close" id="confirmModalCloseBtn" aria-label="Dismiss confirmation">×</button>
@@ -1330,6 +1360,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
-    <script src="./script.js?v=20260916a" defer></script>
+    <script src="./script.js?v=20260916e" defer></script>
 </body>
 </html>

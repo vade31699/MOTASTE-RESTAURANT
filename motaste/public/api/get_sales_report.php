@@ -112,6 +112,8 @@ try {
             'subtotal' => (float)($order->subtotal ?? 0),
             'total_amount' => (float)($order->total_amount ?? 0),
             'total' => (float)($order->total_amount ?? $order->total ?? 0),
+            'payment_received' => $order->payment_received !== null ? (float)$order->payment_received : null,
+            'change_due' => $order->change_due !== null ? (float)$order->change_due : null,
             'items' => $items,
         ];
     })->values()->all();

@@ -10925,6 +10925,159 @@ body.staff-app .notice-modal .modal-close:hover {
     color: var(--staff-danger);
 }
 
+/* ---------- Payment collection modal (mark-order-complete) ---------- */
+body.staff-app .modal-overlay#paymentModal {
+    z-index: 1200;
+}
+
+body.staff-app .payment-modal {
+    background: #ffffff;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 1px solid var(--staff-border);
+    border-radius: 18px;
+    color: var(--staff-text);
+    box-shadow: var(--staff-shadow-lg);
+    text-align: left;
+    padding: 28px 26px;
+}
+
+body.staff-app .payment-modal h2 {
+    color: var(--staff-text);
+    margin-top: 0;
+    text-align: center;
+}
+
+body.staff-app .payment-modal-hint {
+    color: var(--staff-muted);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    margin: 4px 0 18px;
+    text-align: center;
+}
+
+body.staff-app .payment-modal-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    background: var(--staff-surface-soft);
+    border: 1px solid var(--staff-border);
+    border-radius: 12px;
+}
+
+body.staff-app .payment-modal-total span {
+    color: var(--staff-muted);
+    font-weight: 600;
+    font-size: 0.92rem;
+}
+
+body.staff-app .payment-modal-total strong {
+    color: var(--staff-text);
+    font-size: 1.1rem;
+}
+
+body.staff-app .payment-modal-field {
+    display: grid;
+    gap: 6px;
+}
+
+body.staff-app .payment-modal-field > span {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--staff-text);
+}
+
+body.staff-app .payment-modal-field input[type="number"] {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--staff-border);
+    border-radius: 10px;
+    background: #ffffff;
+    color: var(--staff-text);
+    font-size: 1.15rem;
+    font-weight: 700;
+    box-sizing: border-box;
+}
+
+body.staff-app .payment-modal-field input[type="number"]:focus {
+    outline: 2px solid rgba(16, 185, 129, 0.40);
+    outline-offset: -1px;
+    border-color: transparent;
+}
+
+body.staff-app .payment-modal-error {
+    color: var(--staff-danger);
+    font-weight: 600;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    margin: 8px 0 0;
+}
+
+body.staff-app .payment-modal-change {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(16, 185, 129, 0.10);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+body.staff-app .payment-modal-change span {
+    color: var(--staff-muted);
+    font-weight: 600;
+    font-size: 0.92rem;
+}
+
+body.staff-app .payment-modal-change strong {
+    color: #047857;
+    font-size: 1.1rem;
+}
+
+body.staff-app .payment-modal .device-verify-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    justify-content: center;
+    margin-top: 24px;
+}
+
+body.staff-app .payment-modal .device-verify-actions button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 13px 18px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+body.staff-app .payment-modal .secondary-btn {
+    background: #ffffff;
+    color: #111827;
+    border: 1px solid rgba(15, 23, 42, 0.36);
+    box-shadow: none;
+}
+
+body.staff-app .payment-modal .secondary-btn:hover {
+    background: #f8fafc;
+    color: #111827;
+    border-color: rgba(15, 23, 42, 0.48);
+}
+
+body.staff-app .payment-modal .modal-close {
+    color: var(--staff-muted);
+}
+
+body.staff-app .payment-modal .modal-close:hover {
+    color: var(--staff-danger);
+}
+
 /* Icon inside the notice / confirm modals. */
 body.staff-app .notice-modal-icon {
     width: 64px;

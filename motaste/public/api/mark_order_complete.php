@@ -61,6 +61,34 @@ if ($orderId <= 0) {
     exit;
 }
 
+// Optional cash-collected details sent when staff records the amount actually
+// paid. When provided, paymentReceived must cover the full order total; the
+// change (sukli) is computed here so the stored value can never drift from the
+// payment actually collected.
+$paymentReceived = null;
+$change = null;
+
+if (array_key_exists('paymentReceived', $input) && $input['paymentReceived'] !== null && $input['paymentReceived'] !== '') {
+    if (!is_numeric($input['paymentReceived'])) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'paymentReceived must be numeric']);
+        exit;
+    }
+    $paymentReceivedValue = round((float)$input['paymentReceived'], 2);
+    if (!is_finite($paymentReceivedValue) || $paymentReceivedValue < 0) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'paymentReceived must be a non-negative amount']);
+        exit;
+    }
+    $paymentReceived = $paymentReceivedValue;
+}
+
+if ($paymentReceived === null && array_key_exists('change', $input) && $input['change'] !== null && $input['change'] !== '') {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'error' => 'change is only accepted together with paymentReceived']);
+    exit;
+}
+
 // Actor identity is stored into the audit logs; reject HTML, cap the length,
 // and keep the role to the known set.
 rejectUnsafeInputOrExit($actorRole, $actorEmail);
@@ -83,7 +111,7 @@ if ($actorEmail !== '' && !filter_var($actorEmail, FILTER_VALIDATE_EMAIL)) {
 try {
     ensureOrderLogsTable();
 
-    $result = DB::transaction(function () use ($orderId) {
+    $result = DB::transaction(function () use ($orderId, $paymentReceived) {
         $order = DB::table('orders')->where('id', $orderId)->lockForUpdate()->first();
 
         if (!$order) {
@@ -97,6 +125,20 @@ try {
                 'orderNumber' => $order->order_number,
                 'status' => 'completed',
             ];
+        }
+
+        // The amount collected must never be less than the order total.
+        $orderTotal = round((float)($order->total_amount ?? 0), 2);
+        $change = null;
+        if ($paymentReceived !== null) {
+            if (round($paymentReceived, 2) < $orderTotal) {
+                return [
+                    'success' => false,
+                    'status' => 422,
+                    'error' => 'Payment is less than the order total. Collect the full amount before completing the order.',
+                ];
+            }
+            $change = round($paymentReceived - $orderTotal, 2);
         }
 
         $orderItems = DB::table('order_items')
@@ -128,20 +170,38 @@ try {
                 ]);
         }
 
+        $updateData = [
+            'status' => 'completed',
+            'updated_at' => now(),
+        ];
+        if ($paymentReceived !== null) {
+            $updateData['payment_received'] = $paymentReceived;
+            $updateData['change_due'] = $change;
+            $updateData['payment_status'] = 'paid';
+        }
+
         DB::table('orders')
             ->where('id', $orderId)
-            ->update([
-                'status' => 'completed',
-                'updated_at' => now(),
-            ]);
+            ->update($updateData);
 
         $summary = buildOrderSummary($orderItems);
+
+        $details = [
+            'event' => 'Order marked as complete',
+            'completed_at' => now()->toDateTimeString(),
+        ];
+        if ($paymentReceived !== null) {
+            $details['amount_paid'] = $paymentReceived;
+            $details['change'] = $change;
+        }
 
         return [
             'success' => true,
             'orderNumber' => $order->order_number,
             'status' => 'completed',
             'summary' => $summary,
+            'paymentReceived' => $paymentReceived,
+            'change' => $change,
         ];
     });
 
@@ -162,6 +222,8 @@ try {
             'details' => json_encode([
                 'event' => 'Order marked as complete',
                 'completed_at' => now()->toDateTimeString(),
+                'amount_paid' => $result['paymentReceived'] ?? null,
+                'change' => $result['change'] ?? null,
             ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             'created_at' => now(),
             'updated_at' => now(),
@@ -241,6 +303,8 @@ try {
         'orderNumber' => $result['orderNumber'] ?? null,
         'status' => 'completed',
         'alreadyCompleted' => (bool) ($result['alreadyCompleted'] ?? false),
+        'paymentReceived' => $result['paymentReceived'] ?? null,
+        'change' => $result['change'] ?? null,
     ]);
 } catch (Throwable $error) {
     http_response_code(500);

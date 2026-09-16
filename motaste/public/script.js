@@ -2610,6 +2610,129 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
+/* ---- Payment collection modal (mark-order-complete) ---- */
+const paymentModal = document.getElementById('paymentModal');
+const paymentModalAmountInput = document.getElementById('paymentModalAmountInput');
+const paymentModalTotal = document.getElementById('paymentModalTotal');
+const paymentModalError = document.getElementById('paymentModalError');
+const paymentModalChangeRow = document.getElementById('paymentModalChangeRow');
+const paymentModalChangeValue = document.getElementById('paymentModalChangeValue');
+const paymentModalCancelBtn = document.getElementById('paymentModalCancelBtn');
+const paymentModalConfirmBtn = document.getElementById('paymentModalConfirmBtn');
+const paymentModalCloseBtn = document.getElementById('paymentModalCloseBtn');
+
+let paymentModalResolver = null;
+let paymentModalTotalAmount = 0;
+
+function openPaymentModal() {
+    if (!paymentModal) return;
+    paymentModal.hidden = false;
+    paymentModal.classList.add('active');
+    paymentModal.setAttribute('aria-hidden', 'false');
+}
+
+function closePaymentModal() {
+    if (!paymentModal) return;
+    paymentModal.hidden = true;
+    paymentModal.classList.remove('active');
+    paymentModal.setAttribute('aria-hidden', 'true');
+}
+
+function resolvePaymentModal(value) {
+    closePaymentModal();
+    const resolve = paymentModalResolver;
+    paymentModalResolver = null;
+    if (resolve) resolve(value);
+}
+
+function getPaymentModalValue() {
+    if (!paymentModalAmountInput) return null;
+    const raw = Number(paymentModalAmountInput.value);
+    const paid = Number.isFinite(raw) ? Math.round(raw * 100) / 100 : 0;
+    const change = Math.round((paid - paymentModalTotalAmount) * 100) / 100;
+    if (paid <= 0 || change < 0) return null;
+    return { paymentReceived: paid, change };
+}
+
+function updatePaymentModalState() {
+    if (!paymentModalAmountInput || !paymentModalConfirmBtn) return;
+    const raw = Number(paymentModalAmountInput.value);
+    const paid = Number.isFinite(raw) ? Math.round(raw * 100) / 100 : 0;
+    const change = Math.round((paid - paymentModalTotalAmount) * 100) / 100;
+
+    let error = null;
+    if (String(paymentModalAmountInput.value).trim() === '' || paid <= 0) {
+        error = 'Please enter the amount the customer paid.';
+    } else if (change < 0) {
+        error = `Insufficient amount — please collect the full total of ${formatCurrency(paymentModalTotalAmount)}.`;
+    }
+
+    if (paymentModalError) {
+        paymentModalError.textContent = error || '';
+        paymentModalError.hidden = !error;
+    }
+    if (paymentModalChangeRow) paymentModalChangeRow.hidden = error !== null;
+    if (paymentModalChangeValue) paymentModalChangeValue.textContent = formatCurrency(Math.max(0, change));
+    paymentModalConfirmBtn.disabled = error !== null;
+}
+
+/**
+ * Ask staff to record the amount collected before an order can be completed.
+ * Resolves with { paymentReceived, change } or null when the staff cancels.
+ */
+function collectOrderPayment(order) {
+    if (!paymentModal) return Promise.resolve(null);
+    const rawTotal = order ? Number((order.total_amount ?? order.total) ?? 0) : 0;
+    paymentModalTotalAmount = Math.round(Math.max(0, rawTotal) * 100) / 100;
+    if (paymentModalTotal) paymentModalTotal.textContent = formatCurrency(paymentModalTotalAmount);
+    if (paymentModalAmountInput) paymentModalAmountInput.value = '';
+    if (paymentModalError) paymentModalError.hidden = true;
+    if (paymentModalChangeRow) paymentModalChangeRow.hidden = true;
+    if (paymentModalChangeValue) paymentModalChangeValue.textContent = formatCurrency(0);
+    if (paymentModalConfirmBtn) paymentModalConfirmBtn.disabled = true;
+    return new Promise((resolve) => {
+        paymentModalResolver = resolve;
+        openPaymentModal();
+        if (paymentModalAmountInput) window.setTimeout(() => paymentModalAmountInput.focus(), 30);
+    });
+}
+
+if (paymentModalAmountInput) {
+    paymentModalAmountInput.addEventListener('input', updatePaymentModalState);
+    paymentModalAmountInput.addEventListener('change', updatePaymentModalState);
+    paymentModalAmountInput.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        if (paymentModalConfirmBtn && !paymentModalConfirmBtn.disabled) {
+            resolvePaymentModal(getPaymentModalValue());
+        }
+    });
+}
+
+if (paymentModalConfirmBtn) {
+    paymentModalConfirmBtn.addEventListener('click', () => resolvePaymentModal(getPaymentModalValue()));
+}
+
+if (paymentModalCancelBtn) {
+    paymentModalCancelBtn.addEventListener('click', () => resolvePaymentModal(null));
+}
+
+if (paymentModalCloseBtn) {
+    paymentModalCloseBtn.addEventListener('click', () => resolvePaymentModal(null));
+}
+
+if (paymentModal) {
+    paymentModal.addEventListener('click', (event) => {
+        if (event.target === paymentModal) resolvePaymentModal(null);
+    });
+}
+
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && paymentModal && !paymentModal.hidden) {
+        resolvePaymentModal(null);
+    }
+});
+
 /* ---- Trusted devices management ---- */
 const trustedDevicesList = document.getElementById('trustedDevicesList');
 const trustedDevicesMessage = document.getElementById('trustedDevicesMessage');
@@ -8724,20 +8847,28 @@ async function startOrderPreparationOnServer(orderId, minutes) {
     return payload;
 }
 
-async function markOrderCompleteOnServer(orderId) {
+async function markOrderCompleteOnServer(orderId, payment = null) {
     const actor = getCurrentStaffActor();
     const headers = await withCsrfHeaders({
         'Content-Type': 'application/json'
     });
 
+    const body = {
+        orderId,
+        actorRole: actor.role,
+        actorEmail: actor.email
+    };
+    if (payment && Number.isFinite(Number(payment.paymentReceived))) {
+        body.paymentReceived = Number(payment.paymentReceived);
+        if (Number.isFinite(Number(payment.change))) {
+            body.change = Number(payment.change);
+        }
+    }
+
     const response = await fetch(getApiUrl('api/mark_order_complete.php'), {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-            orderId,
-            actorRole: actor.role,
-            actorEmail: actor.email
-        }),
+        body: JSON.stringify(body),
         cache: 'no-store'
     });
 
@@ -9005,10 +9136,17 @@ async function markPendingOrderAsComplete(orderIndex, shouldIgnore = false) {
     if (orderIndex < 0 || orderIndex >= pendingOrders.length) return false;
 
     const targetOrder = pendingOrders[orderIndex];
+
+    const payment = await collectOrderPayment(targetOrder);
+    if (!payment) return false;
+
     try {
-        await markOrderCompleteOnServer(targetOrder.id);
+        const completedPayload = await markOrderCompleteOnServer(targetOrder.id, payment);
+        targetOrder.paymentReceived = completedPayload.paymentReceived != null ? Number(completedPayload.paymentReceived) : payment.paymentReceived;
+        targetOrder.changeDue = completedPayload.change != null ? Number(completedPayload.change) : payment.change;
     } catch (error) {
         console.error('Unable to mark order complete on server', error);
+        await showStaffNotice(`Unable to complete the order. ${error.message || 'Unexpected error'}`, true);
         return false;
     }
 
@@ -9070,6 +9208,8 @@ function printOrderReceiptForOrder(order) {
     const address = String(order.deliveryAddress || order.delivery_address || '').trim();
     const orderType = String(order.orderType || order.order_type || 'Dine In');
     const paymentMethod = String(order.paymentMethod || order.payment_method || '—');
+    const paymentReceived = order.paymentReceived != null ? Number(order.paymentReceived) : (order.payment_received != null ? Number(order.payment_received) : null);
+    const changeDue = order.changeDue != null ? Number(order.changeDue) : (order.change_due != null ? Number(order.change_due) : null);
     const timestamp = Number(order.timestamp) || Date.now();
     const printWindow = window.open('', '_blank', 'width=400,height=600');
     if (!printWindow) {
@@ -9109,6 +9249,8 @@ function printOrderReceiptForOrder(order) {
             <pre>${items || '  (no items)'}</pre>
             <hr>
             <p class="row total"><span>Total</span><span>${formatCurrency(order.total)}</span></p>
+            ${paymentReceived != null ? `<p class="row"><span>Amount Paid</span><span>${formatCurrency(paymentReceived)}</span></p>` : ''}
+            ${changeDue != null ? `<p class="row total"><span>Change</span><span>${formatCurrency(changeDue)}</span></p>` : ''}
             <p class="footer">Thank you for dining with us! 🍽</p>
         </body>
         </html>
@@ -9809,6 +9951,8 @@ function normalizeCompletedOrder(order) {
         orderType: order.order_type || order.orderType || 'Dine In',
         customerName: order.customer_name || order.customerName || '',
         deliveryAddress: order.delivery_address || order.deliveryAddress || '',
+        paymentReceived: order.payment_received != null ? Number(order.payment_received) : (order.paymentReceived != null ? Number(order.paymentReceived) : null),
+        changeDue: order.change_due != null ? Number(order.change_due) : (order.changeDue != null ? Number(order.changeDue) : null),
         items: Array.isArray(order.items) ? order.items.map((item) => ({
             ...item,
             name: item.notes || item.name || 'Menu item',
@@ -11099,7 +11243,7 @@ const exportSummary = document.getElementById('exportSummary');
 const exportDailyBtn = document.getElementById('exportDailyBtn');
 const exportMonthlyBtn = document.getElementById('exportMonthlyBtn');
 
-const EXPORT_ORDER_COLUMNS = ['Order Number', 'Timestamp', 'Customer Order List', 'Order Total', 'Fulfillment Method', 'Payment Method'];
+const EXPORT_ORDER_COLUMNS = ['Order Number', 'Timestamp', 'Customer Order List', 'Order Total', 'Fulfillment Method', 'Payment Method', 'Payment Received', 'Change'];
 
 function toLocalDateInputValue(date) {
     const year = date.getFullYear();
@@ -11235,13 +11379,17 @@ function toLocalDateKey(iso) {
 }
 
 function buildOrderRow(order) {
+    const paymentReceived = order.payment_received != null ? Number(order.payment_received) : (order.paymentReceived != null ? Number(order.paymentReceived) : null);
+    const changeDue = order.change_due != null ? Number(order.change_due) : (order.changeDue != null ? Number(order.changeDue) : null);
     return [
         excelSafe(String(order.order_number || order.id || '—')),
         excelSafe(formatExportTimestamp(order)),
         excelSafe(buildCustomerOrderList(order)),
         Number(order.total_amount ?? order.total ?? 0),
         excelSafe(String(order.order_type || '—')),
-        excelSafe(String(order.payment_method || '—'))
+        excelSafe(String(order.payment_method || '—')),
+        paymentReceived,
+        changeDue
     ];
 }
 
@@ -11285,7 +11433,7 @@ async function exportDailySales() {
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(
             workbook,
-            buildExcelSheet(orders.map(buildOrderRow), EXPORT_ORDER_COLUMNS, [16, 22, 60, 14, 20, 16]),
+            buildExcelSheet(orders.map(buildOrderRow), EXPORT_ORDER_COLUMNS, [16, 22, 60, 14, 20, 16, 18, 12]),
             'Daily Sales'
         );
         XLSX.writeFile(workbook, `MOTASTE-Daily-Sales-${date}.xlsx`);
@@ -11352,7 +11500,7 @@ async function exportMonthlySales() {
 
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, buildExcelSheet(dayRows, ['Date', 'Order Count', 'Total Sales', 'Items Sold'], [14, 14, 14, 14]), 'Daily Summary');
-        XLSX.utils.book_append_sheet(workbook, buildExcelSheet(orderRows, EXPORT_ORDER_COLUMNS, [16, 22, 60, 14, 20, 16]), 'Orders');
+        XLSX.utils.book_append_sheet(workbook, buildExcelSheet(orderRows, EXPORT_ORDER_COLUMNS, [16, 22, 60, 14, 20, 16, 18, 12]), 'Orders');
         XLSX.utils.book_append_sheet(workbook, buildExcelSheet(itemRows, ['Food Item', 'Qty Sold', 'Revenue'], [40, 12, 14]), 'Items Summary');
         XLSX.writeFile(workbook, `MOTASTE-Monthly-Sales-${from.slice(0, 7)}.xlsx`);
 
