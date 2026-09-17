@@ -135,9 +135,45 @@ test('upload endpoint: content sniff, bounds, auth + CSRF, server-side names, no
     expect($src)->not->toContain("\$file['name']");
     expect($src)->not->toContain("\$_FILES['image']['name']");
 
-    // Written into the locked-down public directory by random server-side name.
-    expect($src)->toContain('special_food_images');
+    // Stored OUTSIDE the web root in private storage, served only through the
+    // authenticated download endpoint — never as a static public asset.
+    expect($src)->toContain("storage_path('app/private/special_food_images')");
     expect($src)->toContain('file_put_contents(');
+    expect($src)->toContain('get_special_food_image.php?file=');
+    expect($src)->toContain('rawurlencode($fileName)');
+});
+
+test('upload endpoint never writes into the public web root', function () {
+    $src = (string) @file_get_contents(__DIR__ . '/../../public/api/upload_special_food_image.php');
+    expect($src)->not->toContain('realpath(dirname(__DIR__)) . DIRECTORY_SEPARATOR . \'special_food_images\'');
+    expect($src)->not->toContain('/special_food_images/\' . $fileName');
+});
+
+test('download endpoint: auth required, strict filename, path-traversal rejected', function () {
+    $src = (string) @file_get_contents(__DIR__ . '/../../public/api/get_special_food_image.php');
+    expect($src)->not->toBe('');
+
+    // Authorization boundary — only Admin / Inventory Manager may download.
+    expect($src)->toContain('requireInventoryAuth');
+    expect($src)->toContain('abortStaffAuthRequired');
+
+    // Named constants/guards used for storage.
+    expect($src)->toContain("storage_path('app/private/special_food_images')");
+
+    // Strict allowlist regex rejects traversal/executable names outright.
+    expect($src)->toContain("preg_match('/^special-food-\\d+-[a-f0-9]{12}\\.(?:jpg|png|gif|webp)$/");
+    expect($src)->toContain("../")->toContain("\\\\");
+
+    // Defense in depth: realpath containment keeps the resolved file inside
+    // the private directory.
+    expect($src)->toContain('realpath');
+    expect($src)->toContain("strpos(\$realPath, \$realStorage) !== 0");
+
+    // Safe serving headers + MIME from a fixed extension map.
+    expect($src)->toContain('image/jpeg');
+    expect($src)->toContain('image/webp');
+    expect($src)->toContain('X-Content-Type-Options: nosniff');
+    expect($src)->toContain('readfile');
 });
 
 test('upload directory .htaccess blocks listings/execution and sets nosniff', function () {

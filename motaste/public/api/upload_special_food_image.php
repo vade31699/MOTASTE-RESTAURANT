@@ -87,18 +87,25 @@ try {
     }
 
     $fileName = 'special-food-' . time() . '-' . bin2hex(random_bytes(6)) . '.' . $extension;
-    $publicDirectory = realpath(dirname(__DIR__)) . DIRECTORY_SEPARATOR . 'special_food_images';
-    if (!is_dir($publicDirectory) && !mkdir($publicDirectory, 0755, true) && !is_dir($publicDirectory)) {
-        throw new RuntimeException('Unable to create public image directory');
+    // Store outside the web root (storage/app/private) so uploaded files are
+    // never served directly by the web server — they are only retrievable
+    // through the authenticated download endpoint, which re-validates the
+    // filename against the server-generated format below.
+    $storageDirectory = storage_path('app/private/special_food_images');
+    if (!is_dir($storageDirectory) && !mkdir($storageDirectory, 0755, true) && !is_dir($storageDirectory)) {
+        throw new RuntimeException('Unable to create private image storage directory');
     }
 
-    $destination = $publicDirectory . DIRECTORY_SEPARATOR . $fileName;
+    $destination = $storageDirectory . DIRECTORY_SEPARATOR . $fileName;
     $written = @file_put_contents($destination, $sanitized, LOCK_EX);
     if ($written === false || $written < 1) {
-        throw new RuntimeException('Unable to save uploaded file to public folder');
+        throw new RuntimeException('Unable to save uploaded file to private storage');
     }
 
-    $relativeUrl = '/special_food_images/' . $fileName;
+    // The retrieval URL is the authenticated API download endpoint with the
+    // server-side filename bound as a query parameter. Files are never exposed
+    // as static web assets.
+    $relativeUrl = '/api/get_special_food_image.php?file=' . rawurlencode($fileName);
 
     // Build the absolute URL from the configured app URL — never from the
     // client-supplied Host header, which would let an authenticated uploader
