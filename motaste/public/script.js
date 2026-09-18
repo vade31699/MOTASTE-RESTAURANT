@@ -16300,6 +16300,11 @@ function navigateToPendingOrderFromOverview(orderId) {
     });
 }
 
+const overviewToPendingOrdersBtn = document.getElementById('overviewToPendingOrdersBtn');
+if (overviewToPendingOrdersBtn) {
+    overviewToPendingOrdersBtn.addEventListener('click', () => navigateToPendingOrderFromOverview(0));
+}
+
 if (overviewOrderNotificationList) {
     overviewOrderNotificationList.addEventListener('click', async (event) => {
         // clicking the notification list marks notifications as seen
