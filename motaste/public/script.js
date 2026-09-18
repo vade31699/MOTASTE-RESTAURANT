@@ -1365,7 +1365,7 @@ function restoreStaffSession() {
             renderOrderNotifications();
         } else if (targetSectionId === 'pending-orders') {
             void startStaffOrderMonitoring();
-            setOrdersTab('pending');
+            setOrdersTab('walk-in');
             renderWalkInOrderBuilder();
             renderPendingOrders();
         } else if (targetSectionId === 'sales') {
@@ -16250,9 +16250,9 @@ if (dashboardPanel) {
         } else if (href === '#pending-orders') {
             if (!canManageOrders()) return;
             showDashboardSection(pendingOrdersSection);
-            // Pending Orders is the primary order workflow; the walk-in builder
+            // Orders always opens on the Walk-in Order tab; the pending list
             // remains available through the tab switch.
-            setOrdersTab('pending');
+            setOrdersTab('walk-in');
             renderWalkInOrderBuilder();
             void loadPendingOrdersFromServer();
             renderPendingOrders();
