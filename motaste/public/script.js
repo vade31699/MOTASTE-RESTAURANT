@@ -14108,7 +14108,9 @@ function renderWalkInOrderBuilder() {
             walkInItemInput.placeholder = 'Click to choose a product';
 
             const stillExists = walkInAvailableItems.some((item) => item.name === previousSelection);
-            walkInItemInput.value = stillExists ? previousSelection : walkInAvailableItems[0].name;
+            // Keep the bar empty (placeholder shown) unless the staff member is
+            // mid-selection — never auto-fill it with an item name.
+            walkInItemInput.value = (previousSelection && stillExists) ? previousSelection : '';
         }
         renderWalkInItemDropdown();
     }
@@ -14373,6 +14375,11 @@ function addWalkInDraftItem() {
     }
 
     renderWalkInOrderBuilder();
+
+    // Reset the product search bar so it always shows its placeholder instead
+    // of the last picked item.
+    if (walkInItemInput) walkInItemInput.value = '';
+    closeWalkInItemDropdown();
 }
 
 function adjustWalkInDraftItem(index, direction) {
