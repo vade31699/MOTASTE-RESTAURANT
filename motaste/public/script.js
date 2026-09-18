@@ -1477,6 +1477,10 @@ function canAccessLogs() {
     return role === 'Admin';
 }
 
+function canManageReviews() {
+    return getCurrentStaffRole() === 'Admin';
+}
+
 function canManageOrders() {
     const role = getCurrentStaffRole();
     return role === 'Admin' || role === 'Cashier';
@@ -1498,6 +1502,7 @@ function resolveAccessibleSection(sectionId) {
     const requested = (sectionId || 'overview').trim();
     if (requested === 'inventory' && !canAccessInventory()) return 'overview';
     if (requested === 'logs' && !canAccessLogs()) return 'overview';
+    if (requested === 'customer-reviews' && !canManageReviews()) return 'overview';
     if (requested === 'pending-orders' && !canManageOrders()) return 'overview';
     if (requested === 'account-management' && !canManageAccounts()) return 'overview';
     if (requested === 'highlights' && !canManageHighlights()) return 'overview';
@@ -3648,6 +3653,8 @@ const accountManagementLink = document.getElementById('accountManagementLink');
 const highlightsLink = document.getElementById('highlightsLink');
 const loginLogsLink = document.getElementById('loginLogsLink');
 const logsLink = document.getElementById('logsLink');
+const reviewsLink = document.getElementById('reviewsLink');
+const customerReviewsSection = document.getElementById('customer-reviews');
 const accountManagementSection = document.getElementById('account-management');
 const highlightsSection = document.getElementById('highlights');
 const loginLogsSection = document.getElementById('login-logs');
@@ -4886,6 +4893,7 @@ function updateAccountManagementAccess() {
     setLinkState(ordersLink, canManageOrders());
     setLinkState(inventoryLink, canAccessInventory());
     setLinkState(logsLink, canAccessLogs());
+    setLinkState(reviewsLink, canManageReviews());
     setLinkState(accountManagementLink, canManageAccounts());
     setLinkState(highlightsLink, canManageHighlights());
     setLinkState(loginLogsLink, canAccessLoginLogs());
@@ -4894,7 +4902,7 @@ function updateAccountManagementAccess() {
         return;
     }
 
-    const activeSection = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, accountSettingsSection, highlightsSection, loginLogsSection]
+    const activeSection = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, customerReviewsSection, accountManagementSection, accountSettingsSection, highlightsSection, loginLogsSection]
         .find((section) => section && section.hidden === false);
     if (!activeSection) return;
 
@@ -13320,7 +13328,7 @@ function showDashboardSection(section) {
         syncLogsDateFilterToToday();
     }
 
-    const sections = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, accountManagementSection, accountSettingsSection, highlightsSection, loginLogsSection];
+    const sections = [overviewSection, salesSection, pendingOrdersSection, inventorySection, logsSection, customerReviewsSection, accountManagementSection, accountSettingsSection, highlightsSection, loginLogsSection];
     sections.forEach((el) => {
         if (!el) return;
         el.hidden = el !== section;
@@ -13354,6 +13362,7 @@ function showDashboardSection(section) {
             inventory: inventoryLink,
             sales: salesLink,
             logs: logsLink,
+            'customer-reviews': reviewsLink,
             'account-management': accountManagementLink,
             'account-settings': accountManagementLink,
             highlights: highlightsLink,
@@ -16264,6 +16273,10 @@ if (dashboardPanel) {
             syncLogsDateFilterToToday();
             showDashboardSection(logsSection);
             void loadOrderLogsFromServer(true);
+        } else if (href === '#customer-reviews') {
+            if (!canManageReviews()) return;
+            showDashboardSection(customerReviewsSection);
+            void loadReviewsFromServer(true);
         } else if (href === '#account-management' || href === '#credentials') {
             if (!canManageAccounts()) {
                 return;

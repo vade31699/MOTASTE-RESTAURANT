@@ -131,6 +131,7 @@
         <a href="#inventory" id="inventoryLink"><i class="fa-solid fa-boxes-stacked" aria-hidden="true"></i><span>Inventory</span></a>
         <a href="#sales" id="salesLink"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span>Sales</span></a>
         <a href="#logs" id="logsLink"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i><span>Logs</span></a>
+        <a href="#customer-reviews" id="reviewsLink"><i class="fa-solid fa-star" aria-hidden="true"></i><span>Customer Reviews</span></a>
         <a href="#account-management" id="accountManagementLink"><i class="fa-solid fa-users-gear" aria-hidden="true"></i><span>Account Management</span></a>
         <a href="#login-logs" id="loginLogsLink"><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i><span>Login Logs</span></a>
         <a href="#highlights" id="highlightsLink"><i class="fa-solid fa-images" aria-hidden="true"></i><span>Highlights</span></a>
@@ -756,20 +757,6 @@
     <section id="logs" class="orders-section" hidden>
         <h2>Logs</h2>
         <p>Real-time activity across devices: quantity changes, removals, and completed orders.</p>
-        <div class="review-management" id="reviewManagement">
-            <h3>Reviews</h3>
-            <p>Customer reviews across devices. Publish approved reviews or delete inappropriate ones.</p>
-            <div class="review-filter-bar" role="group" aria-label="Filter reviews by star rating">
-                <button type="button" class="review-filter-btn is-active" data-review-rating="0">All</button>
-                <button type="button" class="review-filter-btn" data-review-rating="1">1 Star</button>
-                <button type="button" class="review-filter-btn" data-review-rating="2">2 Star</button>
-                <button type="button" class="review-filter-btn" data-review-rating="3">3 Star</button>
-                <button type="button" class="review-filter-btn" data-review-rating="4">4 Star</button>
-                <button type="button" class="review-filter-btn" data-review-rating="5">5 Star</button>
-            </div>
-            <div id="staffReviewList" class="staff-review-list"></div>
-        </div>
-        <h3 class="review-history-title">Review Logs History</h3>
         <div id="logsFilterBar" class="logs-filter-bar" role="group" aria-label="Log filters">
             <label class="logs-filter-select-wrap" for="logsCategoryFilter">
                 <span class="sr-only">Select log category</span>
@@ -790,6 +777,20 @@
             </label>
         </div>
         <div id="logsList" class="order-logs-list"></div>
+    </section>
+
+    <section id="customer-reviews" class="orders-section" hidden>
+        <h2>Customer Reviews</h2>
+        <p>Customer reviews across devices. Publish approved reviews or delete inappropriate ones.</p>
+        <div class="review-filter-bar" role="group" aria-label="Filter reviews by star rating">
+            <button type="button" class="review-filter-btn is-active" data-review-rating="0">All</button>
+            <button type="button" class="review-filter-btn" data-review-rating="1">1 Star</button>
+            <button type="button" class="review-filter-btn" data-review-rating="2">2 Star</button>
+            <button type="button" class="review-filter-btn" data-review-rating="3">3 Star</button>
+            <button type="button" class="review-filter-btn" data-review-rating="4">4 Star</button>
+            <button type="button" class="review-filter-btn" data-review-rating="5">5 Star</button>
+        </div>
+        <div id="staffReviewList" class="staff-review-list"></div>
     </section>
 
     <section id="account-management" class="account-management" hidden>
