@@ -4920,7 +4920,7 @@ body.staff-app .retention-clear-btn {
     background: #ffffff;
     border: 1px solid rgba(148, 163, 184, 0.22);
     border-radius: 14px;
-    padding: 16px;
+    padding: 14px 16px;
     display: grid;
     gap: 10px;
     color: #1f2937;
@@ -4929,6 +4929,7 @@ body.staff-app .retention-clear-btn {
 
 .order-notification-card.status-pending {
     border-left: 5px solid #2bae66;
+    background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
     cursor: pointer;
     transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
 }
@@ -4940,8 +4941,7 @@ body.staff-app .retention-clear-btn {
 }
 
 .order-notification-card.completed {
-    opacity: 1;
-    background: rgba(255,255,255,0.03);
+    background: rgba(255, 255, 255, 0.03);
 }
 
 .order-notification-card h4,
@@ -4949,13 +4949,7 @@ body.staff-app .retention-clear-btn {
     margin: 0;
 }
 
-.order-notification-card ul {
-    margin: 0;
-    padding-left: 18px;
-    color: #333;
-}
-
-.order-notif-top {
+.order-notif-head {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -4963,9 +4957,29 @@ body.staff-app .retention-clear-btn {
     flex-wrap: wrap;
 }
 
-.order-notif-top h4 {
-    margin: 0;
+.order-notif-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.order-notif-id {
     font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: #1f2937;
+}
+
+.order-notif-ordertype {
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: #eef2ff;
+    color: #4338ca;
+    border-radius: 999px;
+    padding: 4px 10px;
 }
 
 .order-notif-badge {
@@ -4987,17 +5001,29 @@ body.staff-app .retention-clear-btn {
     color: #15803d;
 }
 
-.order-notif-body {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-    gap: 14px;
-    align-items: start;
+.order-notif-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px 14px;
+    font-size: 0.84rem;
+    color: #475569;
 }
 
-.order-notif-customer {
-    display: grid;
-    gap: 6px;
-    font-size: 0.9rem;
+.order-notif-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.order-notif-meta-item i {
+    color: #2bae66;
+    font-size: 0.78rem;
+}
+
+.order-notif-meta-address {
+    white-space: normal;
 }
 
 .order-notif-address {
@@ -5009,9 +5035,10 @@ body.staff-app .retention-clear-btn {
     font-size: 0.82rem;
 }
 
-.order-notif-items ul {
-    padding-left: 0;
+.order-notif-items {
     list-style: none;
+    margin: 0;
+    padding: 0;
     display: grid;
     gap: 6px;
 }
@@ -5050,7 +5077,7 @@ body.staff-app .retention-clear-btn {
     padding-left: 6px;
 }
 
-.order-notif-footer {
+.order-notif-foot {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -5058,6 +5085,26 @@ body.staff-app .retention-clear-btn {
     flex-wrap: wrap;
     border-top: 1px solid #edf2f7;
     padding-top: 10px;
+}
+
+.order-notif-total {
+    display: grid;
+    gap: 2px;
+}
+
+.order-notif-total span {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+}
+
+.order-notif-total strong {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #1f2937;
+    letter-spacing: -0.01em;
 }
 
 /* ---------- Sales analytics line draw animation ---------- */
@@ -5107,12 +5154,6 @@ body.staff-app .retention-clear-btn {
     color: #4338ca;
     border-radius: 999px;
     padding: 4px 10px;
-}
-
-@media (max-width: 640px) {
-    .order-notif-body {
-        grid-template-columns: 1fr;
-    }
 }
 
 .pending-item-row {
@@ -8843,7 +8884,8 @@ body.staff-app .order-notification-card strong {
     color: var(--staff-text);
 }
 
-body.staff-app .order-notification-card .order-notif-top h4 {
+body.staff-app .order-notification-card .order-notif-id {
+    color: var(--staff-text);
     font-weight: 800;
     letter-spacing: -0.01em;
 }
@@ -8894,10 +8936,6 @@ body.staff-app .order-notif-badge.is-refunded {
     color: #B91C1C;
 }
 
-body.staff-app .order-notif-customer strong {
-    color: var(--staff-accent-strong);
-}
-
 body.staff-app .order-notif-item {
     background: #F4F7F5;
     border: 1px solid #E3EAE6;
@@ -8925,13 +8963,17 @@ body.staff-app .order-notif-components {
     padding: 6px 8px;
 }
 
-body.staff-app .order-notif-footer {
+body.staff-app .order-notif-foot {
     border-top-color: #E8F0EA;
 }
 
-body.staff-app .order-notif-footer strong {
+body.staff-app .order-notif-total span {
+    color: var(--staff-muted);
+}
+
+body.staff-app .order-notif-total strong {
     color: var(--staff-accent-2);
-    font-size: 0.95rem;
+    font-size: 1rem;
     letter-spacing: -0.01em;
 }
 
@@ -12197,23 +12239,25 @@ body.staff-app .staff-login-page::after {
    Overview Order Notifications — view-only feed
    ============================================================ */
 .order-notif-go-link {
-    border: 1px solid rgba(22, 122, 69, 0.35);
-    background: rgba(22, 122, 69, 0.08);
-    color: var(--staff-accent-strong, #167a45);
-    border-radius: 10px;
-    padding: 8px 12px;
-    font-size: 0.78rem;
-    font-weight: 700;
-    cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    transition: background 0.15s ease, transform 0.15s ease;
+    gap: 7px;
+    border: none;
+    background: linear-gradient(135deg, #2bae66, #1f8a50);
+    color: #ffffff;
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(22, 122, 69, 0.25);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 
 .order-notif-go-link:hover {
-    background: rgba(22, 122, 69, 0.16);
     transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(22, 122, 69, 0.32);
+    filter: brightness(1.05);
 }
 
 .order-notif-badge.is-preparing {
@@ -12237,8 +12281,12 @@ body.staff-app .staff-login-page::after {
 }
 
 .order-notif-prep {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     color: #4338ca !important;
-    font-weight: 600;
+    font-weight: 700;
+    font-size: 0.82rem;
 }
 
 .order-notif-actions {
@@ -12250,17 +12298,17 @@ body.staff-app .staff-login-page::after {
 }
 
 .order-notif-print-btn {
-    border: 1px solid rgba(2, 132, 199, 0.35);
-    background: rgba(2, 132, 199, 0.08);
-    color: #0369a1;
-    border-radius: 10px;
-    padding: 8px 12px;
-    font-size: 0.78rem;
-    font-weight: 700;
-    cursor: pointer;
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    border: 1px solid rgba(2, 132, 199, 0.4);
+    background: rgba(2, 132, 199, 0.08);
+    color: #0369a1;
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
     transition: background 0.15s ease, transform 0.15s ease;
 }
 

@@ -11767,34 +11767,35 @@ function renderOrderNotifications() {
         if (isCompleted) {
             secondaryAction = `<button type="button" class="order-refund-btn" data-order-id="${escapeHtml(order.id)}"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Refund</button>`;
         } else if (isPending) {
-            secondaryAction = `<button type="button" class="order-notif-go-link" data-order-id="${escapeHtml(order.id)}"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i> Orders → Pending Orders</button>`;
+            secondaryAction = `<button type="button" class="order-notif-go-link" data-order-id="${escapeHtml(order.id)}">Go to Pending Orders <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>`;
         }
 
         return `
             <article class="order-notification-card status-${escapeHtml(status)} ${isCompleted ? 'completed' : ''}" data-order-id="${escapeHtml(order.id)}">
-                <div class="order-notif-top">
-                    <h4>Order #${escapeHtml(displayNumber)}</h4>
+                <div class="order-notif-head">
+                    <div class="order-notif-title">
+                        <span class="order-notif-id">#${escapeHtml(displayNumber)}</span>
+                        <span class="order-notif-ordertype">${escapeHtml(order.orderType || 'Dine In')}</span>
+                    </div>
                     <span class="order-notif-badge ${badge.className}">${badge.label}</span>
                 </div>
-                <div class="order-notif-body">
-                    <div class="order-notif-customer">
-                        <p><strong>Customer:</strong> ${customerName ? escapeHtml(customerName) : '—'}</p>
-                        <p><strong>Order Type:</strong> ${escapeHtml(order.orderType || 'Dine In')}</p>
-                        ${isSakayKo ? `<p class="order-notif-address"><strong>Address:</strong> ${deliveryAddress ? escapeHtml(deliveryAddress) : '—'}</p>` : ''}
-                        <p><strong>Payment:</strong> ${escapeHtml(order.paymentMethod)}</p>
-                        <p><strong>Submitted:</strong> ${formatRealtimeDate(order.timestamp)}</p>
-                        ${prepLine}
-                    </div>
-                    <div class="order-notif-items">
-                        <ul>${orderItems}</ul>
-                    </div>
+                <div class="order-notif-meta">
+                    <span class="order-notif-meta-item"><i class="fa-solid fa-user" aria-hidden="true"></i>${customerName ? escapeHtml(customerName) : 'Walk-in'}</span>
+                    <span class="order-notif-meta-item"><i class="fa-solid fa-money-bill" aria-hidden="true"></i>${escapeHtml(order.paymentMethod)}</span>
+                    <span class="order-notif-meta-item"><i class="fa-solid fa-clock" aria-hidden="true"></i>${formatRealtimeDate(order.timestamp)}</span>
+                    ${isSakayKo ? `<span class="order-notif-meta-item order-notif-meta-address"><i class="fa-solid fa-location-dot" aria-hidden="true"></i>${deliveryAddress ? escapeHtml(deliveryAddress) : 'Address not provided'}</span>` : ''}
+                    ${prepLine}
                 </div>
-                <div class="order-notif-footer">
-                    <strong>Total: ${formatCurrency(order.total)}</strong>
-                    <span class="order-notif-actions">
+                <ul class="order-notif-items">${orderItems}</ul>
+                <div class="order-notif-foot">
+                    <div class="order-notif-total">
+                        <span>Total</span>
+                        <strong>${formatCurrency(order.total)}</strong>
+                    </div>
+                    <div class="order-notif-actions">
                         <button type="button" class="order-notif-print-btn" data-print-order-id="${escapeHtml(order.id)}" data-print-status="${escapeHtml(status)}"><i class="fa-solid fa-print" aria-hidden="true"></i> Receipt</button>
                         ${secondaryAction}
-                    </span>
+                    </div>
                 </div>
             </article>
         `;
