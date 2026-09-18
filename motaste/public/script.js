@@ -11771,7 +11771,7 @@ function renderOrderNotifications() {
         }
 
         return `
-            <article class="order-notification-card status-${escapeHtml(status)} ${isCompleted ? 'completed' : ''}">
+            <article class="order-notification-card status-${escapeHtml(status)} ${isCompleted ? 'completed' : ''}" data-order-id="${escapeHtml(order.id)}">
                 <div class="order-notif-top">
                     <h4>Order #${escapeHtml(displayNumber)}</h4>
                     <span class="order-notif-badge ${badge.className}">${badge.label}</span>
@@ -16278,15 +16278,24 @@ if (dashboardPanel) {
     });
 }
 
-const overviewToPendingLink = document.getElementById('overviewToPendingLink');
-if (overviewToPendingLink) {
-    overviewToPendingLink.addEventListener('click', () => {
-        if (!canManageOrders()) return;
-        showDashboardSection(pendingOrdersSection);
-        setOrdersTab('pending');
-        renderWalkInOrderBuilder();
-        renderPendingOrders();
-        void loadPendingOrdersFromServer();
+function navigateToPendingOrderFromOverview(orderId) {
+    if (!canManageOrders()) return;
+    showDashboardSection(pendingOrdersSection);
+    setOrdersTab('pending');
+    renderWalkInOrderBuilder();
+    renderPendingOrders();
+
+    // Highlight the target card only after the server reload re-renders the
+    // list, so the highlight is never wiped by the async refresh.
+    loadPendingOrdersFromServer().then(() => {
+        if (!orderId) return;
+        const targetCard = Array.from(document.querySelectorAll('#pendingOrdersList .pending-order-card'))
+            .find((card) => Number(card.dataset.orderId || card.dataset.orderIndex) === orderId);
+        if (targetCard && typeof targetCard.scrollIntoView === 'function') {
+            targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            targetCard.classList.add('is-highlighted');
+            window.setTimeout(() => targetCard.classList.remove('is-highlighted'), 2200);
+        }
     });
 }
 
@@ -16325,29 +16334,19 @@ if (overviewOrderNotificationList) {
         }
 
         // The overview feed is view-only: processing happens under Orders →
-        // Pending Orders. Clicking the hint navigates staff there directly.
-        const link = event.target.closest('.order-notif-go-link');
-        if (!link) return;
-        if (!canManageOrders()) return;
+        // Pending Orders. Clicking the go-link button (or anywhere on a pending
+        // card) navigates staff there and highlights the order.
+        const goLink = event.target.closest('.order-notif-go-link');
+        if (goLink) {
+            navigateToPendingOrderFromOverview(Number(goLink.dataset.orderId || 0));
+            return;
+        }
 
-        showDashboardSection(pendingOrdersSection);
-        setOrdersTab('pending');
-        renderWalkInOrderBuilder();
-        renderPendingOrders();
-
-        const orderId = Number(link.dataset.orderId || 0);
-        // Highlight the target card only after the server reload re-renders the
-        // list, so the highlight is never wiped by the async refresh.
-        loadPendingOrdersFromServer().then(() => {
-            if (!orderId) return;
-            const targetCard = Array.from(document.querySelectorAll('#pendingOrdersList .pending-order-card'))
-                .find((card) => Number(card.dataset.orderId || card.dataset.orderIndex) === orderId);
-            if (targetCard && typeof targetCard.scrollIntoView === 'function') {
-                targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                targetCard.classList.add('is-highlighted');
-                window.setTimeout(() => targetCard.classList.remove('is-highlighted'), 2200);
-            }
-        });
+        const pendingCard = event.target.closest('.order-notification-card.status-pending');
+        if (pendingCard && !event.target.closest('button, a')) {
+            navigateToPendingOrderFromOverview(Number(pendingCard.dataset.orderId || 0));
+            return;
+        }
     });
 }
 

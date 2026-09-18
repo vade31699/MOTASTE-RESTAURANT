@@ -4699,11 +4699,6 @@ body.staff-app .retention-clear-btn {
 
 .overview-order-notification-box {
     min-height: 200px;
-    max-height: 440px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(148,163,184,0.35) transparent;
 }
 
 .overview-analytics-panel h3,
@@ -4914,23 +4909,38 @@ body.staff-app .retention-clear-btn {
 .order-notification-list {
     display: grid;
     gap: 12px;
-    max-height: 420px;
+    max-height: 560px;
     overflow-y: auto;
-    padding-right: 4px;
+    padding-right: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
 }
 
 .order-notification-card {
-    background: #f8fafc;
-    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: #ffffff;
+    border: 1px solid rgba(148, 163, 184, 0.22);
     border-radius: 14px;
-    padding: 14px;
+    padding: 16px;
     display: grid;
-    gap: 8px;
+    gap: 10px;
     color: #1f2937;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+}
+
+.order-notification-card.status-pending {
+    border-left: 5px solid #2bae66;
+    cursor: pointer;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.order-notification-card.status-pending:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(22, 122, 69, 0.16);
+    border-color: #2bae66;
 }
 
 .order-notification-card.completed {
-    opacity: 0.8;
+    opacity: 1;
     background: rgba(255,255,255,0.03);
 }
 
@@ -4955,7 +4965,7 @@ body.staff-app .retention-clear-btn {
 
 .order-notif-top h4 {
     margin: 0;
-    font-size: 1rem;
+    font-size: 1.05rem;
 }
 
 .order-notif-badge {
@@ -4987,7 +4997,7 @@ body.staff-app .retention-clear-btn {
 .order-notif-customer {
     display: grid;
     gap: 6px;
-    font-size: 0.86rem;
+    font-size: 0.9rem;
 }
 
 .order-notif-address {
@@ -5011,7 +5021,7 @@ body.staff-app .retention-clear-btn {
     justify-content: space-between;
     align-items: baseline;
     gap: 10px;
-    font-size: 0.86rem;
+    font-size: 0.9rem;
     background: #fbfcfd;
     border: 1px solid #eef2f7;
     border-radius: 10px;
@@ -8775,12 +8785,6 @@ body.staff-app .menu-cart-empty {
     text-align: center;
 }
 
-body.staff-app .overview-order-notification-box .order-notification-hint,
-body.staff-app .overview-order-notification-box .overview-notification-hint {
-    color: var(--staff-muted);
-    font-size: 0.85rem;
-}
-
 body.staff-app .order-notification-footer span {
     color: var(--staff-muted);
     font-weight: 600;
@@ -12190,34 +12194,8 @@ body.staff-app .staff-login-page::after {
 }
 
 /* ============================================================
-   Overview Order Notifications — view-only feed + hint
+   Overview Order Notifications — view-only feed
    ============================================================ */
-.overview-notification-hint {
-    margin: 8px 0 12px;
-    font-size: 0.8rem;
-    color: var(--staff-muted, #57655c);
-    background: var(--staff-surface-2, #f1f5f9);
-    border: 1px dashed var(--staff-border, #cbd5e1);
-    border-radius: 10px;
-    padding: 8px 12px;
-    line-height: 1.5;
-}
-
-.overview-to-pending-link {
-    border: none;
-    background: none;
-    padding: 0;
-    color: var(--staff-accent-strong, #167a45);
-    font-weight: 700;
-    cursor: pointer;
-    text-decoration: underline;
-    font-size: inherit;
-}
-
-.overview-to-pending-link:hover {
-    color: var(--staff-accent, #2bae66);
-}
-
 .order-notif-go-link {
     border: 1px solid rgba(22, 122, 69, 0.35);
     background: rgba(22, 122, 69, 0.08);
