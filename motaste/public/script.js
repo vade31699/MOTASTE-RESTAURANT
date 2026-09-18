@@ -11801,7 +11801,7 @@ function renderOrderNotifications() {
     }).join('');
 }
 
-/* ================= Sales & Receipt Export (Overview dashboard) ================= */
+/* ================= Sales & Receipt Export (Sales page) ================= */
 const exportDailyDateInput = document.getElementById('exportDailyDate');
 const exportMonthSelect = document.getElementById('exportMonthSelect');
 const exportYearSelect = document.getElementById('exportYearSelect');
