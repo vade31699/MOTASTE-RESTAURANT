@@ -45,26 +45,11 @@ return [
         ],
 
         /*
-         * Mirror target for `php artisan db:sync`. Kept separate from the
-         * application connection so mirroring can never write to the source.
-         */
-        'backup' => [
-            'driver' => 'sqlite',
-            'url' => null,
-            'database' => env('BACKUP_DATABASE', database_path('backup.sqlite')),
-            'prefix' => '',
-            'foreign_key_constraints' => false,
-            'busy_timeout' => null,
-            'journal_mode' => null,
-            'synchronous' => null,
-            'transaction_mode' => 'DEFERRED',
-        ],
-
-        /*
-         * Off-site mirror target: a hosted Postgres (e.g. Supabase) so the copy
-         * keeps updating while no local machine is running. Point DB_SYNC_BACKUP
-         * at this connection (`DB_SYNC_BACKUP=supabase`) and let the Laravel
-         * Cloud scheduler drive `php artisan db:sync`.
+         * Mirror target for `php artisan db:sync`: a hosted Postgres (e.g.
+         * Supabase) so the copy keeps updating while no local machine is
+         * running. `config/db_sync.php` points DB_SYNC_BACKUP at this
+         * connection by default and the Laravel Cloud scheduler drives
+         * `php artisan db:sync`.
          *
          * Use Supabase's *session* pooler URL (port 5432 on
          * aws-0-<region>.pooler.supabase.com): the direct db.<ref>.supabase.co

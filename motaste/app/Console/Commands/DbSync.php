@@ -546,7 +546,7 @@ class DbSync extends Command
         return array_values(array_filter(array_map('trim', $tables)));
     }
 
-    /** Make sure the backup database exists and can be connected to. */
+    /** Make sure the backup connection is configured and can be connected to. */
     private function prepareBackupConnection(): void
     {
         $config = config("database.connections.{$this->backup}");
@@ -554,20 +554,6 @@ class DbSync extends Command
         if ($config === null) {
             throw new RuntimeException("Connection [{$this->backup}] is not configured in config/database.php.");
         }
-
-        $path = $config['database'] ?? null;
-
-        if (($config['driver'] ?? null) !== 'sqlite' || $path === null || $path === ':memory:' || file_exists($path)) {
-            return;
-        }
-
-        $directory = dirname($path);
-
-        if (! is_dir($directory)) {
-            mkdir($directory, 0755, true);
-        }
-
-        touch($path);
 
         DB::purge($this->backup);
     }

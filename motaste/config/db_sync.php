@@ -14,7 +14,7 @@ return [
 
     'source' => env('DB_SYNC_SOURCE', env('DB_CONNECTION', 'sqlite')),
 
-    'backup' => env('DB_SYNC_BACKUP', 'backup'),
+    'backup' => env('DB_SYNC_BACKUP', 'supabase'),
 
     /*
     |--------------------------------------------------------------------------

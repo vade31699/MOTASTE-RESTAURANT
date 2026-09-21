@@ -671,7 +671,7 @@ if (($options['mirror-url'] ?? null) !== null) {
         postgresConfiguration('mirror', 'mirror', (string) $options['mirror-url'], $options),
     );
 } else {
-    $mirrorName = (string) ($options['mirror'] ?? config('db_sync.backup', 'backup'));
+    $mirrorName = (string) ($options['mirror'] ?? config('db_sync.backup', 'supabase'));
     $mirrorConfiguration = config("database.connections.{$mirrorName}");
 
     if (! is_array($mirrorConfiguration)) {
