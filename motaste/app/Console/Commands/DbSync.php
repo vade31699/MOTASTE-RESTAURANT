@@ -8,6 +8,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use JsonSerializable;
 use RuntimeException;
@@ -50,6 +51,11 @@ class DbSync extends Command
             $this->prepareBackupConnection();
             $this->prepareStateTables();
         } catch (Throwable $e) {
+            Log::error('db:sync failed to start', [
+                'source' => $this->source,
+                'backup' => $this->backup,
+                'message' => $e->getMessage(),
+            ]);
             $this->error($e->getMessage());
 
             return self::FAILURE;
@@ -82,7 +88,19 @@ class DbSync extends Command
         while (true) {
             $run++;
 
-            $this->report($this->runCycle($tables), $loop);
+            $results = $this->runCycle($tables);
+
+            $changed = collect($results)->filter(fn ($result) => $result['result'] !== 'none');
+            $errored = collect($results)->filter(fn ($result) => $result['error'] !== null);
+
+            Log::info('db:sync cycle finished', [
+                'run' => $run,
+                'changed_tables' => $changed->count(),
+                'error_tables' => $errored->count(),
+                'tables' => $results,
+            ]);
+
+            $this->report($results, $loop);
 
             if (! $loop || ($cycles !== null && $run >= $cycles)) {
                 break;

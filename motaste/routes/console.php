@@ -15,9 +15,10 @@ use Illuminate\Support\Facades\Schedule;
 
 // Mirror the live database into the Supabase connection: new and updated rows
 // are copied across and rows deleted from the source are deleted from the
-// mirror. `schedule:run` is invoked once a minute on Laravel Cloud, so this
-// fires at most once per minute; run `php artisan db:sync --loop` as a
-// long-lived process when a true 30-second cadence is required.
+// mirror. With sub-minute frequencies Laravel's `schedule:run` stays alive for
+// the whole minute, so this fires at :00 and :30 of each minute as long as the
+// environment's Scheduler is enabled. Each cycle is also logged (db:sync) so
+// failures show up in the Laravel Cloud Logs tab.
 Schedule::command('db:sync')->everyThirtySeconds()->withoutOverlapping();
 
 // Monthly: stage the previous month's system logs + staff login history and

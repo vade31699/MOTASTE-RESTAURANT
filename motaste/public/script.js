@@ -9655,9 +9655,23 @@ let reviewerToken = null;
 function getOrCreateReviewerToken() {
     if (reviewerToken) return reviewerToken;
 
-    reviewerToken = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    try {
+        reviewerToken = localStorage.getItem(reviewerTokenStorageKey) || null;
+    } catch (e) {
+        reviewerToken = null;
+    }
+
+    if (!reviewerToken) {
+        reviewerToken = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+        try {
+            localStorage.setItem(reviewerTokenStorageKey, reviewerToken);
+        } catch (e) {
+            // Storage unavailable (e.g. private mode): the daily limit applies per tab session.
+        }
+    }
 
     return reviewerToken;
 }
