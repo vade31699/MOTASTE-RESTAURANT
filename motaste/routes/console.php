@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Schedule;
 // the whole minute, so this fires at :00 and :30 of each minute as long as the
 // environment's Scheduler is enabled. Each cycle is also logged (db:sync) so
 // failures show up in the Laravel Cloud Logs tab.
-Schedule::command('db:sync')->everyThirtySeconds()->withoutOverlapping();
+Schedule::command('db:sync')->everyThirtySeconds()->withoutOverlapping(5);
 
 // Monthly: stage the previous month's system logs + staff login history and
 // notify the admin (CSV attachment) so they can export to Excel or clear.
