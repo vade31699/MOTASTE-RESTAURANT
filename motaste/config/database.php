@@ -44,6 +44,49 @@ return [
             'transaction_mode' => 'DEFERRED',
         ],
 
+        /*
+         * Mirror target for `php artisan db:sync`. Kept separate from the
+         * application connection so mirroring can never write to the source.
+         */
+        'backup' => [
+            'driver' => 'sqlite',
+            'url' => null,
+            'database' => env('BACKUP_DATABASE', database_path('backup.sqlite')),
+            'prefix' => '',
+            'foreign_key_constraints' => false,
+            'busy_timeout' => null,
+            'journal_mode' => null,
+            'synchronous' => null,
+            'transaction_mode' => 'DEFERRED',
+        ],
+
+        /*
+         * Off-site mirror target: a hosted Postgres (e.g. Supabase) so the copy
+         * keeps updating while no local machine is running. Point DB_SYNC_BACKUP
+         * at this connection (`DB_SYNC_BACKUP=supabase`) and let the Laravel
+         * Cloud scheduler drive `php artisan db:sync`.
+         *
+         * Use Supabase's *session* pooler URL (port 5432 on
+         * aws-0-<region>.pooler.supabase.com): the direct db.<ref>.supabase.co
+         * host is IPv6-only on current projects, and the transaction pooler
+         * (port 6543) drops the session state that building the mirror's tables
+         * depends on.
+         */
+        'supabase' => [
+            'driver' => 'pgsql',
+            'url' => env('BACKUP_DATABASE_URL'),
+            'host' => env('BACKUP_DB_HOST', '127.0.0.1'),
+            'port' => env('BACKUP_DB_PORT', '5432'),
+            'database' => env('BACKUP_DB_DATABASE', 'postgres'),
+            'username' => env('BACKUP_DB_USERNAME', 'postgres'),
+            'password' => env('BACKUP_DB_PASSWORD', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env('BACKUP_DB_SSLMODE', 'require'),
+        ],
+
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
