@@ -347,10 +347,11 @@ function ensureStaffAuthSession(): void
  * Returns the authenticated staff array (role/email/name) or null.
  *
  * SECURITY: a valid PHP session alone is no longer sufficient. The caller must
- * also hold a valid bearer token (HttpOnly cookie, or legacy body fallback)
- * whose account/role matches the session. This closes the case where a browser
- * keeps a stale PHP session cookie (e.g. after the bearer token expired or was
- * revoked) and silently stays authenticated on every staff-only request.
+ * also hold a valid bearer token (the HttpOnly cookie — the request body has
+ * not been a token source since f10a525) whose account/role matches the
+ * session. This closes the case where a browser keeps a stale PHP session
+ * cookie (e.g. after the bearer token expired or was revoked) and silently
+ * stays authenticated on every staff-only request.
  *
  * If the session is missing but the bearer token is valid, the PHP session is
  * rehydrated from the token so the rest of the request sees a normal session.
@@ -366,7 +367,7 @@ function requireStaffAuth(): ?array
     $sessionEmail = $session ? (string)($session['email'] ?? '') : '';
     $sessionRole  = $session ? (string)($session['role']  ?? '') : '';
 
-    // The bearer token (HttpOnly cookie preferred, body as legacy fallback).
+    // The bearer token: the HttpOnly cookie is the only source.
     $bearerToken   = resolveStaffSessionRequestToken();
     $bearerIdentity = $bearerToken !== null ? resolveStaffSessionToken($bearerToken) : null;
 

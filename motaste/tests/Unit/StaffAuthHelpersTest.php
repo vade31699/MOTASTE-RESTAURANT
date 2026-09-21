@@ -528,31 +528,32 @@ test('staff login/logout audit rows are written, and only for known events', fun
     DB::table('order_activity_logs')->where('actor_email', $email)->delete();
 });
 
-test('the staff session cookie is the primary token source, with a body fallback', function () {
+test('the staff session cookie is the only source of the session token', function () {
     bootTestApp();
 
     $originalCookies = $_COOKIE;
 
     try {
-        // No cookie: the request body is still honored for clients built
-        // before the token moved into an HttpOnly cookie.
+        // The request-body fallback was removed in f10a525 so the token can
+        // never be read back out of a payload page script can see. The resolver
+        // takes no arguments at all, which is what this guards: reintroducing a
+        // body-token parameter would revive that exposure.
+        expect((new ReflectionFunction('resolveStaffSessionRequestToken'))->getNumberOfParameters())->toBe(0);
+
+        // No cookie, so there is no token — however the request is shaped.
         $_COOKIE = [];
         expect(readStaffSessionTokenCookie())->toBeNull();
-        expect(resolveStaffSessionRequestToken('legacy-body-token'))->toBe('legacy-body-token');
-        expect(resolveStaffSessionRequestToken(''))->toBeNull();
-        expect(resolveStaffSessionRequestToken(null))->toBeNull();
+        expect(resolveStaffSessionRequestToken())->toBeNull();
 
-        // With a cookie present it wins over the body — that is the point of
-        // moving the token out of page-script reach, so a body value cannot
-        // override the browser's own session.
+        // The HttpOnly cookie is where the token comes from.
         $_COOKIE[STAFF_SESSION_COOKIE_NAME] = 'cookie-token';
         expect(readStaffSessionTokenCookie())->toBe('cookie-token');
-        expect(resolveStaffSessionRequestToken('legacy-body-token'))->toBe('cookie-token');
+        expect(resolveStaffSessionRequestToken())->toBe('cookie-token');
 
         // Blank / whitespace-only cookies are treated as absent.
         $_COOKIE[STAFF_SESSION_COOKIE_NAME] = '   ';
         expect(readStaffSessionTokenCookie())->toBeNull();
-        expect(resolveStaffSessionRequestToken(null))->toBeNull();
+        expect(resolveStaffSessionRequestToken())->toBeNull();
     } finally {
         $_COOKIE = $originalCookies;
     }
