@@ -121,6 +121,14 @@ function bootRetentionTestApp(): void
     }
 }
 
+// Boot before the first test runs, not inside it: the app bootstrap registers
+// global error/exception handlers, and PHPUnit marks whichever test triggers
+// the boot as "risky" (did not remove its own error handlers) when that happens
+// mid-test. beforeAll runs outside per-test handler accounting.
+beforeAll(function () {
+    bootRetentionTestApp();
+});
+
 test('monthly staging creates batches for logs and login history', function () {
     bootRetentionTestApp();
     resetRetentionTestData();
