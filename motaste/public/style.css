@@ -13479,3 +13479,112 @@ body.staff-app .login-history-clear-btn {
 body.staff-app .login-history-filter-note {
     color: var(--staff-muted);
 }
+
+/* ==== migrated from staff.html <style> block ==== */
+
+        html,
+        body {
+            position: relative;
+            z-index: 0;
+        }
+
+        .staff-login-page {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            background-color: transparent;
+            overflow: hidden;
+        }
+
+        .login-dark-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0,0,0,0.65);
+            z-index: -2;
+            pointer-events: none;
+        }
+
+        .staff-box,
+        .modal-box {
+            position: relative;
+            z-index: 50;
+        }
+
+        .sales-section,
+        .account-management {
+            position: relative;
+            z-index: 20;
+        }
+
+        .account-management {
+            margin: 24px auto;
+            max-width: 900px;
+            width: calc(100% - 32px);
+        }
+
+        /* Notification badge pulse animation */
+        .notif-badge-pulse {
+            animation: notif-pulse 1s ease-in-out 0s 3 both;
+        }
+
+        @keyframes notif-pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68, 0.7); }
+            50% { transform: scale(1.18); box-shadow: 0 0 8px 6px rgba(239,68,68, 0.12); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68, 0); }
+        }
+        /* Scroll-to-top button for Sales Analysis */
+        .sales-scroll-top-btn {
+            position: sticky;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 30;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 999px;
+            background: #ff9800;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(255, 152, 0, 0.35);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            margin-top: 12px;
+        }
+        .sales-scroll-top-btn.is-visible {
+            display: inline-flex;
+        }
+        .sales-scroll-top-btn:hover {
+            background: #e68900;
+            transform: translateX(-50%) translateY(-2px);
+        }
+    
+
+/* ==== migrated staff.html inline styles (CSP: no unsafe-inline) ==== */
+.mst-i1 { display:none }
+.mst-i2 { display:flex;gap:10px;margin:8px 0 12px;flex-wrap:wrap;justify-content:stretch; }
+.mst-i3 { flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06); }
+.mst-i4 { font-size:13px;color:#666;margin-bottom:6px; }
+.mst-i5 { font-size:28px;font-weight:700;color:#ef4444; }
+.mst-i6 { font-size:12px;color:#9ca3af;margin-top:8px; }
+.mst-i7 { font-size:28px;font-weight:700;color:#16a34a; }
+.mst-i8 { font-size:28px;font-weight:700;color:#f59e0b; }
+.mst-i9 { font-size:28px;font-weight:700;color:#6366f1; }
+.mst-i10 { font-size:28px;font-weight:700;color:#7c3aed; }
+.mst-i11 { font-size:28px;font-weight:700;color:#0891b2; }
+.mst-i12 { font-size:28px;font-weight:700;color:#dc2626; }
+.mst-i13 { font-size:22px;font-weight:700;color:#059669; }
+.mst-i14 { margin-right:8px;color:#2BAE66;font-size:0.95em; }
+.mst-i15 { display:flex;align-items:center;gap:8px; }
+.mst-i16 { margin:0 }
+.mst-i17 { display:none;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;background:#ef4444;color:#fff;font-size:12px;font-weight:700; }
+.mst-i18 { margin-right:8px;color:#16A34A;font-size:0.95em; }
+.mst-i19 { margin-right:8px;color:#F59E0B;font-size:0.95em; }

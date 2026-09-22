@@ -4,99 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://www.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' data: https://www.gstatic.com https://www.google.com; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; frame-src https://www.google.com https://www.gstatic.com; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'self'">
-    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet" integrity="sha384-42kyIPf7HDYLkGffmxDhSx/3Z/53wGBs3nD6wEFxsbeDc7rMO6mkYbkAcpRsnMU2" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha384-blOohCVdhjmtROpu8+CfTnUWham9nkX7P7OZQMst+RUnhtoY/9qemFAkIKOYxDI3" crossorigin="anonymous">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./style.css?v=20260916e">
     <title>Login - MOTASTE</title>
-    <style>
-        html,
-        body {
-            position: relative;
-            z-index: 0;
-        }
-
-        .staff-login-page {
-            position: absolute;
-            inset: 0;
-            z-index: 0;
-            min-height: 100vh;
-            display: grid;
-            place-items: center;
-            padding: 20px;
-            background-color: transparent;
-            overflow: hidden;
-        }
-
-        .login-dark-overlay {
-            position: fixed;
-            inset: 0;
-            background-color: rgba(0,0,0,0.65);
-            z-index: -2;
-            pointer-events: none;
-        }
-
-        .staff-box,
-        .modal-box {
-            position: relative;
-            z-index: 50;
-        }
-
-        .sales-section,
-        .account-management {
-            position: relative;
-            z-index: 20;
-        }
-
-        .account-management {
-            margin: 24px auto;
-            max-width: 900px;
-            width: calc(100% - 32px);
-        }
-
-        /* Notification badge pulse animation */
-        .notif-badge-pulse {
-            animation: notif-pulse 1s ease-in-out 0s 3 both;
-        }
-
-        @keyframes notif-pulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68, 0.7); }
-            50% { transform: scale(1.18); box-shadow: 0 0 8px 6px rgba(239,68,68, 0.12); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68, 0); }
-        }
-        /* Scroll-to-top button for Sales Analysis */
-        .sales-scroll-top-btn {
-            position: sticky;
-            bottom: 12px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 30;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 999px;
-            background: #ff9800;
-            color: #fff;
-            font-size: 14px;
-            font-weight: 700;
-            cursor: pointer;
-            box-shadow: 0 4px 14px rgba(255, 152, 0, 0.35);
-            transition: opacity 0.25s ease, transform 0.25s ease;
-            margin-top: 12px;
-        }
-        .sales-scroll-top-btn.is-visible {
-            display: inline-flex;
-        }
-        .sales-scroll-top-btn:hover {
-            background: #e68900;
-            transform: translateX(-50%) translateY(-2px);
-        }
-    </style>
+    
     <script src="./staff-first-paint.js?v=20260916a"></script>
 </head>
 <body class="staff-app">
@@ -111,7 +26,7 @@
             <span></span>
         </button>
 
-    <div id="dashboardPanel" class="dashboard-panel" aria-label="Dashboard menu" style="display:none">
+    <div id="dashboardPanel" class="dashboard-panel mst-i1" aria-label="Dashboard menu" >
         <button type="button" id="closePanelBtn" class="panel-close" aria-label="Close dashboard menu">×</button>
         <!-- Dashboard always open; removed close button -->
 
@@ -156,58 +71,58 @@
             <p id="retentionBannerMessage" class="menu-order-message" aria-live="polite"></p>
         </div>
 
-        <div class="overview-metrics-row" style="display:flex;gap:10px;margin:8px 0 12px;flex-wrap:wrap;justify-content:stretch;">
-            <div class="metric-card" id="metricPendingOrders" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
-                <div style="font-size:13px;color:#666;margin-bottom:6px;">Pending Orders</div>
-                <div id="pendingOrdersCount" style="font-size:28px;font-weight:700;color:#ef4444;">0</div>
-                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Orders currently pending</div>
+        <div class="overview-metrics-row mst-i2" >
+            <div class="metric-card mst-i3" id="metricPendingOrders" >
+                <div class="mst-i4" >Pending Orders</div>
+                <div class="mst-i5" id="pendingOrdersCount" >0</div>
+                <div class="mst-i6" >Orders currently pending</div>
             </div>
 
-            <div class="metric-card" id="metricOrdersCompleted" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
-                <div style="font-size:13px;color:#666;margin-bottom:6px;">Orders Completed</div>
-                <div id="ordersCompletedCount" style="font-size:28px;font-weight:700;color:#16a34a;">0</div>
-                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Total completed orders (latest 500)</div>
+            <div class="metric-card mst-i3" id="metricOrdersCompleted" >
+                <div class="mst-i4" >Orders Completed</div>
+                <div class="mst-i7" id="ordersCompletedCount" >0</div>
+                <div class="mst-i6" >Total completed orders (latest 500)</div>
             </div>
 
-            <div class="metric-card" id="metricWalkinCompleted" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
-                <div style="font-size:13px;color:#666;margin-bottom:6px;">Walk-in Orders Completed</div>
-                <div id="walkinCompletedCount" style="font-size:28px;font-weight:700;color:#f59e0b;">0</div>
-                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Completed walk-in orders</div>
+            <div class="metric-card mst-i3" id="metricWalkinCompleted" >
+                <div class="mst-i4" >Walk-in Orders Completed</div>
+                <div class="mst-i8" id="walkinCompletedCount" >0</div>
+                <div class="mst-i6" >Completed walk-in orders</div>
             </div>
 
-            <div class="metric-card" id="metricOnlineCompleted" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
-                <div style="font-size:13px;color:#666;margin-bottom:6px;">Online Orders Completed</div>
-                <div id="onlineCompletedCount" style="font-size:28px;font-weight:700;color:#6366f1;">0</div>
-                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Completed online orders</div>
+            <div class="metric-card mst-i3" id="metricOnlineCompleted" >
+                <div class="mst-i4" >Online Orders Completed</div>
+                <div class="mst-i9" id="onlineCompletedCount" >0</div>
+                <div class="mst-i6" >Completed online orders</div>
             </div>
 
-            <div class="metric-card" id="metricTodayRevenue" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
-                <div style="font-size:13px;color:#666;margin-bottom:6px;">Today's Revenue</div>
-                <div id="todayRevenueCount" style="font-size:28px;font-weight:700;color:#7c3aed;">₱0</div>
-                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Completed sales today</div>
+            <div class="metric-card mst-i3" id="metricTodayRevenue" >
+                <div class="mst-i4" >Today's Revenue</div>
+                <div class="mst-i10" id="todayRevenueCount" >₱0</div>
+                <div class="mst-i6" >Completed sales today</div>
             </div>
 
-            <div class="metric-card" id="metricAvgPrep" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
-                <div style="font-size:13px;color:#666;margin-bottom:6px;">Avg. Prep Time</div>
-                <div id="avgPrepCount" style="font-size:28px;font-weight:700;color:#0891b2;">—</div>
-                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Mean preparation minutes</div>
+            <div class="metric-card mst-i3" id="metricAvgPrep" >
+                <div class="mst-i4" >Avg. Prep Time</div>
+                <div class="mst-i11" id="avgPrepCount" >—</div>
+                <div class="mst-i6" >Mean preparation minutes</div>
             </div>
 
-            <div class="metric-card" id="metricLowStock" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
-                <div style="font-size:13px;color:#666;margin-bottom:6px;">Low-Stock Items</div>
-                <div id="lowStockCount" style="font-size:28px;font-weight:700;color:#dc2626;">0</div>
-                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Stock at or below 20 units</div>
+            <div class="metric-card mst-i3" id="metricLowStock" >
+                <div class="mst-i4" >Low-Stock Items</div>
+                <div class="mst-i12" id="lowStockCount" >0</div>
+                <div class="mst-i6" >Stock at or below 20 units</div>
             </div>
 
-            <div class="metric-card" id="metricBestSeller" style="flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06);">
-                <div style="font-size:13px;color:#666;margin-bottom:6px;">Best Seller</div>
-                <div id="bestSellerCount" style="font-size:22px;font-weight:700;color:#059669;">—</div>
-                <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Top item by units sold</div>
+            <div class="metric-card mst-i3" id="metricBestSeller" >
+                <div class="mst-i4" >Best Seller</div>
+                <div class="mst-i13" id="bestSellerCount" >—</div>
+                <div class="mst-i6" >Top item by units sold</div>
             </div>
         </div>
         <div class="overview-grid">
             <div class="sales-analytics-placeholder overview-analytics-panel">
-                <h3><i class="fa-solid fa-chart-line" aria-hidden="true" style="margin-right:8px;color:#2BAE66;font-size:0.95em;"></i>Sales Analysis</h3>
+                <h3><i class="fa-solid fa-chart-line mst-i14" aria-hidden="true" ></i>Sales Analysis</h3>
                 <p>Live sales overview — track daily, weekly, and monthly performance.</p>
                 <div class="sales-analytics-select-wrapper">
                     <label for="overviewAnalyticsSelect">View:</label>
@@ -244,9 +159,9 @@
             </div>
 
             <div class="overview-order-notification-box">
-                <div class="overview-notification-header" style="display:flex;align-items:center;gap:8px;">
-                    <h3 style="margin:0">Order Notifications</h3>
-                    <span id="overviewOrderBadge" aria-hidden="true" style="display:none;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;background:#ef4444;color:#fff;font-size:12px;font-weight:700;">0</span>
+                <div class="overview-notification-header mst-i15" >
+                    <h3 class="mst-i16" >Order Notifications</h3>
+                    <span class="mst-i17" id="overviewOrderBadge" aria-hidden="true" >0</span>
                     <button type="button" id="overviewToPendingOrdersBtn" class="overview-pending-orders-btn"><i class="fa-solid fa-list-check" aria-hidden="true"></i> Pending Orders</button>
                 </div>
                 <div id="overviewOrderNotificationList" class="order-notification-list"></div>
@@ -297,7 +212,7 @@
         <h2>Sales</h2>
 
         <div class="sales-analytics-placeholder">
-            <h3><i class="fa-solid fa-chart-bar" aria-hidden="true" style="margin-right:8px;color:#2BAE66;font-size:0.95em;"></i>Sales Analysis</h3>
+            <h3><i class="fa-solid fa-chart-bar mst-i14" aria-hidden="true" ></i>Sales Analysis</h3>
             <p>Analyze daily, weekly, and monthly revenue trends.</p>
             <div class="sales-analytics-select-wrapper">
                 <label for="analyticsSelect">View:</label>
@@ -332,7 +247,7 @@
         </div>
 
         <div class="sales-analytics-placeholder profit-export-panel" id="salesExportModule">
-            <h3><i class="fa-solid fa-file-excel" aria-hidden="true" style="margin-right:8px;color:#16A34A;font-size:0.95em;"></i>Sales &amp; Receipt Export</h3>
+            <h3><i class="fa-solid fa-file-excel mst-i18" aria-hidden="true" ></i>Sales &amp; Receipt Export</h3>
             <p>Generate Excel reports of completed orders with order numbers and itemized food lists.</p>
             <div class="export-mode-tabs" role="tablist" aria-label="Export report type">
                 <button type="button" class="export-mode-tab active" data-export-mode="daily" role="tab" aria-selected="true">Daily Report</button>
@@ -378,7 +293,7 @@
         </div>
 
         <div class="sales-analytics-placeholder profit-analytics-panel">
-            <h3><i class="fa-solid fa-coins" aria-hidden="true" style="margin-right:8px;color:#F59E0B;font-size:0.95em;"></i>Profit Analysis</h3>
+            <h3><i class="fa-solid fa-coins mst-i19" aria-hidden="true" ></i>Profit Analysis</h3>
             <p>Net profit from completed orders after cost of goods sold.</p>
             <div class="profit-summary-row">
                 <div class="profit-summary-chip">
@@ -428,7 +343,7 @@
         </div>
 
         <div class="sales-analytics-placeholder profit-export-panel">
-            <h3><i class="fa-solid fa-file-excel" aria-hidden="true" style="margin-right:8px;color:#16A34A;font-size:0.95em;"></i>Profit Report Export</h3>
+            <h3><i class="fa-solid fa-file-excel mst-i18" aria-hidden="true" ></i>Profit Report Export</h3>
             <p>Export profit reports (revenue, cost of goods sold, and net profit) as Excel. Costs use the inventory unit costs.</p>
             <div class="export-mode-tabs" role="tablist" aria-label="Profit report type">
                 <button type="button" class="profit-export-tab active" data-profit-export-mode="daily" role="tab" aria-selected="true">Daily Report</button>
@@ -1355,9 +1270,9 @@
     </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" integrity="sha384-mZT2gIty7ZDdOGkxfP6joZcYdMW1Jvj9dRlfpTmaJAKKXTqzygtB22k7FLe+KZC1" crossorigin="anonymous" defer></script>
     <script src="./script.js?v=20260916e" defer></script>
 </body>
 </html>
