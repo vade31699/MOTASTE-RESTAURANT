@@ -25,7 +25,16 @@ Route::get('/', function () {
 // The portal is served as a static HTML file, so it needs an explicit no-store
 // header: without it browsers apply heuristic caching to the HTML and keep
 // showing an older dashboard/account-management markup after an update.
-$portalHeaders = ['Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0'];
+//
+// X-Robots-Tag is the server-side half of the portal's noindex policy (the
+// <meta name="robots"> tag in staff.html is the other): it covers the case where
+// the page is fetched but the meta tag is not honoured, and it applies to the
+// redirect aliases too. robots.txt cannot do this job — it blocks crawling, not
+// indexing, so a linked URL can still appear in results.
+$portalHeaders = [
+    'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+    'X-Robots-Tag' => 'noindex, nofollow',
+];
 
 Route::get('/staff', function () use ($portalHeaders) {
     $staffPath = public_path('staff.html');

@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Private staff/admin portal: keep it out of search results. robots.txt
+         only prevents crawling (a linked URL can still be indexed without
+         being fetched), so the noindex directive has to live in the page
+         itself. This file is served for both /staff and /admin. -->
+    <meta name="robots" content="noindex, nofollow">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://www.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' data: https://www.gstatic.com https://www.google.com; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; frame-src https://www.google.com https://www.gstatic.com; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'self'">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet" integrity="sha384-42kyIPf7HDYLkGffmxDhSx/3Z/53wGBs3nD6wEFxsbeDc7rMO6mkYbkAcpRsnMU2" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha384-blOohCVdhjmtROpu8+CfTnUWham9nkX7P7OZQMst+RUnhtoY/9qemFAkIKOYxDI3" crossorigin="anonymous">

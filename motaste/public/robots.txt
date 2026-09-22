@@ -1,5 +1,25 @@
 User-agent: *
 Allow: /
+
+# API endpoints (not crawlable content).
 Disallow: /api/
 
-Sitemap: /sitemap.xml
+# Staff/admin portal. Its real protection is the noindex meta tag in
+# staff.html plus the X-Robots-Tag header on the /staff and /admin routes
+# (robots.txt blocks crawling, not indexing); these rules just keep crawlers
+# from spending budget on a login page.
+Disallow: /staff
+Disallow: /admin
+Disallow: /dashboard
+
+# Account surfaces behind auth or usable only once: no indexable content.
+Disallow: /profile
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email
+Disallow: /confirm-password
+Disallow: /logout
+Disallow: /email/
+
+Sitemap: https://motaste.laravel.cloud/sitemap.xml
