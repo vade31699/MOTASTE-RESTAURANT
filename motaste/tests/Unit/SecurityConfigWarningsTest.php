@@ -101,43 +101,62 @@ function withRecaptchaKeys(?string $siteKey, ?string $secretKey, callable $callb
     }
 }
 
-test('a fully configured CAPTCHA reports no warnings', function () {
+/**
+ * The CAPTCHA entry from the full report, or null when it is not reported.
+ *
+ * Scope matters here: collectSecurityConfigWarnings() also reports unrelated
+ * checks (the outbound-TLS trust store), and whether those fire depends on the
+ * machine running the tests. These tests are about the CAPTCHA check, so they
+ * select it by id rather than asserting the whole list.
+ */
+function captchaWarningFromReport(): ?array
+{
+    foreach (collectSecurityConfigWarnings() as $warning) {
+        if (($warning['id'] ?? '') === 'captcha_not_configured') {
+            return $warning;
+        }
+    }
+
+    return null;
+}
+
+test('a fully configured CAPTCHA reports no warning', function () {
     withRecaptchaKeys('site-key', 'secret-key', function () {
-        expect(collectSecurityConfigWarnings())->toBe([]);
+        expect(captchaWarningFromReport())->toBeNull();
+        expect(captchaConfigurationWarning())->toBeNull();
     });
 });
 
 test('a missing secret key is reported as a critical warning', function () {
     withRecaptchaKeys('site-key', '', function () {
-        $warnings = collectSecurityConfigWarnings();
+        $warning = captchaWarningFromReport();
 
-        expect($warnings)->toHaveCount(1);
-        expect($warnings[0]['id'])->toBe('captcha_not_configured');
-        expect($warnings[0]['severity'])->toBe('critical');
-        expect($warnings[0]['missing'])->toBe(['RECAPTCHA_V2_SECRET_KEY']);
+        expect($warning)->not->toBeNull();
+        expect($warning['severity'])->toBe('critical');
+        expect($warning['missing'])->toBe(['RECAPTCHA_V2_SECRET_KEY']);
         // The message has to name the variable that needs setting.
-        expect($warnings[0]['message'])->toContain('RECAPTCHA_V2_SECRET_KEY');
+        expect($warning['message'])->toContain('RECAPTCHA_V2_SECRET_KEY');
     });
 });
 
 test('a missing site key is reported too, because the checkbox cannot render', function () {
     withRecaptchaKeys('', 'secret-key', function () {
-        $warnings = collectSecurityConfigWarnings();
+        $warning = captchaWarningFromReport();
 
-        expect($warnings)->toHaveCount(1);
-        expect($warnings[0]['missing'])->toBe(['RECAPTCHA_V2_SITE_KEY']);
-        expect($warnings[0]['message'])->toContain('RECAPTCHA_V2_SITE_KEY');
+        expect($warning)->not->toBeNull();
+        expect($warning['missing'])->toBe(['RECAPTCHA_V2_SITE_KEY']);
+        expect($warning['message'])->toContain('RECAPTCHA_V2_SITE_KEY');
     });
 });
 
 test('both keys missing reports both variable names in one warning', function () {
     withRecaptchaKeys('', '', function () {
-        $warnings = collectSecurityConfigWarnings();
+        $warning = captchaWarningFromReport();
 
-        expect($warnings)->toHaveCount(1);
-        expect($warnings[0]['missing'])->toBe(['RECAPTCHA_V2_SITE_KEY', 'RECAPTCHA_V2_SECRET_KEY']);
-        expect($warnings[0]['message'])->toContain('RECAPTCHA_V2_SITE_KEY');
-        expect($warnings[0]['message'])->toContain('RECAPTCHA_V2_SECRET_KEY');
+        expect($warning)->not->toBeNull();
+        expect($warning['missing'])->toBe(['RECAPTCHA_V2_SITE_KEY', 'RECAPTCHA_V2_SECRET_KEY']);
+        expect($warning['message'])->toContain('RECAPTCHA_V2_SITE_KEY');
+        expect($warning['message'])->toContain('RECAPTCHA_V2_SECRET_KEY');
     });
 });
 
@@ -145,10 +164,10 @@ test('whitespace-only keys are treated as missing', function () {
     // A key pasted as spaces is configured as far as the environment is
     // concerned but useless in practice — every call site trims it.
     withRecaptchaKeys('   ', '   ', function () {
-        $warnings = collectSecurityConfigWarnings();
+        $warning = captchaWarningFromReport();
 
-        expect($warnings)->toHaveCount(1);
-        expect($warnings[0]['missing'])->toBe(['RECAPTCHA_V2_SITE_KEY', 'RECAPTCHA_V2_SECRET_KEY']);
+        expect($warning)->not->toBeNull();
+        expect($warning['missing'])->toBe(['RECAPTCHA_V2_SITE_KEY', 'RECAPTCHA_V2_SECRET_KEY']);
     });
 });
 
@@ -164,7 +183,7 @@ test('the report names the variable but never carries its secret value', functio
 
     // Half configured: only the NAME of the missing variable is reported.
     withRecaptchaKeys('', $secret, function () use ($secret) {
-        $encoded = json_encode(collectSecurityConfigWarnings());
+        $encoded = json_encode(captchaWarningFromReport());
         expect($encoded)->not->toContain($secret);
         expect($encoded)->toContain('RECAPTCHA_V2_SITE_KEY');
     });

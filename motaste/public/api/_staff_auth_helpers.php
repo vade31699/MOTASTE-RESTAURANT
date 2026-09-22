@@ -749,22 +749,81 @@ function isSuspiciousLoginAttempt(string $email, string $ipAddress): bool
     }
 }
 
+/*
+| Why verification reports a REASON instead of a bare bool.
+|
+| "Google rejected this token" and "this server could not reach (or could not
+| trust) Google" are completely different problems that used to collapse into
+| the same `false`: the visitor was told the CAPTCHA failed, retried the
+| checkbox forever, and nothing on the server said why. The commonest cause is
+| an environment with no CA trust store configured (a bare Windows/WAMP PHP has
+| an empty curl.cainfo), which makes EVERY verification fail at the TLS
+| handshake — indistinguishable, from the outside, from a wrong answer.
+*/
+
+/** The token was solved and confirmed by Google. */
+const RECAPTCHA_REASON_OK = 'ok';
+/** Google answered and rejected the token (wrong, expired, or already used). */
+const RECAPTCHA_REASON_REJECTED = 'rejected';
+/** Google could not be reached, or its TLS certificate could not be verified. */
+const RECAPTCHA_REASON_TRANSPORT = 'transport';
+/** Our own configuration is at fault (missing/blank secret, or Google rejected the secret). */
+const RECAPTCHA_REASON_MISCONFIGURED = 'misconfigured';
+
 /**
- * Validate a Google reCAPTCHA v2 token with the remote verification API.
+ * An optional CA bundle for outbound TLS, from the CURL_CA_BUNDLE env var.
+ *
+ * php.ini normally supplies curl.cainfo; when it does not (a stock WAMP/XAMPP
+ * on Windows leaves it empty and points OpenSSL at a cert.pem that does not
+ * exist), every outbound HTTPS request fails certificate verification — which
+ * breaks CAPTCHA verification, SMTP, and any database mirror over TLS alike.
+ * Setting CURL_CA_BUNDLE lets a deployment or a dev machine point at a real
+ * bundle without editing php.ini.
+ *
+ * This can only ever ENABLE verification where it would otherwise fail. TLS
+ * verification is never turned off, and a path that does not exist is ignored
+ * so a typo cannot silently disable the check.
+ */
+function recaptchaCurlCaBundle(): string
+{
+    $configured = '';
+
+    if (function_exists('env')) {
+        try {
+            $configured = trim((string) env('CURL_CA_BUNDLE', ''));
+        } catch (Throwable $error) {
+            $configured = '';
+        }
+    }
+
+    if ($configured === '') {
+        $fromProcess = getenv('CURL_CA_BUNDLE');
+        $configured = is_string($fromProcess) ? trim($fromProcess) : '';
+    }
+
+    if ($configured === '' || !is_file($configured)) {
+        return '';
+    }
+
+    return $configured;
+}
+
+/**
+ * Validate a Google reCAPTCHA v2 token and report WHY it failed.
  *
  * v2 responses carry no score — a successful siteverify means the visitor
  * actually solved the checkbox challenge, so `success === true` is the whole
  * check (v2 has no equivalent of the v3 score threshold).
  *
- * @param  string  $token      The reCAPTCHA v2 response token from the client.
- * @param  string  $secretKey  The reCAPTCHA v2 secret key.
- * @param  string  $remoteIp   The client IP (used by reCAPTCHA for anomaly detection).
- * @return bool                 true when the token is valid.
+ * @return array{ok: bool, reason: string, detail: string}
  */
-function verifyRecaptchaToken(string $token, string $secretKey, string $remoteIp = ''): bool
+function verifyRecaptchaTokenDetailed(string $token, string $secretKey, string $remoteIp = ''): array
 {
-    if ($token === '') {
-        return false;
+    if ($token === '' || trim($secretKey) === '') {
+        return recaptchaVerificationResult(
+            RECAPTCHA_REASON_MISCONFIGURED,
+            $token === '' ? 'no token supplied' : 'secret key is not configured'
+        );
     }
 
     try {
@@ -774,29 +833,99 @@ function verifyRecaptchaToken(string $token, string $secretKey, string $remoteIp
             'remoteip' => $remoteIp,
         ]);
 
-        $ch = curl_init('https://www.google.com/recaptcha/api/siteverify');
-        curl_setopt_array($ch, [
+        $curlOptions = [
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $payload,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 5,
             CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
-        ]);
+        ];
+
+        $caBundle = recaptchaCurlCaBundle();
+        if ($caBundle !== '') {
+            $curlOptions[CURLOPT_CAINFO] = $caBundle;
+        }
+
+        $ch = curl_init('https://www.google.com/recaptcha/api/siteverify');
+        curl_setopt_array($ch, $curlOptions);
         $body = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        // Read the transport error BEFORE close: it is the only thing that
+        // explains a failed handshake, and the old code logged just "HTTP 0".
+        $curlError = curl_error($ch);
         curl_close($ch);
 
         if ($body === false || $httpCode !== 200) {
-            error_log('[MOTASTE] reCAPTCHA verification request failed: HTTP ' . $httpCode);
-            return false;
+            $detail = $curlError !== '' ? $curlError : ('HTTP ' . $httpCode);
+            error_log('[MOTASTE] reCAPTCHA verification could not reach Google: ' . $detail
+                . '. If this is a TLS trust error, configure curl.cainfo in php.ini or set CURL_CA_BUNDLE to a CA bundle path.');
+
+            return recaptchaVerificationResult(RECAPTCHA_REASON_TRANSPORT, $detail);
         }
 
         $result = json_decode($body, true);
-        return is_array($result) && ($result['success'] ?? false) === true;
+        if (!is_array($result)) {
+            error_log('[MOTASTE] reCAPTCHA verification returned an unparseable body');
+            return recaptchaVerificationResult(RECAPTCHA_REASON_TRANSPORT, 'unparseable response body');
+        }
+
+        if (($result['success'] ?? false) === true) {
+            return recaptchaVerificationResult(RECAPTCHA_REASON_OK, '');
+        }
+
+        $codes = [];
+        foreach ((array) ($result['error-codes'] ?? []) as $code) {
+            if (is_scalar($code)) {
+                $codes[] = (string) $code;
+            }
+        }
+        $detail = $codes === [] ? 'no error-codes returned' : implode(', ', $codes);
+
+        error_log('[MOTASTE] reCAPTCHA verification rejected the token: ' . $detail);
+
+        // Google rejecting OUR secret is a deployment problem, not a visitor
+        // failing the challenge — the two must not be reported the same way.
+        $secretProblem = array_intersect($codes, ['invalid-input-secret', 'missing-input-secret']) !== [];
+
+        return recaptchaVerificationResult(
+            $secretProblem ? RECAPTCHA_REASON_MISCONFIGURED : RECAPTCHA_REASON_REJECTED,
+            $detail
+        );
     } catch (Throwable $error) {
         error_log('[MOTASTE] reCAPTCHA verification error: ' . $error->getMessage());
-        return false;
+        return recaptchaVerificationResult(RECAPTCHA_REASON_TRANSPORT, $error->getMessage());
     }
+}
+
+/**
+ * Shape a verification outcome. Kept in one place so every return path has the
+ * same keys.
+ *
+ * @return array{ok: bool, reason: string, detail: string}
+ */
+function recaptchaVerificationResult(string $reason, string $detail): array
+{
+    return [
+        'ok' => $reason === RECAPTCHA_REASON_OK,
+        'reason' => $reason,
+        'detail' => $detail,
+    ];
+}
+
+/**
+ * Validate a Google reCAPTCHA v2 token.
+ *
+ * Thin boolean wrapper kept for callers that only need yes/no;
+ * verifyRecaptchaTokenDetailed() is the one that can explain a failure.
+ *
+ * @param  string  $token      The reCAPTCHA v2 response token from the client.
+ * @param  string  $secretKey  The reCAPTCHA v2 secret key.
+ * @param  string  $remoteIp   The client IP (used by reCAPTCHA for anomaly detection).
+ * @return bool                 true when the token is valid.
+ */
+function verifyRecaptchaToken(string $token, string $secretKey, string $remoteIp = ''): bool
+{
+    return verifyRecaptchaTokenDetailed($token, $secretKey, $remoteIp)['ok'];
 }
 
 /**

@@ -38,7 +38,95 @@ function collectSecurityConfigWarnings(): array
         $warnings[] = $captchaWarning;
     }
 
+    $tlsWarning = outboundTlsTrustWarning();
+    if ($tlsWarning !== null) {
+        $warnings[] = $tlsWarning;
+    }
+
     return $warnings;
+}
+
+/**
+ * Warn when PHP has no usable CA trust store.
+ *
+ * WHY THIS IS WORTH A BANNER: with no trust store every outbound HTTPS request
+ * fails certificate verification, and the symptom is deeply misleading. The
+ * reCAPTCHA checkbox still renders (the browser talks to Google directly), so a
+ * visitor ticks it, gets a token, and then the server reports "CAPTCHA
+ * verification failed" — pointing at the visitor, who retries forever, while
+ * the real cause is the server. The same missing store also breaks SMTP over
+ * TLS (login verification codes) and any database mirror over TLS.
+ *
+ * A stock WAMP/XAMPP PHP on Windows ships curl.cainfo unset and points OpenSSL
+ * at a cert.pem that does not exist, so this is the common local case.
+ *
+ * Purely a configuration check — it never opens a socket, so it cannot raise a
+ * false alarm just because Google was briefly unreachable.
+ */
+function outboundTlsTrustWarning(): ?array
+{
+    $candidates = [];
+
+    $curlCainfo = trim((string) ini_get('curl.cainfo'));
+    if ($curlCainfo !== '') {
+        $candidates['curl.cainfo'] = $curlCainfo;
+    }
+
+    $opensslCafile = trim((string) ini_get('openssl.cafile'));
+    if ($opensslCafile !== '') {
+        $candidates['openssl.cafile'] = $opensslCafile;
+    }
+
+    if (function_exists('recaptchaCurlCaBundle')) {
+        $caBundle = recaptchaCurlCaBundle();
+        if ($caBundle !== '') {
+            $candidates['CURL_CA_BUNDLE'] = $caBundle;
+        }
+    }
+
+    if (function_exists('openssl_get_cert_locations')) {
+        $locations = openssl_get_cert_locations();
+        $defaultFile = (string) ($locations['default_cert_file'] ?? '');
+        if ($defaultFile !== '') {
+            $candidates['the OpenSSL default'] = $defaultFile;
+        }
+
+        // A hashed CA directory is an alternative to a single file.
+        $defaultPath = (string) ($locations['default_cert_dir'] ?? '');
+        if ($defaultPath !== '' && is_dir($defaultPath)) {
+            return null;
+        }
+    }
+
+    $capath = trim((string) ini_get('openssl.capath'));
+    if ($capath !== '' && is_dir($capath)) {
+        return null;
+    }
+
+    foreach ($candidates as $path) {
+        if (is_file($path)) {
+            return null; // A usable bundle exists — nothing to report.
+        }
+    }
+
+    $configured = [];
+    foreach ($candidates as $source => $path) {
+        $configured[] = $source . '=' . $path;
+    }
+
+    return [
+        'id' => 'outbound_tls_trust_missing',
+        'severity' => 'critical',
+        'title' => 'PHP cannot verify HTTPS connections',
+        'message' => 'No usable CA certificate store was found'
+            . ($configured === [] ? '' : ' (' . implode('; ', $configured) . ')')
+            . ', so every outbound TLS request fails certificate verification. This breaks the '
+            . 'staff-login CAPTCHA (the visitor solves it, then verification fails server-side), '
+            . 'outbound email over TLS (login verification codes), and any database mirror over TLS. '
+            . 'Fix it by setting curl.cainfo (and openssl.cafile) in php.ini to a real CA bundle, '
+            . 'or by pointing CURL_CA_BUNDLE at one.',
+        'missing' => ['curl.cainfo'],
+    ];
 }
 
 /**

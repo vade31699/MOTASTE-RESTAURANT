@@ -153,8 +153,39 @@ try {
             exit;
         }
 
-        $recaptchaResult = verifyRecaptchaToken($recaptchaToken, $recaptchaSecret, $clientIp);
-        if (!$recaptchaResult) {
+        $recaptchaResult = verifyRecaptchaTokenDetailed($recaptchaToken, $recaptchaSecret, $clientIp);
+
+        // A transport failure (Google unreachable, or its certificate not
+        // trusted — e.g. a PHP with no CA store) and a misconfigured secret are
+        // NOT the visitor's fault and cannot be fixed by solving the checkbox
+        // again. Reporting them as "CAPTCHA verification failed" sent users into
+        // an endless retry loop while the real cause stayed invisible, so they
+        // fail closed with the same 503 + captchaUnavailable the unconfigured
+        // case uses, and the detail is logged by the verifier.
+        if ($recaptchaResult['reason'] === RECAPTCHA_REASON_TRANSPORT) {
+            http_response_code(503);
+            echo json_encode([
+                'success' => false,
+                'error' => 'CAPTCHA verification is temporarily unavailable. Please contact the administrator.',
+                'captchaUnavailable' => true,
+            ]);
+            exit;
+        }
+
+        if ($recaptchaResult['reason'] === RECAPTCHA_REASON_MISCONFIGURED) {
+            http_response_code(503);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Login is temporarily unavailable. Please contact the administrator.',
+                'captchaUnavailable' => true,
+            ]);
+            exit;
+        }
+
+        // Left: Google answered and rejected the token. That IS the visitor's
+        // problem — a stale, replayed, or wrong-challenge token — so invite a
+        // retry with a fresh challenge.
+        if ($recaptchaResult['reason'] !== RECAPTCHA_REASON_OK) {
             http_response_code(422);
             echo json_encode([
                 'success' => false,

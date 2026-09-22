@@ -130,6 +130,42 @@ TRUSTED_PROXY_IPS=203.0.113.10,203.0.113.11,10.0.0.0/8,172.16.0.0/12,192.168.0.0
 
 Running a **non-TLS** local or staging environment? Leave `APP_ENV` as-is and set `SESSION_SECURE_COOKIE=false`, or the cookies will be flagged `Secure` and the browser will not send them back over plain HTTP.
 
+### Troubleshooting: the CAPTCHA vanishes and login fails
+
+If ticking **I'm not a robot** makes the panel disappear and the login then fails, the problem is almost always on the **server**, not the widget. The browser loads the challenge from Google directly, so the checkbox works and a token is produced even when PHP is unable to talk to Google itself.
+
+The usual cause is a PHP with **no CA certificate store**, which makes every outbound HTTPS request fail certificate verification. A stock WAMP/XAMPP install on Windows ships `curl.cainfo` empty and points OpenSSL at a `cert.pem` that does not exist:
+
+```
+$ php -r 'var_dump(ini_get("curl.cainfo"), openssl_get_cert_locations()["default_cert_file"]);'
+string(0) ""
+string(46) "C:\Program Files\Common Files\SSL/cert.pem"    // does not exist
+```
+
+The same missing store also breaks **outbound email over TLS**, so login verification codes cannot be sent either — the whole local login flow fails, not just the CAPTCHA.
+
+Fix it one of two ways:
+
+1. **php.ini** (applies to all PHP TLS, including SMTP) — set both keys to a real bundle and restart the web server:
+
+   ```ini
+   curl.cainfo = "C:\Program Files\Git\mingw64\etc\ssl\certs\ca-bundle.crt"
+   openssl.cafile = "C:\Program Files\Git\mingw64\etc\ssl\certs\ca-bundle.crt"
+   ```
+
+2. **Per deployment, without touching php.ini** — set `CURL_CA_BUNDLE` to a bundle path (see `.env.example`). This is used for CAPTCHA verification and only ever *enables* certificate verification; it never disables it, and a path that does not exist is ignored rather than trusted.
+
+The admin dashboard shows a **PHP cannot verify HTTPS connections** banner when no usable store is detected (`GET /api/get_security_warnings.php`). The check is configuration-only — it opens no sockets — so it never fires just because Google was briefly unreachable.
+
+Verification failures are also logged with the real reason now — the curl error, or Google's `error-codes` — where previously only `HTTP 0` was recorded:
+
+```
+[MOTASTE] reCAPTCHA verification could not reach Google: SSL certificate problem: unable to get local issuer certificate. ...
+[MOTASTE] reCAPTCHA verification rejected the token: invalid-input-response
+```
+
+`invalid-input-response` means the token was bad but **your secret key was accepted**; `invalid-input-secret` means the secret itself is wrong. Only the first is the visitor's problem — the second, and any transport failure, fail closed with `503` + `captchaUnavailable` instead of telling the visitor their CAPTCHA failed.
+
 ### Staff-login security limits (optional)
 
 All optional. Each falls back to the default shown when unset, and is clamped to a minimum of `1` — a blank or invalid value can never disable a protection:
