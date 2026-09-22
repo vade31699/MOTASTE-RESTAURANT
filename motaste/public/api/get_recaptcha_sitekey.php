@@ -5,8 +5,9 @@
  * render the checkbox widget with `grecaptcha.render()`. Sitekeys are public
  * identifiers — the secret key stays server-side in RECAPTCHA_V2_SECRET_KEY.
  *
- * staff.html is served as a static file via the /staff Laravel route, so the
- * sitekey cannot be templated into the HTML; script.js fetches it from here
+ * The portal page (resources/portal/staff.html) is served as a file by the /staff
+ * Laravel route, so the sitekey cannot be templated into the HTML; script.js
+ * fetches it from here
  * (lazily, only when CAPTCHA is actually required) before rendering v2.
  *
  * Returns { sitekey: '' } when reCAPTCHA v2 is not configured — script.js

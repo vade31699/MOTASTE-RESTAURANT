@@ -13,7 +13,7 @@ $b=[IO.File]::ReadAllBytes($canon)
 $int='sha384-'+[Convert]::ToBase64String([Security.Cryptography.SHA384]::Create().ComputeHash($b))
 $canonSize=([IO.File]::ReadAllBytes($canon)).Length
 
-foreach($f in @('public\home.html','public\staff.html')){
+foreach($f in @('public\home.html','resources\portal\staff.html')){
   $p=(Resolve-Path $f).ProviderPath
   $html=[IO.File]::ReadAllText($p)
   $u='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css'
@@ -31,7 +31,7 @@ foreach($f in @('public\home.html','public\staff.html')){
 
 '--- verify (boolean, from byte-canonical recompute in-process) ---'
 $allOk=$true
-foreach($f in @('public\home.html','public\staff.html')){
+foreach($f in @('public\home.html','resources\portal\staff.html')){
   $p=(Resolve-Path $f).ProviderPath
   $html=[IO.File]::ReadAllText($p)
   $u='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css'

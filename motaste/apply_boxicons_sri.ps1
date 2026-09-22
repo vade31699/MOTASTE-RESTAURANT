@@ -15,7 +15,7 @@ $int = 'sha384-' + [Convert]::ToBase64String([Security.Cryptography.SHA384]::Cre
 # 2. for each file, exactly one boxicons link presence
 $files = @(
   @{ F='public\home.html';  U='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' },
-  @{ F='public\staff.html'; U='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' }
+  @{ F='resources\portal\staff.html'; U='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' }
 )
 
 # 3. verify canonical bytes are unchanged from unpkg by re-downloading and comparing

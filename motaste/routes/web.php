@@ -22,12 +22,25 @@ Route::get('/', function () {
     return response()->file(public_path('home.html'), $homeHeaders);
 });
 
-// The portal is served as a static HTML file, so it needs an explicit no-store
-// header: without it browsers apply heuristic caching to the HTML and keep
-// showing an older dashboard/account-management markup after an update.
+// The portal page is served from OUTSIDE the web root
+// (resources/portal/staff.html) on purpose. Anything under public/ is handed
+// straight to the browser by the platform's static-file layer, which bypasses
+// this route — and with it the SecurityHeaders middleware. A copy at
+// public/staff.html would be reachable at /staff.html with no CSP header, no
+// HSTS, no nosniff and no X-Frame-Options; the file's own <meta> CSP cannot
+// stand in for those, because frame-ancestors is ignored when delivered via
+// meta. Keeping it in resources/ leaves /staff and /admin as the only URLs that
+// can serve the portal, so the headers below always apply.
+//
+// response()->file() is used rather than view() so Blade never interprets the
+// file's JavaScript.
+//
+// The page needs an explicit no-store header: without it browsers apply
+// heuristic caching to the HTML and keep showing an older dashboard/account-
+// management markup after an update.
 //
 // X-Robots-Tag is the server-side half of the portal's noindex policy (the
-// <meta name="robots"> tag in staff.html is the other): it covers the case where
+// <meta name="robots"> tag in the page is the other): it covers the case where
 // the page is fetched but the meta tag is not honoured, and it applies to the
 // redirect aliases too. robots.txt cannot do this job — it blocks crawling, not
 // indexing, so a linked URL can still appear in results.
@@ -37,7 +50,7 @@ $portalHeaders = [
 ];
 
 Route::get('/staff', function () use ($portalHeaders) {
-    $staffPath = public_path('staff.html');
+    $staffPath = resource_path('portal/staff.html');
 
     if (!file_exists($staffPath)) {
         abort(404);
@@ -46,15 +59,19 @@ Route::get('/staff', function () use ($portalHeaders) {
     return response()->file($staffPath, $portalHeaders);
 })->name('staff');
 
+// Legacy alias, kept so existing links and bookmarks keep working. This used to
+// resolve to the static public/staff.html file, so it served the portal itself
+// instead of redirecting. Now that no copy lives under public/, it is a genuine
+// permanent redirect to the canonical URL.
 Route::get('/staff.html', function () {
-    return redirect()->route('staff');
+    return redirect()->route('staff', [], 301);
 });
 
 // Same portal, admin entry point. script.js uses the URL to decide the login
 // surface: password recovery belongs to /staff only, so /admin never offers it
 // (the reset flow rejects the Admin account, which lives in the admins table).
 Route::get('/admin', function () use ($portalHeaders) {
-    $adminPath = public_path('staff.html');
+    $adminPath = resource_path('portal/staff.html');
 
     if (!file_exists($adminPath)) {
         abort(404);
@@ -63,8 +80,9 @@ Route::get('/admin', function () use ($portalHeaders) {
     return response()->file($adminPath, $portalHeaders);
 })->name('admin.login');
 
+// Permanent redirect for the same reason as /staff.html.
 Route::get('/admin.html', function () {
-    return redirect()->route('admin.login');
+    return redirect()->route('admin.login', [], 301);
 });
 
 // Legal pages (Philippine DPA compliance). Routed through PHP (not the

@@ -2158,7 +2158,8 @@ function invalidateRecaptchaSitekey() {
 /**
  * Fetch the reCAPTCHA v2 sitekey from the server (RECAPTCHA_V2_SITE_KEY env
  * var). The sitekey is a public identifier; the secret stays server-side.
- * staff.html is served as a static file, so it cannot be templated into the
+ * The portal page is served as a file by the /staff route (and its static twin
+ * no longer exists under public/), so the sitekey cannot be templated into the
  * HTML. Resolves to '' when reCAPTCHA v2 is not configured.
  */
 function fetchRecaptchaSitekey(forceRefetch = false) {

@@ -6,7 +6,7 @@ An online ordering and restaurant-management platform for **MOTASTE** (Batchoy, 
 
 - **Backend:** Laravel (PHP 8.x) — used for routing and shared helpers; business logic lives in standalone PHP endpoints under `public/api/`
 - **Database:** PostgreSQL (Laravel Cloud managed) — `staff`, `users`, `orders`, `inventory_items`, `customer_reviews`, `trusted_devices`, `login_attempts`, `staff_session_tokens`, and more
-- **Frontend:** Vanilla HTML/CSS/JS (`public/index.html` for customers, `public/staff.html` for staff) + Chart.js/Boxicons/FontAwesome
+- **Frontend:** Vanilla HTML/CSS/JS (`public/home.html` for customers, `resources/portal/staff.html` for staff, served at `/staff` and `/admin`) + Chart.js/Boxicons/FontAwesome
 - **Hosting:** Laravel Cloud (`https://motasterestaurant890.laravel.cloud`)
 
 ## Features
@@ -17,7 +17,7 @@ An online ordering and restaurant-management platform for **MOTASTE** (Batchoy, 
 - Star reviews with daily per-customer limits
 - Homepage highlights slideshow (admin-managed)
 
-### Staff dashboard (`staff.html`)
+### Staff dashboard (`resources/portal/staff.html`, served at `/staff`)
 - **Roles:** Admin, Cashier, Inventory Manager (role-based access to sections)
 - **Overview:** live metrics — pending/completed orders, revenue, prep time, low stock, best seller, sales analytics, receipt export (Excel)
 - **Orders:** walk-in order builder, pending-order queue with prep timers, completion/refund/cancel
@@ -42,11 +42,17 @@ An online ordering and restaurant-management platform for **MOTASTE** (Batchoy, 
 ```
 app/            Laravel app (models, middleware, console commands)
 public/
-  index.html    Customer site
-  staff.html    Staff dashboard
+  home.html     Customer site (served at / by the Laravel route)
+  index.php     Laravel front controller
   script.js     Shared frontend logic (both sites)
   api/          Standalone PHP endpoints (auth, orders, inventory, reviews…)
   style.css     Styles
+resources/
+  portal/
+    staff.html  Staff dashboard — deliberately OUTSIDE public/ so the platform's
+                static-file layer can never serve it (which would skip the
+                SecurityHeaders middleware). Reachable only via /staff and
+                /admin; /staff.html and /admin.html 301 to them.
 database/       Migrations + seeders
 routes/         Laravel routes
 scripts/        One-off dev/ops scripts
