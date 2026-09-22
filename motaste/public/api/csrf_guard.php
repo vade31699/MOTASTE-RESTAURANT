@@ -36,10 +36,17 @@ function ensureSessionForCsrf(): void
     // a browser-session cookie.
     $lifetime = function_exists('staffSessionLifetimeSeconds') ? staffSessionLifetimeSeconds() : 0;
 
+    // Secure is resolved by requestIsSecure(), not read straight off
+    // $_SERVER['HTTPS']: behind a TLS-terminating proxy that variable is unset,
+    // which used to strip Secure from the session cookie on every API route.
+    if (!function_exists('requestIsSecure')) {
+        require_once __DIR__ . '/_request_helpers.php';
+    }
+
     session_set_cookie_params([
         'lifetime' => $lifetime,
         'path' => '/',
-        'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+        'secure' => requestIsSecure(),
         'httponly' => true,
         'samesite' => 'Lax',
     ]);

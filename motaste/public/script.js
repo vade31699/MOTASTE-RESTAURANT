@@ -17049,12 +17049,67 @@ if (retentionClearBtn) {
     retentionClearBtn.addEventListener('click', () => void clearRetentionBatch());
 }
 
+// ============================================================
+// Security configuration warnings (admin only)
+// ============================================================
+// Protections that fail closed when unconfigured (the staff-login CAPTCHA is
+// the first) would otherwise fail silently from the admin's point of view: the
+// login is refused and the only explanation is an error-log line nobody reads.
+// This banner is the discoverable half of that behaviour.
+const securityWarningBanner = document.getElementById('securityWarningBanner');
+const securityWarningTitle = document.getElementById('securityWarningTitle');
+const securityWarningList = document.getElementById('securityWarningList');
+
+async function loadSecurityWarnings() {
+    if (!isStaffPage || !canManageAccounts()) {
+        if (securityWarningBanner) securityWarningBanner.hidden = true;
+        return;
+    }
+    if (!securityWarningBanner) return;
+
+    try {
+        await ensureStaffServerSession();
+        // Admin-gated read: recover a stale session once, then stay quiet if
+        // that fails rather than showing a warning we cannot vouch for.
+        const payload = await fetchStaffGatedJson(`api/get_security_warnings.php?_=${Date.now()}`);
+        if (!payload) {
+            securityWarningBanner.hidden = true;
+            return;
+        }
+
+        const warnings = Array.isArray(payload.warnings) ? payload.warnings : [];
+        if (!warnings.length) {
+            securityWarningBanner.hidden = true;
+            return;
+        }
+
+        if (securityWarningTitle) {
+            securityWarningTitle.textContent = warnings.length === 1
+                ? (warnings[0].title || 'Security configuration problem')
+                : `${warnings.length} security configuration problems`;
+        }
+        if (securityWarningList) {
+            // escapeHtml: the messages are server-authored and built from
+            // environment variable names, but they must never reach innerHTML raw.
+            securityWarningList.innerHTML = warnings
+                .map((warning) => `<li>${escapeHtml(warning.message || warning.title || '')}</li>`)
+                .join('');
+        }
+        securityWarningBanner.hidden = false;
+    } catch (error) {
+        console.debug('Unable to load security warnings', error);
+        securityWarningBanner.hidden = true;
+    }
+}
+
 // Initial fetch + periodic refresh
 document.addEventListener('DOMContentLoaded', () => {
     void fetchOverviewMetrics();
     void loadRetentionBatches();
+    void loadSecurityWarnings();
     setInterval(() => void fetchOverviewMetrics(), 15000);
     setInterval(() => void loadRetentionBatches(), 300000);
+    setInterval(() => void loadSecurityWarnings(), 300000);
 });// ============================================================
 // PWA service worker registration
 // ============================================================

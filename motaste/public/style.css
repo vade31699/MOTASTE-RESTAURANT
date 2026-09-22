@@ -4662,6 +4662,43 @@ body.staff-app .retention-banner {
     cursor: pointer;
 }
 
+/* ============ Security configuration banner ============ */
+/* Same shape as the retention banner, but flagged as a problem the admin must
+   act on: a protection is degraded, not merely something to archive. Reuses
+   .retention-banner-head for the heading row; the icon rule below is more
+   specific than the retention one, so it wins regardless of source order. */
+.security-banner {
+    background: #fef2f2;
+    border: 1px solid rgba(220, 38, 38, 0.35);
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin: 6px 0 10px;
+    color: #7f1d1d;
+    box-shadow: 0 4px 14px rgba(220, 38, 38, 0.08);
+}
+
+body.staff-app .security-banner {
+    background: var(--staff-surface);
+    border-color: rgba(220, 38, 38, 0.45);
+    color: var(--staff-text);
+}
+
+.security-banner .retention-banner-head i {
+    color: #dc2626;
+}
+
+.security-banner-list {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.security-banner-list li + li {
+    margin-top: 6px;
+}
+
+
 body.staff-app .retention-clear-btn {
     border-color: rgba(239, 68, 68, 0.5);
     color: #ef4444;

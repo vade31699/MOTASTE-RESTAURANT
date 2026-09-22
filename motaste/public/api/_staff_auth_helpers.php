@@ -307,10 +307,17 @@ function ensureStaffAuthSession(): void
     }
     sendSecurityHeaders();
 
+    if (!function_exists('requestIsSecure')) {
+        require_once __DIR__ . '/_request_helpers.php';
+    }
+
     $cookieParams = [
         'lifetime' => staffSessionLifetimeSeconds(),
         'path' => '/',
-        'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+        // requestIsSecure() rather than $_SERVER['HTTPS']: a TLS-terminating
+        // proxy leaves that variable unset, which dropped Secure from the
+        // staff session cookie on the whole deployment.
+        'secure' => requestIsSecure(),
         'httponly' => true,
         'samesite' => 'Lax',
     ];
@@ -1267,11 +1274,14 @@ function setStaffSessionTokenCookie(?string $token, bool $remember = false): voi
         return;
     }
 
-    // Match the session cookie's secure policy: only mandate Secure on HTTPS.
-    // A hardcoded true would break cookie round-trips on HTTP deployments
-    // (e.g. local dev or a non-TLS staging URL) where the PHP session cookie
-    // still works because it uses the same conditional check.
-    $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+    // Match the session cookie's secure policy exactly. Both cookies are auth
+    // credentials, so they must agree — and both resolve Secure through
+    // requestIsSecure() so a TLS-terminating proxy (where $_SERVER['HTTPS'] is
+    // unset) no longer strips the flag from this bearer-token cookie.
+    if (!function_exists('requestIsSecure')) {
+        require_once __DIR__ . '/_request_helpers.php';
+    }
+    $secure = requestIsSecure();
     $name = STAFF_SESSION_COOKIE_NAME;
 
     if ($token === null || $token === '') {

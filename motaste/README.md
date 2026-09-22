@@ -107,6 +107,29 @@ Make sure the site's **Allowed domains** in the Google reCAPTCHA Admin console i
 
 Post-deploy check: `GET https://your-app.laravel.cloud/api/get_recaptcha_sitekey.php` should return the production sitekey (not an empty string).
 
+The admin dashboard shows a red **Staff-login CAPTCHA is not configured** banner on the Overview page whenever either key is missing (`GET /api/get_security_warnings.php`, admin-only), naming the exact variable to set. It is the discoverable half of the fail-closed behavior above: without it, a missing key would only be visible as a line in the error log while logins were being refused.
+
+### Cookie security behind a TLS proxy
+
+The API endpoints set their own session and bearer-token cookie parameters, so they resolve the `Secure` flag through `requestIsSecure()` (`public/api/_request_helpers.php`) instead of reading `$_SERVER['HTTPS']` directly. That matters on Laravel Cloud and any host that terminates TLS at a load balancer and forwards plain HTTP to the container: PHP never sees `HTTPS` there, so a direct check silently dropped `Secure` from **both** auth cookies.
+
+The decision, first match wins:
+
+1. `SESSION_SECURE_COOKIE`, when you set it explicitly. An explicit value wins in both directions, so a deliberately non-TLS environment keeps working.
+2. `APP_ENV=production` — treated as HTTPS-only. This is what covers a deployment whose proxy address is not recognised, and it mirrors Laravel's own default for `config/session.php` so routed and API responses agree.
+3. `$_SERVER['HTTPS']` (the web server terminated TLS itself).
+4. `X-Forwarded-Proto`, **only from a trusted peer**.
+5. `SERVER_PORT=443`.
+
+The forwarded header is client-supplied, so it is ignored unless the immediate peer is a trusted proxy. Trusted proxies default to the private, loopback and link-local ranges (where a same-host or same-VPC load balancer sits); set `TRUSTED_PROXY_IPS` to a comma-separated list of IPs/CIDRs when your proxy is in a public range. An explicit list **replaces** the defaults:
+
+```env
+# Example: a public-range load balancer, plus the default private ranges kept.
+TRUSTED_PROXY_IPS=203.0.113.10,203.0.113.11,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+```
+
+Running a **non-TLS** local or staging environment? Leave `APP_ENV` as-is and set `SESSION_SECURE_COOKIE=false`, or the cookies will be flagged `Secure` and the browser will not send them back over plain HTTP.
+
 ### Staff-login security limits (optional)
 
 All optional. Each falls back to the default shown when unset, and is clamped to a minimum of `1` — a blank or invalid value can never disable a protection:
