@@ -374,3 +374,50 @@ test('a successful login clears failed attempts and rearms the gate from scratch
     expect($disarmedStatus)->toBe(200);
     expect($disarmedBody['needsDeviceVerification'] ?? false)->toBeTrue();
 });
+
+test('a missing reCAPTCHA secret fails CLOSED once the gate is armed', function () {
+    // With no RECAPTCHA_V2_SECRET_KEY the verifier cannot validate any token —
+    // not even a genuine one — so an armed gate must refuse the login instead
+    // of letting it through unverified (the previous fail-open behavior).
+    $email = 'captcha-no-secret@example.com';
+    $ip = '203.0.113.60';
+    seedCaptchaStaff($email, 'Correct-Horse-6');
+
+    foreach (range(1, 3) as $ignored) {
+        runCaptchaSubprocess(
+            ['email' => $email, 'password' => 'wrong', 'role' => 'Admin', 'deviceToken' => 'tok-h'],
+            $ip,
+            ['TEST_BLANK_RECAPTCHA_SECRET' => '1']
+        );
+    }
+
+    // Fourth attempt, CORRECT password, still no secret configured.
+    ['status' => $status, 'body' => $body] = runCaptchaSubprocess(
+        ['email' => $email, 'password' => 'Correct-Horse-6', 'role' => 'Admin', 'deviceToken' => 'tok-h'],
+        $ip,
+        ['TEST_BLANK_RECAPTCHA_SECRET' => '1']
+    );
+
+    expect($status)->toBe(503);
+    expect($body['success'] ?? true)->toBeFalse();
+    expect($body['captchaUnavailable'] ?? false)->toBeTrue();
+    // The refusal must not reveal anything about the account or the secret.
+    expect($body['error'] ?? '')->not->toContain('Correct-Horse-6');
+});
+
+test('a missing reCAPTCHA secret still allows a login that has not armed the gate', function () {
+    // Availability guard: failing closed must be scoped to the armed gate, so a
+    // missing key cannot be turned into a login outage for everyone.
+    $email = 'captcha-no-secret-clean@example.com';
+    seedCaptchaStaff($email, 'Correct-Horse-7');
+
+    ['status' => $status, 'body' => $body] = runCaptchaSubprocess(
+        ['email' => $email, 'password' => 'Correct-Horse-7', 'role' => 'Admin', 'deviceToken' => 'tok-i'],
+        '203.0.113.61',
+        ['TEST_BLANK_RECAPTCHA_SECRET' => '1']
+    );
+
+    expect($status)->toBe(200);
+    expect($body['needsDeviceVerification'] ?? false)->toBeTrue();
+    expect($body['captchaUnavailable'] ?? false)->toBeFalse();
+});

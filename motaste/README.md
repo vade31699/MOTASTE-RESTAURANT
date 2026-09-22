@@ -79,7 +79,7 @@ Open `http://localhost:8000` for the customer site and `http://localhost:8000/st
 >
 > To create an App Password: enable 2-Step Verification at `myaccount.google.com/security`, then generate one at `myaccount.google.com/apppasswords`. Without valid credentials, `sendSystemEmail()` falls back to writing the message — including verification codes — to the server log.
 
-> **CAPTCHA (staff login):** brute-force CAPTCHA uses Google reCAPTCHA v2 (visible checkbox). Register the site at [Google reCAPTCHA Admin](https://www.google.com/recaptcha/admin/create) with type **v2 "I'm not a robot" Checkbox**, add your production domain (`motaste.laravel.cloud`) as an allowed domain, then set the variables below. Without them, login still works — the CAPTCHA challenge is simply skipped / reported as unavailable:
+> **CAPTCHA (staff login):** brute-force CAPTCHA uses Google reCAPTCHA v2 (visible checkbox). Register the site at [Google reCAPTCHA Admin](https://www.google.com/recaptcha/admin/create) with type **v2 "I'm not a robot" Checkbox**, add your production domain (`motaste.laravel.cloud`) as an allowed domain, then set the variables below. Without them, `authenticate_staff.php` **fails closed**: an ordinary login still works, but once the CAPTCHA gate is armed (repeated failures or a suspicious pattern) that login is refused rather than let through unverified. Set them in production:
 >
 > ```env
 > RECAPTCHA_V2_SITE_KEY=0123456789abcdef...   # public sitekey, served to the login page
@@ -96,7 +96,7 @@ Open `http://localhost:8000` for the customer site and `http://localhost:8000/st
 
 ### reCAPTCHA v2 CAPTCHA (required in production)
 
-The staff-login CAPTCHA silently degrades to "unavailable" if these are missing, and `authenticate_staff.php` then **fails open** (skips verification) — so set them or the brute-force CAPTCHA layer is not real:
+Set both of these in production. If `RECAPTCHA_V2_SECRET_KEY` is missing, `authenticate_staff.php` **fails closed**: a login that has armed the CAPTCHA gate (the account/IP passed the failure threshold, or the login pattern is suspicious) is refused with a `503` + `captchaUnavailable` instead of being allowed through unverified, and the misconfiguration is written to the error log. Logins that have not armed the gate are unaffected, so a missing key does not take the login page down:
 
 | Variable | Where it comes from |
 | --- | --- |

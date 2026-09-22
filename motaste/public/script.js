@@ -1670,13 +1670,14 @@ async function authenticateStaffAccount(email, password, role = '', deviceToken 
             // Preserve lockout/auth/captcha responses instead of collapsing
             // them into a generic failure, so the login handler can show the
             // right message (e.g. the vague "Please Try Again Later.").
-            if (payload && (payload.rateLimited || payload.authRequired || payload.needsCaptcha)) {
+            if (payload && (payload.rateLimited || payload.authRequired || payload.needsCaptcha || payload.captchaUnavailable)) {
                 return {
                     success: false,
                     error: payload.error || `HTTP ${response.status}`,
                     rateLimited: Boolean(payload.rateLimited),
                     authRequired: Boolean(payload.authRequired),
-                    needsCaptcha: Boolean(payload.needsCaptcha)
+                    needsCaptcha: Boolean(payload.needsCaptcha),
+                    captchaUnavailable: Boolean(payload.captchaUnavailable)
                 };
             }
             // Plain 401 invalid-credentials: handled by the caller's fallback.
@@ -3316,6 +3317,18 @@ async function handleStaffLogin(email, password, role, remember) {
         setAuthButtonsVisible(false);
         if (modalTitle) {
             modalTitle.textContent = authResult.error || 'Please Try Again Later.';
+        }
+        return;
+    }
+
+    // The CAPTCHA gate is armed (too many failures, or a suspicious pattern)
+    // but the server has no reCAPTCHA secret, so it refuses the login rather
+    // than letting it through unverified. No token the user could solve would
+    // be accepted, so surface the server's message and do not offer a retry.
+    if (authResult.captchaUnavailable) {
+        setAuthButtonsVisible(false);
+        if (modalTitle) {
+            modalTitle.textContent = authResult.error || 'Login is temporarily unavailable. Please contact the administrator.';
         }
         return;
     }

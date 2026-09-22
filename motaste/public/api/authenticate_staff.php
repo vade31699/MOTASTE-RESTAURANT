@@ -123,9 +123,27 @@ try {
         $recaptchaSecret = (string) env('RECAPTCHA_V2_SECRET_KEY', '');
 
         if ($recaptchaSecret === '') {
-            // CAPTCHA provider not configured — skip validation but still
-            // require the token on the client (fail-open for misconfiguration).
-        } elseif ($recaptchaToken === '') {
+            // FAIL CLOSED. The gate is armed (this account/IP passed the failure
+            // threshold, or the login pattern is suspicious) but the verifier
+            // has no secret, so NO token can be validated — not even a genuine
+            // one from a real user. Proceeding here would silently drop the
+            // gate to a no-op at the exact moment it is doing its job, so the
+            // login is refused instead and the misconfiguration is logged.
+            //
+            // Scoped to the armed case on purpose: refusing every login while
+            // the key is unset would turn a missing env var into a total login
+            // outage. This closes the security hole without that blast radius.
+            error_log('[MOTASTE] RECAPTCHA_V2_SECRET_KEY is not configured; refusing CAPTCHA-gated staff login (fail closed). Set the key to restore logins from rate-limited accounts/IPs.');
+            http_response_code(503);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Login is temporarily unavailable. Please contact the administrator.',
+                'captchaUnavailable' => true,
+            ]);
+            exit;
+        }
+
+        if ($recaptchaToken === '') {
             http_response_code(422);
             echo json_encode([
                 'success' => false,
@@ -133,17 +151,17 @@ try {
                 'needsCaptcha' => true,
             ]);
             exit;
-        } else {
-            $recaptchaResult = verifyRecaptchaToken($recaptchaToken, $recaptchaSecret, $clientIp);
-            if (!$recaptchaResult) {
-                http_response_code(422);
-                echo json_encode([
-                    'success' => false,
-                    'error' => 'CAPTCHA verification failed. Please try again.',
-                    'needsCaptcha' => true,
-                ]);
-                exit;
-            }
+        }
+
+        $recaptchaResult = verifyRecaptchaToken($recaptchaToken, $recaptchaSecret, $clientIp);
+        if (!$recaptchaResult) {
+            http_response_code(422);
+            echo json_encode([
+                'success' => false,
+                'error' => 'CAPTCHA verification failed. Please try again.',
+                'needsCaptcha' => true,
+            ]);
+            exit;
         }
     }
 

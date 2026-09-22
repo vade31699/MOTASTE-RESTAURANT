@@ -29,6 +29,20 @@ $_SERVER['HTTP_USER_AGENT'] = 'PHPUnit Subprocess';
 $_SERVER['REQUEST_URI'] = '/api/authenticate_staff.php';
 $_SERVER['SCRIPT_NAME'] = '/api/authenticate_staff.php';
 
+// Optional: simulate a deployment where the reCAPTCHA secret key is not
+// configured, so the endpoint's fail-closed branch can be exercised.
+//
+// Set on $_SERVER rather than as a process env var on purpose: Windows'
+// proc_open drops empty-string env values, so the child would otherwise fall
+// back to the real RECAPTCHA_V2_SECRET_KEY in .env (Laravel's dotenv loader
+// refills any key the Env repository does not already contain). A $_SERVER
+// entry that exists but is empty is exactly what a missing key looks like to
+// env(), and it also stops the loader from restoring the .env value.
+if (getenv('TEST_BLANK_RECAPTCHA_SECRET') === '1') {
+    $_SERVER['RECAPTCHA_V2_SECRET_KEY'] = '';
+    $_ENV['RECAPTCHA_V2_SECRET_KEY'] = '';
+}
+
 ob_start();
 register_shutdown_function(function (): void {
     $output = '';
