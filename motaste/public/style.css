@@ -8855,6 +8855,16 @@ body.staff-app .overview-order-notification-box h3 {
     font-weight: 800;
 }
 
+/* The "Order Notifications" heading shares its line with the pending-orders
+   badge, so it must not carry the 4px bottom margin the box-level rule above
+   gives every heading in the panel. This started as an inline style="margin:0"
+   on the element; as a plain class it lost to the selector above, because an
+   inline style outranks any non-important author rule but a class does not.
+   Same specificity as that rule, so it wins on source order. */
+body.staff-app .overview-notification-header h3 {
+    margin: 0;
+}
+
 body.staff-app .sales-analytics-placeholder > h3::before {
     content: "";
     display: inline-block;
@@ -13626,7 +13636,6 @@ body.staff-app .login-history-filter-note {
 .mst-i13 { font-size:22px;font-weight:700;color:#059669; }
 .mst-i14 { margin-right:8px;color:#2BAE66;font-size:0.95em; }
 .mst-i15 { display:flex;align-items:center;gap:8px; }
-.mst-i16 { margin:0 }
 .mst-i17 { display:none;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;background:#ef4444;color:#fff;font-size:12px;font-weight:700; }
 .mst-i18 { margin-right:8px;color:#16A34A;font-size:0.95em; }
 .mst-i19 { margin-right:8px;color:#F59E0B;font-size:0.95em; }
