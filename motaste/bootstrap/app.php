@@ -19,6 +19,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Apply conservative security headers to every routed response.
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+
+        // Upgrade any plain-HTTP request to HTTPS (DPA 2.1). Registered after
+        // SecurityHeaders so the redirect response carries the same headers.
+        $middleware->append(\App\Http\Middleware\ForceHttps::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // api/* routes always render JSON; any other request that explicitly

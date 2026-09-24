@@ -115,6 +115,18 @@ Post-deploy check: `GET https://your-app.laravel.cloud/api/get_recaptcha_sitekey
 
 The admin dashboard shows a red **Staff-login CAPTCHA is not configured** banner on the Overview page whenever either key is missing (`GET /api/get_security_warnings.php`, admin-only), naming the exact variable to set. It is the discoverable half of the fail-closed behavior above: without it, a missing key would only be visible as a line in the error log while logins were being refused.
 
+### HTTPS enforcement (TLS, redirect, HSTS)
+
+DPA 2.1 requires HTTPS end to end, an HTTP→HTTPS redirect, HSTS, and that no password or personal data ever travels over plain HTTP. Three layers provide it:
+
+1. **HTTPS throughout.** `APP_URL` is `https://…`, and `AppServiceProvider` calls `URL::forceScheme('https')` outside `local`/`testing`, so every generated URL is absolute-HTTPS. The only `http://` strings left in the codebase are XML namespace identifiers (`http://www.w3.org/2000/svg`), which are not requests.
+2. **HTTP→HTTPS redirect.** The platform edge (Cloudflare in front of Laravel Cloud) already returns `301` with an `https://` `Location` for any HTTP request — verified live against the production host. The `App\Http\Middleware\ForceHttps` middleware adds the same upgrade inside the app for any other entrypoint (a bare server, a staging box probed by IP, a proxy with the redirect off). It uses `308` so a credential `POST` is replayed over HTTPS rather than downgraded to a GET, and it only redirects on *positive* evidence that the client spoke plain HTTP — a TLS-terminating proxy is never sent into a redirect loop. It reuses the trusted-proxy ranges from `public/api/_request_helpers.php` and is exempt in `local`/`testing`.
+3. **HSTS.** Every routed response (`SecurityHeaders`) and every API response (`_security_headers.php`) carries `Strict-Transport-Security: max-age=31536000; includeSubDomains`. This is safe because the deployment is confirmed HTTPS-only (see below); it hardens browsers against downgrade/stripping.
+
+Passwords and other secrets additionally never leave the browser without the `Secure` flag: `SESSION_SECURE_COOKIE=true` in production, and the API endpoints resolve the flag through `requestIsSecure()` (see the next section). The routed (Inertia) pages have no password over HTTP because Laravel's session cookie follows `config('session.secure')`.
+
+> Before enabling HSTS on a **new** host, confirm it can actually serve HTTPS on every name you are about to cover. `includeSubDomains` is already set, so every subdomain must be TLS-capable — the hosted environment is (the platform forces TLS), but a raw-IP or non-TLS staging host must not be treated as production.
+
 ### Cookie security behind a TLS proxy
 
 The API endpoints set their own session and bearer-token cookie parameters, so they resolve the `Secure` flag through `requestIsSecure()` (`public/api/_request_helpers.php`) instead of reading `$_SERVER['HTTPS']` directly. That matters on Laravel Cloud and any host that terminates TLS at a load balancer and forwards plain HTTP to the container: PHP never sees `HTTPS` there, so a direct check silently dropped `Secure` from **both** auth cookies.
