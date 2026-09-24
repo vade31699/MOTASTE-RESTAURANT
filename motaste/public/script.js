@@ -669,13 +669,12 @@ function forceLogoutCurrentStaffSession() {
     updateAccountManagementAccess();
     setDashboardPanelState(false);
     if (dashboardPanel) {
-        dashboardPanel.style.display = 'none';
+        dashboardPanel.hidden = true;
     }
     document.body.classList.remove('dashboard-panel-open');
 
     const staffBox = document.querySelector('.staff-box');
     if (staffBox) {
-        staffBox.style.display = '';
         staffBox.hidden = false;
     }
     if (staffLoginPage) {
@@ -705,8 +704,10 @@ function setPublicSectionsVisible(visible) {
         try {
             const el = document.querySelector(sel);
             if (!el) return;
+            // [hidden] is authoritative here: style.css declares it
+            // `display: none !important`, so an inline display can neither hide
+            // nor reveal these sections.
             el.hidden = !visible;
-            el.style.display = visible ? '' : 'none';
         } catch (e) {
             // ignore
         }
@@ -1337,7 +1338,7 @@ function restoreStaffSession() {
 
     const staffBox = document.querySelector('.staff-box');
     if (staffBox) {
-        staffBox.style.display = 'none';
+        staffBox.hidden = true;
     }
     if (staffLoginPage) {
         staffLoginPage.hidden = true;
@@ -1352,7 +1353,7 @@ function restoreStaffSession() {
     }
     setAuthButtonsVisible(true);
     if (dashboardPanel) {
-        dashboardPanel.style.display = '';
+        dashboardPanel.hidden = false;
     }
 
     const targetSectionId = resolveAccessibleSection(getPersistedActiveSection());
@@ -3501,7 +3502,7 @@ async function handleStaffLogin(email, password, role, remember) {
 
         const staffBox = document.querySelector('.staff-box');
         if (staffBox) {
-            staffBox.style.display = 'none';
+            staffBox.hidden = true;
         }
         if (staffLoginPage) {
             staffLoginPage.hidden = true;
@@ -3513,7 +3514,7 @@ async function handleStaffLogin(email, password, role, remember) {
         renderInventoryManagement();
         setAuthButtonsVisible(true);
         if (dashboardPanel) {
-            dashboardPanel.style.display = '';
+            dashboardPanel.hidden = false;
         }
         // Refresh the live order stream and pending queue only after the server
         // session is active; otherwise the EventSource can open against a stale
@@ -3566,7 +3567,6 @@ if (logoutBtn) {
 
         const staffBox = document.querySelector('.staff-box');
         if (staffBox) {
-            staffBox.style.display = '';
             staffBox.hidden = false;
         }
         if (staffLoginPage) {
@@ -3640,7 +3640,7 @@ if (logoutBtn) {
 
         // Hide the dashboard panel when logged out so it does not remain visible.
         if (dashboardPanel) {
-            dashboardPanel.style.display = 'none';
+            dashboardPanel.hidden = true;
         }
         if (menuBtn) {
             menuBtn.style.display = 'none';
@@ -6551,12 +6551,49 @@ function renderSpecialCustomizeControls() {
     updateSpecialPriceForModal();
 }
 
+// ---------- Body scroll lock ----------
+// The inventory modal, the product-detail modal and the order-complete popup all
+// freeze page scrolling while they are up, and each one used to clear
+// body.style.overflow as it closed — so closing one re-enabled scrolling while
+// another was still open, and closing a surface that had never locked anything
+// released someone else's lock.
+//
+// A lock is therefore held under a name instead of being written directly: the
+// page locks when the first holder takes it and only unlocks when the last one
+// releases, putting back whatever inline value was there beforehand. Taking an
+// already-held name again is a no-op, which keeps each surface's open/close pair
+// balanced however often it is called.
+const bodyScrollLockHolders = new Set();
+let bodyScrollLockPreviousOverflow = '';
+
+function lockBodyScroll(holder) {
+    if (bodyScrollLockHolders.has(holder)) return;
+
+    if (bodyScrollLockHolders.size === 0) {
+        bodyScrollLockPreviousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+    }
+
+    bodyScrollLockHolders.add(holder);
+}
+
+function unlockBodyScroll(holder) {
+    if (!bodyScrollLockHolders.delete(holder)) return;
+    if (bodyScrollLockHolders.size > 0) return;
+
+    document.body.style.overflow = bodyScrollLockPreviousOverflow;
+}
+
 function setInventoryModalVisible(isVisible) {
     if (!inventoryModal) return;
     inventoryModal.hidden = !isVisible;
     inventoryModal.style.display = isVisible ? 'grid' : 'none';
     inventoryModal.setAttribute('aria-hidden', String(!isVisible));
-    document.body.style.overflow = isVisible ? 'hidden' : '';
+    if (isVisible) {
+        lockBodyScroll('inventory-modal');
+    } else {
+        unlockBodyScroll('inventory-modal');
+    }
 
     if (!isVisible && inventoryForm) {
         inventoryForm.reset();
@@ -6670,13 +6707,25 @@ function updateSpecialFoodImageFieldVisibility() {
     if (specialCustomizeAddBtn) specialCustomizeAddBtn.disabled = !isSpecials;
 }
 
-// Force style-level hide/show to override any stylesheet or rendering timing issues
+// Re-assert the specials-only fields' visibility after the category changes,
+// as a second pass over the same state updateSpecialFoodImageFieldVisibility()
+// has just applied.
+//
+// This has to go through the `hidden` property. style.css declares
+// `[hidden] { display: none !important }`, so clearing an inline display value
+// can never reveal an element that carries the attribute — the previous
+// style.display version could only ever hide, never show. The `hidden`
+// property always wins, so it is the only reliable lever here.
+//
+// The preview wrapper is driven by the selected image rather than by the
+// category, so it stays hidden until one exists (setSpecialFoodImagePreview()
+// is what reveals it).
 function enforceSpecialFieldsVisibility() {
     if (!specialFoodImageField || !specialCustomizeField || !specialFoodImagePreviewWrap || !inventoryCategoryInput) return;
     const isSpecials = inventoryCategoryInput.value === 'specials';
-    specialFoodImageField.style.display = isSpecials ? '' : 'none';
-    specialCustomizeField.style.display = isSpecials ? '' : 'none';
-    specialFoodImagePreviewWrap.style.display = isSpecials ? '' : 'none';
+    specialFoodImageField.hidden = !isSpecials;
+    specialCustomizeField.hidden = !isSpecials;
+    specialFoodImagePreviewWrap.hidden = !isSpecials || !selectedSpecialFoodImageData;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -7644,7 +7693,7 @@ let customerOrderStatusPoller = null;
 let customerOrderStatuses = new Map();
 let orderStatusFloatTicker = null;
 let orderStatusFloatOpen = false;
-let orderCompleteScrollLockState = null;
+let orderCompleteViewportLockState = null;
 let orderNotificationAudioElement = null;
 let orderNotificationAudioListenersBound = false;
 let customerInventoryRefreshTimer = null;
@@ -7845,25 +7894,29 @@ function getOrderSummaryByNumber(orderNumber) {
 }
 
 function lockPageScrollForOrderPopup() {
-    if (orderCompleteScrollLockState) return;
-    orderCompleteScrollLockState = {
-        bodyOverflow: document.body.style.overflow,
+    lockBodyScroll('order-complete-popup');
+
+    // The popup additionally freezes the viewport itself — no overscroll or
+    // rubber-banding behind it — which neither modal needs, so those two inline
+    // values stay owned here.
+    if (orderCompleteViewportLockState) return;
+    orderCompleteViewportLockState = {
         htmlOverflow: document.documentElement.style.overflow,
         bodyTouchAction: document.body.style.touchAction
     };
 
-    document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
     document.body.style.touchAction = 'none';
 }
 
 function unlockPageScrollForOrderPopup() {
-    if (!orderCompleteScrollLockState) return;
+    unlockBodyScroll('order-complete-popup');
 
-    document.body.style.overflow = orderCompleteScrollLockState.bodyOverflow;
-    document.documentElement.style.overflow = orderCompleteScrollLockState.htmlOverflow;
-    document.body.style.touchAction = orderCompleteScrollLockState.bodyTouchAction;
-    orderCompleteScrollLockState = null;
+    if (!orderCompleteViewportLockState) return;
+
+    document.documentElement.style.overflow = orderCompleteViewportLockState.htmlOverflow;
+    document.body.style.touchAction = orderCompleteViewportLockState.bodyTouchAction;
+    orderCompleteViewportLockState = null;
 }
 
 function initializeOrderNotificationAudio() {
@@ -10388,7 +10441,7 @@ function openProductDetailModal(item) {
     productDetailModal.classList.remove('hidden');
     productDetailModal.hidden = false;
     productDetailModal.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll('product-detail');
 }
 
 function syncProductDetailQuantityControls() {
@@ -10941,7 +10994,7 @@ function closeProductDetailModal() {
     productDetailModal.classList.add('hidden');
     productDetailModal.hidden = true;
     productDetailModal.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
+    unlockBodyScroll('product-detail');
     activeProductDetailItem = null;
     productDetailQuantity = 1;
 }
@@ -14891,7 +14944,7 @@ function openCheckoutScreen() {
     renderCheckoutSummary();
     setMenuOverlayMenuVisibility(false);
     // hide the top menu tab while on checkout/payment
-    try { if (menuNavLink) menuNavLink.style.display = 'none'; } catch (e) { }
+    try { if (menuNavLink) menuNavLink.hidden = true; } catch (e) { }
 }
 
 function closeCheckoutScreen() {
@@ -14911,7 +14964,7 @@ function closeCheckoutScreen() {
     openCartModal();
     suppressMenuOverlay = false;
     try { document.body.classList.remove('suppress-menu'); } catch (e) { }
-    try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
+    try { if (menuNavLink) menuNavLink.hidden = false; } catch (e) { }
     if (menuOverlayCategories) {
         menuOverlayCategories.hidden = false;
         renderMenuOverlayCategories(currentMenuCategoryId || '');
@@ -14934,7 +14987,7 @@ function closeCheckoutScreenCompletely() {
     closeCartAddOnScreen();
     suppressMenuOverlay = false;
     try { document.body.classList.remove('suppress-menu'); } catch (e) { }
-    try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
+    try { if (menuNavLink) menuNavLink.hidden = false; } catch (e) { }
     if (menuOverlayCategories) {
         menuOverlayCategories.hidden = false;
         renderMenuOverlayCategories(currentMenuCategoryId || '');
@@ -15073,7 +15126,7 @@ function openPaymentScreen(order) {
     // hide the top menu tab while on payment screen and suppress menu overlay
     suppressMenuOverlay = true;
     try { document.body.classList.add('suppress-menu'); } catch (e) { }
-    try { if (menuNavLink) menuNavLink.style.display = 'none'; } catch (e) { }
+    try { if (menuNavLink) menuNavLink.hidden = true; } catch (e) { }
     console.debug('openPaymentScreen: done, suppressed menu overlay');
 }
 
@@ -15423,7 +15476,7 @@ function closeMenuOverlay() {
     showMenuCategories();
     menuOverlay.classList.add('hidden');
     menuOverlay.setAttribute('aria-hidden', 'true');
-    try { if (menuNavLink) menuNavLink.style.display = ''; } catch (e) { }
+    try { if (menuNavLink) menuNavLink.hidden = false; } catch (e) { }
 }
 
 function openCartModal() {

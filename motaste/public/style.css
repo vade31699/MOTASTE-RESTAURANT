@@ -13606,14 +13606,12 @@ body.staff-app .login-history-filter-note {
     
 
 /* ==== migrated staff.html inline styles (CSP: no unsafe-inline) ==== */
-/* Dashboard menu (staff.html #dashboardPanel). It used to carry an inline
-   style="display:none" that script.js revealed with `style.display = ''`.
-   Moving that to a plain `display:none` rule broke the reveal: clearing the
-   inline style only drops the override, so the stylesheet rule wins again and
-   the panel stayed hidden for the whole session. Keying it on body.auth — which
-   script.js adds and removes in step with the panel's own display — keeps the
-   panel hidden before the first authenticated paint and visible afterwards. */
-body:not(.auth) .mst-i1 { display:none }
+/* The dashboard menu (staff.html #dashboardPanel) is deliberately NOT in this
+   block. Its old inline `display:none` became a stylesheet rule, and script.js
+   reveals the panel by clearing its inline display — which only drops the
+   override and lets the rule win again, so the menu stayed hidden for the whole
+   session. The panel is hidden with the `hidden` attribute instead (script.js
+   toggles the property), so it must not gain a `display` rule here. */
 .mst-i2 { display:flex;gap:10px;margin:8px 0 12px;flex-wrap:wrap;justify-content:stretch; }
 .mst-i3 { flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06); }
 .mst-i4 { font-size:13px;color:#666;margin-bottom:6px; }
