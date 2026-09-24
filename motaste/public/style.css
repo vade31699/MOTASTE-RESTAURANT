@@ -192,6 +192,12 @@ body.dashboard-panel-open .menu-btn {
     background: #e68900;
 }
 
+/* The dashboard menu (staff.html #dashboardPanel) must NOT gain a `display`
+   rule. Its old inline `display:none` became a stylesheet rule, and script.js
+   reveals the panel by clearing its inline display — which only drops the
+   override and lets the rule win again, so the menu stayed hidden for the whole
+   session. The panel is hidden with the `hidden` attribute instead (script.js
+   toggles the property). */
 .dashboard-panel {
     position: fixed;
     top: 0;
@@ -4546,6 +4552,57 @@ body.staff-app .chart-scroll-vertical {
     align-items: start;
 }
 
+/* ---------- Overview metric cards ---------- */
+.overview-metrics-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: stretch;
+    gap: 10px;
+    margin: 8px 0 12px;
+}
+
+.metric-card {
+    flex: 1 1 200px;
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.metric-label {
+    font-size: 13px;
+    color: #666666;
+    margin-bottom: 6px;
+}
+
+.metric-value {
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.metric-hint {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 8px;
+}
+
+/* Each figure is coloured by the metric it reports; the staff-app theme layer
+   re-colours the four it owns further down this file. */
+#pendingOrdersCount { color: #ef4444; }
+#ordersCompletedCount { color: #16a34a; }
+#walkinCompletedCount { color: #f59e0b; }
+#onlineCompletedCount { color: #6366f1; }
+#todayRevenueCount { color: #7c3aed; }
+#avgPrepCount { color: #0891b2; }
+#lowStockCount { color: #dc2626; }
+
+/* Best Seller shows an item name rather than a plain number, so it steps down
+   from the 28px the other figures use. */
+#bestSellerCount {
+    font-size: 22px;
+    color: #059669;
+}
+
 /* Tablet breakpoint */
 @media (max-width: 1024px) {
     .overview-grid {
@@ -4746,6 +4803,25 @@ body.staff-app .retention-clear-btn {
     font-weight: 700;
 }
 
+/* Icon that prefixes a panel heading. The colour marks the panel's subject:
+   sales analytics, an Excel export, or profit analysis. */
+.panel-heading-icon {
+    margin-right: 8px;
+    font-size: 0.95em;
+}
+
+.panel-heading-icon.is-sales {
+    color: #2BAE66;
+}
+
+.panel-heading-icon.is-export {
+    color: #16A34A;
+}
+
+.panel-heading-icon.is-profit {
+    color: #F59E0B;
+}
+
 .overview-order-notification-box .order-notification-list,
 .overview-order-notification-box .order-notification-card {
     color: #1f2937;
@@ -4936,12 +5012,33 @@ body.staff-app .retention-clear-btn {
     gap: 16px;
 }
 
+/* The heading shares its row with the pending-orders badge, so the row is
+   centred and tightly gapped. These two values used to arrive from the
+   `.mst-i15` utility at the very end of the file, where they also out-ranked
+   the stacked layout in the 900px breakpoint below; folding them into this rule
+   (and dropping that now-dead `align-items: flex-start`) keeps the rendered
+   result identical at every width. */
 .overview-notification-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
+    align-items: center;
+    gap: 8px;
     flex-wrap: wrap;
+}
+
+/* Pending-orders count riding on the notification heading. Starts hidden;
+   script.js reveals it and pulses it via .notif-badge-pulse. */
+.order-notification-badge {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
 }
 
 .overview-pending-orders-btn {
@@ -5990,9 +6087,14 @@ body.staff-app .retention-clear-btn {
         margin: 18px auto 0;
     }
 
+    /* The heading keeps the centring from its base rule, which previously won
+       here too (the old `.mst-i15` utility sat after this block). */
     .overview-notification-header,
     .order-notification-footer {
         flex-direction: column;
+    }
+
+    .order-notification-footer {
         align-items: flex-start;
     }
 
@@ -13613,29 +13715,3 @@ body.staff-app .login-history-filter-note {
             background: #e68900;
             transform: translateX(-50%) translateY(-2px);
         }
-    
-
-/* ==== migrated staff.html inline styles (CSP: no unsafe-inline) ==== */
-/* The dashboard menu (staff.html #dashboardPanel) is deliberately NOT in this
-   block. Its old inline `display:none` became a stylesheet rule, and script.js
-   reveals the panel by clearing its inline display — which only drops the
-   override and lets the rule win again, so the menu stayed hidden for the whole
-   session. The panel is hidden with the `hidden` attribute instead (script.js
-   toggles the property), so it must not gain a `display` rule here. */
-.mst-i2 { display:flex;gap:10px;margin:8px 0 12px;flex-wrap:wrap;justify-content:stretch; }
-.mst-i3 { flex:1 1 200px;background:#fff;border-radius:10px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.06); }
-.mst-i4 { font-size:13px;color:#666;margin-bottom:6px; }
-.mst-i5 { font-size:28px;font-weight:700;color:#ef4444; }
-.mst-i6 { font-size:12px;color:#9ca3af;margin-top:8px; }
-.mst-i7 { font-size:28px;font-weight:700;color:#16a34a; }
-.mst-i8 { font-size:28px;font-weight:700;color:#f59e0b; }
-.mst-i9 { font-size:28px;font-weight:700;color:#6366f1; }
-.mst-i10 { font-size:28px;font-weight:700;color:#7c3aed; }
-.mst-i11 { font-size:28px;font-weight:700;color:#0891b2; }
-.mst-i12 { font-size:28px;font-weight:700;color:#dc2626; }
-.mst-i13 { font-size:22px;font-weight:700;color:#059669; }
-.mst-i14 { margin-right:8px;color:#2BAE66;font-size:0.95em; }
-.mst-i15 { display:flex;align-items:center;gap:8px; }
-.mst-i17 { display:none;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;background:#ef4444;color:#fff;font-size:12px;font-weight:700; }
-.mst-i18 { margin-right:8px;color:#16A34A;font-size:0.95em; }
-.mst-i19 { margin-right:8px;color:#F59E0B;font-size:0.95em; }

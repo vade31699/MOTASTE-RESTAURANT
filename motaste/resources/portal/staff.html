@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./style.css?v=20260924c">
+    <link rel="stylesheet" href="./style.css?v=20260924d">
     <title>Login - MOTASTE</title>
     
     <script src="./staff-first-paint.js?v=20260916a"></script>
@@ -84,58 +84,58 @@
             <p id="retentionBannerMessage" class="menu-order-message" aria-live="polite"></p>
         </div>
 
-        <div class="overview-metrics-row mst-i2" >
-            <div class="metric-card mst-i3" id="metricPendingOrders" >
-                <div class="mst-i4" >Pending Orders</div>
-                <div class="mst-i5" id="pendingOrdersCount" >0</div>
-                <div class="mst-i6" >Orders currently pending</div>
+        <div class="overview-metrics-row" >
+            <div class="metric-card" id="metricPendingOrders" >
+                <div class="metric-label" >Pending Orders</div>
+                <div class="metric-value" id="pendingOrdersCount" >0</div>
+                <div class="metric-hint" >Orders currently pending</div>
             </div>
 
-            <div class="metric-card mst-i3" id="metricOrdersCompleted" >
-                <div class="mst-i4" >Orders Completed</div>
-                <div class="mst-i7" id="ordersCompletedCount" >0</div>
-                <div class="mst-i6" >Total completed orders (latest 500)</div>
+            <div class="metric-card" id="metricOrdersCompleted" >
+                <div class="metric-label" >Orders Completed</div>
+                <div class="metric-value" id="ordersCompletedCount" >0</div>
+                <div class="metric-hint" >Total completed orders (latest 500)</div>
             </div>
 
-            <div class="metric-card mst-i3" id="metricWalkinCompleted" >
-                <div class="mst-i4" >Walk-in Orders Completed</div>
-                <div class="mst-i8" id="walkinCompletedCount" >0</div>
-                <div class="mst-i6" >Completed walk-in orders</div>
+            <div class="metric-card" id="metricWalkinCompleted" >
+                <div class="metric-label" >Walk-in Orders Completed</div>
+                <div class="metric-value" id="walkinCompletedCount" >0</div>
+                <div class="metric-hint" >Completed walk-in orders</div>
             </div>
 
-            <div class="metric-card mst-i3" id="metricOnlineCompleted" >
-                <div class="mst-i4" >Online Orders Completed</div>
-                <div class="mst-i9" id="onlineCompletedCount" >0</div>
-                <div class="mst-i6" >Completed online orders</div>
+            <div class="metric-card" id="metricOnlineCompleted" >
+                <div class="metric-label" >Online Orders Completed</div>
+                <div class="metric-value" id="onlineCompletedCount" >0</div>
+                <div class="metric-hint" >Completed online orders</div>
             </div>
 
-            <div class="metric-card mst-i3" id="metricTodayRevenue" >
-                <div class="mst-i4" >Today's Revenue</div>
-                <div class="mst-i10" id="todayRevenueCount" >₱0</div>
-                <div class="mst-i6" >Completed sales today</div>
+            <div class="metric-card" id="metricTodayRevenue" >
+                <div class="metric-label" >Today's Revenue</div>
+                <div class="metric-value" id="todayRevenueCount" >₱0</div>
+                <div class="metric-hint" >Completed sales today</div>
             </div>
 
-            <div class="metric-card mst-i3" id="metricAvgPrep" >
-                <div class="mst-i4" >Avg. Prep Time</div>
-                <div class="mst-i11" id="avgPrepCount" >—</div>
-                <div class="mst-i6" >Mean preparation minutes</div>
+            <div class="metric-card" id="metricAvgPrep" >
+                <div class="metric-label" >Avg. Prep Time</div>
+                <div class="metric-value" id="avgPrepCount" >—</div>
+                <div class="metric-hint" >Mean preparation minutes</div>
             </div>
 
-            <div class="metric-card mst-i3" id="metricLowStock" >
-                <div class="mst-i4" >Low-Stock Items</div>
-                <div class="mst-i12" id="lowStockCount" >0</div>
-                <div class="mst-i6" >Stock at or below 20 units</div>
+            <div class="metric-card" id="metricLowStock" >
+                <div class="metric-label" >Low-Stock Items</div>
+                <div class="metric-value" id="lowStockCount" >0</div>
+                <div class="metric-hint" >Stock at or below 20 units</div>
             </div>
 
-            <div class="metric-card mst-i3" id="metricBestSeller" >
-                <div class="mst-i4" >Best Seller</div>
-                <div class="mst-i13" id="bestSellerCount" >—</div>
-                <div class="mst-i6" >Top item by units sold</div>
+            <div class="metric-card" id="metricBestSeller" >
+                <div class="metric-label" >Best Seller</div>
+                <div class="metric-value" id="bestSellerCount" >—</div>
+                <div class="metric-hint" >Top item by units sold</div>
             </div>
         </div>
         <div class="overview-grid">
             <div class="sales-analytics-placeholder overview-analytics-panel">
-                <h3><i class="fa-solid fa-chart-line mst-i14" aria-hidden="true" ></i>Sales Analysis</h3>
+                <h3><i class="fa-solid fa-chart-line panel-heading-icon is-sales" aria-hidden="true" ></i>Sales Analysis</h3>
                 <p>Live sales overview — track daily, weekly, and monthly performance.</p>
                 <div class="sales-analytics-select-wrapper">
                     <label for="overviewAnalyticsSelect">View:</label>
@@ -172,9 +172,9 @@
             </div>
 
             <div class="overview-order-notification-box">
-                <div class="overview-notification-header mst-i15" >
+                <div class="overview-notification-header" >
                     <h3>Order Notifications</h3>
-                    <span class="mst-i17" id="overviewOrderBadge" aria-hidden="true" >0</span>
+                    <span class="order-notification-badge" id="overviewOrderBadge" aria-hidden="true" >0</span>
                     <button type="button" id="overviewToPendingOrdersBtn" class="overview-pending-orders-btn"><i class="fa-solid fa-list-check" aria-hidden="true"></i> Pending Orders</button>
                 </div>
                 <div id="overviewOrderNotificationList" class="order-notification-list"></div>
@@ -225,7 +225,7 @@
         <h2>Sales</h2>
 
         <div class="sales-analytics-placeholder">
-            <h3><i class="fa-solid fa-chart-bar mst-i14" aria-hidden="true" ></i>Sales Analysis</h3>
+            <h3><i class="fa-solid fa-chart-bar panel-heading-icon is-sales" aria-hidden="true" ></i>Sales Analysis</h3>
             <p>Analyze daily, weekly, and monthly revenue trends.</p>
             <div class="sales-analytics-select-wrapper">
                 <label for="analyticsSelect">View:</label>
@@ -260,7 +260,7 @@
         </div>
 
         <div class="sales-analytics-placeholder profit-export-panel" id="salesExportModule">
-            <h3><i class="fa-solid fa-file-excel mst-i18" aria-hidden="true" ></i>Sales &amp; Receipt Export</h3>
+            <h3><i class="fa-solid fa-file-excel panel-heading-icon is-export" aria-hidden="true" ></i>Sales &amp; Receipt Export</h3>
             <p>Generate Excel reports of completed orders with order numbers and itemized food lists.</p>
             <div class="export-mode-tabs" role="tablist" aria-label="Export report type">
                 <button type="button" class="export-mode-tab active" data-export-mode="daily" role="tab" aria-selected="true">Daily Report</button>
@@ -306,7 +306,7 @@
         </div>
 
         <div class="sales-analytics-placeholder profit-analytics-panel">
-            <h3><i class="fa-solid fa-coins mst-i19" aria-hidden="true" ></i>Profit Analysis</h3>
+            <h3><i class="fa-solid fa-coins panel-heading-icon is-profit" aria-hidden="true" ></i>Profit Analysis</h3>
             <p>Net profit from completed orders after cost of goods sold.</p>
             <div class="profit-summary-row">
                 <div class="profit-summary-chip">
@@ -356,7 +356,7 @@
         </div>
 
         <div class="sales-analytics-placeholder profit-export-panel">
-            <h3><i class="fa-solid fa-file-excel mst-i18" aria-hidden="true" ></i>Profit Report Export</h3>
+            <h3><i class="fa-solid fa-file-excel panel-heading-icon is-export" aria-hidden="true" ></i>Profit Report Export</h3>
             <p>Export profit reports (revenue, cost of goods sold, and net profit) as Excel. Costs use the inventory unit costs.</p>
             <div class="export-mode-tabs" role="tablist" aria-label="Profit report type">
                 <button type="button" class="profit-export-tab active" data-profit-export-mode="daily" role="tab" aria-selected="true">Daily Report</button>
