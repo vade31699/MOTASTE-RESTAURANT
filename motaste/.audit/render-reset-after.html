@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Password</title>
+    
+    
+    
+<style>/* Styles for the standalone password screens: /forgot-password, /reset-password
+   and /reset-password/success. Those pages are their own Blade views and do not
+   load public/style.css (the site/portal stylesheet), so the handful of rules
+   they share used to be copy-pasted into each view's <style> block — the reset
+   form ended up missing the spacing rules its sibling had. They live here now.
+
+   Each view links this file with a ?v= cache-buster. The service worker caches
+   /css/* cache-first, so bumping the version in the views is what makes an edit
+   reach browsers that already visited one of these pages.
+
+   Class names stay the ones the views already used (card, input, btn). Nothing
+   else loads this file, so there is no chance of them leaking into the site. */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: #f3f4f6;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card {
+    width: 100%;
+    max-width: 420px;
+    padding: 36px 32px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* The reset form is a touch narrower than the other two screens. */
+.card-condensed {
+    max-width: 400px;
+    padding: 32px;
+}
+
+/* The success screen centres its content and gives the icon more room. */
+.card-centered {
+    padding: 40px 32px;
+    text-align: center;
+}
+
+h1 {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 8px;
+}
+
+.description {
+    text-align: center;
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 24px;
+}
+
+.description strong {
+    color: #374151;
+}
+
+.status {
+    background: #dcfce7;
+    color: #16a34a;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.logo {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 16px;
+    background: #1e293b;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logo svg {
+    width: 32px;
+    height: 32px;
+}
+
+.icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 20px;
+    background: #dcfce7;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon svg {
+    width: 28px;
+    height: 28px;
+    color: #16a34a;
+}
+
+.success-text {
+    color: #16a34a;
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 20px;
+}
+
+.label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+.input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 15px;
+    color: #1f2937;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.error {
+    color: #dc2626;
+    font-size: 13px;
+    margin-top: 4px;
+}
+
+/* Vertical rhythm for one labelled field: label + input + inline error. These
+   replaced the .mb-4 / .mb-6 utilities the views used to carry — .mb-6 was
+   never defined anywhere, so the confirm-password field had no space below it. */
+.auth-field {
+    margin-bottom: 16px;
+}
+
+.auth-field-last {
+    margin-bottom: 24px;
+}
+
+.btn {
+    width: 100%;
+    padding: 12px;
+    background: #1e293b;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn:hover {
+    background: #0f172a;
+}
+
+.btn:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    width: 100%;
+    padding: 10px;
+    background: #fff;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-secondary:hover {
+    background: #f3f4f6;
+}
+
+/* CTA on the success screen. Separate from .btn on purpose: it is an <a>, so it
+   sizes to its label instead of stretching, and keeps its own casing. */
+.btn-success {
+    display: inline-block;
+    padding: 12px 24px;
+    background: #16a34a;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.btn-success:hover {
+    background: #15803d;
+}
+
+.btn-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.btn-row form {
+    flex: 1;
+}
+
+.back-link {
+    display: block;
+    text-align: center;
+    margin-top: 20px;
+    color: #6b7280;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.back-link:hover {
+    color: #374151;
+    text-decoration: underline;
+}
+</style></head>
+<body>
+    <div class="card card-condensed">
+        <form method="POST" action="{{ route('password.store') }}">
+            @csrf
+
+            <input type="hidden" name="token" value="{{ $token }}">
+            <input type="hidden" name="email" value="{{ $email ?? old('email') }}">
+
+            @error('email')
+                <div class="error">{{ $message }}</div>
+            @enderror
+
+            <div class="auth-field">
+                <label class="label" for="password">Password</label>
+                <input
+                    id="password"
+                    type="password"
+                    class="input"
+                    name="password"
+                    required
+                    autofocus
+                    autocomplete="new-password"
+                >
+                @error('password')
+                    <div class="error">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <div class="auth-field-last">
+                <label class="label" for="password_confirmation">Confirm Password</label>
+                <input
+                    id="password_confirmation"
+                    type="password"
+                    class="input"
+                    name="password_confirmation"
+                    required
+                    autocomplete="new-password"
+                >
+                @error('password_confirmation')
+                    <div class="error">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <button type="submit" class="btn" id="resetBtn" data-loading-text="Resetting...">Reset Password</button>
+        </form>
+    </div>
+
+    
+<pre id="probe-result"></pre><script>
+const props = ["display","position","top","right","bottom","left","float","clear","z-index","width","height","min-width","min-height","max-width","max-height","box-sizing","margin-top","margin-right","margin-bottom","margin-left","padding-top","padding-right","padding-bottom","padding-left","border-top-width","border-right-width","border-bottom-width","border-left-width","border-top-color","border-radius","background-color","color","opacity","visibility","font-family","font-size","font-weight","font-style","line-height","letter-spacing","text-align","text-transform","text-decoration-line","white-space","word-spacing","text-indent","overflow-x","overflow-y","clip","clip-path","transform","box-shadow","flex-direction","flex-wrap","flex-grow","flex-shrink","flex-basis","justify-content","align-items","align-self","gap","row-gap","column-gap","order","grid-template-columns","cursor","outline-style","outline-width","outline-color","list-style-type","direction","transition-property","transition-duration","vertical-align"];
+// Unhide everything so every section/modals state gets measured.
+for (const el of document.querySelectorAll('[hidden]')) el.removeAttribute('hidden');
+// Measure only once every image has settled: a half-loaded image changes its
+// intrinsic height and would otherwise make the two runs disagree at random.
+const settled = Promise.all([...document.images].map((img) => img.complete
+    ? Promise.resolve()
+    : new Promise((resolve) => { img.addEventListener('load', resolve); img.addEventListener('error', resolve); })));
+Promise.race([settled, new Promise((r) => setTimeout(r, 4000))]).then(() => measure());
+function measure() {
+const out = [];
+let i = 0;
+for (const el of document.querySelectorAll('body *')) {
+  const cs = getComputedStyle(el);
+  const r = el.getBoundingClientRect();
+  const vals = props.map((p) => cs.getPropertyValue(p)).join(';');
+  out.push([
+    i++,
+    el.tagName,
+    el.id || '',
+    (el.getAttribute('class') || ''),
+    vals,
+    [r.x, r.y, r.width, r.height].map((n) => Math.round(n * 100) / 100).join(','),
+    el.textContent ? el.textContent.replace(/\s+/g, ' ').trim().slice(0, 120) : '',
+  ]);
+}
+document.getElementById('probe-result').textContent = JSON.stringify(out);
+}
+</script></body>
+</html>

@@ -1,4 +1,40 @@
-* {
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="/">
+    <!-- The homepage is served via the / route (public/home.html), so the
+         SecurityHeaders middleware applies the CSP header like every other
+         page. This meta tag mirrors that policy as defense-in-depth in case
+         the page is ever served outside the middleware; keep the two in sync
+         with app/Http/Middleware/SecurityHeaders.php. Note: script-src omits
+         'unsafe-inline' — the page has no inline scripts, and a static meta
+         tag cannot carry the per-response nonce the header uses for Ziggy. -->
+    
+    <meta name="description" content="Motaste Restaurant serves crafted silog, batchoy, fried chicken and more. Order online for dine-in, take-out, or rider pick-up delivery.">
+    <meta name="theme-color" content="#0d0f1c">
+    <meta property="og:type" content="restaurant">
+    <meta property="og:title" content="Motaste Restaurant — Crafted Silog">
+    <meta property="og:description" content="Order your favorite silog and Filipino dishes at Motaste. Dine-in, take-out, or SakayKo rider delivery.">
+    <meta property="og:site_name" content="Motaste Restaurant">
+    <meta property="og:locale" content="en_PH">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Motaste Restaurant — Crafted Silog">
+    <meta name="twitter:description" content="Order crafted silog, batchoy, fried chicken and more online at Motaste.">
+    <meta name="robots" content="index, follow">
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    <title>Motaste Restaurant — Crafted Silog</title>
+    
+<style>* {
     box-sizing: border-box;
 }
 
@@ -25,23 +61,6 @@ html, body {
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
-}
-
-/* Screen-reader-only label text: used where a label would only repeat what the
-   control beside it already shows (the Logs filter bar). This keeps the word
-   available to assistive tech, unlike the `hidden` attribute, which would drop
-   the label from the accessibility tree as well as the page. */
-.sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    padding: 0;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    clip-path: inset(50%);
-    white-space: nowrap;
-    border: 0;
 }
 
 /* Contain overscroll within scrolling regions to avoid body overscroll */
@@ -108,6 +127,12 @@ html, body {
     background: #f6f3ef;
 }
 
+.top-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .top-bar h1 {
     margin: 0;
 
@@ -142,6 +167,12 @@ html, body {
     padding: 0;
     position: static;
     box-shadow: none;
+}
+
+.top-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .menu-btn {
@@ -319,6 +350,12 @@ body.dashboard-panel-open .menu-btn {
     background: rgba(0,0,0,0.18);
 }
 
+.top-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .account-form {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -396,6 +433,56 @@ body.dashboard-panel-open .menu-btn {
     padding: 16px 0;
 }
 
+.sales-example {
+    margin-top: 20px;
+    padding: 18px;
+    background: rgba(255, 255, 255, 0.94);
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.sales-example h4 {
+    margin-top: 0;
+    margin-bottom: 14px;
+}
+
+.sales-example-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 12px;
+}
+
+.sales-example-table th,
+.sales-example-table td {
+    padding: 12px 14px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.sales-example-table th {
+    background: #f7f7f7;
+    font-weight: 700;
+}
+
+.sales-example-note {
+    margin: 0;
+    color: #555;
+    font-size: 14px;
+}
+
+.top-link {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    padding: 10px 16px;
+    border-radius: 8px;
+    background: #ff9800;
+}
+
+.top-link:hover {
+    background: #e68900;
+}
+
 .staff-login-page {
     position: absolute;
     inset: 0;
@@ -426,6 +513,20 @@ html.staff-auth-pending #staffLoadingOverlay {
     width: min(480px, 100%);
     position: relative;
     z-index: 1000;
+}
+
+.top-login-btn {
+    background: #ff9800;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.top-login-btn:hover {
+    background: #e68900;
 }
 
 .modal-overlay {
@@ -476,6 +577,15 @@ html.staff-auth-pending #staffLoadingOverlay {
 .modal-box h2 {
     margin-top: 0;
     margin-bottom: 16px;
+}
+
+.role-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    position: relative;
+    z-index: 2002;
 }
 
 .role-tab {
@@ -1666,6 +1776,10 @@ body.staff-app .forgot-password-status {
         padding: 11px 14px;
     }
 
+    .menu-category-header {
+        flex-wrap: wrap;
+    }
+
     .checkout-option-btn {
         flex-basis: 100%;
     }
@@ -1702,12 +1816,24 @@ body.staff-app .forgot-password-status {
     gap: 12px;
     margin-top: 20px;
 }
+.menu-categories-visible {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 16px;
+}
+.menu-categories-visible .menu-category-btn {
+    min-width: 0;
+    padding: 12px 6px;
+    font-size: 0.75rem;
+}
+.menu-section-heading,
 .menu-cart-section-heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
 }
+.menu-section-heading h2,
 .menu-cart-section-heading h2 {
     margin: 0;
 }
@@ -2049,6 +2175,12 @@ body.modal-open {
     grid-template-columns: 1fr 1fr;
     gap: 12px;
 }
+.menu-overlay-hide-actions .menu-overlay-actions-panel {
+    display: none;
+}
+.menu-overlay.hide-header .menu-overlay-header {
+    display: none;
+}
 .menu-overlay-actions {
     display: flex;
     align-items: center;
@@ -2258,7 +2390,9 @@ body.modal-open {
 .menu-item-stock-left {
     align-self: flex-start;
 }
-.special-food-added-message, .special-food-add {
+.special-food-cart-action,
+.special-food-added-message,
+.special-food-add {
     display: none;
 }
 
@@ -2359,6 +2493,10 @@ body.modal-open {
     cursor: grabbing;
 }
 
+.menu-cart-summary-text {
+    display: none;
+}
+
 #menuTopCartCount {
     position: absolute;
     top: -6px;
@@ -2386,6 +2524,26 @@ body.modal-open {
     border-radius: 50%;
     font-size: 24px;
     cursor: pointer;
+}
+.menu-open-btn {
+    margin-top: 18px;
+    border: none;
+    background: #111;
+    color: #fff;
+    padding: 14px 22px;
+    border-radius: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+.menu-open-btn:hover {
+    background: #ff9800;
+}
+.menu-category-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
 }
 .menu-back-btn {
     border: none;
@@ -2439,6 +2597,34 @@ body.modal-open {
 }
 .menu-item-card .menu-item-main p:last-child {
     margin-bottom: 0;
+}
+.menu-item-card .menu-item-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-width: 110px;
+    border: none;
+    background: #111;
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+.menu-item-card .menu-item-action:hover {
+    background: #ff9800;
+}
+.menu-item-card .menu-item-action.menu-item-action-primary {
+    background: #ff8c00;
+}
+.menu-item-card .menu-item-action.menu-item-action-primary:hover {
+    background: #ff7a00;
+}
+.menu-item-actions {
+    display: grid;
+    gap: 8px;
 }
 .menu-item-price {
     font-weight: 700;
@@ -2538,6 +2724,12 @@ body.modal-open {
 .menu-item-qty-btn:focus-visible {
     background-color: #ff9800;
     box-shadow: none;
+}
+.menu-item-qty {
+    min-width: 24px;
+    text-align: center;
+    font-weight: 700;
+    color: #111;
 }
 .menu-item-qty-input {
     width: 46px;
@@ -2656,6 +2848,10 @@ body.modal-open {
 .menu-cart-components-toggle:focus-visible {
     background: rgba(255, 152, 0, 0.2);
 }
+.menu-cart-item .menu-cart-item-qty {
+    font-size: 0.95rem;
+    color: #333;
+}
 .menu-cart-item-qty-controls {
     display: inline-flex;
     align-items: center;
@@ -2683,6 +2879,11 @@ body.modal-open {
     background: #c8c8c8;
     color: #777;
     cursor: not-allowed;
+}
+.menu-cart-item-qty-controls .menu-cart-item-qty {
+    min-width: 20px;
+    text-align: center;
+    font-weight: 700;
 }
 .menu-cart-item-qty-wrap {
     display: flex;
@@ -2789,6 +2990,12 @@ body.modal-open {
     background: #c8c8c8;
     color: #777;
     cursor: not-allowed;
+}
+.menu-cart-component-qty {
+    min-width: 18px;
+    text-align: center;
+    font-weight: 700;
+    color: #222;
 }
 .menu-cart-component-qty-wrap {
     display: flex;
@@ -3093,6 +3300,7 @@ body.modal-open {
     padding-left: 12px;
     border-radius: 4px;
 }
+.checkout-clock,
 .live-clock {
     font-size: 0.95rem;
     color: #caff0a;
@@ -3449,6 +3657,11 @@ body.modal-open {
     flex-wrap: wrap;
 }
 @media (max-width: 560px) {
+    .logs-filter-btn {
+        flex: 1 1 calc(50% - 8px);
+        text-align: center;
+    }
+
     .walkin-order-builder,
     .walkin-order-footer {
         grid-template-columns: 1fr;
@@ -3527,6 +3740,8 @@ body.modal-open {
     cursor: zoom-in;
     pointer-events: auto;
 }
+
+.slide-nav { display: none; }
 
 .slide-dots {
     position: absolute;
@@ -4076,6 +4291,31 @@ body.modal-open {
     background-size: 12px 8px;
 }
 
+.sales-detail-panel,
+.sales-list-panel {
+    margin-top: 20px;
+}
+
+.sales-list-panel {
+    padding: 18px 20px;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 16px;
+    color: #111;
+}
+
+.sales-number-list {
+    margin: 0;
+    padding-left: 22px;
+    color: #111;
+}
+
+.sales-number-list li {
+    margin-bottom: 10px;
+    line-height: 1.6;
+    font-size: 15px;
+}
+
 .analytics-select,
 .nested-select {
     appearance: none;
@@ -4169,6 +4409,44 @@ body.modal-open {
     display: none;
 }
 
+.chart-scroll-controls:not(.is-scrollable) .chart-scroll-btn {
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+.chart-scroll-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: #ffffff;
+    color: #475569;
+    font-size: 0.82rem;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.chart-scroll-btn:hover:not(:disabled) {
+    background: #f1f5f9;
+    border-color: rgba(43, 174, 102, 0.35);
+    color: #167A45;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+.chart-scroll-btn:active:not(:disabled) {
+    transform: scale(0.94);
+    box-shadow: none;
+}
+
+.chart-scroll-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
 /* ===== Vertical scroll controls (Overview sales analysis) ===== */
 .chart-scroll-vertical {
     flex-direction: column;
@@ -4191,6 +4469,17 @@ body.modal-open {
 body.staff-app .chart-scroll-vertical {
     background: rgba(30, 41, 59, 0.75);
     border-color: var(--staff-border);
+}
+
+.chart-scroll-vertical .chart-scroll-btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.chart-scroll-vertical .chart-scroll-btn {
+    width: 34px;
+    height: 34px;
 }
 
 .chart-scroll-vertical:not(.is-scrollable) {
@@ -4216,6 +4505,9 @@ body.staff-app .chart-scroll-vertical {
         justify-content: center;
     }
 
+    .chart-scroll-vertical .chart-scroll-btn-group {
+        flex-direction: row;
+    }
 }
 
 @media (max-width: 640px) {
@@ -4223,6 +4515,10 @@ body.staff-app .chart-scroll-vertical {
         padding: 6px 2px;
     }
 
+    .chart-scroll-vertical .chart-scroll-btn {
+        width: 32px;
+        height: 32px;
+    }
 }
 
 /* Horizontal pan controls: stay comfortable to tap on tablet/phone widths.
@@ -4241,7 +4537,12 @@ body.staff-app .chart-scroll-vertical {
     }
 }
 
-
+@media (max-width: 480px) {
+    .chart-scroll-controls .chart-scroll-btn {
+        width: 44px;
+        height: 38px;
+    }
+}
 
 .overview-section,
 .inventory-section,
@@ -4569,6 +4870,12 @@ body.staff-app .retention-clear-btn {
     box-shadow: none;
 }
 
+.overview-order-notification-box .order-notification-card .order-meta,
+.overview-order-notification-box .order-notification-card .order-status,
+.overview-order-notification-box .order-notification-card .order-amount {
+    color: #475569;
+}
+
 #overview .sales-analytics-select-wrapper {
     background: #f8fafc;
     border: 1px solid rgba(148, 163, 184, 0.15);
@@ -4620,6 +4927,31 @@ body.staff-app .retention-clear-btn {
 
 #overview .sales-analytics-chart-wrapper::-webkit-scrollbar-thumb:hover {
     background: rgba(148, 163, 184, 0.60);
+}
+
+#overview .stats-card,
+#overview .overview-metric-card {
+    background: #ffffff;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 16px;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+}
+
+.overview-low-stock-box {
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 18px 20px;
+    color: #fff;
+    display: grid;
+    gap: 16px;
+}
+
+.overview-low-stock-list {
+    display: grid;
+    gap: 10px;
 }
 
 .low-stock-modal {
@@ -4698,6 +5030,11 @@ body.staff-app .retention-clear-btn {
     font-weight: 700;
     min-width: 180px;
     width: 100%;
+}
+
+.low-stock-action-btn.primary {
+    background: #ff9800;
+    color: #111;
 }
 
 .low-stock-action-btn.secondary {
@@ -5103,7 +5440,9 @@ body.staff-app .retention-clear-btn {
 }
 
 
-    .inventory-admin-panel {
+    .inventory-admin-panel,
+    .inventory-manager-list,
+    .inventory-readonly-summary {
         background: rgba(255,255,255,0.96);
         backdrop-filter: blur(6px);
         -webkit-backdrop-filter: blur(6px);
@@ -5407,6 +5746,13 @@ body.staff-app .retention-clear-btn {
         color: #111;
     }
 
+    .inventory-manager-list,
+    .inventory-readonly-summary {
+        display: grid;
+        gap: 14px;
+        max-width: 100%;
+    }
+
 .sales-analytics-chart-wrapper {
     width: 100%;
     overflow-x: auto;
@@ -5588,6 +5934,26 @@ body.staff-app .retention-clear-btn {
     word-break: break-word;
 }
 
+.review-management .review-comment {
+    color: #1f1f1f !important;
+}
+
+.review-history-title {
+    margin: 18px 0 10px;
+    color: #fff;
+}
+
+.review-management {
+    margin-top: 20px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.review-management h3,
+.review-management p {
+    color: #fff;
+}
+
 .review-status-badge {
     display: inline-flex;
     align-items: center;
@@ -5695,6 +6061,9 @@ body.staff-app .retention-clear-btn {
         gap: 12px;
     }
 
+    .sales-analytics-bar {
+        max-width: 70px;
+    }
 }
 
 @media (max-width: 900px) {
@@ -5795,6 +6164,15 @@ body.staff-app .retention-clear-btn {
         width: 100%;
     }
 
+    .admin-edit-mode-switch {
+        display: flex;
+        width: 100%;
+    }
+
+    .admin-edit-mode-switch .admin-edit-mode-btn {
+        flex: 1 1 0;
+    }
+
     .staff-login-page {
         min-height: 100vh;
         padding: 16px;
@@ -5809,6 +6187,10 @@ body.staff-app .retention-clear-btn {
 
     .top-bar.login-top-bar {
         padding: 8px 12px 0;
+    }
+
+    .top-bar-left {
+        width: 100%;
     }
 
     .dashboard-panel {
@@ -5897,6 +6279,10 @@ body.staff-app .retention-clear-btn {
         border-radius: 10px;
     }
 
+    .role-tabs {
+        flex-direction: column;
+    }
+
     .role-tab {
         width: 100%;
         text-align: center;
@@ -5909,7 +6295,11 @@ body.staff-app .retention-clear-btn {
         border-right: none;
     }
 
-    .overview-analytics-panel, .overview-order-notification-box, .inventory-admin-panel {
+    .overview-analytics-panel,
+    .overview-order-notification-box,
+    .inventory-admin-panel,
+    .inventory-manager-list,
+    .inventory-readonly-summary {
         padding: 16px;
     }
 
@@ -8564,6 +8954,19 @@ body.staff-app .chart-scroll-hint {
     color: var(--staff-muted);
 }
 
+body.staff-app .chart-scroll-btn {
+    background: var(--staff-surface);
+    border-color: var(--staff-border);
+    color: var(--staff-text);
+}
+
+body.staff-app .chart-scroll-btn:hover:not(:disabled) {
+    background: var(--staff-surface-soft, #eef2f5);
+    border-color: var(--staff-accent);
+    color: var(--staff-accent-strong);
+    box-shadow: 0 2px 6px rgba(43, 174, 102, 0.1);
+}
+
 body.staff-app .sales-analytics-placeholder,
 body.staff-app .overview-analytics-panel,
 body.staff-app .overview-order-notification-box,
@@ -8839,6 +9242,14 @@ body.staff-app .sales-tab-btn:hover {
 body.staff-app .sales-tab-btn.active {
     color: var(--staff-accent-strong);
     border-bottom-color: var(--staff-accent);
+}
+
+body.staff-app .sales-list-panel,
+body.staff-app .sales-detail-panel {
+    background: var(--staff-surface-2) !important;
+    border: 1px solid var(--staff-border) !important;
+    border-radius: 14px !important;
+    color: var(--staff-text) !important;
 }
 
 /* ---------- Profit section ---------- */
@@ -9277,6 +9688,12 @@ body.staff-app .special-customize-builder label {
 }
 
 /* ---------- Logs / review management ---------- */
+body.staff-app .review-management h3,
+body.staff-app .review-management p,
+body.staff-app .review-history-title {
+    color: var(--staff-text);
+}
+
 body.staff-app .logs-filter-bar select,
 body.staff-app .logs-filter-bar input {
     background: var(--staff-surface-2);
@@ -9932,6 +10349,10 @@ body.staff-app .totp-manual-key {
     user-select: all;
 }
 
+body.staff-app .totp-modal-steps h3 {
+    margin-bottom: 4px;
+}
+
 /* The "Add Staff Account" trigger and its card sit in the same flat system as
    the dashboard list below them: solid button, thin-border card. */
 body.staff-app #account-management .add-staff-btn {
@@ -10357,6 +10778,15 @@ body.staff-app #staffEditPanel > p {
     margin: 0 0 12px;
     color: var(--staff-muted);
     font-size: 0.85rem;
+}
+
+/* The two-step admin flows open with a short explanation of what happens next. */
+body.staff-app .account-form-note {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--staff-muted);
 }
 
 /* ---------- Credentials: floating labels + helper text ---------- */
@@ -11150,7 +11580,10 @@ body.staff-app .notice-auto-close-bar.animating {
 }
 
 /* ---------- Shared buttons / inputs ---------- */
-body.staff-app .add-staff-btn, body.staff-app .account-form button, body.staff-app .menu-place-order-btn {
+body.staff-app .add-staff-btn,
+body.staff-app .account-form button,
+body.staff-app .menu-place-order-btn,
+body.staff-app .menu-open-btn {
     background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
     color: #fff;
     border: none;
@@ -11160,7 +11593,10 @@ body.staff-app .add-staff-btn, body.staff-app .account-form button, body.staff-a
     transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
 
-body.staff-app .add-staff-btn:hover, body.staff-app .account-form button:hover, body.staff-app .menu-place-order-btn:hover {
+body.staff-app .add-staff-btn:hover,
+body.staff-app .account-form button:hover,
+body.staff-app .menu-place-order-btn:hover,
+body.staff-app .menu-open-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 14px 30px rgba(43, 174, 102, 0.42);
     filter: brightness(1.05);
@@ -11241,6 +11677,43 @@ body.staff-app .account-form-actions .secondary-btn:hover {
     color: var(--staff-accent-strong);
     border-color: var(--staff-accent);
     transform: translateY(-2px);
+}
+
+/* ---------- Admin credential panel ----------
+   The admin edit panel mirrors the staff edit panel: one card, one heading, and
+   one form per mode. The mode switch reuses the portal's segmented-tab look
+   (see .export-mode-tabs) so it reads as a control instead of two stray
+   buttons, and each mode renders through the same .account-form markup. */
+body.staff-app .admin-edit-mode-switch {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 2px 0 16px;
+    padding: 4px;
+    background: var(--staff-accent-soft);
+    border-radius: 12px;
+}
+
+body.staff-app .admin-edit-mode-btn {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    border-radius: 9px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--staff-muted);
+    transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+body.staff-app .admin-edit-mode-btn:hover {
+    color: var(--staff-accent-2);
+}
+
+body.staff-app .admin-edit-mode-btn.active {
+    background: #ffffff;
+    color: var(--staff-accent-strong);
+    box-shadow: 0 4px 12px rgba(43, 174, 102, 0.18);
 }
 
 /* Panel-level Cancel row sits below the active mode's form. Keep it compact
@@ -11527,6 +12000,31 @@ body.staff-app .password-toggle-btn {
 
 body.staff-app .password-toggle-btn:hover {
     color: var(--staff-accent-2);
+}
+
+/* Social login buttons — light card friendly */
+body.staff-app .social-login-btn {
+    border: 1px solid var(--staff-border) !important;
+    background: #ffffff !important;
+    color: var(--staff-muted) !important;
+}
+
+body.staff-app .social-login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--staff-shadow-md);
+    border-color: var(--staff-accent) !important;
+}
+
+body.staff-app .social-login-google {
+    color: #EA4335 !important;
+}
+
+body.staff-app .social-login-facebook {
+    color: #1877F2 !important;
+}
+
+body.staff-app .social-login-tiktok {
+    color: #111111 !important;
 }
 
 body.staff-app .login-dark-overlay {
@@ -13253,3 +13751,638 @@ body.staff-app .login-history-filter-note {
             background: #e68900;
             transform: translateX(-50%) translateY(-2px);
         }
+</style></head>
+<body class="site-home">
+    <a href="#main" class="skip-link">Skip to content</a>
+    <header class="top-bar" id="siteHeader">
+        <a href="#home" class="brand-logo" aria-label="MoTaste Restaurant — back to top">
+            <span class="brand-monogram">MT<span class="brand-dot"></span></span>
+            <span class="brand-wordmark">Motaste</span>
+        </a>
+        <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle navigation menu" aria-expanded="false">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <div class="live-clock" id="liveClock" aria-live="polite"></div>
+        <nav class="top-nav" id="topNav" aria-label="Primary">
+            <button type="button" id="langToggleBtn" class="lang-toggle-btn" aria-label="Switch language">EN</button>
+            <a href="#home">Home</a>
+            <a href="#menu">Menu</a>
+            <a href="#about">About Us</a>
+            <a href="#contact">Contact</a>
+        </nav>
+    </header>
+
+    <!-- Hero Banner -->
+    <main id="main">
+    <section class="front-section" id="home">
+        <picture>
+            <source srcset="hero.webp" type="image/webp">
+            <img src="hero.jpg" class="hero-bg" alt="Motaste Restaurant hero">
+        </picture>
+        <div class="hero-overlay" aria-hidden="true"></div>
+        <div class="hero-content">
+            <p class="hero-kicker">SILOG · GARLIC RICE · BATCHOY</p>
+            <h1 class="hero-title">MOTASTE.<br><span>Crafted Silog.</span></h1>
+            <p class="hero-sub">Warm garlic rice, golden egg, and sizzling viands — served fresh from our kitchen to your table.</p>
+            <div class="hero-actions">
+                <a href="#about" class="about-btn">About Us</a>
+                <a href="#menu" class="hero-ghost-btn">View Menu</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="special-foods-section special-foods-visible" aria-labelledby="specialFoodsTitle">
+        <div class="special-foods-heading">
+            <h1 id="specialFoodsTitle">Special Foods</h1>
+        </div>
+        <div class="special-foods-list" id="specialFoodsList"></div>
+    </section>
+
+    <section class="info-section menu-section" id="menu">
+        <div class="menu-container">
+            <!-- LEFT: MENU CATEGORIES -->
+            <div class="menu-left">
+                <h2>Other Foods</h2>
+                <p>Discover a variety of flavorful dishes prepared just for you. Select your preferred meals and add them to your order with ease.</p>
+                <div class="menu-categories" id="menuCategories">
+                    <button type="button" class="menu-category-btn" data-category="batchoy">BATCHOY</button>
+                    <button type="button" class="menu-category-btn" data-category="silog">SILOG</button>
+                    <button type="button" class="menu-category-btn" data-category="friedChicken">FRIED CHICKEN</button>
+                    <button type="button" class="menu-category-btn" data-category="breakfast">BREAKFAST</button>
+                    <button type="button" class="menu-category-btn" data-category="drinks">DRINKS</button>
+                    <button type="button" id="menuAddOnQuickBtn" class="menu-category-btn" data-category="addons">ADD ON</button>
+                </div>
+            </div>
+            <!-- RIGHT IMAGE -->
+            <div class="menu-image">
+                <picture>
+                    <source srcset="designmenu.webp" type="image/webp">
+                    <img src="designmenu.jpg" alt="Menu Design" class="menu-design" decoding="async">
+                </picture>
+            </div>
+            <!-- RIGHT: CART -->
+            <div class="menu-right">
+                <div class="menu-total-panel">
+                    <button type="button" id="menuCartButton" class="menu-cart-button" aria-label="Open cart">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                        <span id="menuTopCartCount">0</span>
+                    </button>
+                    <!-- Live order status floating icon: hidden until an active order is placed -->
+                    <div id="orderStatusFloat" class="order-status-float" hidden aria-hidden="true">
+                        <!-- Live countdown chip: MM:SS text sits directly inside a depleting loading bar -->
+                        <div id="orderStatusChip" class="order-status-chip is-waiting" hidden aria-hidden="true">
+                            <span class="order-status-chip-bar" aria-hidden="true"><span class="order-status-chip-bar-fill" id="orderStatusChipBarFill"></span></span>
+                            <span class="order-status-chip-label" id="orderStatusChipLabel">Awaiting acceptance</span>
+                        </div>
+                        <button type="button" id="orderStatusFloatBtn" class="order-status-float-btn" aria-label="Track your order status" aria-expanded="false" aria-controls="orderStatusPopover">
+                            <svg class="order-status-ring" viewBox="0 0 54 54" aria-hidden="true">
+                                <circle class="order-status-ring-track" cx="27" cy="27" r="24.5"></circle>
+                                <circle class="order-status-ring-fill" cx="27" cy="27" r="24.5"></circle>
+                            </svg>
+                            <i class="fa-solid fa-utensils" id="orderStatusFloatIcon" aria-hidden="true"></i>
+                            <span class="order-status-float-ping" aria-hidden="true"></span>
+                        </button>
+                        <div id="orderStatusPopover" class="order-status-popover" role="dialog" aria-label="Order status" aria-hidden="true" hidden>
+                            <div class="order-status-popover-head">
+                                <strong>Order Status</strong>
+                                <button type="button" id="orderStatusCloseBtn" class="order-status-close" aria-label="Close order status">×</button>
+                            </div>
+                            <div id="orderStatusBody" class="order-status-body"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="menu-cart-section cart-modal hidden" id="cart" aria-labelledby="cartTitle" aria-hidden="true">
+        <div class="menu-cart-section-heading">
+            <h2 id="cartTitle">Your Cart</h2>
+            <button type="button" id="closeCartButton" class="cart-exit-button" aria-label="Close cart">Exit</button>
+        </div>
+        <aside class="menu-cart-panel" id="menuCartPanel">
+            <div class="menu-cart-header">
+                <div>
+                    <h4>Order Summary</h4>
+                    <p id="menuCartCount">0 items</p>
+                </div>
+                <button type="button" id="cartAddOnBtn" class="cart-add-on-btn" aria-label="Open add on items">ADD ON</button>
+            </div>
+            <div class="menu-cart-items" id="menuCartList">
+                <p class="menu-cart-empty">Your cart is empty.</p>
+            </div>
+            <div class="menu-cart-summary">
+                <div>
+                    <span>Total</span>
+                    <strong id="menuCartTotal">₱0</strong>
+                </div>
+                <button type="button" id="menuPlaceOrderBtn" class="menu-place-order-btn" disabled>Proceed to Payment</button>
+            </div>
+            <p class="menu-order-message" id="menuOrderMessage"></p>
+
+            <div id="cartAddOnScreen" class="cart-addon-screen hidden" aria-hidden="true">
+                <div class="cart-addon-screen-header">
+                    <h4>Add On Items</h4>
+                    <button type="button" id="cartAddOnCloseBtn" class="menu-back-btn">Back</button>
+                </div>
+                <input
+                    type="search"
+                    id="cartAddOnSearchInput"
+                    class="cart-addon-search-input"
+                    placeholder="Search add on items..."
+                    autocomplete="off"
+                >
+                <div id="cartAddOnList" class="cart-addon-list"></div>
+
+                <div class="cart-addon-footer">
+                    <div id="cartAddOnTotal" class="cart-addon-total" aria-live="polite">
+                        <span>Total if added</span>
+                        <strong>₱0</strong>
+                    </div>
+                    <div class="cart-addon-footer-actions">
+                        <p id="cartAddOnMessage" class="menu-order-message"></p>
+                        <button type="button" id="cartAddOnApplyBtn" class="menu-place-order-btn" disabled>Add Selected Add Ons</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </section>
+
+    <div class="product-detail-modal hidden" id="productDetailModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="productDetailName">
+        <div class="product-detail-card">
+            <button type="button" id="productDetailCloseBtn" class="product-detail-close" aria-label="Close product details">×</button>
+            <div class="product-detail-media">
+                <img id="productDetailImage" src="img1.jpg" alt="Product image">
+            </div>
+            <div class="product-detail-body">
+                <p class="product-detail-kicker">Dish details</p>
+                <h3 id="productDetailName">Product</h3>
+                <p id="productDetailDescription" class="product-detail-description">Description coming soon.</p>
+                <div class="product-detail-footer">
+                    <strong id="productDetailPrice">₱0</strong>
+                    <div class="product-detail-qty-wrap">
+                        <div class="product-detail-qty-controls" id="productDetailQtyControls" aria-label="Select quantity">
+                            <button type="button" id="productDetailQtyDecrease" class="product-detail-qty-btn" aria-label="Decrease quantity">−</button>
+                            <!-- Quantity is typeable: script.js accepts digits only and reminds the
+                                 customer when the number goes beyond the item's remaining stock. -->
+                            <input
+                                type="text"
+                                id="productDetailQtyValue"
+                                class="product-detail-qty-input"
+                                value="1"
+                                inputmode="numeric"
+                                autocomplete="off"
+                                pattern="[0-9]*"
+                                maxlength="4"
+                                aria-label="Quantity"
+                                aria-describedby="productDetailQtyError"
+                            >
+                            <button type="button" id="productDetailQtyIncrease" class="product-detail-qty-btn" aria-label="Increase quantity">+</button>
+                        </div>
+                        <small class="product-detail-qty-error" id="productDetailQtyError" role="alert" aria-live="polite" hidden></small>
+                    </div>
+                    <span id="productDetailStockLeft" class="product-detail-stock-left" hidden aria-live="polite"></span>
+                    <div class="product-detail-actions">
+                        <button type="button" id="productDetailPurchaseBtn" class="menu-place-order-btn">PURCHASE NOW</button>
+                        <button type="button" id="productDetailAddBtn" class="menu-place-order-btn">Add to cart</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="menu-overlay hidden" id="menuOverlay" aria-hidden="true">
+        <div class="menu-overlay-panel">
+            <div class="menu-overlay-header">
+                <h2>Menu</h2>
+                <div class="menu-overlay-actions">
+                    <button type="button" id="closeMenuOverlayBtn" class="menu-overlay-close" aria-label="Close menu">×</button>
+                </div>
+            </div>
+            <div class="menu-overlay-categories" id="menuOverlayCategories"></div>
+            <div class="menu-overlay-actions-panel">
+                <div class="menu-action-panel">
+                    <button type="button" id="menuAddToCartBtn" class="menu-place-order-btn">Add to cart</button>
+                    <button type="button" id="menuPurchaseNowBtn" class="menu-place-order-btn menu-place-order-primary">Purchase now</button>
+                </div>
+            </div>
+            <div class="menu-category-screen hidden" id="menuCategoryScreen" aria-hidden="true">
+                <div class="menu-category-body">
+                    <div class="menu-items-panel">
+                        <div class="menu-items-list" id="menuItemsList"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="order-checkout-screen hidden" id="orderCheckoutScreen" aria-hidden="true">
+                <div class="order-checkout-header">
+                    <button id="orderCheckoutBackBtn" type="button" class="menu-back-btn">← Back to Cart</button>
+                    <h3>Checkout</h3>
+                    <button type="button" id="orderCheckoutExitBtn" class="cart-exit-button" aria-label="Exit checkout">Exit</button>
+                </div>
+                <div class="order-checkout-content">
+                    <div class="order-checkout-section">
+                        <p class="checkout-label">Full Name</p>
+                        <input
+                            type="text"
+                            id="customerNameInput"
+                            class="checkout-text-input"
+                            placeholder="Enter your full name"
+                            autocomplete="name"
+                            maxlength="120"
+                        >
+                    </div>
+                    <div class="order-checkout-section">
+                        <p class="checkout-label">Mobile Number <small class="checkout-hint">(optional — for SMS/order updates)</small></p>
+                        <input
+                            type="tel"
+                            id="customerPhoneInput"
+                            class="checkout-text-input"
+                            placeholder="639XXXXXXXXX"
+                            autocomplete="tel"
+                            inputmode="numeric"
+                            maxlength="12"
+                        >
+                        <small class="checkout-field-error" id="customerPhoneError" aria-live="polite"></small>
+                    </div>
+                    <div class="order-checkout-section">
+                        <p class="checkout-label">Email <small class="checkout-hint">(optional — get an email when your order is ready)</small></p>
+                        <input
+                            type="email"
+                            id="customerEmailInput"
+                            class="checkout-text-input"
+                            placeholder="you@example.com"
+                            autocomplete="email"
+                            maxlength="191"
+                        >
+                        <small class="checkout-field-error" id="customerEmailError" aria-live="polite"></small>
+                    </div>
+                    <div class="order-checkout-section">
+                        <p class="checkout-label">Payment Method</p>
+                        <div class="checkout-options" id="paymentMethodOptions">
+                            <button type="button" class="checkout-option-btn active" data-payment="Cash">Cash</button>
+                            <button type="button" class="checkout-option-btn hidden" id="codPaymentOption" data-payment="Cash On Delivery">Cash On Delivery (COD)</button>
+                            <!-- COD's info marker is a SIBLING of its button, not a child: the
+                                 COD option is auto-selected and DISABLED whenever SakayKo is the
+                                 order type, and a disabled option's group opacity would fade a
+                                 nested marker (a child cannot opt out of it). Marker and bubble
+                                 hide with the option itself — see style.css. -->
+                            <span
+                                class="checkout-info-tip"
+                                tabindex="0"
+                                role="img"
+                                aria-label="Cash On Delivery is available with SakayKo Rider Pick-up; hand the exact amount to the rider when your order arrives."
+                            >
+                                <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
+                            </span>
+                            <span class="checkout-info-tooltip" role="tooltip">
+                                Cash On Delivery is available with SakayKo Rider Pick-up — hand the exact amount
+                                to the rider when your order arrives.
+                            </span>
+                        </div>
+                    </div>
+                    <div class="order-checkout-section">
+                        <p class="checkout-label">Order Type</p>
+                        <div class="checkout-options" id="orderTypeOptions">
+                            <button type="button" class="checkout-option-btn active" data-order="Dine In">Dine In</button>
+                            <button type="button" class="checkout-option-btn" data-order="Take Out">Take Out</button>
+                            <button type="button" class="checkout-option-btn" data-order="SakayKo Rider Pick-up">
+                                <i class="fa-solid fa-motorcycle" aria-hidden="true"></i> SakayKo Rider Pick-up
+                                <span
+                                    class="checkout-info-tip"
+                                    tabindex="0"
+                                    role="img"
+                                    aria-label="Friendly Reminder: Motaste is not directly connected with SakayKo. Once your order is ready for pickup, you will need to book a rider through SakayKo or your preferred delivery service. Kindly coordinate directly with your rider and provide them with your order details to ensure a smooth and timely pickup."
+                                >
+                                    <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
+                                </span>
+                            </button>
+                            <!-- Reminder for the marker above. Deliberately kept OUTSIDE the
+                                 option button (Safari can clip absolute children of a button) and
+                                 revealed only while the marker itself is hovered/focused —
+                                 script.js toggles .is-open, hovering the option never opens it. -->
+                            <span class="checkout-info-tooltip" role="tooltip">
+                                <span class="tooltip-lead">Friendly Reminder:</span>
+                                Please note that Motaste is not directly connected with SakayKo. Once your order
+                                is ready for pickup, you will need to book a rider through SakayKo or your preferred
+                                delivery service.
+                                <br>
+                                Kindly coordinate directly with your rider and provide them with your order details
+                                to ensure a smooth and timely pickup.
+                                <br>
+                                Thank you for your understanding and cooperation!
+                            </span>
+                        </div>
+                    </div>
+                    <div class="order-checkout-section" id="deliveryAddressSection" hidden aria-hidden="true">
+                        <p class="checkout-label">Delivery Address</p>
+                        <textarea
+                            id="deliveryAddressInput"
+                            class="checkout-textarea"
+                            rows="3"
+                            maxlength="300"
+                            placeholder="Enter the complete delivery address (e.g. Barangay, Street, Landmark)"
+                        ></textarea>
+                        <small class="checkout-hint">You book the SakayKo rider yourself (Motaste is not connected to SakayKo) — give the rider this address and your order details when it's ready.</small>
+                    </div>
+                    <div class="order-checkout-items" id="orderCheckoutItems"></div>
+                    <div class="order-checkout-total">
+                        <span>Total</span>
+                        <strong id="orderCheckoutTotal">₱0</strong>
+                    </div>
+                    <div class="order-checkout-section consent-section">
+                        <label class="consent-label" for="privacyConsentCheckbox">
+                            <input type="checkbox" id="privacyConsentCheckbox">
+                            <span>I have read and agree to the
+                                <a href="/privacy" target="_blank" rel="noopener">Privacy Notice</a> and
+                                <a href="/terms" target="_blank" rel="noopener">Terms &amp; Conditions</a>.
+                                I consent to the collection of my order and contact details to process this order.
+                            </span>
+                        </label>
+                    </div>
+                    <p id="checkoutMessage" class="menu-order-message" aria-live="polite"></p>
+                    <div class="order-checkout-actions">
+                        <button type="button" id="confirmOrderBtn" class="menu-place-order-btn">Confirm Order</button>
+                    </div>
+                </div>
+            </div>
+            <div class="order-payment-screen hidden" id="orderPaymentScreen" aria-hidden="true">
+                <div class="order-payment-header">
+                    <h3>Payment Confirmation</h3>
+                    <button type="button" id="orderPaymentCloseBtn" class="cart-exit-button" aria-label="Exit payment">Exit</button>
+                </div>
+                <div class="order-payment-content">
+                    <div class="payment-summary">
+                        <p><strong>Order Number:</strong> <span id="orderPaymentNumber"></span></p>
+                        <p><strong>Date &amp; Time:</strong> <span id="orderPaymentDatetime"></span></p>
+                        <p><strong>Payment Method:</strong> <span id="orderPaymentMethod"></span></p>
+                        <p><strong>Order Type:</strong> <span id="orderPaymentOrderType"></span></p>
+                        <p><strong>Customer:</strong> <span id="orderPaymentCustomer"></span></p>
+                        <p id="orderPaymentAddressRow" hidden><strong>Delivery Address:</strong> <span id="orderPaymentAddress"></span></p>
+                    </div>
+                    <div class="payment-message" id="orderPaymentMessage"></div>
+                    <div class="payment-qr-placeholder hidden" id="paymentQrPlaceholder">
+                        <div class="qr-box"><p>Pay via QR code</p></div>
+                        <p class="qr-note">Upload your QR code image here later.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section id="about" class="about-section">
+        <div class="about-container">
+            <div class="about-left">
+                <div class="about-image">
+                    <picture>
+                        <source srcset="picforabout.webp" type="image/webp">
+                        <img src="picforabout.jpg" alt="MoTaste Restaurant" decoding="async">
+                    </picture>
+                </div>
+                <div class="about-features">
+                    <div class="feature-box">
+                        <h3>🍽 Fresh Food</h3>
+                        <p>Prepared with quality ingredients every day.</p>
+                    </div>
+                    <div class="feature-box">
+                        <h3>👨‍🍳 Quality Service</h3>
+                        <p>Making every visit a memorable experience.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="about-content">
+                <span class="about-tag">ABOUT US</span>
+                <h2>
+                    Bringing Delicious Moments<br>
+                    To Your Table
+                </h2>
+                <p>
+                    Welcome to MoTaste Restaurant, where great food meets a warm and
+                    unforgettable dining experience. We serve freshly prepared meals
+                    made with quality ingredients and a passion for creating flavors
+                    that everyone can enjoy.
+                </p>
+                <p>
+                    From casual family meals to special celebrations, our goal is to
+                    provide delicious dishes, friendly service, and a comfortable
+                    atmosphere where every guest feels at home.
+                </p>
+                <a href="#menu" class="about-btn">
+                    Explore Our Menu
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="highlights-section">
+        <div class="highlights-heading">
+            <h2>Highlights</h2>
+            <p>Moments from our kitchen and dining room.</p>
+        </div>
+        <div class="slideshow" aria-label="Highlights slideshow">
+            <div class="slides"></div>
+            <div class="slide-dots" id="slideDots" aria-hidden="false"></div>
+        </div>
+    </section>
+
+    <section id="contact" class="contact-section">
+        <div class="contact-container">
+            <!-- Contact Information -->
+            <div class="contact-info">
+                <span class="contact-tag">CONTACT US</span>
+                <h2>
+                    We'd Love To<br>
+                    Hear From You
+                </h2>
+                <p>
+                    Have questions, suggestions, or want to make a reservation?
+                    Feel free to reach out. Our team is always ready to assist you.
+                </p>
+                <div class="contact-details">
+                    <div class="contact-box">
+                        <div class="contact-icon">
+                            📍
+                        </div>
+                        <div>
+                            <h3>Location</h3>
+                            <p>
+                                MoTaste Restaurant<br>
+                                Your Address Here
+                            </p>
+                        </div>
+                    </div>
+                    <div class="contact-box">
+                        <div class="contact-icon">
+                            📞
+                        </div>
+                        <div>
+                            <h3>Phone</h3>
+                            <p>
+                                +63 9XX XXX XXXX
+                            </p>
+                        </div>
+                    </div>
+                    <div class="contact-box">
+                        <div class="contact-icon">
+                            ✉️
+                        </div>
+                        <div>
+                            <h3>Email</h3>
+                            <p>
+                                motaste@gmail.com
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Form -->
+            <div class="contact-form">
+                <h3>
+                    Leave Us A Review
+                </h3>
+                <form id="customerReviewForm">
+                    <div class="input-group review-rating-group">
+                        <label for="reviewRating">Rating</label>
+                        <select id="reviewRating" required>
+                            <option value="">Select rating</option>
+                            <option value="5">★★★★★ (5)</option>
+                            <option value="4">★★★★☆ (4)</option>
+                            <option value="3">★★★☆☆ (3)</option>
+                            <option value="2">★★☆☆☆ (2)</option>
+                            <option value="1">★☆☆☆☆ (1)</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <textarea
+                        id="reviewMessage"
+                        rows="5"
+                        placeholder="Share your dining experience" required></textarea>
+                    </div>
+                    <button type="submit">
+                        Send Review
+                    </button>
+                    <p class="review-submit-note">One review per day. Reviews are posted immediately.</p>
+                    <p id="reviewSubmitMessage" class="review-submit-message" aria-live="polite"></p>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <section class="map-section">
+        <div class="map-inner">
+            <h2>Our Location</h2>
+            <div class="map-wrapper">
+                <iframe
+                    src="https://www.google.com/maps?q=11.2957587,123.7315946&z=15&output=embed"
+                    allowfullscreen=""
+                   
+                    referrerpolicy="no-referrer-when-downgrade"
+                    title="MOTASTE Location Map">
+                </iframe>
+            </div>
+        </div>
+        <div class="customer-reviews-panel">
+            <h3>Customer Reviews</h3>
+            <div class="review-filter-bar" role="group" aria-label="Filter reviews by star rating">
+                <button type="button" class="review-filter-btn is-active" data-review-rating="0">All</button>
+                <button type="button" class="review-filter-btn" data-review-rating="5">5 ★</button>
+                <button type="button" class="review-filter-btn" data-review-rating="4">4 ★</button>
+                <button type="button" class="review-filter-btn" data-review-rating="3">3 ★</button>
+                <button type="button" class="review-filter-btn" data-review-rating="2">2 ★</button>
+                <button type="button" class="review-filter-btn" data-review-rating="1">1 ★</button>
+            </div>
+            <div id="customerReviewsList" class="customer-reviews-list"></div>
+        </div>
+    </section>
+
+    <footer class="site-footer" id="siteFooter" aria-label="Site footer">
+        <div class="footer-top">
+            <div class="footer-brand">
+                <a href="#home" class="footer-logo" aria-label="MoTaste Restaurant — back to top">
+                    <span class="brand-monogram">MT<span class="brand-dot"></span></span>
+                    <span class="footer-brand-name">Motaste Restaurant</span>
+                </a>
+                <p class="footer-tagline">Warm garlic rice, golden eggs, and sizzling viands — crafted with passion in every plate.</p>
+                <div class="footer-social">
+                    <a href="#" aria-label="MoTaste on Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+                    <a href="#" aria-label="MoTaste on Instagram"><i class="fa-brands fa-instagram"></i></a>
+                    <a href="#" aria-label="MoTaste on Twitter / X"><i class="fa-brands fa-x-twitter"></i></a>
+                </div>
+            </div>
+
+            <nav class="footer-col" aria-label="Footer quick links">
+                <h4>Quick Links</h4>
+                <a href="#home">Home</a>
+                <a href="#menu">Menu</a>
+                <a href="#about">About Us</a>
+                <a href="#contact">Contact</a>
+                <a href="/privacy">Privacy Notice</a>
+                <a href="/terms">Terms &amp; Conditions</a>
+            </nav>
+
+            <div class="footer-col">
+                <h4>Get In Touch</h4>
+                <p><i class="fa-solid fa-location-dot" aria-hidden="true"></i> MoTaste Restaurant<br>Your Address Here</p>
+                <p><i class="fa-solid fa-phone" aria-hidden="true"></i> +63 9XX XXX XXXX</p>
+                <p><i class="fa-solid fa-envelope" aria-hidden="true"></i> motaste@gmail.com</p>
+            </div>
+
+            <div class="footer-col">
+                <h4>Opening Hours</h4>
+                <p><i class="fa-regular fa-clock" aria-hidden="true"></i> Monday – Friday<br>7:00 AM – 8:00 PM</p>
+                <p><i class="fa-regular fa-clock" aria-hidden="true"></i> Saturday – Sunday<br>8:00 AM – 9:00 PM</p>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <p>© <span id="footerYear">2026</span> Motaste Restaurant. All rights reserved.</p>
+            <p class="footer-legal-links">
+                <a href="/privacy">Privacy Notice</a> · <a href="/terms">Terms &amp; Conditions</a>
+            </p>
+            <p class="footer-made-with">Crafted with <span aria-hidden="true">♥</span> in Cebu</p>
+        </div>
+    </footer>
+    </main>
+
+    <div class="payment-success-modal hidden" id="paymentSuccessModal" role="dialog" aria-modal="true" aria-labelledby="paymentSuccessTitle" aria-hidden="true">
+        <div class="payment-success-card">
+            <h3 id="paymentSuccessTitle">Order Received</h3>
+            <p>Thank you! We will now prepare your order.</p>
+            <button type="button" id="paymentSuccessCloseBtn" class="menu-place-order-btn">Done</button>
+        </div>
+    </div>
+
+    
+<pre id="probe-result"></pre><script>
+const props = ["display","position","top","right","bottom","left","float","clear","z-index","width","height","min-width","min-height","max-width","max-height","box-sizing","margin-top","margin-right","margin-bottom","margin-left","padding-top","padding-right","padding-bottom","padding-left","border-top-width","border-right-width","border-bottom-width","border-left-width","border-top-color","border-radius","background-color","color","opacity","visibility","font-family","font-size","font-weight","font-style","line-height","letter-spacing","text-align","text-transform","text-decoration-line","white-space","word-spacing","text-indent","overflow-x","overflow-y","clip","clip-path","transform","box-shadow","flex-direction","flex-wrap","flex-grow","flex-shrink","flex-basis","justify-content","align-items","align-self","gap","row-gap","column-gap","order","grid-template-columns","cursor","outline-style","outline-width","outline-color","list-style-type","direction","transition-property","transition-duration","vertical-align"];
+// Unhide everything so every section/modals state gets measured.
+for (const el of document.querySelectorAll('[hidden]')) el.removeAttribute('hidden');
+// Measure only once every image has settled: a half-loaded image changes its
+// intrinsic height and would otherwise make the two runs disagree at random.
+const settled = Promise.all([...document.images].map((img) => img.complete
+    ? Promise.resolve()
+    : new Promise((resolve) => { img.addEventListener('load', resolve); img.addEventListener('error', resolve); })));
+Promise.race([settled, new Promise((r) => setTimeout(r, 4000))]).then(() => measure());
+function measure() {
+const out = [];
+let i = 0;
+for (const el of document.querySelectorAll('body *')) {
+  const cs = getComputedStyle(el);
+  const r = el.getBoundingClientRect();
+  const vals = props.map((p) => cs.getPropertyValue(p)).join(';');
+  out.push([
+    i++,
+    el.tagName,
+    el.id || '',
+    (el.getAttribute('class') || ''),
+    vals,
+    [r.x, r.y, r.width, r.height].map((n) => Math.round(n * 100) / 100).join(','),
+    el.textContent ? el.textContent.replace(/\s+/g, ' ').trim().slice(0, 120) : '',
+  ]);
+}
+document.getElementById('probe-result').textContent = JSON.stringify(out);
+}
+</script></body>
+</html>

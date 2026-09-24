@@ -5,54 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Forgot Password</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background-color: #f3f4f6;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .card {
-            width: 100%;
-            max-width: 420px;
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            padding: 36px 32px;
-        }
-        .logo {
-            width: 56px;
-            height: 56px;
-            margin: 0 auto 16px;
-            background: #1e293b;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .logo svg { width: 32px; height: 32px; }
-        h1 { text-align: center; font-size: 22px; font-weight: 700; color: #111827; margin-bottom: 8px; }
-        .description { text-align: center; color: #6b7280; font-size: 14px; line-height: 1.5; margin-bottom: 24px; }
-        .description strong { color: #374151; }
-        .status { background: #dcfce7; color: #16a34a; padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 500; margin-bottom: 16px; text-align: center; }
-        .label { display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px; }
-        .input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; color: #1f2937; outline: none; }
-        .input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
-        .error { color: #dc2626; font-size: 13px; margin-top: 4px; }
-        .btn { width: 100%; padding: 12px; background: #1e293b; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; text-transform: uppercase; cursor: pointer; }
-        .btn:hover { background: #0f172a; }
-        .btn:disabled { background: #94a3b8; cursor: not-allowed; }
-        .btn-row { display: flex; gap: 12px; margin-top: 12px; }
-        .btn-row form { flex: 1; }
-        .btn-secondary { width: 100%; padding: 10px; background: #fff; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
-        .btn-secondary:hover { background: #f3f4f6; }
-        .back-link { display: block; text-align: center; margin-top: 20px; color: #6b7280; font-size: 14px; text-decoration: none; }
-        .back-link:hover { color: #374151; text-decoration: underline; }
-        .mb-4 { margin-bottom: 16px; }
-    </style>
+    {{-- Shared by all three password screens; see public/css/auth.css. --}}
+    <link rel="stylesheet" href="{{ asset('css/auth.css') }}?v=20260924a">
 </head>
 <body>
     <div class="card">
@@ -80,7 +34,7 @@
                 @csrf
                 <input type="hidden" name="email" value="{{ $pendingEmail }}">
 
-                <div class="mb-4">
+                <div class="auth-field">
                     <label class="label" for="code">Verification Code</label>
                     <input
                         id="code"
@@ -125,7 +79,7 @@
             <form method="POST" action="{{ route('password.email') }}">
                 @csrf
 
-                <div class="mb-4">
+                <div class="auth-field">
                     <label class="label" for="email">Email</label>
                     <input
                         id="email"

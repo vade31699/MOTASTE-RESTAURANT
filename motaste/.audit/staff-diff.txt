@@ -1,0 +1,92 @@
+
+=================== staff.html  (HEAD vs worktree)
+nodes: before 908, after 908
+style diffs: 9, geometry diffs: 140, text diffs: 0
+  STYLE 484 <SECTION id=logs>
+      width: 290.875px -> 238px
+      height: 309px -> 308px
+  GEOM  484 <SECTION id=logs> 1554.84,1231.92,290.88,309 -> 1554.84,1232.42,238,308
+  STYLE 485 <H2>
+      width: 232.875px -> 180px
+  GEOM  485 <H2> 1583.84,1248.92,232.88,56 -> 1583.84,1249.42,180,56
+  STYLE 486 <P>
+      width: 232.875px -> 180px
+      height: 60px -> 80px
+  GEOM  486 <P> 1583.84,1308.92,232.88,60 -> 1583.84,1309.42,180,80
+  STYLE 487 <DIV id=logsFilterBar>
+      width: 232.875px -> 180px
+      height: 115px -> 94px
+  GEOM  487 <DIV id=logsFilterBar> 1583.84,1380.92,232.88,115 -> 1583.84,1401.42,180,94
+  STYLE 488 <LABEL>
+      width: 232.875px -> 128px
+  GEOM  488 <LABEL> 1583.84,1380.92,232.88,42 -> 1583.84,1401.42,128,42
+  STYLE 489 <SPAN>
+      position: static -> absolute
+      top: auto -> 21.5px
+      right: auto -> 129px
+      bottom: auto -> 21.5px
+      left: auto -> 0px
+      width: 104.875px -> 1px
+      height: 42px -> 1px
+      min-width: auto -> 0px
+      min-height: auto -> 0px
+      margin-top: 0px -> -1px
+      margin-right: 0px -> -1px
+      margin-bottom: 0px -> -1px
+      margin-left: 0px -> -1px
+      white-space: normal -> nowrap
+      overflow-x: visible -> hidden
+      overflow-y: visible -> hidden
+      clip: auto -> rect(0px, 0px, 0px, 0px)
+      clip-path: none -> inset(50%)
+  GEOM  489 <SPAN> 1583.84,1380.92,104.88,42 -> 1582.84,1421.92,1,1
+  GEOM  490 <SELECT id=logsCategoryFilter> 1688.72,1380.92,128,42 -> 1583.84,1401.42,128,42
+  STYLE 499 <LABEL>
+      width: 232.875px -> 180px
+      height: 63px -> 42px
+  GEOM  499 <LABEL> 1583.84,1432.92,232.88,63 -> 1583.84,1453.42,180,42
+  STYLE 500 <SPAN>
+      position: static -> absolute
+      top: auto -> 21.5px
+      right: auto -> 181px
+      bottom: auto -> 21.5px
+      left: auto -> 0px
+      width: 52.875px -> 1px
+      height: 63px -> 1px
+      min-width: auto -> 0px
+      min-height: auto -> 0px
+      margin-top: 0px -> -1px
+      margin-right: 0px -> -1px
+      margin-bottom: 0px -> -1px
+      margin-left: 0px -> -1px
+      white-space: normal -> nowrap
+      overflow-x: visible -> hidden
+      overflow-y: visible -> hidden
+      clip: auto -> rect(0px, 0px, 0px, 0px)
+      clip-path: none -> inset(50%)
+  GEOM  500 <SPAN> 1583.84,1432.92,52.88,63 -> 1582.84,1473.92,1,1
+  GEOM  501 <INPUT id=logsDateFilter> 1636.72,1443.42,180,42 -> 1583.84,1453.42,180,42
+  STYLE 502 <DIV id=logsList>
+      width: 232.875px -> 180px
+  GEOM  502 <DIV id=logsList> 1583.84,1511.92,232.88,0 -> 1583.84,1511.42,180,0
+  GEOM  503 <SECTION id=customer-reviews> 1857.72,1113.05,169.75,546.75 -> 1804.84,1113.05,169.75,546.75
+  GEOM  504 <H2> 1886.72,1130.05,111.75,88 -> 1833.84,1130.05,111.75,88
+  GEOM  505 <P> 1886.72,1222.05,111.75,140 -> 1833.84,1222.05,111.75,140
+  GEOM  506 <DIV> 1886.72,1376.05,111.75,228.75 -> 1833.84,1376.05,111.75,228.75
+  GEOM  507 <BUTTON> 1892.72,1382.05,48.69,31.13 -> 1839.84,1382.05,48.69,31.13
+  GEOM  508 <BUTTON> 1892.72,1419.17,67.59,31.13 -> 1839.84,1419.17,67.59,31.13
+  GEOM  509 <BUTTON> 1892.72,1456.3,67.59,31.13 -> 1839.84,1456.3,67.59,31.13
+  GEOM  510 <BUTTON> 1892.72,1493.42,67.59,31.13 -> 1839.84,1493.42,67.59,31.13
+  GEOM  511 <BUTTON> 1892.72,1530.55,67.59,31.13 -> 1839.84,1530.55,67.59,31.13
+  GEOM  512 <BUTTON> 1892.72,1567.67,67.59,31.13 -> 1839.84,1567.67,67.59,31.13
+  GEOM  513 <DIV id=staffReviewList> 1886.72,1622.8,111.75,8 -> 1833.84,1622.8,111.75,8
+  GEOM  514 <SECTION id=account-management> 2039.47,749.36,242,1250.13 -> 1986.59,749.36,242,1250.13
+  GEOM  515 <H2> 2068.47,766.36,184,88 -> 2015.59,766.36,184,88
+  GEOM  516 <P> 2068.47,858.36,184,240 -> 2015.59,858.36,184,240
+  GEOM  517 <BUTTON id=toggleAccountFormBtn> 2068.47,1110.36,184,58.47 -> 2015.59,1110.36,184,58.47
+  GEOM  518 <FORM id=accountForm> 2068.47,1182.83,184,769.66 -> 2015.59,1182.83,184,769.66
+  GEOM  519 <H3> 2085.47,1199.83,150,22 -> 2032.59,1199.83,150,22
+  GEOM  520 <P> 2085.47,1237.83,150,90 -> 2032.59,1237.83,150,90
+  GEOM  521 <DIV> 2085.47,1351.83,150,107.06 -> 2032.59,1351.83,150,107.06
+  GEOM  522 <INPUT id=accountName> 2085.47,1351.83,150,51 -> 2032.59,1351.83,150,51
+  ... 109 more

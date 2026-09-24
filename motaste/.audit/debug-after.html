@@ -1,4 +1,24 @@
-* {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Private staff/admin portal: keep it out of search results. robots.txt
+         only prevents crawling (a linked URL can still be indexed without
+         being fetched), so the noindex directive has to live in the page
+         itself. This file is served for both /staff and /admin. -->
+    <meta name="robots" content="noindex, nofollow">
+    
+    
+    
+    
+    
+    
+    
+    <title>Login - MOTASTE</title>
+    
+    
+<style>* {
     box-sizing: border-box;
 }
 
@@ -108,6 +128,12 @@ html, body {
     background: #f6f3ef;
 }
 
+.top-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .top-bar h1 {
     margin: 0;
 
@@ -142,6 +168,12 @@ html, body {
     padding: 0;
     position: static;
     box-shadow: none;
+}
+
+.top-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .menu-btn {
@@ -319,6 +351,12 @@ body.dashboard-panel-open .menu-btn {
     background: rgba(0,0,0,0.18);
 }
 
+.top-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .account-form {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -396,6 +434,56 @@ body.dashboard-panel-open .menu-btn {
     padding: 16px 0;
 }
 
+.sales-example {
+    margin-top: 20px;
+    padding: 18px;
+    background: rgba(255, 255, 255, 0.94);
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.sales-example h4 {
+    margin-top: 0;
+    margin-bottom: 14px;
+}
+
+.sales-example-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 12px;
+}
+
+.sales-example-table th,
+.sales-example-table td {
+    padding: 12px 14px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.sales-example-table th {
+    background: #f7f7f7;
+    font-weight: 700;
+}
+
+.sales-example-note {
+    margin: 0;
+    color: #555;
+    font-size: 14px;
+}
+
+.top-link {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    padding: 10px 16px;
+    border-radius: 8px;
+    background: #ff9800;
+}
+
+.top-link:hover {
+    background: #e68900;
+}
+
 .staff-login-page {
     position: absolute;
     inset: 0;
@@ -426,6 +514,20 @@ html.staff-auth-pending #staffLoadingOverlay {
     width: min(480px, 100%);
     position: relative;
     z-index: 1000;
+}
+
+.top-login-btn {
+    background: #ff9800;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.top-login-btn:hover {
+    background: #e68900;
 }
 
 .modal-overlay {
@@ -476,6 +578,15 @@ html.staff-auth-pending #staffLoadingOverlay {
 .modal-box h2 {
     margin-top: 0;
     margin-bottom: 16px;
+}
+
+.role-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    position: relative;
+    z-index: 2002;
 }
 
 .role-tab {
@@ -1666,6 +1777,10 @@ body.staff-app .forgot-password-status {
         padding: 11px 14px;
     }
 
+    .menu-category-header {
+        flex-wrap: wrap;
+    }
+
     .checkout-option-btn {
         flex-basis: 100%;
     }
@@ -1702,12 +1817,24 @@ body.staff-app .forgot-password-status {
     gap: 12px;
     margin-top: 20px;
 }
+.menu-categories-visible {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 16px;
+}
+.menu-categories-visible .menu-category-btn {
+    min-width: 0;
+    padding: 12px 6px;
+    font-size: 0.75rem;
+}
+.menu-section-heading,
 .menu-cart-section-heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
 }
+.menu-section-heading h2,
 .menu-cart-section-heading h2 {
     margin: 0;
 }
@@ -2049,6 +2176,12 @@ body.modal-open {
     grid-template-columns: 1fr 1fr;
     gap: 12px;
 }
+.menu-overlay-hide-actions .menu-overlay-actions-panel {
+    display: none;
+}
+.menu-overlay.hide-header .menu-overlay-header {
+    display: none;
+}
 .menu-overlay-actions {
     display: flex;
     align-items: center;
@@ -2258,7 +2391,9 @@ body.modal-open {
 .menu-item-stock-left {
     align-self: flex-start;
 }
-.special-food-added-message, .special-food-add {
+.special-food-cart-action,
+.special-food-added-message,
+.special-food-add {
     display: none;
 }
 
@@ -2359,6 +2494,10 @@ body.modal-open {
     cursor: grabbing;
 }
 
+.menu-cart-summary-text {
+    display: none;
+}
+
 #menuTopCartCount {
     position: absolute;
     top: -6px;
@@ -2386,6 +2525,26 @@ body.modal-open {
     border-radius: 50%;
     font-size: 24px;
     cursor: pointer;
+}
+.menu-open-btn {
+    margin-top: 18px;
+    border: none;
+    background: #111;
+    color: #fff;
+    padding: 14px 22px;
+    border-radius: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+.menu-open-btn:hover {
+    background: #ff9800;
+}
+.menu-category-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
 }
 .menu-back-btn {
     border: none;
@@ -2439,6 +2598,34 @@ body.modal-open {
 }
 .menu-item-card .menu-item-main p:last-child {
     margin-bottom: 0;
+}
+.menu-item-card .menu-item-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-width: 110px;
+    border: none;
+    background: #111;
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+.menu-item-card .menu-item-action:hover {
+    background: #ff9800;
+}
+.menu-item-card .menu-item-action.menu-item-action-primary {
+    background: #ff8c00;
+}
+.menu-item-card .menu-item-action.menu-item-action-primary:hover {
+    background: #ff7a00;
+}
+.menu-item-actions {
+    display: grid;
+    gap: 8px;
 }
 .menu-item-price {
     font-weight: 700;
@@ -2538,6 +2725,12 @@ body.modal-open {
 .menu-item-qty-btn:focus-visible {
     background-color: #ff9800;
     box-shadow: none;
+}
+.menu-item-qty {
+    min-width: 24px;
+    text-align: center;
+    font-weight: 700;
+    color: #111;
 }
 .menu-item-qty-input {
     width: 46px;
@@ -2656,6 +2849,10 @@ body.modal-open {
 .menu-cart-components-toggle:focus-visible {
     background: rgba(255, 152, 0, 0.2);
 }
+.menu-cart-item .menu-cart-item-qty {
+    font-size: 0.95rem;
+    color: #333;
+}
 .menu-cart-item-qty-controls {
     display: inline-flex;
     align-items: center;
@@ -2683,6 +2880,11 @@ body.modal-open {
     background: #c8c8c8;
     color: #777;
     cursor: not-allowed;
+}
+.menu-cart-item-qty-controls .menu-cart-item-qty {
+    min-width: 20px;
+    text-align: center;
+    font-weight: 700;
 }
 .menu-cart-item-qty-wrap {
     display: flex;
@@ -2789,6 +2991,12 @@ body.modal-open {
     background: #c8c8c8;
     color: #777;
     cursor: not-allowed;
+}
+.menu-cart-component-qty {
+    min-width: 18px;
+    text-align: center;
+    font-weight: 700;
+    color: #222;
 }
 .menu-cart-component-qty-wrap {
     display: flex;
@@ -3093,6 +3301,7 @@ body.modal-open {
     padding-left: 12px;
     border-radius: 4px;
 }
+.checkout-clock,
 .live-clock {
     font-size: 0.95rem;
     color: #caff0a;
@@ -3449,6 +3658,11 @@ body.modal-open {
     flex-wrap: wrap;
 }
 @media (max-width: 560px) {
+    .logs-filter-btn {
+        flex: 1 1 calc(50% - 8px);
+        text-align: center;
+    }
+
     .walkin-order-builder,
     .walkin-order-footer {
         grid-template-columns: 1fr;
@@ -3527,6 +3741,8 @@ body.modal-open {
     cursor: zoom-in;
     pointer-events: auto;
 }
+
+.slide-nav { display: none; }
 
 .slide-dots {
     position: absolute;
@@ -4076,6 +4292,31 @@ body.modal-open {
     background-size: 12px 8px;
 }
 
+.sales-detail-panel,
+.sales-list-panel {
+    margin-top: 20px;
+}
+
+.sales-list-panel {
+    padding: 18px 20px;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 16px;
+    color: #111;
+}
+
+.sales-number-list {
+    margin: 0;
+    padding-left: 22px;
+    color: #111;
+}
+
+.sales-number-list li {
+    margin-bottom: 10px;
+    line-height: 1.6;
+    font-size: 15px;
+}
+
 .analytics-select,
 .nested-select {
     appearance: none;
@@ -4169,6 +4410,44 @@ body.modal-open {
     display: none;
 }
 
+.chart-scroll-controls:not(.is-scrollable) .chart-scroll-btn {
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+.chart-scroll-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: #ffffff;
+    color: #475569;
+    font-size: 0.82rem;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.chart-scroll-btn:hover:not(:disabled) {
+    background: #f1f5f9;
+    border-color: rgba(43, 174, 102, 0.35);
+    color: #167A45;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+.chart-scroll-btn:active:not(:disabled) {
+    transform: scale(0.94);
+    box-shadow: none;
+}
+
+.chart-scroll-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
 /* ===== Vertical scroll controls (Overview sales analysis) ===== */
 .chart-scroll-vertical {
     flex-direction: column;
@@ -4191,6 +4470,17 @@ body.modal-open {
 body.staff-app .chart-scroll-vertical {
     background: rgba(30, 41, 59, 0.75);
     border-color: var(--staff-border);
+}
+
+.chart-scroll-vertical .chart-scroll-btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.chart-scroll-vertical .chart-scroll-btn {
+    width: 34px;
+    height: 34px;
 }
 
 .chart-scroll-vertical:not(.is-scrollable) {
@@ -4216,6 +4506,9 @@ body.staff-app .chart-scroll-vertical {
         justify-content: center;
     }
 
+    .chart-scroll-vertical .chart-scroll-btn-group {
+        flex-direction: row;
+    }
 }
 
 @media (max-width: 640px) {
@@ -4223,6 +4516,10 @@ body.staff-app .chart-scroll-vertical {
         padding: 6px 2px;
     }
 
+    .chart-scroll-vertical .chart-scroll-btn {
+        width: 32px;
+        height: 32px;
+    }
 }
 
 /* Horizontal pan controls: stay comfortable to tap on tablet/phone widths.
@@ -4241,7 +4538,12 @@ body.staff-app .chart-scroll-vertical {
     }
 }
 
-
+@media (max-width: 480px) {
+    .chart-scroll-controls .chart-scroll-btn {
+        width: 44px;
+        height: 38px;
+    }
+}
 
 .overview-section,
 .inventory-section,
@@ -4569,6 +4871,12 @@ body.staff-app .retention-clear-btn {
     box-shadow: none;
 }
 
+.overview-order-notification-box .order-notification-card .order-meta,
+.overview-order-notification-box .order-notification-card .order-status,
+.overview-order-notification-box .order-notification-card .order-amount {
+    color: #475569;
+}
+
 #overview .sales-analytics-select-wrapper {
     background: #f8fafc;
     border: 1px solid rgba(148, 163, 184, 0.15);
@@ -4620,6 +4928,31 @@ body.staff-app .retention-clear-btn {
 
 #overview .sales-analytics-chart-wrapper::-webkit-scrollbar-thumb:hover {
     background: rgba(148, 163, 184, 0.60);
+}
+
+#overview .stats-card,
+#overview .overview-metric-card {
+    background: #ffffff;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 16px;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+}
+
+.overview-low-stock-box {
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 18px 20px;
+    color: #fff;
+    display: grid;
+    gap: 16px;
+}
+
+.overview-low-stock-list {
+    display: grid;
+    gap: 10px;
 }
 
 .low-stock-modal {
@@ -4698,6 +5031,11 @@ body.staff-app .retention-clear-btn {
     font-weight: 700;
     min-width: 180px;
     width: 100%;
+}
+
+.low-stock-action-btn.primary {
+    background: #ff9800;
+    color: #111;
 }
 
 .low-stock-action-btn.secondary {
@@ -5103,7 +5441,9 @@ body.staff-app .retention-clear-btn {
 }
 
 
-    .inventory-admin-panel {
+    .inventory-admin-panel,
+    .inventory-manager-list,
+    .inventory-readonly-summary {
         background: rgba(255,255,255,0.96);
         backdrop-filter: blur(6px);
         -webkit-backdrop-filter: blur(6px);
@@ -5407,6 +5747,13 @@ body.staff-app .retention-clear-btn {
         color: #111;
     }
 
+    .inventory-manager-list,
+    .inventory-readonly-summary {
+        display: grid;
+        gap: 14px;
+        max-width: 100%;
+    }
+
 .sales-analytics-chart-wrapper {
     width: 100%;
     overflow-x: auto;
@@ -5588,6 +5935,26 @@ body.staff-app .retention-clear-btn {
     word-break: break-word;
 }
 
+.review-management .review-comment {
+    color: #1f1f1f !important;
+}
+
+.review-history-title {
+    margin: 18px 0 10px;
+    color: #fff;
+}
+
+.review-management {
+    margin-top: 20px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.review-management h3,
+.review-management p {
+    color: #fff;
+}
+
 .review-status-badge {
     display: inline-flex;
     align-items: center;
@@ -5695,6 +6062,9 @@ body.staff-app .retention-clear-btn {
         gap: 12px;
     }
 
+    .sales-analytics-bar {
+        max-width: 70px;
+    }
 }
 
 @media (max-width: 900px) {
@@ -5795,6 +6165,15 @@ body.staff-app .retention-clear-btn {
         width: 100%;
     }
 
+    .admin-edit-mode-switch {
+        display: flex;
+        width: 100%;
+    }
+
+    .admin-edit-mode-switch .admin-edit-mode-btn {
+        flex: 1 1 0;
+    }
+
     .staff-login-page {
         min-height: 100vh;
         padding: 16px;
@@ -5809,6 +6188,10 @@ body.staff-app .retention-clear-btn {
 
     .top-bar.login-top-bar {
         padding: 8px 12px 0;
+    }
+
+    .top-bar-left {
+        width: 100%;
     }
 
     .dashboard-panel {
@@ -5897,6 +6280,10 @@ body.staff-app .retention-clear-btn {
         border-radius: 10px;
     }
 
+    .role-tabs {
+        flex-direction: column;
+    }
+
     .role-tab {
         width: 100%;
         text-align: center;
@@ -5909,7 +6296,11 @@ body.staff-app .retention-clear-btn {
         border-right: none;
     }
 
-    .overview-analytics-panel, .overview-order-notification-box, .inventory-admin-panel {
+    .overview-analytics-panel,
+    .overview-order-notification-box,
+    .inventory-admin-panel,
+    .inventory-manager-list,
+    .inventory-readonly-summary {
         padding: 16px;
     }
 
@@ -8564,6 +8955,19 @@ body.staff-app .chart-scroll-hint {
     color: var(--staff-muted);
 }
 
+body.staff-app .chart-scroll-btn {
+    background: var(--staff-surface);
+    border-color: var(--staff-border);
+    color: var(--staff-text);
+}
+
+body.staff-app .chart-scroll-btn:hover:not(:disabled) {
+    background: var(--staff-surface-soft, #eef2f5);
+    border-color: var(--staff-accent);
+    color: var(--staff-accent-strong);
+    box-shadow: 0 2px 6px rgba(43, 174, 102, 0.1);
+}
+
 body.staff-app .sales-analytics-placeholder,
 body.staff-app .overview-analytics-panel,
 body.staff-app .overview-order-notification-box,
@@ -8839,6 +9243,14 @@ body.staff-app .sales-tab-btn:hover {
 body.staff-app .sales-tab-btn.active {
     color: var(--staff-accent-strong);
     border-bottom-color: var(--staff-accent);
+}
+
+body.staff-app .sales-list-panel,
+body.staff-app .sales-detail-panel {
+    background: var(--staff-surface-2) !important;
+    border: 1px solid var(--staff-border) !important;
+    border-radius: 14px !important;
+    color: var(--staff-text) !important;
 }
 
 /* ---------- Profit section ---------- */
@@ -9277,6 +9689,12 @@ body.staff-app .special-customize-builder label {
 }
 
 /* ---------- Logs / review management ---------- */
+body.staff-app .review-management h3,
+body.staff-app .review-management p,
+body.staff-app .review-history-title {
+    color: var(--staff-text);
+}
+
 body.staff-app .logs-filter-bar select,
 body.staff-app .logs-filter-bar input {
     background: var(--staff-surface-2);
@@ -9932,6 +10350,10 @@ body.staff-app .totp-manual-key {
     user-select: all;
 }
 
+body.staff-app .totp-modal-steps h3 {
+    margin-bottom: 4px;
+}
+
 /* The "Add Staff Account" trigger and its card sit in the same flat system as
    the dashboard list below them: solid button, thin-border card. */
 body.staff-app #account-management .add-staff-btn {
@@ -10357,6 +10779,15 @@ body.staff-app #staffEditPanel > p {
     margin: 0 0 12px;
     color: var(--staff-muted);
     font-size: 0.85rem;
+}
+
+/* The two-step admin flows open with a short explanation of what happens next. */
+body.staff-app .account-form-note {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--staff-muted);
 }
 
 /* ---------- Credentials: floating labels + helper text ---------- */
@@ -11150,7 +11581,10 @@ body.staff-app .notice-auto-close-bar.animating {
 }
 
 /* ---------- Shared buttons / inputs ---------- */
-body.staff-app .add-staff-btn, body.staff-app .account-form button, body.staff-app .menu-place-order-btn {
+body.staff-app .add-staff-btn,
+body.staff-app .account-form button,
+body.staff-app .menu-place-order-btn,
+body.staff-app .menu-open-btn {
     background: linear-gradient(135deg, var(--staff-accent-2), var(--staff-accent-strong));
     color: #fff;
     border: none;
@@ -11160,7 +11594,10 @@ body.staff-app .add-staff-btn, body.staff-app .account-form button, body.staff-a
     transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
 
-body.staff-app .add-staff-btn:hover, body.staff-app .account-form button:hover, body.staff-app .menu-place-order-btn:hover {
+body.staff-app .add-staff-btn:hover,
+body.staff-app .account-form button:hover,
+body.staff-app .menu-place-order-btn:hover,
+body.staff-app .menu-open-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 14px 30px rgba(43, 174, 102, 0.42);
     filter: brightness(1.05);
@@ -11241,6 +11678,43 @@ body.staff-app .account-form-actions .secondary-btn:hover {
     color: var(--staff-accent-strong);
     border-color: var(--staff-accent);
     transform: translateY(-2px);
+}
+
+/* ---------- Admin credential panel ----------
+   The admin edit panel mirrors the staff edit panel: one card, one heading, and
+   one form per mode. The mode switch reuses the portal's segmented-tab look
+   (see .export-mode-tabs) so it reads as a control instead of two stray
+   buttons, and each mode renders through the same .account-form markup. */
+body.staff-app .admin-edit-mode-switch {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 2px 0 16px;
+    padding: 4px;
+    background: var(--staff-accent-soft);
+    border-radius: 12px;
+}
+
+body.staff-app .admin-edit-mode-btn {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    border-radius: 9px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--staff-muted);
+    transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+body.staff-app .admin-edit-mode-btn:hover {
+    color: var(--staff-accent-2);
+}
+
+body.staff-app .admin-edit-mode-btn.active {
+    background: #ffffff;
+    color: var(--staff-accent-strong);
+    box-shadow: 0 4px 12px rgba(43, 174, 102, 0.18);
 }
 
 /* Panel-level Cancel row sits below the active mode's form. Keep it compact
@@ -11527,6 +12001,31 @@ body.staff-app .password-toggle-btn {
 
 body.staff-app .password-toggle-btn:hover {
     color: var(--staff-accent-2);
+}
+
+/* Social login buttons — light card friendly */
+body.staff-app .social-login-btn {
+    border: 1px solid var(--staff-border) !important;
+    background: #ffffff !important;
+    color: var(--staff-muted) !important;
+}
+
+body.staff-app .social-login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--staff-shadow-md);
+    border-color: var(--staff-accent) !important;
+}
+
+body.staff-app .social-login-google {
+    color: #EA4335 !important;
+}
+
+body.staff-app .social-login-facebook {
+    color: #1877F2 !important;
+}
+
+body.staff-app .social-login-tiktok {
+    color: #111111 !important;
 }
 
 body.staff-app .login-dark-overlay {
@@ -13253,3 +13752,1286 @@ body.staff-app .login-history-filter-note {
             background: #e68900;
             transform: translateX(-50%) translateY(-2px);
         }
+</style></head>
+<body class="staff-app">
+    <div id="staffLoadingOverlay" class="staff-loading-overlay" hidden aria-live="polite">
+        <div class="staff-loading-spinner" aria-hidden="true"></div>
+        <p>Loading dashboard…</p>
+    </div>
+    <div class="top-bar login-top-bar">
+        <button type="button" id="menuBtn" class="menu-btn" aria-label="Open dashboard menu" aria-expanded="false" hidden>
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+    <div id="dashboardPanel" class="dashboard-panel" aria-label="Dashboard menu" hidden>
+        <button type="button" id="closePanelBtn" class="panel-close" aria-label="Close dashboard menu">×</button>
+        <!-- Dashboard always open; removed close button -->
+
+        <div class="dashboard-profile">
+            <div class="dashboard-profile-avatar" aria-hidden="true">
+                <i class="fa-solid fa-user"></i>
+            </div>
+            <div class="dashboard-profile-meta">
+                <strong id="dashboardUserName">Account</strong>
+                <span id="dashboardUserEmail">No account selected</span>
+            </div>
+        </div>
+
+        <h3>Dashboard</h3>
+        <a href="#overview" id="overviewLink"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i><span>Overview</span></a>
+        <a href="#pending-orders" id="ordersLink"><i class="fa-solid fa-receipt" aria-hidden="true"></i><span>Orders</span></a>
+        <a href="#inventory" id="inventoryLink"><i class="fa-solid fa-boxes-stacked" aria-hidden="true"></i><span>Inventory</span></a>
+        <a href="#sales" id="salesLink"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span>Sales</span></a>
+        <a href="#logs" id="logsLink"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i><span>Logs</span></a>
+        <a href="#customer-reviews" id="reviewsLink"><i class="fa-solid fa-star" aria-hidden="true"></i><span>Customer Reviews</span></a>
+        <a href="#account-management" id="accountManagementLink"><i class="fa-solid fa-users-gear" aria-hidden="true"></i><span>Account Management</span></a>
+        <a href="#login-logs" id="loginLogsLink"><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i><span>Login Logs</span></a>
+        <a href="#highlights" id="highlightsLink"><i class="fa-solid fa-images" aria-hidden="true"></i><span>Highlights</span></a>
+        <button type="button" id="logoutBtn" class="logout-btn" hidden><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i><span>Logout</span></button>
+    </div>
+
+    <section id="overview" class="overview-section" hidden>
+        <h2>Overview</h2>
+
+        <div id="securityWarningBanner" class="security-banner" hidden aria-live="polite" role="status">
+            <div class="retention-banner-head">
+                <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+                <strong id="securityWarningTitle">Security configuration</strong>
+            </div>
+            <ul class="security-banner-list" id="securityWarningList"></ul>
+        </div>
+
+        <div id="retentionBanner" class="retention-banner" hidden aria-live="polite">
+            <div class="retention-banner-head">
+                <i class="fa-solid fa-database" aria-hidden="true"></i>
+                <strong>Data Retention</strong>
+            </div>
+            <p class="retention-banner-text" id="retentionBannerText"></p>
+            <div class="retention-banner-actions">
+                <button type="button" id="retentionExportBtn" class="menu-place-order-btn">
+                    <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export to Excel
+                </button>
+                <button type="button" id="retentionClearBtn" class="secondary-btn retention-clear-btn">Clear Records</button>
+            </div>
+            <p id="retentionBannerMessage" class="menu-order-message" aria-live="polite"></p>
+        </div>
+
+        <div class="overview-metrics-row" >
+            <div class="metric-card" id="metricPendingOrders" >
+                <div class="metric-label" >Pending Orders</div>
+                <div class="metric-value" id="pendingOrdersCount" >0</div>
+                <div class="metric-hint" >Orders currently pending</div>
+            </div>
+
+            <div class="metric-card" id="metricOrdersCompleted" >
+                <div class="metric-label" >Orders Completed</div>
+                <div class="metric-value" id="ordersCompletedCount" >0</div>
+                <div class="metric-hint" >Total completed orders (latest 500)</div>
+            </div>
+
+            <div class="metric-card" id="metricWalkinCompleted" >
+                <div class="metric-label" >Walk-in Orders Completed</div>
+                <div class="metric-value" id="walkinCompletedCount" >0</div>
+                <div class="metric-hint" >Completed walk-in orders</div>
+            </div>
+
+            <div class="metric-card" id="metricOnlineCompleted" >
+                <div class="metric-label" >Online Orders Completed</div>
+                <div class="metric-value" id="onlineCompletedCount" >0</div>
+                <div class="metric-hint" >Completed online orders</div>
+            </div>
+
+            <div class="metric-card" id="metricTodayRevenue" >
+                <div class="metric-label" >Today's Revenue</div>
+                <div class="metric-value" id="todayRevenueCount" >₱0</div>
+                <div class="metric-hint" >Completed sales today</div>
+            </div>
+
+            <div class="metric-card" id="metricAvgPrep" >
+                <div class="metric-label" >Avg. Prep Time</div>
+                <div class="metric-value" id="avgPrepCount" >—</div>
+                <div class="metric-hint" >Mean preparation minutes</div>
+            </div>
+
+            <div class="metric-card" id="metricLowStock" >
+                <div class="metric-label" >Low-Stock Items</div>
+                <div class="metric-value" id="lowStockCount" >0</div>
+                <div class="metric-hint" >Stock at or below 20 units</div>
+            </div>
+
+            <div class="metric-card" id="metricBestSeller" >
+                <div class="metric-label" >Best Seller</div>
+                <div class="metric-value" id="bestSellerCount" >—</div>
+                <div class="metric-hint" >Top item by units sold</div>
+            </div>
+        </div>
+        <div class="overview-grid">
+            <div class="sales-analytics-placeholder overview-analytics-panel">
+                <h3><i class="fa-solid fa-chart-line panel-heading-icon is-sales" aria-hidden="true" ></i>Sales Analysis</h3>
+                <p>Live sales overview — track daily, weekly, and monthly performance.</p>
+                <div class="sales-analytics-select-wrapper">
+                    <label for="overviewAnalyticsSelect">View:</label>
+                    <select id="overviewAnalyticsSelect" class="analytics-select">
+                        <option value="daily">Daily Analysis</option>
+                        <option value="weekly">Weekly Analysis</option>
+                        <option value="monthly">Monthly Analysis</option>
+                    </select>
+                    <div id="overviewMonthWrapper" class="nested-selector">
+                        <label for="overviewMonthSelect">Month:</label>
+                        <select id="overviewMonthSelect" class="nested-select">
+                            <option value="jan">January</option>
+                            <option value="feb">February</option>
+                            <option value="mar">March</option>
+                            <option value="apr">April</option>
+                            <option value="may">May</option>
+                            <option value="jun">June</option>
+                            <option value="jul">July</option>
+                            <option value="aug">August</option>
+                            <option value="sep">September</option>
+                            <option value="oct">October</option>
+                            <option value="nov">November</option>
+                            <option value="dec">December</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="sales-analytics-chart-wrapper">
+                    <div id="overviewAnalyticsChart" class="sales-analytics-chart" aria-label="Overview sales analytics chart"></div>
+                </div>
+                <div class="chart-scroll-controls" data-scroll-target="overviewAnalyticsChart">
+                    <span class="chart-scroll-hint">Scroll to see more</span>
+                </div>
+
+            </div>
+
+            <div class="overview-order-notification-box">
+                <div class="overview-notification-header" >
+                    <h3>Order Notifications</h3>
+                    <span class="order-notification-badge" id="overviewOrderBadge" aria-hidden="true" >0</span>
+                    <button type="button" id="overviewToPendingOrdersBtn" class="overview-pending-orders-btn"><i class="fa-solid fa-list-check" aria-hidden="true"></i> Pending Orders</button>
+                </div>
+                <div id="overviewOrderNotificationList" class="order-notification-list"></div>
+                <div class="order-notification-footer">
+                    <span>Total revenue</span>
+                    <strong id="overviewOrderRevenue">₱0</strong>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <div id="lowStockModalOverlay" class="modal-overlay" hidden aria-hidden="true">
+        <div class="modal-box low-stock-modal" role="dialog" aria-modal="true" aria-labelledby="lowStockModalTitle">
+            <button type="button" class="modal-close" id="lowStockModalCloseBtn" aria-label="Close low stock alert">×</button>
+            <h2 id="lowStockModalTitle">Low Stock Alert</h2>
+            <p>Some inventory items are below 20 stock. Use the button below to show the list.</p>
+            <button type="button" id="lowStockToggleListBtn" class="menu-place-order-btn">Show low-stock items</button>
+            <div id="lowStockItemDropdown" class="low-stock-dropdown" hidden></div>
+            <div class="low-stock-actions">
+                <button type="button" id="lowStockRemindLaterBtn" class="low-stock-action-btn secondary">Remind me later (30 mins)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="overdueAlertModal" class="modal-overlay" hidden aria-hidden="true">
+        <div class="modal-box overdue-alert-modal" role="alertdialog" aria-modal="true" aria-labelledby="overdueAlertTitle" aria-describedby="overdueAlertText">
+            <button type="button" class="modal-close" id="overdueAlertCloseBtn" aria-label="Dismiss overdue alert">×</button>
+            <h2 id="overdueAlertTitle"><i class="fa-solid fa-bell" aria-hidden="true"></i> Order Overdue</h2>
+            <p id="overdueAlertText">An order's preparation timer has expired.</p>
+            <div class="overdue-alert-actions">
+                <label class="prep-minutes-field">
+                    <span>Add minutes</span>
+                    <input type="number" id="overdueMinutesInput" min="1" max="180" step="1" value="15" aria-label="Additional preparation minutes">
+                </label>
+                <button type="button" id="overdueAddMinutesBtn" class="menu-place-order-btn overdue-add-minutes-btn">
+                    <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Add Minutes
+                </button>
+                <button type="button" id="overdueCompleteBtn" class="menu-place-order-btn overdue-complete-btn">
+                    <i class="fa-solid fa-check" aria-hidden="true"></i> Mark as Complete
+                </button>
+            </div>
+            <p id="overdueAlertMessage" class="menu-order-message" aria-live="polite"></p>
+        </div>
+    </div>
+
+    <section id="sales" class="sales-section" hidden>
+        <h2>Sales</h2>
+
+        <div class="sales-analytics-placeholder">
+            <h3><i class="fa-solid fa-chart-bar panel-heading-icon is-sales" aria-hidden="true" ></i>Sales Analysis</h3>
+            <p>Analyze daily, weekly, and monthly revenue trends.</p>
+            <div class="sales-analytics-select-wrapper">
+                <label for="analyticsSelect">View:</label>
+                <select id="analyticsSelect" class="analytics-select">
+                    <option value="daily">Daily Analysis</option>
+                    <option value="weekly">Weekly Analysis</option>
+                    <option value="monthly">Monthly Analysis</option>
+                </select>
+                <div id="analyticsMonthWrapper" class="nested-selector">
+                    <label for="analyticsMonthSelect">Month:</label>
+                    <select id="analyticsMonthSelect" class="nested-select">
+                        <option value="jan">January</option>
+                        <option value="feb">February</option>
+                        <option value="mar">March</option>
+                        <option value="apr">April</option>
+                        <option value="may">May</option>
+                        <option value="jun">June</option>
+                        <option value="jul">July</option>
+                        <option value="aug">August</option>
+                        <option value="sep">September</option>
+                        <option value="oct">October</option>
+                        <option value="nov">November</option>
+                        <option value="dec">December</option>
+                    </select>
+                </div>
+            </div>            <div class="sales-analytics-chart-wrapper">
+                <div id="salesAnalyticsChart" class="sales-analytics-chart" aria-label="Sales analytics chart"></div>
+            </div>
+            <div class="chart-scroll-controls" data-scroll-target="salesAnalyticsChart">
+                <span class="chart-scroll-hint">Scroll to see more</span>
+            </div>
+        </div>
+
+        <div class="sales-analytics-placeholder profit-export-panel" id="salesExportModule">
+            <h3><i class="fa-solid fa-file-excel panel-heading-icon is-export" aria-hidden="true" ></i>Sales &amp; Receipt Export</h3>
+            <p>Generate Excel reports of completed orders with order numbers and itemized food lists.</p>
+            <div class="export-mode-tabs" role="tablist" aria-label="Export report type">
+                <button type="button" class="export-mode-tab active" data-export-mode="daily" role="tab" aria-selected="true">Daily Report</button>
+                <button type="button" class="export-mode-tab" data-export-mode="monthly" role="tab" aria-selected="false">Monthly Report</button>
+            </div>
+            <div class="export-controls" id="exportDailyControls">
+                <label class="export-field" for="exportDailyDate">
+                    <span>Report Date</span>
+                    <input type="date" id="exportDailyDate">
+                </label>
+                <button type="button" id="exportDailyBtn" class="menu-place-order-btn">
+                    <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export Daily Sales &amp; Receipts
+                </button>
+            </div>
+            <div class="export-controls" id="exportMonthlyControls" hidden>
+                <label class="export-field" for="exportMonthSelect">
+                    <span>Month</span>
+                    <select id="exportMonthSelect">
+                        <option value="0">January</option>
+                        <option value="1">February</option>
+                        <option value="2">March</option>
+                        <option value="3">April</option>
+                        <option value="4">May</option>
+                        <option value="5">June</option>
+                        <option value="6">July</option>
+                        <option value="7">August</option>
+                        <option value="8">September</option>
+                        <option value="9">October</option>
+                        <option value="10">November</option>
+                        <option value="11">December</option>
+                    </select>
+                </label>
+                <label class="export-field" for="exportYearSelect">
+                    <span>Year</span>
+                    <select id="exportYearSelect"></select>
+                </label>
+                <button type="button" id="exportMonthlyBtn" class="menu-place-order-btn">
+                    <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export Monthly Sales &amp; Receipts
+                </button>
+            </div>
+            <p id="exportMessage" class="menu-order-message" aria-live="polite"></p>
+            <div id="exportSummary" class="export-summary" hidden></div>
+        </div>
+
+        <div class="sales-analytics-placeholder profit-analytics-panel">
+            <h3><i class="fa-solid fa-coins panel-heading-icon is-profit" aria-hidden="true" ></i>Profit Analysis</h3>
+            <p>Net profit from completed orders after cost of goods sold.</p>
+            <div class="profit-summary-row">
+                <div class="profit-summary-chip">
+                    <span>Revenue</span>
+                    <strong id="profitRevenueValue">₱0</strong>
+                </div>
+                <div class="profit-summary-chip">
+                    <span>Cost of Goods Sold</span>
+                    <strong id="profitCogsValue">₱0</strong>
+                </div>
+                <div class="profit-summary-chip">
+                    <span>Net Profit</span>
+                    <strong id="profitNetValue">₱0</strong>
+                </div>
+            </div>
+            <div class="sales-analytics-select-wrapper">
+                <label for="profitAnalyticsSelect">View:</label>
+                <select id="profitAnalyticsSelect" class="analytics-select">
+                    <option value="daily">Daily Profit</option>
+                    <option value="weekly">Weekly Profit</option>
+                    <option value="monthly">Monthly Profit</option>
+                </select>
+                <div id="profitMonthWrapper" class="nested-selector">
+                    <label for="profitMonthSelect">Month:</label>
+                    <select id="profitMonthSelect" class="nested-select">
+                        <option value="jan">January</option>
+                        <option value="feb">February</option>
+                        <option value="mar">March</option>
+                        <option value="apr">April</option>
+                        <option value="may">May</option>
+                        <option value="jun">June</option>
+                        <option value="jul">July</option>
+                        <option value="aug">August</option>
+                        <option value="sep">September</option>
+                        <option value="oct">October</option>
+                        <option value="nov">November</option>
+                        <option value="dec">December</option>
+                    </select>
+                </div>
+            </div>
+            <div class="sales-analytics-chart-wrapper">
+                <div id="profitAnalyticsChart" class="sales-analytics-chart" aria-label="Profit analytics chart"></div>
+            </div>
+            <div class="chart-scroll-controls" data-scroll-target="profitAnalyticsChart">
+                <span class="chart-scroll-hint">Scroll to see more days</span>
+            </div>
+        </div>
+
+        <div class="sales-analytics-placeholder profit-export-panel">
+            <h3><i class="fa-solid fa-file-excel panel-heading-icon is-export" aria-hidden="true" ></i>Profit Report Export</h3>
+            <p>Export profit reports (revenue, cost of goods sold, and net profit) as Excel. Costs use the inventory unit costs.</p>
+            <div class="export-mode-tabs" role="tablist" aria-label="Profit report type">
+                <button type="button" class="profit-export-tab active" data-profit-export-mode="daily" role="tab" aria-selected="true">Daily Report</button>
+                <button type="button" class="profit-export-tab" data-profit-export-mode="monthly" role="tab" aria-selected="false">Monthly Report</button>
+            </div>
+            <div class="export-controls" id="profitExportDailyControls">
+                <label class="export-field" for="profitExportDate">
+                    <span>Report Date</span>
+                    <input type="date" id="profitExportDate">
+                </label>
+                <button type="button" id="profitExportDailyBtn" class="menu-place-order-btn">
+                    <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export Daily Profit
+                </button>
+            </div>
+            <div class="export-controls" id="profitExportMonthlyControls" hidden>
+                <label class="export-field" for="profitExportMonth">
+                    <span>Month</span>
+                    <select id="profitExportMonth">
+                        <option value="0">January</option>
+                        <option value="1">February</option>
+                        <option value="2">March</option>
+                        <option value="3">April</option>
+                        <option value="4">May</option>
+                        <option value="5">June</option>
+                        <option value="6">July</option>
+                        <option value="7">August</option>
+                        <option value="8">September</option>
+                        <option value="9">October</option>
+                        <option value="10">November</option>
+                        <option value="11">December</option>
+                    </select>
+                </label>
+                <label class="export-field" for="profitExportYear">
+                    <span>Year</span>
+                    <select id="profitExportYear"></select>
+                </label>
+                <button type="button" id="profitExportMonthlyBtn" class="menu-place-order-btn">
+                    <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export Monthly Profit
+                </button>
+            </div>
+            <p id="profitExportMessage" class="menu-order-message" aria-live="polite"></p>
+        </div>
+
+        <div class="sales-tabs">
+            <button type="button" class="sales-tab-btn active" data-tab="insights">Insights</button>
+        </div>
+
+        <div id="insights" class="sales-tab-content">
+            <div class="insights-toolbar">
+                <h3>Insights</h3>
+                <div class="insights-toolbar-actions">
+                    <label class="insights-period-filter" for="insightsPeriodFilter">
+                        <span>Period</span>
+                        <select id="insightsPeriodFilter">
+                            <option value="all">All time</option>
+                            <option value="today">Today</option>
+                            <option value="yesterday">Yesterday</option>
+                            <option value="thisweek">This Week</option>
+                            <option value="lastweek">Last Week</option>
+                            <option value="thismonth">This Month</option>
+                            <option value="lastmonth">Last Month</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </label>
+                    <div class="insights-custom-range" id="insightsCustomRange" hidden>
+                        <label class="insights-period-filter" for="insightsCustomFrom">
+                            <span>From</span>
+                            <input type="date" id="insightsCustomFrom">
+                        </label>
+                        <label class="insights-period-filter" for="insightsCustomTo">
+                            <span>To</span>
+                            <input type="date" id="insightsCustomTo">
+                        </label>
+                    </div>
+                    <button type="button" id="insightsExportBtn" class="menu-place-order-btn"><i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export Report</button>
+                </div>
+            </div>
+            <p>Busiest hours, best-selling dishes, and period comparison across completed orders.</p>
+            <div class="insights-grid">
+                <div class="insight-card">
+                    <h4><i class="fa-solid fa-clock" aria-hidden="true"></i> Busiest Hours</h4>
+                    <div id="insightsHourlyChart" aria-label="Sales by hour of day"></div>
+                </div>
+                <div class="insight-card">
+                    <h4><i class="fa-solid fa-trophy" aria-hidden="true"></i> Best Sellers</h4>
+                    <div id="insightsBestSellers"></div>
+                </div>
+                <div class="insight-card insight-card-wide">
+                    <h4><i class="fa-solid fa-scale-balanced" aria-hidden="true"></i> Period Comparison</h4>
+                    <div class="insights-compare-controls">
+                        <label>
+                            Period A
+                            <select id="insightsComparePeriodA">
+                                <option value="today">Today</option>
+                                <option value="yesterday">Yesterday</option>
+                                <option value="thisweek">This Week</option>
+                                <option value="lastweek">Last Week</option>
+                                <option value="thismonth">This Month</option>
+                                <option value="lastmonth">Last Month</option>
+                            </select>
+                        </label>
+                        <label>
+                            Period B
+                            <select id="insightsComparePeriodB">
+                                <option value="yesterday">Yesterday</option>
+                                <option value="today">Today</option>
+                                <option value="thisweek">This Week</option>
+                                <option value="lastweek">Last Week</option>
+                                <option value="thismonth">This Month</option>
+                                <option value="lastmonth">Last Month</option>
+                            </select>
+                        </label>
+                        <button type="button" id="insightsCompareBtn" class="menu-place-order-btn">Compare</button>
+                    </div>
+                    <div id="insightsCompareResult"></div>
+                </div>
+            </div>
+        </div>
+
+        <button type="button" id="salesScrollTopBtn" class="sales-scroll-top-btn" aria-label="Scroll to top of Sales">
+            <i class="fa-solid fa-arrow-up" aria-hidden="true"></i> Scroll to Top
+        </button>
+    </section>
+
+    <section id="inventory" class="inventory-section" hidden>
+        <h2>Inventory</h2>            <div id="inventoryAdminPanel" class="inventory-admin-panel">
+                <div class="inventory-panel-header">
+                    <div>
+                        <h3>Inventory Manager</h3>
+                    </div>
+                    <span id="inventoryAccessNote"></span>
+                </div>
+
+                <div class="inventory-action-row">
+                    <button type="button" id="inventoryAddFab" class="inventory-add-fab" aria-label="Add new inventory product">+</button>
+                </div>
+
+            <div id="inventoryModal" class="inventory-modal" hidden>
+                <div class="inventory-modal-card">
+                    <div class="inventory-modal-header">
+                        <h3 id="inventoryModalTitle">Add New Product</h3>
+                        <button type="button" id="inventoryModalCloseBtn" class="inventory-modal-close" aria-label="Close add product popup">×</button>
+                    </div>
+                    <form id="inventoryForm" class="inventory-form">
+                        <div class="inventory-form-grid">
+                            <label>
+                                Item Name
+                                <input id="inventoryNameInput" type="text" placeholder="Item name" required>
+                            </label>
+                            <label>
+                                Category
+                                <select id="inventoryCategoryInput">
+                                    <option value="batchoy">Batchoy</option>
+                                    <option value="silog">Silog</option>
+                                    <option value="friedChicken">Fried Chicken</option>
+                                    <option value="breakfast">Breakfast</option>
+                                    <option value="drinks">Drinks</option>
+                                    <option value="addons">Add On</option>
+                                    <option value="specials">Specials</option>
+                                </select>
+                            </label>
+                            <label>
+                                Price
+                                <input id="inventoryPriceInput" type="number" min="0" step="0.01" placeholder="Price" required>
+                            </label>
+                            <label>
+                                Stock
+                                <input id="inventoryStockInput" type="number" min="0" step="1" placeholder="Stock" required>
+                            </label>
+                            <label id="inventoryUnitCostField">
+                                Unit Cost (₱)
+                                <input id="inventoryUnitCostInput" type="number" min="0" step="0.01" placeholder="Cost per unit" value="0">
+                                <small class="field-helper">Blank costs are estimated at 40% of the selling price for profit reports. Enter the real cost to override.</small>
+                            </label>
+                            <label>
+                                Availability
+                                <select id="inventoryAvailabilityInput">
+                                    <option value="1">Available on menu</option>
+                                    <option value="0">Hidden from menu</option>
+                                </select>
+                            </label>
+                            <label class="inventory-description-field">
+                                Description
+                                <textarea id="inventoryDescriptionInput" rows="4" placeholder="Add the dish description"></textarea>
+                            </label>
+                            <label>
+                                Status
+                                <select id="inventoryStatusInput">
+                                    <option value="In stock">In stock</option>
+                                    <option value="Low stock">Low stock</option>
+                                    <option value="Out of stock">Out of stock</option>
+                                </select>
+                            </label>
+                            <label id="specialFoodImageField" hidden>
+                                Special Food Image
+                                <input id="specialFoodImageInput" type="file" accept="image/*">
+                                <small>Used only when category is Specials. Image will be cropped to square for consistent display.</small>
+                            </label>
+                            <div id="specialCustomizeField" class="special-customize-field" hidden>
+                                <p class="special-customize-title">Customize</p>
+                                <div class="special-customize-builder">
+                                    <label>
+                                        Add-on item
+                                        <select id="specialCustomizeItemSelect"></select>
+                                    </label>
+                                    <label>
+                                        Quantity
+                                        <input id="specialCustomizeQtyInput" type="number" min="1" step="1" value="1">
+                                    </label>
+                                    <button type="button" id="specialCustomizeAddBtn" class="menu-place-order-btn">Add Component</button>
+                                </div>
+                                <div id="specialCustomizeList" class="special-customize-list"></div>
+                            </div>
+                            <div id="specialFoodImagePreviewWrap" class="special-food-image-preview-wrap" hidden>
+                                <img id="specialFoodImagePreview" alt="Special food preview">
+                            </div>
+                        </div>
+                        <button type="submit" id="inventorySaveBtn" class="menu-place-order-btn">Save Inventory Item</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="inventory-toolbar">
+                <label class="inventory-search-field">
+                    <span>Search products</span>
+                    <input id="inventorySearchInput" type="search" placeholder="Search by product name">
+                </label>
+                <div id="inventoryCategoryTabs" class="inventory-category-tabs">
+                    <button type="button" class="inventory-category-tab active" data-category="all">All</button>
+                    <button type="button" class="inventory-category-tab" data-category="batchoy">Batchoy</button>
+                    <button type="button" class="inventory-category-tab" data-category="silog">Silog</button>
+                    <button type="button" class="inventory-category-tab" data-category="friedChicken">Fried Chicken</button>
+                    <button type="button" class="inventory-category-tab" data-category="breakfast">Breakfast</button>
+                    <button type="button" class="inventory-category-tab" data-category="drinks">Drinks</button>
+                    <button type="button" class="inventory-category-tab" data-category="addons">Add On</button>
+                    <button type="button" class="inventory-category-tab" data-category="specials">Specials</button>
+                </div>
+            </div>
+
+            <p id="inventoryDeleteStatus" class="inventory-delete-status" role="status" aria-live="polite" hidden>
+                <span id="inventoryDeleteStatusText"></span>
+            </p>
+
+            <div id="inventoryItemsWrapper" class="inventory-items-wrapper" hidden></div>
+        </div>
+    </section>
+
+    <section id="pending-orders" class="orders-section" hidden>
+        <h2>Orders</h2>
+        <p>Create walk-in orders here. </p>
+
+        <div class="orders-tab-switch" role="tablist" aria-label="Orders tabs">
+            <button type="button" id="walkInOrdersTabBtn" class="orders-tab-btn active" data-orders-tab="walk-in" role="tab" aria-selected="true">Walk-in Order</button>
+            <button type="button" id="pendingOrdersTabBtn" class="orders-tab-btn" data-orders-tab="pending" role="tab" aria-selected="false">Pending Orders</button>
+            <button type="button" id="orderHistoryTabBtn" class="orders-tab-btn" data-orders-tab="history" role="tab" aria-selected="false">Order History</button>
+        </div>
+
+        <div id="walkInOrderPanel" class="walkin-order-panel" role="tabpanel" aria-labelledby="walkInOrdersTabBtn">
+            <div class="walkin-order-builder">
+                <label>
+                    Product
+                    <span class="walkin-item-picker">
+                        <input id="walkInItemInput" type="text" placeholder="Click to choose a product" autocomplete="off" aria-expanded="false" aria-haspopup="listbox" aria-controls="walkInItemDropdown" role="combobox">
+                        <div id="walkInItemDropdown" class="walkin-item-dropdown" role="listbox" hidden></div>
+                    </span>
+                </label>
+                <label>
+                    Quantity
+                    <input id="walkInItemQtyInput" type="number" min="1" step="1" value="1">
+                </label>
+                <button type="button" id="walkInAddItemBtn" class="menu-place-order-btn">Add Item</button>
+            </div>
+
+            <div id="walkInDraftList" class="walkin-draft-list"></div>
+
+            <div class="walkin-order-footer">
+                <label>
+                    Payment Method
+                    <select id="walkInPaymentMethodSelect">
+                        <option value="Cash">Cash</option>
+                        <option value="GCash">GCash</option>
+                    </select>
+                </label>
+                <label>
+                    Order Type
+                    <select id="walkInOrderTypeSelect">
+                        <option value="Walk-in Dine In">Walk-in Dine In</option>
+                        <option value="Walk-in Take Out">Walk-in Take Out</option>
+                    </select>
+                </label>
+                <button type="button" id="walkInPlaceOrderBtn" class="menu-place-order-btn">Place Walk-in Order</button>
+            </div>
+
+            <p id="walkInOrderMessage" class="menu-order-message" aria-live="polite"></p>
+        </div>
+
+        <div id="pendingOrdersPanel" role="tabpanel" aria-labelledby="pendingOrdersTabBtn" hidden>
+            <div id="pendingOrdersList" class="pending-orders-list"></div>
+        </div>
+
+        <div id="orderHistoryPanel" class="order-history-panel" role="tabpanel" aria-labelledby="orderHistoryTabBtn" hidden>
+            <div class="order-history-controls">
+                <div class="order-history-controls-head">
+                    <h4>Retrieve a past day</h4>
+                    <span class="order-history-limit">Kept for 3 months — older records are automatically deleted.</span>
+                </div>
+                <div class="order-history-controls-row">
+                    <label class="order-history-field" for="orderHistoryMonthSelect">
+                        <span>Month</span>
+                        <select id="orderHistoryMonthSelect"></select>
+                    </label>
+                    <label class="order-history-field" for="orderHistoryDaySelect">
+                        <span>Day</span>
+                        <select id="orderHistoryDaySelect"></select>
+                    </label>
+                    <button type="button" id="orderHistoryLoadBtn" class="menu-place-order-btn">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> View Orders
+                    </button>
+                </div>
+            </div>
+            <p id="orderHistoryMessage" class="menu-order-message" aria-live="polite"></p>
+            <div id="orderHistoryList" class="order-history-list"></div>
+        </div>
+    </section>
+
+    <section id="logs" class="orders-section" hidden>
+        <h2>Logs</h2>
+        <p>Real-time activity across devices: quantity changes, removals, and completed orders.</p>
+        <div id="logsFilterBar" class="logs-filter-bar" role="group" aria-label="Log filters">
+            <label class="logs-filter-select-wrap" for="logsCategoryFilter">
+                <span class="sr-only">Select log category</span>
+                <select id="logsCategoryFilter" class="logs-category-filter">
+                    <option value="all">All</option>
+                    <option value="today">Today</option>
+                    <option value="qty">Qty Changes</option>
+                    <option value="completed">Completed</option>
+                    <option value="stock">Stock Only</option>
+                    <option value="inventory">Inventory</option>
+                    <option value="accounts">Accounts</option>
+                    <option value="reviews">Reviews</option>
+                </select>
+            </label>
+            <label class="logs-date-filter-wrap" for="logsDateFilter">
+                <span class="sr-only">Choose log date</span>
+                <input id="logsDateFilter" class="logs-date-filter" type="date">
+            </label>
+        </div>
+        <div id="logsList" class="order-logs-list"></div>
+    </section>
+
+    <section id="customer-reviews" class="orders-section" hidden>
+        <h2>Customer Reviews</h2>
+        <p>Customer reviews across devices. Publish approved reviews or delete inappropriate ones.</p>
+        <div class="review-filter-bar" role="group" aria-label="Filter reviews by star rating">
+            <button type="button" class="review-filter-btn is-active" data-review-rating="0">All</button>
+            <button type="button" class="review-filter-btn" data-review-rating="1">1 Star</button>
+            <button type="button" class="review-filter-btn" data-review-rating="2">2 Star</button>
+            <button type="button" class="review-filter-btn" data-review-rating="3">3 Star</button>
+            <button type="button" class="review-filter-btn" data-review-rating="4">4 Star</button>
+            <button type="button" class="review-filter-btn" data-review-rating="5">5 Star</button>
+        </div>
+        <div id="staffReviewList" class="staff-review-list"></div>
+    </section>
+
+    <section id="account-management" class="account-management" hidden>
+        <h2>Account Management</h2>
+        <p>Manage every account from one list, including the admin. Tap an account to open its settings (change email, change password, or remove the account). Sensitive changes require a verification code sent to the admin email. Staff invites are Gmail-only and require email confirmation before first login.</p>
+
+        <button type="button" id="toggleAccountFormBtn" class="add-staff-btn">Add Staff Account</button>
+
+        <!-- Add form for Cashier / Inventory Manager accounts. -->
+        <form id="accountForm" class="account-form" hidden>
+            <h3>New Staff Account</h3>
+            <p>Create a Cashier or Inventory Manager account. The invite email must be confirmed before the first login.</p>
+
+            <div class="floating-field">
+                <input type="text" id="accountName" placeholder=" " maxlength="80" autocomplete="name" title="Letters, spaces, hyphens, apostrophes, and periods only." required>
+                <label for="accountName">Full Name</label>
+                <small class="field-helper">Letters, spaces, hyphens, apostrophes, and periods only.</small>
+            </div>
+            <div class="floating-field">
+                <select id="accountRole" required>
+                    <option value="">Select role</option>
+                    <option value="Cashier">Cashier</option>
+                    <option value="Inventory Manager">Inventory Manager</option>
+                </select>
+                <label for="accountRole">Role</label>
+            </div>
+            <div class="floating-field">
+                <input type="email" id="accountEmail" placeholder=" " autocomplete="email" required>
+                <label for="accountEmail">Gmail</label>
+                <small class="field-helper">Gmail only (example@gmail.com).</small>
+            </div>
+            <div class="floating-field">
+                <input type="password" id="accountPassword" placeholder=" " minlength="8" autocomplete="new-password" required>
+                <label for="accountPassword">Password</label>
+                <small class="field-helper">Use 8+ characters with uppercase, lowercase, and a number. Common passwords are rejected.</small>
+            </div>
+            <div class="floating-field">
+                <input type="password" id="accountPasswordConfirmation" placeholder=" " minlength="8" autocomplete="new-password" required>
+                <label for="accountPasswordConfirmation">Confirm password</label>
+            </div>
+
+            <div class="account-form-actions">
+                <button type="submit">Save Account</button>
+                <button type="button" id="cancelAccountFormBtn" class="secondary-btn">Cancel</button>
+            </div>
+        </form>
+
+        <ul id="accountList" class="account-list"></ul>
+    </section>
+
+    <section id="account-settings" class="account-management" hidden>
+        <button type="button" id="accountSettingsBackBtn" class="account-settings-back-btn">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to Account List
+        </button>
+
+        <h2>Account Settings</h2>
+        <p>Manage the email, password, and access of the selected staff account. Every sensitive change requires a verification code sent to the admin email before it is applied.</p>
+
+        <div class="trusted-devices-card">
+            <div class="trusted-devices-header">
+                <h3>Selected Account</h3>
+                <p>You are managing this account's credentials and access.</p>
+            </div>
+            <div class="account-settings-head">
+                <span id="accountSettingsAvatar" class="account-settings-avatar" aria-hidden="true"></span>
+                <span class="account-settings-identity">
+                    <strong id="accountSettingsName"></strong>
+                    <small id="accountSettingsMeta"></small>
+                </span>
+                <span id="accountSettingsRoleBadge" class="account-settings-role-badge"></span>
+            </div>
+        </div>
+
+        <div class="trusted-devices-card">
+            <div class="trusted-devices-header">
+                <h3>Account Actions</h3>
+                <p>Update the Gmail address, set a new password, or permanently remove the account. Verify the code emailed to the admin address to continue.</p>
+            </div>
+
+            <button type="button" id="changeEmailOptionBtn" class="account-setting-option">
+                <span class="account-setting-option-icon" aria-hidden="true"><i class="fa-solid fa-envelope"></i></span>
+                <span class="account-setting-option-text">
+                    <strong>Change Email</strong>
+                    <small>Update the Gmail address for this account.</small>
+                </span>
+                <span class="account-setting-option-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
+            </button>
+
+            <button type="button" id="changePasswordOptionBtn" class="account-setting-option">
+                <span class="account-setting-option-icon" aria-hidden="true"><i class="fa-solid fa-key"></i></span>
+                <span class="account-setting-option-text">
+                    <strong>Change Password</strong>
+                    <small>Set a new password for this account.</small>
+                </span>
+                <span class="account-setting-option-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
+            </button>
+
+            <button type="button" id="removeAccountOptionBtn" class="account-setting-option account-setting-option-danger">
+                <span class="account-setting-option-icon" aria-hidden="true"><i class="fa-solid fa-trash-can"></i></span>
+                <span class="account-setting-option-text">
+                    <strong>Remove Account</strong>
+                    <small>Permanently delete this account and revoke its access.</small>
+                </span>
+                <span class="account-setting-option-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
+            </button>
+        </div>
+
+        <div class="trusted-devices-card">
+            <div class="trusted-devices-header">
+                <h3>Two-Factor Authentication</h3>
+                <p>Require an authenticator app code in addition to the password for this account.</p>
+            </div>
+            <div class="totp-status-row">
+                <span class="totp-status-icon" aria-hidden="true"><i class="fa-solid fa-shield-halved"></i></span>
+                <span class="totp-status-text" id="totpStatusText">Loading&hellip;</span>
+            </div>
+            <button type="button" id="totpOptionBtn" class="account-setting-option">
+                <span class="account-setting-option-icon" aria-hidden="true"><i class="fa-solid fa-mobile-screen-button"></i></span>
+                <span class="account-setting-option-text">
+                    <strong id="totpOptionLabel">Set Up Authenticator</strong>
+                    <small id="totpOptionDesc">Link this account to an authenticator app.</small>
+                </span>
+                <span class="account-setting-option-chevron" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
+            </button>
+        </div>
+
+        <p id="accountSettingsMessage" class="account-settings-message" aria-live="polite"></p>
+    </section>
+
+    <section id="login-logs" class="account-management" hidden>
+        <h2>Login Logs</h2>
+        <p>Devices that have completed a verified staff login and the audit trail of successful logins with date, time, and role.</p>
+
+        <div class="trusted-devices-card" id="trustedDevicesCard">
+            <div class="trusted-devices-header">
+                <h3>Trusted Devices</h3>
+                <p>Devices that have completed a verified login for this account. Every staff login requires a fresh verification code sent to the account email.</p>
+            </div>
+            <div id="trustedDevicesList" class="trusted-devices-list"></div>
+            <p id="trustedDevicesMessage" class="menu-order-message" aria-live="polite"></p>
+        </div>
+
+        <div class="trusted-devices-card login-history-card" id="loginHistoryCard">
+            <div class="trusted-devices-header">
+                <h3>Login History</h3>
+                <p>Audit trail of successful staff logins with date, time, and role.</p>
+            </div>
+            <div id="loginOnlineList" class="login-online-list"></div>
+            <div class="login-history-filter-row">
+                <label for="loginHistoryDateInput">Filter by date</label>
+                <input type="date" id="loginHistoryDateInput" aria-label="Filter login history by date">
+                <button type="button" id="loginHistoryClearDateBtn" class="login-history-clear-btn">Show all</button>
+            </div>
+            <div id="loginHistoryList"></div>
+        </div>
+    </section>
+
+    <section id="highlights" class="account-management" hidden>
+        <h2>Highlights</h2>
+        <p>Upload homepage slideshow images. Maximum of 15 images.</p>
+
+        <form id="highlightsForm" class="account-form">
+            <input type="file" id="highlightsImagesInput" accept="image/*" multiple>
+            <button type="submit">Upload Highlights</button>
+        </form>
+
+        <button type="button" id="optimizeHighlightsBtn" class="secondary-btn">OPTIMIZE STORED IMAGES</button>
+        <p class="field-helper">Re-saves the slideshow at a smaller size so the homepage loads faster. Use this for images uploaded before the automatic shrinking.</p>
+
+        <p id="highlightsMessage" class="menu-order-message" aria-live="polite"></p>
+        <div id="highlightsList" class="highlights-list"></div>
+    </section>
+
+    <div id="deviceVerifyModal" class="modal-overlay" hidden aria-hidden="true">
+        <div class="modal-box device-verify-modal" role="dialog" aria-modal="true" aria-labelledby="deviceVerifyTitle">
+            <button type="button" class="modal-close" id="deviceVerifyCloseBtn" aria-label="Close verification prompt">×</button>
+            <div id="deviceVerifyCodeStep">
+                <h2 id="deviceVerifyTitle">Login verification required</h2>
+                <p id="deviceVerifyText">For security, a 6-digit verification code was sent to your email. Enter it below to continue.</p>
+                <label for="deviceVerifyCodeInput">Verification code</label>
+                <input type="text" id="deviceVerifyCodeInput" inputmode="numeric" maxlength="8" placeholder="6-digit code" autocomplete="one-time-code">
+                <div class="device-verify-actions">
+                    <button type="button" id="deviceVerifyBackBtn" class="secondary-btn">Cancel</button>
+                    <button type="button" id="deviceVerifySubmitBtn" class="menu-place-order-btn">Verify</button>
+                </div>
+                <p id="deviceVerifyMessage" class="menu-order-message" aria-live="polite"></p>
+            </div>
+        </div>
+    </div>
+
+    <div id="inviteVerifyModal" class="modal-overlay" hidden aria-hidden="true">
+        <div class="modal-box device-verify-modal invite-verify-modal" role="dialog" aria-modal="true" aria-labelledby="inviteVerifyTitle">
+            <button type="button" class="modal-close" id="inviteVerifyCloseBtn" aria-label="Close invite verification prompt">×</button>
+            <h2 id="inviteVerifyTitle">Invite verification required</h2>
+            <p id="inviteVerifyText">Enter the invite verification code sent to your Gmail to finish setting up your account.</p>
+            <label for="inviteVerifyCodeInput">Invite verification code</label>
+            <input type="text" id="inviteVerifyCodeInput" inputmode="numeric" maxlength="8" placeholder="6-digit code" autocomplete="one-time-code">
+            <div class="device-verify-actions">
+                <button type="button" id="inviteVerifyCancelBtn" class="secondary-btn">Cancel</button>
+                <button type="button" id="inviteVerifySubmitBtn" class="menu-place-order-btn">Verify</button>
+            </div>
+            <p id="inviteVerifyMessage" class="menu-order-message" aria-live="polite"></p>
+        </div>
+    </div>
+
+    <div id="noticeModal" class="modal-overlay" hidden aria-hidden="true">
+        <div class="modal-box notice-modal" role="alertdialog" aria-modal="true" aria-labelledby="noticeModalTitle" aria-describedby="noticeModalText">
+            <button type="button" class="modal-close" id="noticeModalCloseBtn" aria-label="Dismiss notice">×</button>
+            <div class="notice-modal-icon" id="noticeModalIcon" aria-hidden="true">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <h2 id="noticeModalTitle">Notice</h2>
+            <p id="noticeModalText"></p>
+            <div class="device-verify-actions">
+                <button type="button" id="noticeModalOkBtn" class="menu-place-order-btn">OK</button>
+            </div>
+            <div class="notice-auto-close-bar" id="noticeAutoCloseBar" hidden aria-hidden="true"></div>
+        </div>
+    </div>
+
+    <!-- Cash collection prompt shown when an order is marked complete. Staff
+         records how much the customer handed over; the change (sukli) is
+         computed live and is written back into the order record, the export
+         and the printed receipt. Confirmation stays disabled until the amount
+         fully covers the order total. -->
+    <div id="paymentModal" class="modal-overlay" hidden aria-hidden="true">
+        <div class="modal-box payment-modal" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle" aria-describedby="paymentModalHint">
+            <button type="button" class="modal-close" id="paymentModalCloseBtn" aria-label="Close payment prompt">×</button>
+            <h2 id="paymentModalTitle">Collect Payment</h2>
+            <p class="payment-modal-hint" id="paymentModalHint">Enter the amount the customer paid to complete this order.</p>
+            <div class="payment-modal-total">
+                <span>Order Total</span>
+                <strong id="paymentModalTotal">₱0.00</strong>
+            </div>
+            <label class="payment-modal-field" for="paymentModalAmountInput">
+                <span>Amount Paid</span>
+                <input type="number" id="paymentModalAmountInput" min="0" step="0.01" inputmode="decimal" placeholder="0.00" autocomplete="off" />
+            </label>
+            <p class="payment-modal-error" id="paymentModalError" aria-live="polite" hidden></p>
+            <div class="payment-modal-change" id="paymentModalChangeRow" hidden>
+                <span>Change</span>
+                <strong id="paymentModalChangeValue">₱0.00</strong>
+            </div>
+            <div class="device-verify-actions">
+                <button type="button" id="paymentModalCancelBtn" class="secondary-btn">Cancel</button>
+                <button type="button" id="paymentModalConfirmBtn" class="menu-place-order-btn" disabled>Confirm &amp; Complete</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="modal-overlay" hidden aria-hidden="true">
+        <div class="modal-box notice-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirmModalTitle" aria-describedby="confirmModalText">
+            <button type="button" class="modal-close" id="confirmModalCloseBtn" aria-label="Dismiss confirmation">×</button>
+            <div class="notice-modal-icon confirm-modal-icon" id="confirmModalIcon" aria-hidden="true">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h2 id="confirmModalTitle">Are you sure?</h2>
+            <p id="confirmModalText"></p>
+            <div class="device-verify-actions">
+                <button type="button" id="confirmModalCancelBtn" class="secondary-btn">Cancel</button>
+                <button type="button" id="confirmModalConfirmBtn" class="menu-place-order-btn confirm-danger-btn">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin-authorized account change (email / password). A verification code
+         is emailed to the admin address and must be entered before the new
+         value can be applied. Steps mirror the forgot-password wizard. -->
+    <div id="accountChangeModal" class="forgot-password-modal account-change-modal" hidden aria-hidden="true">
+        <div class="account-change-modal-box" role="dialog" aria-modal="true" aria-labelledby="accountChangeTitle">
+            <button type="button" class="modal-close account-change-modal-close" id="accountChangeCloseBtn" aria-label="Close account change">&times;</button>
+
+            <div class="acm-progress" aria-hidden="true">
+                <div class="acm-progress-step" id="acmProgressItem1">
+                    <span class="acm-progress-dot"><i class="fa-solid fa-check"></i></span>
+                    <span class="acm-progress-label">Authorize</span>
+                </div>
+                <span class="acm-progress-connector"></span>
+                <div class="acm-progress-step" id="acmProgressItem2">
+                    <span class="acm-progress-dot"><i class="fa-solid fa-check"></i></span>
+                    <span class="acm-progress-label">Verify</span>
+                </div>
+                <span class="acm-progress-connector"></span>
+                <div class="acm-progress-step" id="acmProgressItem3">
+                    <span class="acm-progress-dot"><i class="fa-solid fa-check"></i></span>
+                    <span class="acm-progress-label">Update</span>
+                </div>
+            </div>
+
+            <!-- Step 1: authorize with the current admin password -->
+            <div class="acm-step" id="acmStepRequest">
+                <div class="acm-step-heading">
+                    <span class="acm-step-icon" id="acmHeaderIcon" aria-hidden="true"><i class="fa-solid fa-envelope"></i></span>
+                    <h3 id="accountChangeTitle">Confirm Identity</h3>
+                </div>
+                <p class="acm-step-description" id="acmRequestDescription">Enter the current admin password to authorize the change. We will email a 6-digit verification code to the admin address before anything is applied.</p>
+                <div class="floating-field acm-field">
+                    <input type="password" id="acmAdminPasswordInput" placeholder="Current admin password" autocomplete="current-password" required>
+                    <label for="acmAdminPasswordInput">Current admin password</label>
+                </div>
+                <p class="acm-error" id="acmRequestError" hidden></p>
+                <div class="acm-actions">
+                    <button type="button" class="btn-cancel acm-btn-cancel" id="acmRequestCancelBtn">Cancel</button>
+                    <button type="button" class="btn-send acm-btn-primary" id="acmRequestBtn">Send Code</button>
+                </div>
+            </div>
+
+            <!-- Step 2: enter the emailed code -->
+            <div class="acm-step" id="acmStepCode" hidden>
+                <div class="acm-step-heading">
+                    <span class="acm-step-icon" aria-hidden="true"><i class="fa-solid fa-shield-halved"></i></span>
+                    <h3>Enter Verification Code</h3>
+                </div>
+                <p class="acm-step-description">We emailed a 6-digit verification code to <strong id="acmSentToText"></strong>. Enter it below to continue.</p>
+                <div class="floating-field acm-field acm-field-code">
+                    <input type="text" id="acmCodeInput" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="••••••" autocomplete="one-time-code" required>
+                    <label for="acmCodeInput">Verification code</label>
+                </div>
+                <p class="acm-status" id="acmCodeStatus" hidden></p>
+                <p class="acm-error" id="acmCodeError" hidden></p>
+                <div class="acm-actions">
+                    <button type="button" class="btn-cancel acm-btn-cancel" id="acmCodeBackBtn">Back</button>
+                    <button type="button" class="btn-send acm-btn-primary" id="acmCodeBtn">Verify Code</button>
+                </div>
+                <div class="acm-resend-row">
+                    <span class="acm-resend-hint">Didn't get the code?</span>
+                    <button type="button" class="forgot-resend-btn acm-resend-btn" id="acmResendBtn">Send it again</button>
+                </div>
+            </div>
+
+            <!-- Step 3: set the new email or password -->
+            <div class="acm-step" id="acmStepNewValue" hidden>
+                <div class="acm-step-heading">
+                    <span class="acm-step-icon" aria-hidden="true"><i class="fa-solid fa-pen-to-square"></i></span>
+                    <h3 id="acmNewValueTitle">Set New Email</h3>
+                </div>
+                <p class="acm-step-description" id="acmNewValueDescription"></p>
+                <div class="floating-field acm-field" id="acmNewEmailField">
+                    <input type="email" id="acmNewEmailInput" placeholder="New Gmail address" autocomplete="email" required>
+                    <label for="acmNewEmailInput">New Gmail address</label>
+                </div>
+                <div class="floating-field acm-field" id="acmNewPasswordField">
+                    <input type="password" id="acmNewPasswordInput" placeholder="New password" autocomplete="new-password" minlength="8" required>
+                    <label for="acmNewPasswordInput">New password</label>
+                </div>
+                <div class="floating-field acm-field" id="acmNewPasswordConfirmField">
+                    <input type="password" id="acmNewPasswordConfirmInput" placeholder="Confirm new password" autocomplete="new-password" minlength="8" required>
+                    <label for="acmNewPasswordConfirmInput">Confirm new password</label>
+                </div>
+                <p class="acm-error" id="acmNewValueError" hidden></p>
+                <div class="acm-actions">
+                    <button type="button" class="btn-cancel acm-btn-cancel" id="acmNewValueBackBtn">Back</button>
+                    <button type="button" class="btn-send acm-btn-primary" id="acmNewValueBtn">Apply Changes</button>
+                </div>
+            </div>
+
+            <!-- Step 4: success -->
+            <div class="acm-step" id="acmStepSuccess" hidden>
+                <div class="acm-step-heading acm-success-heading">
+                    <span class="acm-step-icon acm-success-icon" aria-hidden="true"><i class="fa-solid fa-circle-check"></i></span>
+                    <h3 id="acmSuccessTitle">Email Updated</h3>
+                </div>
+                <p class="acm-step-description" id="acmSuccessText"></p>
+                <div class="acm-actions acm-actions-single">
+                    <button type="button" class="btn-send acm-btn-primary" id="acmSuccessBtn">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Two-factor setup wizard (admin-initiated) -->
+    <div id="totpSetupModal" class="forgot-password-modal" hidden aria-hidden="true">
+        <div class="forgot-password-modal-box" role="dialog" aria-modal="true" aria-labelledby="totpSetupTitle">
+            <button type="button" class="modal-close" id="totpSetupCloseBtn" aria-label="Close two-factor setup">&times;</button>
+
+            <div class="acm-progress" aria-hidden="true">
+                <div class="acm-progress-step" id="totpProgressItem1">
+                    <span class="acm-progress-dot"><i class="fa-solid fa-check"></i></span>
+                    <span class="acm-progress-label">Authorize</span>
+                </div>
+                <span class="acm-progress-connector"></span>
+                <div class="acm-progress-step" id="totpProgressItem2">
+                    <span class="acm-progress-dot"><i class="fa-solid fa-check"></i></span>
+                    <span class="acm-progress-label">Scan &amp; Activate</span>
+                </div>
+            </div>
+
+            <div class="acm-step" id="totpStepAuth">
+                <div class="acm-step-heading">
+                    <span class="acm-step-icon" aria-hidden="true"><i class="fa-solid fa-shield-halved"></i></span>
+                    <h3 id="totpSetupTitle">Set Up Two-Factor Authentication</h3>
+                </div>
+                <p class="acm-step-description">Enter the current admin password to begin setting up an authenticator app for this account.</p>
+                <div class="floating-field acm-field">
+                    <input type="password" id="totpAdminPasswordInput" placeholder="Current admin password" autocomplete="current-password" required>
+                    <label for="totpAdminPasswordInput">Current admin password</label>
+                </div>
+                <p class="acm-error" id="totpAuthError" hidden></p>
+                <div class="acm-actions">
+                    <button type="button" class="btn-cancel acm-btn-cancel" id="totpAuthCancelBtn">Cancel</button>
+                    <button type="button" class="btn-send acm-btn-primary" id="totpAuthBtn">Generate QR Code</button>
+                </div>
+            </div>
+
+            <div class="acm-step" id="totpStepScan" hidden>
+                <div class="acm-step-heading">
+                    <span class="acm-step-icon" aria-hidden="true"><i class="fa-solid fa-mobile-screen-button"></i></span>
+                    <h3>Scan Authenticator QR Code</h3>
+                </div>
+                <p class="acm-step-description">Scan this QR code with your authenticator app, or copy the secret key below it manually. Then enter the 6-digit code shown in the app to activate 2FA.</p>
+                <div class="totp-scan-body">
+                    <div id="totpQrContainer" class="totp-qr-container"></div>
+                    <label for="totpManualKeyInput">Manual secret key</label>
+                    <input type="text" id="totpManualKeyInput" class="totp-manual-key" readonly autocomplete="off">
+                    <label for="totpCodeInput">Enter 6-digit code from authenticator</label>
+                    <input type="text" id="totpCodeInput" inputmode="numeric" maxlength="8" placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;" autocomplete="one-time-code" required>
+                    <p class="acm-error" id="totpScanError" hidden></p>
+                    <div class="acm-actions">
+                        <button type="button" class="btn-cancel acm-btn-cancel" id="totpScanCancelBtn">Cancel</button>
+                        <button type="button" class="btn-send acm-btn-primary" id="totpActivateBtn">Activate</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="acm-step" id="totpSetupSuccess" hidden>
+                <div class="acm-step-heading acm-success-heading">
+                    <span class="acm-step-icon acm-success-icon" aria-hidden="true"><i class="fa-solid fa-circle-check"></i></span>
+                    <h3>Two-Factor Authentication Enabled</h3>
+                </div>
+                <p class="acm-step-description">Authenticator 2FA is now active for this account. The staff member will be asked for an app code on every login.</p>
+                <div class="acm-actions acm-actions-single">
+                    <button type="button" class="btn-send acm-btn-primary" id="totpSetupDoneBtn">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Two-factor disable confirmation -->
+    <div id="totpDisableModal" class="forgot-password-modal" hidden aria-hidden="true">
+        <div class="forgot-password-modal-box" role="dialog" aria-modal="true" aria-labelledby="totpDisableTitle">
+            <button type="button" class="modal-close" id="totpDisableCloseBtn" aria-label="Close two-factor disable">&times;</button>
+            <div class="acm-step">
+                <div class="acm-step-heading">
+                    <span class="acm-step-icon" aria-hidden="true"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                    <h3 id="totpDisableTitle">Disable Two-Factor Authentication</h3>
+                </div>
+                <p class="acm-step-description">This will turn off authenticator 2FA for this account. Enter the current admin password to confirm.</p>
+                <div class="floating-field acm-field">
+                    <input type="password" id="totpDisablePasswordInput" placeholder="Current admin password" autocomplete="current-password" required>
+                    <label for="totpDisablePasswordInput">Current admin password</label>
+                </div>
+                <p class="acm-error" id="totpDisableError" hidden></p>
+                <div class="acm-actions">
+                    <button type="button" class="btn-cancel acm-btn-cancel" id="totpDisableCancelBtn">Cancel</button>
+                    <button type="button" class="btn-send" id="totpDisableConfirmBtn">Disable 2FA</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Staff password recovery — shown inline on the login page via a modal;
+         the whole email -> code -> new password flow never navigates away. -->
+    <div id="forgotPasswordModal" class="forgot-password-modal" hidden aria-hidden="true">
+        <div class="forgot-password-modal-box" role="dialog" aria-modal="true" aria-labelledby="forgotPasswordTitle">
+            <button type="button" class="modal-close" id="forgotPasswordCloseBtn" aria-label="Close password recovery">&times;</button>
+
+            <!-- Step 1: request a verification code -->
+            <div id="fpStepEmail">
+                <h3 id="forgotPasswordTitle">Forgot Password</h3>
+                <p class="forgot-password-description">Enter your staff email address. We will send a 6-digit verification code to confirm your identity before you can reset your password.</p>
+                <input type="email" id="fpEmailInput" placeholder="Email" autocomplete="email" required>
+                <p class="forgot-password-error" id="fpEmailError" hidden></p>
+                <div class="forgot-actions">
+                    <button type="button" class="btn-cancel" id="fpEmailCancelBtn">Cancel</button>
+                    <button type="button" class="btn-send" id="fpEmailSubmitBtn">Send Code</button>
+                </div>
+            </div>
+
+            <!-- Step 2: verify the emailed code -->
+            <div id="fpStepCode" hidden>
+                <h3>Enter Verification Code</h3>
+                <p class="forgot-password-description">We emailed a 6-digit verification code to <strong id="fpCodeEmailText"></strong>. Enter it below.</p>
+                <input type="text" id="fpCodeInput" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" required>
+                <p class="forgot-password-status" id="fpCodeStatus" hidden></p>
+                <p class="forgot-password-error" id="fpCodeError" hidden></p>
+                <div class="forgot-actions">
+                    <button type="button" class="btn-cancel" id="fpCodeBackBtn">Use a Different Email</button>
+                    <button type="button" class="btn-send" id="fpCodeSubmitBtn">Verify Code</button>
+                </div>
+                <button type="button" class="forgot-resend-btn" id="fpResendBtn">Resend Code</button>
+            </div>
+
+            <!-- Step 3: set a new password -->
+            <div id="fpStepReset" hidden>
+                <h3>Reset Password</h3>
+                <p class="forgot-password-description">Choose a new password. It must be at least 12 characters and include uppercase letters, lowercase letters, and numbers.</p>
+                <input type="password" id="fpNewPasswordInput" placeholder="New password" autocomplete="new-password" required>
+                <input type="password" id="fpConfirmPasswordInput" placeholder="Confirm new password" autocomplete="new-password" required>
+                <p class="forgot-password-error" id="fpResetError" hidden></p>
+                <div class="forgot-actions">
+                    <button type="button" class="btn-cancel" id="fpResetBackBtn">Back</button>
+                    <button type="button" class="btn-send" id="fpResetSubmitBtn">Reset Password</button>
+                </div>
+            </div>
+
+            <!-- Success -->
+            <div id="fpStepSuccess" hidden>
+                <h3>Password Reset</h3>
+                <p class="forgot-password-description">Your password has been reset. You can now sign in with your new password.</p>
+                <div class="forgot-actions">
+                    <button type="button" class="btn-send" id="fpSuccessBtn">Back to Login</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="login-dark-overlay" aria-hidden="true"></div>
+    <div class="staff-login-page">
+        <div class="modal-box staff-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+            <span class="login-surface-badge" id="loginSurfaceBadge" aria-hidden="true">Admin Portal</span>
+            <h2 id="modalTitle">Admin Login</h2>
+            <form id="staffLoginForm" method="POST">
+                <div class="login-fields" id="loginFields">
+                    <input type="hidden" name="role" id="selectedRole" value="">
+
+                    <label for="email"><i class="fa-solid fa-envelope"></i> Email</label>
+                    <input type="text" name="email" id="email" placeholder="Email" required>
+
+                    <label for="password"><i class="fa-solid fa-key"></i> Password</label>
+                    <div class="password-field-wrapper">
+                        <input type="password" name="password" id="password" placeholder="Password" required>
+                        <button type="button" class="password-toggle-btn" data-password-toggle aria-label="Show password">
+                            <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                        </button>
+                    </div>
+
+                    <div class="remember-row">
+                        <input type="checkbox" id="rememberCredentials" name="rememberCredentials">
+                        <label for="rememberCredentials">Stay signed in on this device</label>
+                    </div>
+
+                    <div id="captchaContainer" class="captcha-container" hidden>
+                        <p class="captcha-label" hidden></p>
+                        <div id="captchaWidget" class="captcha-widget"></div>
+                        <input type="hidden" name="recaptcha-token" id="recaptchaToken">
+                        <div class="captcha-actions" id="captchaActions" hidden>
+                            <button type="button" id="captchaRetryBtn" class="captcha-retry-btn">Retry</button>
+                            <button type="button" id="captchaCancelBtn" class="captcha-cancel-btn">Cancel</button>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="staffLoginSubmitBtn">Login</button>
+
+                    <p class="staff-legal-links">
+                        <a href="/privacy" target="_blank" rel="noopener">Privacy Notice</a>
+                        <span aria-hidden="true">·</span>
+                        <a href="/terms" target="_blank" rel="noopener">Terms &amp; Conditions</a>
+                    </p>
+                </div>
+            </form>
+        </div>
+    </div>
+    </div>
+
+    
+    
+    
+    
+<pre id="probe-result"></pre><script>
+for (const el of document.querySelectorAll('[hidden]')) el.removeAttribute('hidden');
+const out = [];
+for (const span of document.querySelectorAll('.sr-only, span')) {
+  if (!/Select log category|Choose log date/.test(span.textContent)) continue;
+  const cs = getComputedStyle(span);
+  out.push({ text: span.textContent.trim(), position: cs.position, display: cs.display,
+    width: cs.width, height: cs.height, clip: cs.clip, clipPath: cs.clipPath,
+    overflow: cs.overflow, whiteSpace: cs.whiteSpace, marginTop: cs.marginTop, marginLeft: cs.marginLeft,
+    top: cs.top, left: cs.left, inlineStyle: span.getAttribute('style') });
+}
+document.getElementById('probe-result').textContent = JSON.stringify(out, null, 1);
+</script></body>
+</html>

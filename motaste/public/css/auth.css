@@ -1,0 +1,241 @@
+/* Styles for the standalone password screens: /forgot-password, /reset-password
+   and /reset-password/success. Those pages are their own Blade views and do not
+   load public/style.css (the site/portal stylesheet), so the handful of rules
+   they share used to be copy-pasted into each view's <style> block — the reset
+   form ended up missing the spacing rules its sibling had. They live here now.
+
+   Each view links this file with a ?v= cache-buster. The service worker caches
+   /css/* cache-first, so bumping the version in the views is what makes an edit
+   reach browsers that already visited one of these pages.
+
+   Class names stay the ones the views already used (card, input, btn). Nothing
+   else loads this file, so there is no chance of them leaking into the site. */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: #f3f4f6;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card {
+    width: 100%;
+    max-width: 420px;
+    padding: 36px 32px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* The reset form is a touch narrower than the other two screens. */
+.card-condensed {
+    max-width: 400px;
+    padding: 32px;
+}
+
+/* The success screen centres its content and gives the icon more room. */
+.card-centered {
+    padding: 40px 32px;
+    text-align: center;
+}
+
+h1 {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 8px;
+}
+
+.description {
+    text-align: center;
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 24px;
+}
+
+.description strong {
+    color: #374151;
+}
+
+.status {
+    background: #dcfce7;
+    color: #16a34a;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.logo {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 16px;
+    background: #1e293b;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logo svg {
+    width: 32px;
+    height: 32px;
+}
+
+.icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 20px;
+    background: #dcfce7;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon svg {
+    width: 28px;
+    height: 28px;
+    color: #16a34a;
+}
+
+.success-text {
+    color: #16a34a;
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 20px;
+}
+
+.label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+.input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 15px;
+    color: #1f2937;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.error {
+    color: #dc2626;
+    font-size: 13px;
+    margin-top: 4px;
+}
+
+/* Vertical rhythm for one labelled field: label + input + inline error. These
+   replaced the .mb-4 / .mb-6 utilities the views used to carry — .mb-6 was
+   never defined anywhere, so the confirm-password field had no space below it. */
+.auth-field {
+    margin-bottom: 16px;
+}
+
+.auth-field-last {
+    margin-bottom: 24px;
+}
+
+.btn {
+    width: 100%;
+    padding: 12px;
+    background: #1e293b;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn:hover {
+    background: #0f172a;
+}
+
+.btn:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    width: 100%;
+    padding: 10px;
+    background: #fff;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-secondary:hover {
+    background: #f3f4f6;
+}
+
+/* CTA on the success screen. Separate from .btn on purpose: it is an <a>, so it
+   sizes to its label instead of stretching, and keeps its own casing. */
+.btn-success {
+    display: inline-block;
+    padding: 12px 24px;
+    background: #16a34a;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.btn-success:hover {
+    background: #15803d;
+}
+
+.btn-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.btn-row form {
+    flex: 1;
+}
+
+.back-link {
+    display: block;
+    text-align: center;
+    margin-top: 20px;
+    color: #6b7280;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.back-link:hover {
+    color: #374151;
+    text-decoration: underline;
+}
