@@ -1,5 +1,17 @@
 <?php
 
+// Include-only helper: never reaches the browser as an entry script. When this
+// file IS the request's entry script the request is direct HTTP access, so it
+// is refused with 403. Legitimate includes (endpoints, console, tests) always
+// have a different SCRIPT_FILENAME.
+if (
+    (isset($_SERVER['SCRIPT_FILENAME']) && realpath((string) $_SERVER['SCRIPT_FILENAME']) === __FILE__)
+    || (isset($_SERVER['PHP_SELF']) && realpath((string) $_SERVER['PHP_SELF']) === __FILE__)
+) {
+    http_response_code(403);
+    exit;
+}
+
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
