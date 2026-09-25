@@ -41,7 +41,14 @@ recordOrderApiRequest('create_order');
 // email, delivery address) may only be collected after the customer agreed to
 // the Privacy Notice. The UI checkbox is the primary gate; this server-side
 // check makes consent mandatory even for direct API calls.
-if (empty($input['privacyConsent'])) {
+// Staff walk-in orders are exempt: they are rung up at the counter and carry no
+// customer details at all, so there is no personal information to consent to.
+$isStaffWalkIn = in_array(
+    trim((string)($input['orderType'] ?? '')),
+    ['Walk-in Dine In', 'Walk-in Take Out'],
+    true
+);
+if (!$isStaffWalkIn && empty($input['privacyConsent'])) {
     http_response_code(403);
     echo json_encode([
         'success' => false,
